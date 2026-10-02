@@ -2,6 +2,14 @@
 
 > **NOTE:** This is the development version. See [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) for detailed documentation.
 
+## Documentation
+
+| Document | Covers |
+|---|---|
+| [MATCH_MINDS_Complete_Project_Document.md](MATCH_MINDS_Complete_Project_Document.md) | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
+| [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) | System architecture, 41 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
+| [MATCH_MINDS_Feasibility_and_Design.md](MATCH_MINDS_Feasibility_and_Design.md) | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, data dictionary, UI/UX & accessibility |
+
 ## What is Match Minds?
 
 Match Minds is an AI-powered, bias-free recruitment platform that:
