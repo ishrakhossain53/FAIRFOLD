@@ -1,8 +1,8 @@
-# MATCH MINDS — Academic Submission Document
+# MATCH MINDS — Feasibility & Design Analysis
 
-**Project Title:** MATCH_MINDS
+**Project Title:** MATCH MINDS
 **Subtitle:** AI-Powered Bias-Free Recruitment Platform
-**Document Purpose:** Academic submission companion to the engineering specification.
+**Document Purpose:** Feasibility analysis, user stories, formal design diagrams, data dictionary and UI/UX specifications.
 
 ---
 
@@ -13,8 +13,8 @@ This file supplements — and does not replace — the two engineering specifica
 | Document | Role | Status |
 |---|---|---|
 | `MATCH_MINDS_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 41 FRs, 46 NFRs, SQL schema, ops | **Canonical** |
-| `MATCH_MINDS_Academic_Submission.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | **Supplement** |
+| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 41 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
+| `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | **Supplement** |
 
 **No content is duplicated here.** Where a section needs detail that already exists
 (compliance checklist, pricing tiers, ADRs), this document *cites* the canonical
@@ -81,11 +81,11 @@ These are not isolated product defects. They indicate a category-wide absence of
 that excludes the SMB segment entirely.
 
 > **`[PLACEHOLDER]` — Real-world example (team input required)**
-> The rubric asks for a *concrete* real example, and a real one is far more
-> persuasive than a market table. Supply one of:
-> - a published discrimination lawsuit or EEOC/ tribunal ruling involving an
->   automated screening tool (e.g. the 2018 Amazon CV-screening tool case, which is
->   the best-documented public example and is directly relevant — a model trained on
+> A concrete incident is far more persuasive than a market table, and none is
+> currently recorded. Supply one of:
+> - a published discrimination lawsuit or EEOC/tribunal ruling involving an
+>   automated screening tool (the 2018 Amazon CV-screening tool case is the
+>   best-documented public example and directly relevant — a model trained on
 >   a decade of male-dominated CVs downgraded CVs containing "women's");
 > - a local/regional case from Bangladesh;
 > - or an interview quote from a recruiter you spoke to (see §1.3).
@@ -96,11 +96,13 @@ that excludes the SMB segment entirely.
 
 > **`[PLACEHOLDER]` — Must be completed by the team.**
 >
-> The engineering specs contain **no record of how requirements were gathered**, and
-> an examiner will treat this as a gap: requirements must be *elicited*, not assumed.
+> The engineering specs contain **no record of how requirements were gathered.**
+> Requirements should be *elicited* from users, not inferred from a competitor's
+> feature list — without a stated method there is no way to tell which parts of this
+> 41-requirement set came from real user need and which from assumption.
 >
 > Replace the table below with what actually happened. If a method was not used, say
-> so and remove that row — **do not claim a study that was not conducted.**
+> so and remove that row — **do not claim research that was not conducted.**
 
 | Method | Used? | Respondents / N | Key findings | Resulting requirements |
 |---|---|---|---|---|
@@ -123,7 +125,7 @@ defensible if stated honestly):
 
 ### 1.4 Background study and analysis
 
-Complete and exceeds the requirement. Eleven systems analysed (rubric asks 2–3):
+Complete and well in excess of a minimum competitor scan. Eleven systems analysed:
 
 | Category | Systems | Documented finding |
 |---|---|---|
@@ -310,11 +312,11 @@ database models and use cases, but **have no functional requirement** in Arch Do
 | **GAP-2** | Candidate–employer messaging | `Message` model (Complete Doc §C.11); use case UC31; §1 "real-time candidate communication"; §7.2 | No FR covering sending, receiving, or read state |
 
 **Recommendation.** Both are real product features, not scope creep — GAP-2 in
-particular is named as a differentiator in the executive summary. Before submission
-these should be added to Arch Doc §4.1 as new FRs (the next free IDs are REQ-FR-042
-and REQ-FR-043) and this table updated. As it stands, a requirements-coverage
-cross-check would show two features shipping with no stated requirement — exactly the
-kind of traceability weakness an examiner probes.
+particular is named as a differentiator in the executive summary. They should be added
+to Arch Doc §4.1 as new FRs (the next free IDs are REQ-FR-042 and REQ-FR-043) and this
+table updated. As it stands, a requirements-coverage cross-check shows two features
+shipping with no stated requirement, which breaks FR↔story↔test traceability for anyone
+auditing the build later.
 
 Until then, the two stories above are marked ⚠️ with the gap reference rather than
 given an FR number, because **assigning them a fabricated ID would hide the problem.**
@@ -1703,37 +1705,38 @@ accessibility failure.
 
 ---
 
-## 4. Submission checklist
+## 4. Coverage checklist
 
-Rubric coverage after this document. ✅ = complete, ⚠️ = partial, ❌ = needs team input.
+Section coverage of this document against the project specification. ✅ = complete,
+⚠️ = partial, ❌ = needs team input.
 
-| # | Rubric item | Status | Where |
+| # | Item | Status | Where |
 |---|---|---|---|
 | **PROJECT FOUNDATION** ||||
-| 1 | Title, team, IDs, course, supervisor | ✅ handled in class | §10.4 for names |
+| 1 | Title, team and roles | ✅ | Header; §2.7.3 for the full table |
 | 2 | Project summary and users | ✅ | §1.1 |
 | 3 | Problem statement + real example | ⚠️ | §1.2 — example needs team input |
-| 4 | Background study, 2–3 systems | ✅ | §1.4 (11 systems, 3 in depth) |
-| 4b | Solution, objectives, scope, users | ✅ | §1.5 |
+| 4 | Background study, competitor analysis | ✅ | §1.4 (11 systems, 3 in depth) |
+| 5 | Solution, objectives, scope, users | ✅ | §1.5 |
 | **REQUIREMENTS & PLANNING** ||||
-| 1 | Requirement collection method | ❌ | §1.3 — **team must complete** |
-| 2 | Functional requirements with IDs | ✅ | §2.2 (41 FRs) |
-| 3 | Measurable NFRs | ✅ | §2.3 (46 NFRs) |
-| 4 | User stories, priority, backlog | ✅ | §2.4 (41 stories), §2.5 |
-| 5 | Five-way feasibility | ✅ | §2.6.1 – §2.6.5 |
-| 6 | Methodology, Gantt, roles, risk | ✅ | §2.7.1 – §2.7.4 |
+| 6 | Requirement collection method | ❌ | §1.3 — **team must complete** |
+| 7 | Functional requirements with IDs | ✅ | §2.2 (41 FRs — Arch Doc §4.1) |
+| 8 | Measurable NFRs | ✅ | §2.3 (50 NFRs — Arch Doc §4.2) |
+| 9 | User stories, priority, backlog | ✅ | §2.4 (42 stories), §2.5 |
+| 10 | Five-way feasibility | ✅ | §2.6.1 – §2.6.5 |
+| 11 | Methodology, Gantt, roles, risk | ✅ | §2.7.1 – §2.7.4 |
 | **SYSTEM ANALYSIS & DESIGN** ||||
-| 1 | Architecture + user workflow | ✅ | §3.1, §3.2 |
-| 2 | Use case diagram | ✅ | §3.3 |
-| 3 | Activity + sequence diagrams | ✅ | §3.4 + Arch §5.3 |
-| 4 | Class diagram | ✅ | §3.6 |
-| 5 | ER diagram, keys, data dictionary | ✅ | §3.7, §3.8 |
-| 6 | Wireframes, UI, navigation, a11y | ⚠️ | §3.9.2, §3.9.3 done; wireframes ❌ |
+| 12 | Architecture + user workflow | ✅ | §3.1, §3.2 |
+| 13 | Use case diagram | ✅ | §3.3 |
+| 14 | Activity + sequence diagrams | ✅ | §3.4 + Arch §5.3 |
+| 15 | Class diagram | ✅ | §3.6 |
+| 16 | ER diagram, keys, data dictionary | ✅ | §3.7, §3.8 |
+| 17 | Wireframes, UI, navigation, a11y | ⚠️ | §3.9.2, §3.9.3 done; wireframes ❌ |
 
 ### Outstanding items requiring team input
 
 1. **§1.3 — Requirement collection method.** State the real method, respondents and
-   sample size. Do not claim a study that was not run.
+   sample size. Do not claim research that was not conducted.
 2. **§1.2 — Real-world problem example.** Supply one concrete case (the 2018 Amazon
    CV-screening case is directly relevant and well documented).
 3. **§3.9.1 — Wireframes.** Obtain from the UI/UX designer or substitute low-fi.
