@@ -190,4 +190,3 @@ docker exec -it matchminds-django python manage.py shell
 
 ## License
 
-MIT - Open source for educational purposes.
