@@ -1,0 +1,25 @@
+# Development and testing dependencies
+
+# Testing
+pytest==8.3.3
+pytest-django==4.8.0
+pytest-cov==5.0.0
+factory-boy==3.3.0
+
+# Code quality
+black==24.10.0
+flake8==7.1.1
+isort==5.13.2
+mypy==1.13.0
+
+# Security
+bandit==1.7.10
+pip-audit==2.8.1
+safety==2.5.1
+
+# Documentation
+sphinx==8.2.2
+drf-spectacular==0.28.1
+
+# Background task monitoring
+flower==2.0.1
