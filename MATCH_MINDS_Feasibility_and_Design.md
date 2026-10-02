@@ -1611,7 +1611,7 @@ denormalised copies exist where search performance matters (e.g.
 > | 1 | Registration / login (incl. MFA) | Guest, all | FR-001 – FR-008 |
 > | 2 | Candidate onboarding + profile | Candidate | FR-009, FR-014 |
 > | 3 | Resume upload + upload progress | Candidate | FR-010 |
-> | 4 | Job browse / search results | Candidate | FR-022 |
+>        | 4 | Job browse / search results | Candidate | **GAP-1** ⚠️ (no FR exists) |
 > | 5 | Job detail + apply | Candidate | FR-022 |
 > | 6 | Application tracker (status timeline) | Candidate | FR-023 |
 > | 7 | Match score + rationale view | Candidate | FR-024 |
