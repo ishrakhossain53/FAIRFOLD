@@ -13,7 +13,7 @@ This file supplements — and does not replace — the two engineering specifica
 | Document | Role | Status |
 |---|---|---|
 | `MATCH_MINDS_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 43 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
+| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 50 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
 | `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | **Supplement** |
 
 **No content is duplicated here.** Where a section needs detail that already exists
@@ -192,7 +192,7 @@ See §1.3. **`[PLACEHOLDER]`**
 
 ### 2.2 Functional requirements
 
-**Complete.** 43 functional requirements with unique IDs, priorities, and Given/When/Then
+**Complete.** 50 functional requirements with unique IDs, priorities, and Given/When/Then
 acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` §4.1.
 
 | Group | ID range | Count | Priority distribution |
@@ -202,6 +202,8 @@ acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` �
 | Employer portal | REQ-FR-025 – FR-036 | 12 | 6 High, 6 Medium, 1 Low |
 | Administrative / GDPR | REQ-FR-037 – FR-041 | 5 | 3 High, 2 Medium |
 | Job discovery & messaging | REQ-FR-042 – FR-043 | 2 | 1 High, 1 Medium |
+| Employer organisation & billing | REQ-FR-045 – FR-048 | 4 | 1 High, 3 Medium |
+| Certification & content management | REQ-FR-044, FR-049 – FR-050 | 3 | 2 Medium, 1 Low |
 
 Representative example:
 
@@ -237,7 +239,7 @@ by axe-core/pa11y in CI (REQ-COM-007).
 
 ### 2.4 User stories
 
-Derived one-to-one from the 43 FRs in Arch Doc §4.1. Written in standard
+Derived one-to-one from the 50 FRs in Arch Doc §4.1. Written in standard
 *As a / I want / so that* form with story points and MoSCoW priority.
 
 #### Authentication — actor: Registered User
@@ -302,12 +304,27 @@ Derived one-to-one from the 43 FRs in Arch Doc §4.1. Written in standard
 | US-054 | As a **user**, I want to export all my personal data, so that I can exercise my right to portability. | FR-040 | 5 | Must |
 | US-055 | As a **user**, I want my data deleted on request, so that I can exercise my right to erasure. | FR-041 | 8 | Must |
 
+#### Supporting platform features — actor: Candidate / Employer / Admin
+
+> Added with `REQ-FR-044` – `REQ-FR-050` (round 2 of the traceability audit).
+
+| Story ID | User story | FR | Pts | Priority |
+|---|---|---|---|---|
+| US-056 | As a **candidate**, I want to list the certifications I have earned, so that my verified skills are visible to employers. | FR-044 | 3 | Should |
+| US-057 | As a **new employer**, I want to create my company profile, so that I can post jobs. | FR-045 | 3 | Must |
+| US-058 | As an **employer**, I want to see my hiring pipeline at a glance, so that I know what needs my attention today. | FR-046 | 5 | Should |
+| US-059 | As an **employer admin**, I want to invite colleagues and set their roles, so that the right people can act on my behalf. | FR-047 | 5 | Should |
+| US-060 | As an **employer**, I want to see my plan, usage and invoices, so that I can manage cost without contacting support. | FR-048 | 5 | Could |
+| US-061 | As an **admin**, I want to create and edit assessments, so that candidates can be tested on skills. | FR-049 | 5 | Should |
+| US-062 | As an **admin**, I want to send a scheduled announcement to a chosen audience, so that I can communicate service changes. | FR-050 | 3 | Could |
+
 **Priority model:** MoSCoW — **Must** = 26 stories (core flow, MVP-blocking),
 **Should** = 13, **Could** = 3. No "Won't" items; deliberate exclusions are listed in
 Arch Doc §1.2 Out of Scope.
 
-**Coverage:** all 43 functional requirements map to at least one user story.
-**Total effort:** 42 stories, 170 story points.
+**Coverage:** all 50 functional requirements map to at least one user story.
+**Total effort:** 49 stories, 199 story points.
+**MoSCoW:** 27 Must · 17 Should · 5 Could.
 
 #### 2.4.1 Traceability gaps
 
@@ -335,36 +352,45 @@ implementation guesswork:
   reach an external provider, and that deleting one party soft-deletes rather than
   removes the counterparty's copy (the cascade problem noted in §3.7).
 
-##### Round 2 — found by the page-level design audit, still open ❌
+##### Round 2 — found by the page-level design audit, and now closed ✅
 
 The first pass worked from use cases and journeys. The second pass worked from
 `design.md` §10, which specifies all 62 pages and names the requirement behind each one.
-That surfaced **7 further pages that build a real feature with no functional requirement
+That surfaced **7 further pages that built a real feature with no functional requirement
 behind them** — the same class of problem as GAP-1/GAP-2, but smaller and found later:
 
-| Page | Feature with no FR | Why it exists | Suggested FR |
-|---|---|---|---|
-| #19 | Certifications | `Certification` model exists (Complete Doc §C.11) | FR-044 · Employer-side… candidate certification list, add form, credential ID, verification URL |
-| #33 | Employer onboarding | `EmployerProfile` model exists; REQ-FR-009 is candidate-side only | FR-045 · Employer company profile creation |
-| #34 | Employer dashboard | Aggregates FR-028, FR-029, FR-035 but has no FR of its own | Cite the three, or FR-046 |
-| #49 | Team and roles | RBAC roles defined (Complete Doc §5.1); nothing covers inviting or managing employer team members | FR-046 · Invite, change role, remove team members |
-| #50 | Billing and plan | Pricing in Complete Doc §C.14 (Phase 5); no FR | FR-047 · when Phase 5 is scoped |
-| #61 | Assessment management | Admin API exists (Complete Doc §C.12); nothing covers creating assessments | FR-048 · Create/edit/deactivate assessments and questions |
-| #62 | Broadcast announcement | Admin API exists (`admin/broadcast/`); no FR | FR-049 · or drop the page |
+| Page | Feature | Now |
+|---|---|---|
+| #19 | Certifications | **REQ-FR-044** Certification Management |
+| #33 | Employer onboarding | **REQ-FR-045** Employer Company Profile |
+| #34 | Employer dashboard | **REQ-FR-046** Employer Dashboard |
+| #49 | Team and roles | **REQ-FR-047** Employer Team and Roles |
+| #50 | Billing and plan | **REQ-FR-048** Billing and Plan Management |
+| #61 | Assessment management | **REQ-FR-049** Assessment Management |
+| #62 | Broadcast announcement | **REQ-FR-050** Broadcast Announcement (optional) |
 
-Pages #1 and #2 (landing, pricing) also carry no requirement ID, but those are marketing
-pages and correctly do not need one.
+**Status: closed.** All seven are now in Arch Doc §4.1 as a new *Employer Organisation,
+Billing & Content* group with Given/When/Then criteria, and each has a user story
+(`US-056`–`US-062`) in §2.4. FR↔story↔page traceability now holds across all 62 pages
+except the two marketing pages (#1 landing, #2 pricing), which correctly need no FR.
 
-**Status: open.** These are smaller than GAP-1/2 — each is a single page rather than a
-missing core journey — but they are the same failure mode: a feature reaches the build
-with nothing to test it against. The next free IDs are `REQ-FR-044` onward. **They have
-not been written into the Arch Doc**, because unlike GAP-1/2 no one has confirmed they are
-wanted rather than aspirational, and #62 in particular may just be a page that should be cut.
-`design.md` §10.0 carries the same table as the source of this finding.
+Four conditions were written into the requirements rather than left to implementation guesswork:
+
+- **REQ-FR-045** — a job cannot be activated until a company profile exists, which stops an
+  anonymous employer from posting.
+- **REQ-FR-047** — the last `employer_hr` cannot be demoted or removed, which would otherwise
+  orphan the account.
+- **REQ-FR-048** — subscription state updates on the Stripe **webhook**, not the browser
+  redirect, so a failed webhook leaves the subscription unchanged rather than half-updated.
+- **REQ-FR-050** — an empty audience match must report rather than silently succeed. The
+  requirement is marked **optional**: if the team decides the page is not worth building,
+  remove `REQ-FR-050`, `US-062` and page #62 together.
+
+The Arch Doc now holds **50 functional requirements**.
 
 One further follow-up from round 1 remains: `Complete Doc §C.12` does not yet list public
 job browse/search endpoints for REQ-FR-042, nor the GDPR export/delete endpoints for
-REQ-FR-040/041.
+REQ-FR-040/041 — nor endpoints for the seven requirements added in round 2.
 
 ### 2.5 Product backlog and priority
 
@@ -373,13 +399,13 @@ criteria in Arch Doc §10. The phase breakdown aligns with the backlog:
 
 | Phase | Weeks | Story points | Theme |
 |---|---|---|---|
-| 1 — Foundation | 1–3 | ~28 | Auth, profiles, jobs, job search (FR-042), applications (no AI) |
+| 1 — Foundation | 1–3 | ~41 | Auth, profiles, jobs, job search (FR-042), applications, employer onboarding (no AI) |
 | 2 — AI Integration | 4–6 | ~41 | PII stripping, screening, rationale, bias audit |
-| 3 — Candidate AI | 7–9 | ~37 | Assessments, coaching, journey mapping, messaging (FR-043) |
-| 4 — Hardening | 10–12 | ~36 | Security, GDPR, monitoring, CI/CD |
-| 5 — Advanced | 13+ | ~28 | i18n, billing, WebSockets, skill ontology |
+| 3 — Candidate AI | 7–9 | ~45 | Assessments, coaching, journey mapping, messaging (FR-043), certifications |
+| 4 — Hardening | 10–12 | ~39 | Security, GDPR, monitoring, CI/CD, announcements |
+| 5 — Advanced | 13+ | ~33 | i18n, billing (FR-048), WebSockets, skill ontology |
 
-**Total: ~170 story points**, matching the 42 stories in §2.4.
+**Total: ~199 story points**, matching the 49 stories in §2.4.
 
 *(Point figures are a planning estimate for the Gantt in §2.7, not an independent
 measurement — re-estimate at sprint planning. The authoritative task lists are
@@ -647,7 +673,7 @@ Complete Doc §10.4:
 |---|---|---|---|
 | Md Habibulla Mahmud | Frontend Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts | US-013, US-014, US-030–032 |
 | Minhajul Islam Rifat | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040 |
-| Md Jobayer Arafat | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054 |
+| Md Jobayer Arafat | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062 |
 | Asif Salman Zarar | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping design, design system | US-013, US-040, all UI specs |
 
 **Declared gap:** no dedicated DevOps/Infrastructure role — currently absorbed by the
@@ -1829,9 +1855,9 @@ Section coverage of this document against the project specification. ✅ = compl
 | 5 | Solution, objectives, scope, users | ✅ | §1.5 |
 | **REQUIREMENTS & PLANNING** ||||
 | 6 | Requirement collection method | ❌ | §1.3 — **team must complete** |
-| 7 | Functional requirements with IDs | ✅ | §2.2 (43 FRs — Arch Doc §4.1) |
+| 7 | Functional requirements with IDs | ✅ | §2.2 (50 FRs — Arch Doc §4.1) |
 | 8 | Measurable NFRs | ✅ | §2.3 (50 NFRs — Arch Doc §4.2) |
-| 9 | User stories, priority, backlog | ✅ | §2.4 (42 stories), §2.5 |
+| 9 | User stories, priority, backlog | ✅ | §2.4 (49 stories), §2.5 |
 | 10 | Five-way feasibility | ✅ | §2.6.1 – §2.6.5 |
 | 11 | Methodology, Gantt, roles, risk | ✅ | §2.7.1 – §2.7.4 |
 | **SYSTEM ANALYSIS & DESIGN** ||||
@@ -1853,14 +1879,15 @@ Section coverage of this document against the project specification. ✅ = compl
    Figma components and high-fidelity mockups have not been started**. The decisions they
    would encode are recorded as text in `design.md` §3–§7, §6.6 and §11, which is enough to
    brief a build. Tracked as `design.md` §12 items 1–4.
-4. **§2.4.1 round 2 — 7 pages with no FR.** The page-level design audit found pages
-   #19, #33, #34, #49, #50, #61, #62 building features with no functional requirement.
-   Same failure mode as GAP-1/GAP-2, smaller scale. Next free IDs are REQ-FR-044 onward.
-   **Deliberately not written into the Arch Doc** until the team confirms each is wanted
-   rather than aspirational — #62 (broadcast announcement) may just be a page to cut.
+4. **§2.4.1 round 2 — decided.** The page-level design audit found 7 pages with features
+   but no functional requirement. All seven are now in the Arch Doc as `REQ-FR-044`–`050`
+   with matching stories `US-056`–`US-062`. **One decision remains: is `REQ-FR-050`
+   (broadcast announcement, page #62) worth building?** It is marked optional; if not,
+   remove the FR, the story and the page together.
 5. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` does not list public job
    browse/search endpoints for the new REQ-FR-042, nor the GDPR export/delete
-   endpoints for REQ-FR-040/041.
+   endpoints for REQ-FR-040/041. The same list also lacks endpoints for the seven
+   requirements added on 2026-10-03.
 6. **Unconfirmed design decisions** (`design.md` §12) — most importantly, **when the
    candidate's name is revealed to the employer**, which changes screens #40 and #41
    and is also open in `prd.md` §19 item 4.

@@ -374,6 +374,24 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 endpoints for REQ-FR-042, nor GDPR export/delete endpoints for REQ-FR-040/041.
 Those must be added to the API list before the build starts.
 
+#### Employer Organisation, Billing & Content
+
+> Added to close a second round of traceability gaps. A page-level audit of
+> `design.md` §10 found seven pages building real features with no requirement
+> behind them — the same failure mode as GAP-1/GAP-2, missed by the use-case
+> pass because those pages are supporting features rather than core journeys.
+> See `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1 for the analysis.
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|---|---|---|---|
+| REQ-FR-044 | Certification Management | Medium | **Given** authenticated candidate; **When** candidate adds a certification; **Then** `Certification` record created with name, issuer, issue/expiry dates and credential ID; **And** `credential_id` stored encrypted; **And** candidate can list, edit and delete their own certifications; **And** `verified` remains false until manually confirmed |
+| REQ-FR-045 | Employer Company Profile | High | **Given** registered user with the employer role; **When** completing onboarding; **Then** `EmployerProfile` created with company name (encrypted), industry and company size; **And** an employer cannot hold both the candidate and employer roles; **And** a job cannot be activated until a company profile exists |
+| REQ-FR-046 | Employer Dashboard | Medium | **Given** authenticated employer; **When** opening the dashboard; **Then** open job count, new applications, applications awaiting screening and interviews this week are shown; **And** quota usage is displayed against the current subscription; **And** applications flagged by the bias check are surfaced for human review; **And** every KPI links to the underlying list |
+| REQ-FR-047 | Employer Team and Roles | Medium | **Given** an employer with `employer_hr` role; **When** inviting, re-roling or removing a team member; **Then** `employer_manager`, `employer_hr` or `interviewer` role assigned from the defined set; **And** the last `employer_hr` cannot be removed or demoted, which would orphan the account; **And** an audit entry is written for every role change; **And** MFA is required before an invited member can act |
+| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches MATCH MINDS; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
+| REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
+| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, message, audience and schedule captured with a preview; **And** the announcement is delivered to the selected audience on schedule; **And** an empty audience match sends nothing and is reported rather than silently succeeding. **This requirement is optional** — if the page is cut, remove REQ-FR-050 and page #62 from `design.md` |
+
 ### 4.2 Non-Functional Requirements
 
 #### Performance

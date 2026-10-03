@@ -11,7 +11,7 @@
 > | Short name | File | Contributes |
 > |---|---|---|
 > | Complete Doc | `MATCH_MINDS_Complete_Project_Document.md` | Product vision, market, AI strategy, security, roadmap, pricing |
-> | Arch Doc | `MATCH_MINDS_Project_Architecture_and_Requirements.md` | ADRs, 43 FRs, 50 NFRs, schema, ops, risk register |
+> | Arch Doc | `MATCH_MINDS_Project_Architecture_and_Requirements.md` | ADRs, 50 FRs, 50 NFRs, schema, ops, risk register |
 > | Feasibility Doc | `MATCH_MINDS_Feasibility_and_Design.md` | Feasibility, user stories, diagrams, data dictionary, nav, a11y |
 >
 > Requirement IDs (`REQ-FR-###`, `REQ-NFR-###`, `REQ-SEC-###`, `REQ-COM-###`) are taken verbatim from the Arch Doc. Conflicts between source documents are listed in [Section 19](#19-open-questions-and-source-document-inconsistencies) rather than silently resolved.
@@ -193,7 +193,7 @@ Eleven systems were analyzed (Complete Doc §2).
 
 ### 5.3 MoSCoW Summary (from user stories)
 
-42 user stories, 170 story points: **26 Must, 13 Should, 3 Could**. See [Section 7](#7-functional-requirements) for the requirement-level priorities.
+49 user stories, 199 story points: **27 Must, 17 Should, 5 Could**. See [Section 7](#7-functional-requirements) for the requirement-level priorities.
 
 ---
 
@@ -315,10 +315,32 @@ Priority: **H** = High, **M** = Medium, **L** = Low. Phase = first phase in whic
 | REQ-FR-039 | Audit log search (action, resource, user, date range) with CSV export | H | 4 |
 | REQ-FR-040 | GDPR data export as JSON; download link expires in 7 days | H | 4 |
 | REQ-FR-041 | GDPR account deletion: admin-approved hard delete with audit entry and notification | H | 4 |
+| REQ-FR-049 | Assessment management: create/edit assessments and questions, activate/deactivate without deleting existing attempts | M | 3 |
+| REQ-FR-050 | Broadcast announcement: title, message, audience, schedule; empty audience must report, not silently succeed. **Optional** | L | 4 |
+
+### 7.4b Employer Organisation and Billing
+
+Added 2026-10-03 from the page-level design audit (`design.md` §10.0). Seven pages built
+real features with no requirement behind them; all are now in the Arch Doc §4.1.
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| REQ-FR-044 | Certification management: candidate adds/lists/edits/deletes certifications; `credential_id` stored encrypted; `verified` stays false until manually confirmed | M | 3 |
+| REQ-FR-045 | Employer company profile: `EmployerProfile` created at onboarding; a job cannot be activated until one exists | H | 1 |
+| REQ-FR-046 | Employer dashboard: pipeline KPIs, quota usage, bias-flagged applications for review; every KPI links to its list | M | 1 |
+| REQ-FR-047 | Employer team and roles: invite, re-role, remove across `employer_manager` / `employer_hr` / `interviewer`; the last `employer_hr` cannot be removed; audit entry per change | M | 1–4 |
+| REQ-FR-048 | Billing and plan: plan, usage, invoices; Stripe-hosted payment; subscription state updates on the **webhook**, not the browser redirect | M | 5 |
 
 ### 7.5 User Story Coverage
 
-42 user stories (US-001 to US-055) map one-to-one onto the FRs above in Feasibility Doc §2.4. US-023 (job search) and US-050 (messaging) previously had no FR; they now map to REQ-FR-042 and REQ-FR-043.
+**49 user stories** (`US-001` to `US-062`) map onto the FRs above in Feasibility Doc §2.4.
+
+Three rounds of gaps were found and closed:
+- `US-023` (job search) and `US-050` (messaging) had no FR — now `REQ-FR-042` / `REQ-FR-043`
+- Seven pages had features but no FR (`design.md` §10.0) — now `REQ-FR-044`–`REQ-FR-050`, covered by `US-056`–`US-062`
+
+FR↔story↔page traceability now holds for all 62 pages except #1 and #2 (landing, pricing),
+which are marketing pages and correctly need no requirement.
 
 ---
 
@@ -812,7 +834,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 | 2 | **Real-world problem example** (the 2018 Amazon CV-screening case is well documented and relevant, or a local Bangladesh case). | Team |
 | 3 | ~~**Wireframes** for the 18 screens.~~ **Resolved 2026-10-03** — delivered as low-fidelity text wireframes in `design.md` §10.5 (S01–S18). Still open: the Figma file, Figma components and high-fidelity mockups. | UI/UX designer |
 | 4 | Legal position on cross-border data transfer (Standard Contractual Clauses) and on provider terms of service. | Legal / PM |
-| 5 | **Seven pages build features with no functional requirement** (found by the page-level design audit, `design.md` §10.0): #19 certifications, #33 employer onboarding, #34 employer dashboard, #49 team and roles, #50 billing and plan, #61 assessment management, #62 broadcast announcement. Confirm each is wanted rather than aspirational, then add FRs to the **Arch Doc §4.1** (next free IDs REQ-FR-044 onward). #62 may just be a page to cut. | Team |
+| 5 | ~~**Seven pages build features with no functional requirement.**~~ **Closed 2026-10-03** — added to the Arch Doc §4.1 as `REQ-FR-044`–`REQ-FR-050` (§7.4, §7.4b). **Remaining decision:** is `REQ-FR-050` (broadcast announcement, page #62) worth building? It is marked optional — if not, remove the FR, `US-062` and the page together. | Team |
 
 ### 19.2 Inconsistencies Between Sources
 
@@ -820,7 +842,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 |---|---|---|---|
 | 1 | **Candidate pricing** | Complete Doc: Professional $20 and Premium $50. Feasibility Doc: "Pro" $50 only. | Complete Doc used (Section 15). Confirm. |
 | 2 | **Employer pricing** | Feasibility Doc omits the Scale ($1,500) tier and lists a "Free" employer tier; Complete Doc §C.14 table has no free employer row, but the `Subscription` model defines a Free plan (3 jobs, 50 screens). | Free tier retained; Scale included. Confirm. |
-| 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | **Closed 2026-10-03** — promoted into the Arch Doc §4.1 as REQ-FR-042 and REQ-FR-043 (new *Job Discovery & Messaging* group). Arch Doc now holds 43 FRs. See also §19.1 item 5 for seven further gaps found later. |
+| 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | **Closed 2026-10-03** — promoted into the Arch Doc §4.1 as REQ-FR-042 and REQ-FR-043 (new *Job Discovery & Messaging* group). See also §19.1 item 5, closed the same day with REQ-FR-044–050. **Arch Doc now holds 50 FRs.** |
 | 4 | **PII retention** | Complete Doc §5.2 says PII is encrypted at rest; Arch Doc Flow 3 says original PII "stays in EncryptedCharField" while anonymized text is stored. Where the original resume file and un-stripped text live, and who can see them, is not specified. | Open: define exactly what employers can see (anonymized text only, or original file after shortlist). |
 | 5 | **Audit log retention vs. GDPR retention** | Audit logs rotate at 90 days (REQ-COM-008) while candidate data is retained 2 years and hired-employee data 5 years; AI-decision evidence may be needed longer than 90 days for AI Act accountability. | Open: decide whether the 90-day figure applies to access logs only. |
 | 6 | **Audit log key type** | `AuditLogEntry.resource_id` is `INTEGER` but core entities use `UUID` primary keys (Feasibility Doc data dictionary). | Open: change `resource_id` to UUID/text. |
@@ -885,7 +907,7 @@ The product can go to public launch when all of the following hold:
 | Complete SQL schema | Arch Doc §5.1 |
 | Docker Compose, Dockerfile, Nginx, Helm, CI YAML | Arch Doc §6 |
 | Use case, activity, class and ER diagrams | Feasibility Doc §3.3–3.7 |
-| User stories (US-001 to US-055) | Feasibility Doc §2.4 |
+| User stories (US-001 to US-062) | Feasibility Doc §2.4 |
 | Wireframes (all 18 required screens) | `design.md` §10.5 — map in §10.0, spec-only pages in §10.6 |
 | Colour tokens, contrast ratios, components, a11y rules | `design.md` §3, §6, §7, §9 |
 | Pages with no functional requirement | `design.md` §10.0 and Feasibility Doc §2.4.1 |

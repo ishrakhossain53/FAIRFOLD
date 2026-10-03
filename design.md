@@ -578,22 +578,27 @@ Notation: **Phase** P1–P5 · ★ = one of the PRD's 18 required screens (map i
 | Pages with a wireframe | 36 of 62 |
 | Core-flow pages with a wireframe | 22 of 22 |
 | Pages with spec only (no wireframe) | 26 (Section 10.6) |
-| Pages with a requirement ID | 53 of 62 |
-| Pages with no requirement ID | 9 (explained below) |
+| Pages with a requirement ID | 60 of 62 |
+| Pages with no requirement ID | 2 (marketing pages, explained below) |
 
 **Traceability gaps (pages with a real feature but no functional requirement)**
 
-| Page | Why it has no requirement | Suggested action |
+> **Closed 2026-10-03.** All seven pages below were written into the Arch Doc §4.1 as
+> `REQ-FR-044`–`REQ-FR-050` (new *Employer Organisation, Billing & Content* group).
+> This table is kept as the audit record of what was found and where.
+
+| Page | Why it had no requirement | Now |
 |---|---|---|
-| #19 Certifications | `Certification` model exists (Complete Doc §C.11); no FR | Add an FR to the Arch Doc §4.1 (next free IDs REQ-FR-044 onward) |
-| #33 Employer onboarding | `EmployerProfile` model exists; the only profile FR (REQ-FR-009) is candidate-side | Add an FR to the Arch Doc §4.1 (next free IDs REQ-FR-044 onward) |
-| #34 Employer dashboard | Aggregates data from FR-028, FR-029 and FR-035; no FR of its own | Add an FR or cite the three |
-| #49 Team and roles | RBAC roles are defined (Complete Doc §5.1); no FR for inviting or managing employer team members | Add an FR to the Arch Doc §4.1 (next free IDs REQ-FR-044 onward) |
-| #50 Billing and plan | Pricing is in Complete Doc §C.14 (Phase 5); no FR | Add an FR to the Arch Doc §4.1 when Phase 5 is scoped |
-| #61 Assessment management | Admin API exists (Complete Doc §C.12); no FR for creating assessments | Add an FR to the Arch Doc §4.1 (next free IDs REQ-FR-044 onward) |
-| #62 Broadcast announcement | Admin API exists (`admin/broadcast/`); no FR | Add an FR or drop the page |
+| #19 Certifications | `Certification` model existed (Complete Doc §C.11); no FR | **REQ-FR-044** Certification Management |
+| #33 Employer onboarding | `EmployerProfile` model existed; the only profile FR (REQ-FR-009) is candidate-side | **REQ-FR-045** Employer Company Profile |
+| #34 Employer dashboard | Aggregated data from FR-028, FR-029 and FR-035 but had no FR of its own | **REQ-FR-046** Employer Dashboard |
+| #49 Team and roles | RBAC roles were defined (Complete Doc §5.1); nothing covered inviting or managing employer team members | **REQ-FR-047** Employer Team and Roles |
+| #50 Billing and plan | Pricing is in Complete Doc §C.14 (Phase 5); no FR | **REQ-FR-048** Billing and Plan Management |
+| #61 Assessment management | Admin API existed (Complete Doc §C.12); nothing covered creating assessments | **REQ-FR-049** Assessment Management |
+| #62 Broadcast announcement | Admin API existed (`admin/broadcast/`); no FR | **REQ-FR-050** Broadcast Announcement — **optional**: cut the page, the FR and `US-062` together if it is not worth building |
 
 Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functional requirement.
+They are the only two pages in the 62 that legitimately carry no requirement ID.
 
 
 ### 10.1 Public and Auth (13)
@@ -623,7 +628,7 @@ Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functio
 | 16 | ★ **Profile** | Sections: headline/title, bio, location, remote preference; inline edit per section | Form, inline edit | REQ-FR-009 | P1 | Yes | S02 |
 | 17 | ★ **Resume manager** | Upload dropzone + progress; list of resumes (name, date, parse status); actions: view, replace, delete; "Personal details removed" note; opens Resume Review (7.6) | Upload, table/cards, AI badge | REQ-FR-010–013 | P1–P2 | Yes | S03 |
 | 18 | **Skills manager** | Skill chips with level and source badge (Resume, Self-reported, Assessment, Journey); add via autocomplete (aliases mapped: JS → JavaScript); delete with undo toast | Chips, autocomplete | REQ-FR-014/015 | P1 | Yes | X04 |
-| 19 | **Certifications** | List + add form (name, issuer, dates, credential ID, URL) | Form, list | — (gap) | P3 |  | — |
+| 19 | **Certifications** | List + add form (name, issuer, dates, credential ID, URL) | Form, list | REQ-FR-044 | P3 |  | — |
 | 20 | ★ **Journey Map: Timeline** | See 7.5; target job selector optional | Timeline chart + table alt | REQ-FR-016 | P3 |  | S08 |
 | 21 | ★ **Journey Map: Skill evolution** | See 7.5 | Area chart + table alt | REQ-FR-017 | P3 |  | S08 |
 | 22 | **Journey Map: Story** | See 7.5 | AI action, editable card | REQ-FR-018 | P3 |  | S08 |
@@ -642,8 +647,8 @@ Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functio
 
 | # | Page | Layout and content | Key components | Requirement | Phase | Core flow | Wireframe |
 |---|---|---|---|---|---|---|---|
-| 33 | **Employer onboarding** | Company name, industry, size, logo; invite team (optional) | Form | — (gap) | P1 |  | — |
-| 34 | **Dashboard** | KPI cards (open jobs, new applications, awaiting screening, interviews this week), quota meter, activity feed, "Needs review" list (flagged rationales) | KPI cards, meter | — (gap) | P1 | Yes | X05 |
+| 33 | **Employer onboarding** | Company name, industry, size, logo; invite team (optional) | Form | REQ-FR-045 | P1 |  | — |
+| 34 | **Dashboard** | KPI cards (open jobs, new applications, awaiting screening, interviews this week), quota meter, activity feed, "Needs review" list (flagged rationales) | KPI cards, meter | REQ-FR-046 | P1 | Yes | X05 |
 | 35 | ★ **Jobs list** | Tabs by status (Draft / Active / Paused / Closed) with counts; table: title, applicants, last activity, actions | Tabs, table | REQ-FR-025–027 | P1 | Yes | S11 |
 | 36 | ★ **Create / edit job** | Sections: Basics · Description · Requirements (required / nice-to-have skills) · Screening questions · Review. AI suggests skills and questions (✦ chips; accept/dismiss). Auto-save draft | Form, AI chips | REQ-FR-025/026 | P1–P2 | Yes | S11 |
 | 37 | **Job overview** | Pipeline funnel (counts per stage), share link + embed code (copy buttons), edit/pause/close | Funnel, copy field | REQ-FR-036 | P1–P3 |  | — |
@@ -658,8 +663,8 @@ Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functio
 | 46 | **Offer letter editor** | AI draft in `--ai-soft` card, editable rich text, merge fields, Save/Send | Editor, AI badge | REQ-FR-034 | P5 |  | — |
 | 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 | P4 |  | S17 |
 | 48 | **Messages** | Same as #31, grouped by job | List, thread | REQ-FR-043 | P3 |  | — |
-| 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | — (gap) | P1–P4 |  | — |
-| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (Stripe-hosted) | Cards, meters | — (gap) | P5 |  | — |
+| 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 | P1–P4 |  | — |
+| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (Stripe-hosted) | Cards, meters | REQ-FR-048 | P5 |  | — |
 | 51 | **Company settings** | Company profile, security (MFA mandatory for HR admin), notifications, default AI model preference ("Auto (free)" / "Best available (paid)") | Tabs, radio cards | REQ-SEC-009 | P1–P4 |  | — |
 | 52 | **MFA setup** | QR code, manual key (copy), verify code field; recovery note | QR, OTP input | REQ-FR-005/006 | P4 |  | — |
 | 53 | **Data retention settings** | Retention period selectors per record type with plain-language impact; saves with audit entry | Form, alert | REQ-COM-005 | P4 |  | — |
@@ -675,8 +680,8 @@ Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functio
 | 58 | ★ **Audit log search** | Filters: action, resource, user, date range; results table (time, actor, action, resource, result, IP); expand row for details JSON; CSV export | Table, filters, export | REQ-FR-039 | P4 |  | S18 |
 | 59 | **Compliance queue** | Tabs: Export requests / Deletion requests; approve/reject with confirm; status timeline; deletion shows irreversible warning | Table, confirm dialog | REQ-FR-040/041 | P4 |  | — |
 | 60 | **AI quota and usage** | Daily quota meter, fallback level indicator (0–3), cost per day, error rate, provider status | Meters, chart + table | REQ-FR-037 | P4 |  | — |
-| 61 | **Assessment management** | List; create/edit assessment and questions; activate/deactivate | Form, table | — (gap) | P3 |  | — |
-| 62 | **Broadcast announcement** | Title, message, audience, schedule; preview | Form, preview | — (gap) | P4 (optional) |  | — |
+| 61 | **Assessment management** | List; create/edit assessment and questions; activate/deactivate | Form, table | REQ-FR-049 | P3 |  | — |
+| 62 | **Broadcast announcement** | Title, message, audience, schedule; preview | Form, preview | REQ-FR-050 | P4 (optional) |  | — |
 
 ### 10.5 Low-Fidelity Wireframes
 

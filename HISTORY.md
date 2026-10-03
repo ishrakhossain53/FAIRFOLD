@@ -19,10 +19,10 @@ specifications, requirements, and supporting configuration.
 | File | Lines | Role |
 | --- | ---: | --- |
 | `MATCH_MINDS_Complete_Project_Document.md` | 1914 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | 1732 | **Canonical** specification — ADRs, 43 functional requirements, 50 non-functional requirements, 21-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 899 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 1323 | Supplement — UI design system, 62 page specifications, 23 wireframes, implementation notes |
-| `MATCH_MINDS_Feasibility_and_Design.md` | 1866 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
+| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | 1750 | **Canonical** specification — ADRs, 50 functional requirements, 50 non-functional requirements, 21-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `prd.md` | 919 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `design.md` | 1328 | Supplement — UI design system, 62 page specifications, 23 wireframes, implementation notes |
+| `MATCH_MINDS_Feasibility_and_Design.md` | 1893 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
 | `README.md` | 205 | Project overview, documentation index, setup |
 | `.env.example` | 142 | 25 environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
@@ -30,8 +30,9 @@ specifications, requirements, and supporting configuration.
 
 **Key numbers of record** (verified 2026-10-03):
 
-- **43 functional requirements**, `REQ-FR-001` … `REQ-FR-043` (Arch Doc §4.1)
-  — was 41 until `REQ-FR-042`/`043` were added; see §2.8
+- **50 functional requirements**, `REQ-FR-001` … `REQ-FR-050` (Arch Doc §4.1)
+  — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
+  `REQ-FR-044`–`050` were added (§2.14)
 - **50 non-functional requirements** in Arch Doc §4.2, in five groups:
   `REQ-SEC-001`–`014` (14), `REQ-COM-001`–`009` (9), `REQ-NFR-001`–`018` (18),
   `REQ-NFR-019`–`023` (5, code quality), and four operational `REQ-NFOR-001`, `-002`, `-024`, `-025`.
@@ -39,7 +40,8 @@ specifications, requirements, and supporting configuration.
 - **21 database tables** in Arch Doc §5.1, with 27 foreign keys declared (25 drawn in the ER
   diagram; 2 redundant `users` self-references intentionally omitted)
 - **10 AES-256-GCM encrypted fields** (PII at rest)
-- **42 user stories / 170 story points**, MoSCoW **26 Must / 13 Should / 3 Could**
+- **49 user stories / 199 story points**, MoSCoW **27 Must / 17 Should / 5 Could** —
+  every one of the 50 FRs maps to at least one story (verified programmatically)
 - **62 pages specified** in `design.md` §10; **36 have wireframes** (23 drawings), covering
   all 18 required screens and all 22 core-flow pages; 53 of 62 pages carry a requirement ID
 - 5 roadmap phases: Phases 1–4 = weeks 1–12 (MVP), Phase 5 = week 13+ (optional)
@@ -75,7 +77,7 @@ A companion document covering the diagramming, planning and feasibility gaps. Ad
 documents use dense cross-references (`§5.6`, `§C.7`, …) that in-place edits would invalidate.
 
 Contents: 5 Mermaid diagrams (use case, activity, class, ER, Gantt), all grammar-validated;
-five-part feasibility study (§2.6.1–2.6.5); 42 user stories / 170 points with every FR traced;
+five-part feasibility study (§2.6.1–2.6.5); 49 user stories / 199 points with every FR traced;
 data dictionary for the 6 core entities; methodology, Gantt, roles and risk register
 (§2.7.1–2.7.4); navigation tree; WCAG 2.1 AA table; coverage checklist (§4).
 
@@ -88,7 +90,9 @@ Content from the canonical specs is **cited, not duplicated**, to prevent drift.
 | `b16b7a6` | Fixed the wireframe FR citation for the job-browse screen |
 | `c7d8c00` | Added `HISTORY.md`; fixed a misaligned table row |
 | `96993d4` | FR count 41 → 43; GAP-1/GAP-2 closed; story-point split reconciled; `resource_id` → UUID |
-| *(uncommitted)* | §2.4.1 round 2; §3.9.1 rewritten for full wireframe coverage; checklist row 17 → ✅ |
+| `36ccdb6` | Synced to the expanded `design.md`; wireframes 3 → 23; recorded round-2 gaps |
+| *(uncommitted)* | Round-2 gaps closed: FR count 43 → 50, stories 42 → 49, points 170 → 199 |
+| *(uncommitted)* | FR count 43 → 50; stories 42 → 49; §2.4.1 round 2 closed; §3.9.1 rewritten; checklist rows 7, 9, 17 updated |
 
 ### 2.4 Corrections made during a self-audit ✅
 
@@ -181,21 +185,45 @@ for the required screens, `X01`–`X05` for the remaining core-flow pages) cover
 pages, including **all 18 required screens** and **all 22 core-flow pages**. `Feasibility
 §3.9.1` was rewritten to match, and its coverage-checklist row moved from ⚠️ to ✅.
 
-### 2.12 Second round of traceability gaps found ❌ open
+### 2.12 Second round of traceability gaps found ✅ then closed
 
 The first gap pass worked from use cases and journeys. The second worked from `design.md`
 §10, which names the requirement behind all 62 pages — and surfaced **7 further pages that
-build a real feature with no functional requirement**: #19 certifications, #33 employer
+built a real feature with no functional requirement**: #19 certifications, #33 employer
 onboarding, #34 employer dashboard, #49 team and roles, #50 billing and plan, #61 assessment
-management, #62 broadcast announcement. Same failure mode as GAP-1/GAP-2, smaller scale.
+management, #62 broadcast announcement. Same failure mode as GAP-1/GAP-2; the first pass
+missed them because they are supporting features rather than core journeys.
 
-Recorded in `Feasibility §2.4.1` (round 2), `design.md` §10.0 and `prd.md` §19.1 item 5.
+### 2.13 Round-2 gaps closed ✅
 
-**Deliberately not written into the Arch Doc** — unlike GAP-1/2, nobody has confirmed these
-are wanted rather than aspirational, and #62 may just be a page that should be cut. The team
-must decide; next free IDs are `REQ-FR-044` onward.
+All seven are now in the Arch Doc §4.1 as a new *Employer Organisation, Billing & Content*
+group, each with Given/When/Then criteria and a matching user story (`US-056`–`US-062`).
 
-### 2.13 Fixes to `design.md` itself ✅
+| Page | Requirement |
+|---|---|
+| #19 Certifications | `REQ-FR-044` Certification Management (Medium, P3) |
+| #33 Employer onboarding | `REQ-FR-045` Employer Company Profile (High, P1) |
+| #34 Employer dashboard | `REQ-FR-046` Employer Dashboard (Medium, P1) |
+| #49 Team and roles | `REQ-FR-047` Employer Team and Roles (Medium, P1–4) |
+| #50 Billing and plan | `REQ-FR-048` Billing and Plan Management (Medium, P5) |
+| #61 Assessment management | `REQ-FR-049` Assessment Management (Medium, P3) |
+| #62 Broadcast announcement | `REQ-FR-050` Broadcast Announcement (Low, P4, **optional**) |
+
+Four conditions were written in rather than left to implementation guesswork:
+
+- **REQ-FR-045** — a job cannot be activated until a company profile exists, which stops an
+  anonymous employer from posting.
+- **REQ-FR-047** — the last `employer_hr` cannot be demoted or removed, which would otherwise
+  orphan the account.
+- **REQ-FR-048** — subscription state updates on the Stripe **webhook**, not the browser
+  redirect, so a failed webhook leaves the subscription unchanged rather than half-updated.
+- **REQ-FR-050** — an empty audience match must report rather than silently succeed.
+
+The Arch Doc now holds **50 FRs**, and all 50 map to at least one of the **49 stories**
+(199 points). FR↔story↔page traceability now holds across all 62 pages except #1 and #2
+(landing, pricing), which are marketing pages and correctly need no requirement.
+
+### 2.14 Fixes to `design.md` itself ✅
 
 Three stale or wrong items inside the revised file:
 
@@ -215,7 +243,7 @@ Three stale or wrong items inside the revised file:
 | **B** — Real-world problem example | ❌ missing | ❌ **still open.** `prd.md` §19.1 item 2 |
 | **C** — Wireframes | ❌ none at all | ✅ **complete for low fidelity** — 23 wireframes, all 18 screens, all 22 core-flow pages. Figma and hi-fi still open |
 | **D** — GAP-1 / GAP-2 | ⚠️ documented, no FR | ✅ **closed** — `REQ-FR-042`/`043` in the Arch Doc |
-| **E** — Round-2 page gaps | *(not previously found)* | ❌ **open** — 7 pages with features but no FR (§2.12) |
+| **E** — Round-2 page gaps | *(not previously found)* | ✅ **closed** — `REQ-FR-044`–`050`, 7 stories added (§2.12, §2.13) |
 
 ---
 
@@ -252,21 +280,14 @@ full audit trail) so it does not read as "we read this article."
 
 Needs only a yes/no from the team to proceed.
 
-### 4.3 ❌ Seven pages with no functional requirement — `Feasibility §2.4.1` round 2
+### 4.3 ~~Seven pages with no functional requirement~~ ✅ closed
 
-| Page | Feature | Why it exists |
-|---|---|---|
-| #19 | Certifications | `Certification` model (Complete Doc §C.11) |
-| #33 | Employer onboarding | `EmployerProfile` model; REQ-FR-009 is candidate-side only |
-| #34 | Employer dashboard | Aggregates FR-028/029/035 but has no FR of its own |
-| #49 | Team and roles | RBAC roles defined; nothing covers inviting or managing members |
-| #50 | Billing and plan | Pricing in Complete Doc §C.14 (Phase 5); no FR |
-| #61 | Assessment management | Admin API exists; nothing covers creating assessments |
-| #62 | Broadcast announcement | Admin API exists; no FR — **may just be a page to cut** |
+Found by the page-level design audit, now written into the Arch Doc as `REQ-FR-044`–`050`
+with matching stories `US-056`–`US-062`. Full list in §2.13.
 
-Each needs a decision: wanted, or cut. Then FRs go into the **Arch Doc §4.1** as
-`REQ-FR-044` onward. #34 is the weakest case — it may be satisfiable by citing the three
-requirements it aggregates rather than adding a new one.
+**One decision remains: is `REQ-FR-050` (broadcast announcement, page #62) worth building?**
+It is deliberately marked optional. If not, remove the FR, `US-062` and the page together —
+keeping one of the three would break traceability again.
 
 ### 4.4 🟡 Design tooling — `design.md` §12
 
