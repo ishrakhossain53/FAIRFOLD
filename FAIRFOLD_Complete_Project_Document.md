@@ -1,7 +1,7 @@
-# MATCH MINDS — Complete Project Document
-## AI-Powered Bias-Free Recruitment Platform
+# FAIRFOLD — Complete Project Document
+## AI-Powered, Explainable Recruitment Platform
 
-**Version:** 2.1 (EmployerTeamMember model · Professional tier corrected)
+**Version:** 2.2 (JobAssessmentRequirement model · override recording · versioned hard filters · real-world evidence)
 **Date:** September 2026
 **Team:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque
 
@@ -11,7 +11,7 @@
 
 1. [Executive Summary](#1-executive-summary)
 2. [Market Analysis — Competitors & Gaps](#2-market-analysis--competitors--gaps)
-3. [Why We Can Surpass Existing Solutions](#3-why-we-can-surpass-existing-solutions)
+3. [Why We Are Different From Existing Solutions](#3-why-we-are-different-from-existing-solutions)
 4. [Technical Architecture (Full Python Stack)](#4-technical-architecture-full-python-stack)
 5. [Security Architecture — Highest Standards](#5-security-architecture--highest-standards)
 6. [AI Strategy — Free & Best-in-Class](#6-ai-strategy--free--best-in-class)
@@ -28,18 +28,18 @@
 
 ## 1. Executive Summary
 
-**Match Minds** is an all-in-one, AI-powered recruitment platform that eliminates the two fundamental problems in hiring today: (1) unconscious bias in candidate screening, and (2) the inability of job seekers to showcase their true potential beyond rigid resume templates.
+**FairFold** is an all-in-one, AI-powered recruitment platform built around two structural problems in hiring: (1) screening decisions that are hard to explain or audit, and (2) the inability of job seekers to showcase their true potential beyond rigid resume templates. FairFold is designed to make the first *explainable and auditable*; whether that measurably reduces biased outcomes is a question the product has to answer with data, not with a tagline (see §3 and `prd.md` §8.7).
 
 The platform has two distinct portals:
 - **Candidate Portal** — Dynamic skill dashboards, AI-powered skill assessments, interview coaching, and AI-Powered Professional Journey Mapping
-- **Employer Portal** — AI-automated resume screening, bias-free ranking, structured interview generation, and real-time candidate communication
+- **Employer Portal** — AI-automated resume screening, evidence-cited ranking, structured interview generation, and real-time candidate communication
 
 **Key Differentiators vs. Market Leaders:**
 - Built-in **bias audit trail** — every screening decision is logged with rationale, making audits possible (HireVue dropped facial analysis after bias backlash; we build transparency in from day one)
 - **Privacy-first architecture** — PII stripped before any AI model sees candidate data (unlike Eightfold/SeekOut which send full profiles to third-party clouds)
 - **Freemium + transparent pricing** — $5-50/mo for candidates, $100-5000/mo for employers (vs. Eightfold's $200K+/year enterprise-only model)
 - **Full Python stack** — Django + DRF + Celery + pgvector, simpler hiring/development than PHP-based OpenCATS or multi-service Laravel setups
-- **AI-Powered Professional Journey Mapping** — no existing competitor offers dynamic career storytelling; this is our unique feature
+- **AI-Powered Professional Journey Mapping** — none of the eleven systems analysed in §2 offers a candidate-side career timeline. Newer blind-hiring products (Applied, Vervoe, MeVitae) overlap partially, so this is **less unique than earlier drafts claimed**
 
 ---
 
@@ -81,7 +81,16 @@ The platform has two distinct portals:
 
 ---
 
-## 3. Why We Can Surpass Existing Solutions
+## 3. Why We Are Different From Existing Solutions
+
+> **Wording rule for this section.** The evidence supports *different*, not *better*.
+> Every claim below is a design choice or a price observation — a fact about what
+> FairFold is built to do. None of them is a measured outcome, and this document
+> contains no fairness or accuracy measurement of FairFold against any competitor.
+> `prd.md` §4.2 carries the approved external wording, and `prd.md` §8.7 defines the
+> disparity analysis that would be needed before any of this can be promoted to a claim
+> about results. (Revised 2026-10-03; the section was previously titled "Why We Can
+> Surpass Existing Solutions", which asserted a conclusion the evidence did not support.)
 
 ### 3.1 The core insight
 
@@ -92,28 +101,40 @@ Every incumbent solves one slice of the problem:
 - Paradox → high-volume conversational screening
 - OpenCATS → manual tracking (no AI)
 
-**Match Minds is the first to connect BOTH sides with AI while keeping power in the candidate's hands.**
+**FairFold is designed to connect BOTH sides with AI while keeping power in the
+candidate's hands.** That is a statement about scope, not about superiority — Applied,
+Vervoe and MeVitae all serve the employer side, and no surveyed competitor is claimed here
+to be objectively worse than FairFold at its own job.
 
-### 3.2 How we overcome each competitor's moat
+### 3.2 Where each incumbent's moat does not apply to us
 
-| Competitor Moat | Our Counter |
-|---|---|
-| Eightfold's proprietary talent graph (billions of profiles) | We don't need a pre-built graph — our AI-Powered Professional Journey Mapping builds a dynamic skills profile per candidate at ingest time using OpenRouter LLMs. We start with semantic matching on what candidates actually submit, not external profile scraping. |
-| HireVue's structured interview science | We generate structured interview packs per role using AI (like candidacy and SkillAI do), but add real-time coaching feedback for candidates before the interview — something HireVue doesn't offer candidates. |
-| SeekOut's 750M-profile index | We don't compete on profile volume. We compete on depth per candidate: journey mapping, skill evolution, impact visualization. A candidate with a rich Match Minds profile is more valuable than 10 LinkedIn profiles. |
-| Enterprise pricing lock-in ($200K+/year) | Our freemium model ($5-50/mo candidates, $100-5000/mo employers) makes us accessible to SMBs and startups — a segment Eightfold/HireVue/Phenom explicitly don't serve. |
-| Black-box AI (unexplainable scoring) | Every Match Minds ranking comes with an evidence-cited breakdown (CandiSift pattern): which skills matched, which were missing, what the AI reasoned. Candidates can see their own breakdown. |
-| Privacy concerns (sending PII to third-party AI) | PII stripping before AI processing (CandiSift pattern). OpenRouter free models don't log prompts for the free tier routers. Field-level encryption in DB for sensitive fields even at rest. |
+Not "how we beat them" — the honest framing is that **these are places where we chose not
+to compete**, because competing would require capital and time this project does not have.
 
-### 3.3 Our unfair advantage: Bangladesh + emerging markets
+| Competitor Moat | Why it does not apply to us | Status |
+|---|---|---|
+| Eightfold's proprietary talent graph (billions of profiles) | We don't need a pre-built graph — Journey Mapping builds a dynamic skills profile per candidate at ingest time. We match on what candidates actually submit, not external profile scraping | **Design choice** |
+| HireVue's structured interview science | We generate structured interview packs per role using AI, and add candidate-side coaching before the interview | **Design choice** |
+| SeekOut's 750M-profile index | We don't compete on profile volume, on depth per candidate instead | **Design choice** |
+| Enterprise pricing lock-in ($200K+/year) | Freemium ($5–50/mo candidates, $100–5000/mo employers) reaches the SMB segment incumbents do not serve | **Price fact** |
+| Black-box AI (unexplainable scoring) | Every ranking carries an evidence-cited breakdown, visible to employer *and* candidate (REQ-FR-030) | **Designed — not yet measured** |
+| Privacy concerns (PII to third-party AI) | PII stripped before any AI call; AES-256-GCM at rest; unrevealed PII never reaches an external provider | **Designed — verification in Phase 4** |
 
-Bangladesh and similar emerging markets represent our initial beachhead — where no established competitor has a solution. In these markets:
+### 3.3 Our structural advantage: Bangladesh + emerging markets
+
+Bangladesh and similar emerging markets are the initial beachhead — where the enterprise
+incumbents are least able to follow. In these markets:
 - Companies still use manual hiring (spreadsheets, email)
 - LinkedIn penetration is lower
-- Eightfold/HireVue are completely inaccessible (price + implementation)
-- A lightweight, self-hostable, free-tier-AI platform is a perfect wedge
+- Eightfold/HireVue are effectively inaccessible (price + implementation)
+- A lightweight, self-hostable, free-tier-AI platform is a plausible wedge
 
-We enter through Bangladesh/emerging markets where no one has a solution, then expand to SMBs in developed markets who can't afford Eightfold.
+⚠️ **This is an assumption, not a finding** — `RSK-008` records that the Bangladesh market
+may not convert, and nothing in the requirement-collection work (§1.3) has validated it
+with employers. The validation plan in `prd.md` §3.4 is the thing that would test it.
+
+We enter through Bangladesh/emerging markets, then expand to SMBs in developed markets who
+cannot afford Eightfold.
 
 ---
 
@@ -173,8 +194,22 @@ The original proposal included Rust/Actix for "high-performance components." Aft
 ### 4.2 Django Application Structure
 
 ```
-matchminds/
-├── core/                    # Shared utilities, middleware, security
+fairfold/                   # repository root
+├── manage.py               # Django entrypoint; defaults to config.settings.local
+├── config/                 # Django PROJECT package (not an app)
+│   ├── settings/           # base, local, ci, production  (NO test module — see note)
+│   ├── urls.py             # root URLconf; mounts /api/v1/ and the app prefixes
+│   ├── wsgi.py
+│   ├── celery.py           # Celery app; imported by config/__init__.py
+│   └── asgi.py
+├── core/                   # Shared utilities, middleware, security, reference data
+│   ├── middleware.py       # RequestIDMiddleware — the correlation ID in every log line
+│   ├── logging.py          # RequestIDFilter — without it every record fails to format
+│   ├── exceptions.py       # DRF handler; a 500 body never carries the exception text
+│   ├── pagination.py       # page_size ceiling of 100 (a data-exfiltration path)
+│   ├── reference.py        # score bands, countries, industries (NO tables — see §C.8.3)
+│   ├── fixtures/           # groups.json, skills.json
+│   └── management/commands/seed.py
 ├── accounts/               # User model, auth, RBAC, profiles
 ├── candidates/             # Candidate dashboard, journey mapping, assessments
 ├── employers/              # Employer dashboard, job postings, screening
@@ -183,10 +218,38 @@ matchminds/
 ├── interviews/             # Interview scheduling, AI-generated Q packs
 ├── notifications/          # Email, in-app notifications
 ├── api/                    # DRF API root, versioning
-├── admin/                  # Custom admin for super-admin operations
 ├── journey/                # AI-Powered Professional Journey Mapping (MVP feature)
-└── ai/                     # AI provider abstraction (OpenRouter + fallback)
+├── ai/                     # AI provider abstraction (OpenRouter + fallback)
+├── templates/              # Django templates (base.html, components/, public/, candidate/, employer/, admin/)
+├── static/                 # css/tokens.css, css/tailwind.src.css, css/tailwind.css (built), js/
+├── tests/                  # pytest root — NOT per-app tests.py (see pyproject.toml)
+├── scripts/                # verify_docs.py, verify_bias_set.py, verify_bias_pass coverage
+├── tests/bias/v1.0.0/      # versioned bias fixtures + manifest
+├── package.json            # Frontend build tooling — build-time only (design.md §11.2)
+├── tailwind.config.js      # Maps the design tokens onto Tailwind utility names
+├── pyproject.toml          # black, isort, mypy, pytest config (CI reads this)
+└── bandit.yaml             # bandit skips, each with its reason written out
 ```
+
+> **There is no `config.settings.test`, deliberately.** `.env.example` states that SQLite has
+> no pgvector, so a SQLite test module would let the embedding, ranking and screening tests
+> pass on a database that cannot represent a vector — and fail in production. **Every test
+> uses `config.settings.ci`** against real PostgreSQL. The CI `test` role likewise uses
+> `cached_db`, and `CELERY_TASK_ALWAYS_EAGER` is **off** there too: eager Celery hides exactly
+> the serialisation bugs the integration tests exist to catch.
+
+> **`admin` was dropped from the app list.** The earlier tree had a custom `admin/` app, but
+> Arch Doc §6.5 mounts Django's own admin at `/django-admin/`, and §10.0 pages #55–#62 are
+> custom screens, not Django admin pages. Two admins would mean two places to grant a
+> super-user role and no way to tell from a URL which one is in use.
+
+> **Naming resolved 2026-10-03.** This tree previously had no `config/` entry and
+> implied the Django project package was `fairfold/`, while `.env.example`, the CI
+> workflow and the README all set `DJANGO_SETTINGS_MODULE=config.settings.*`. The
+> **Django project package is `config/`** and the **Django apps are top-level packages
+> at the repository root**. Every lint, coverage and test command in this document and
+> in the CI workflow was corrected to match. This was a real ambiguity that would have
+> broken `pytest`, `flake8` and `manage.py` on day one.
 
 ### 4.3 Core Django Settings for Security (see Section 5 for full detail)
 
@@ -203,10 +266,25 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 ```
+
+> **`SECURE_BROWSER_XSS_FILTER` removed 2026-10-04.** Django 5 **deleted** this setting, so
+> the line above would raise `ImproperlyConfigured` on boot — the single most expensive way to
+> ship a settings block. It is also not worth reinstating: the header it set
+> (`X-XSS-Protection: 0`) is deprecated and ignored by every current browser, and its historical
+> failure mode was *introducing* vulnerabilities in older ones.
+>
+> **The real defence is the CSP**, which is `default-src 'self'` with no third-party script host
+> (§C.9) — and that only holds because the Tailwind CDN was dropped in favour of
+> `npm run build` (design.md §11.2). `script-src` without `unsafe-inline` is what makes an
+> injected `<script>` fail; the XSS filter header never did that reliably.
+
+`config/settings/base.py` implements this block through `env()` helpers rather than an
+`env()` function on a third-party library, for one reason: `env_bool` **raises** on an
+unrecognised literal. `bool("False")` is `True` in Python, so a permissive parser turns a
+disabled security flag on exactly when someone meant to turn it off.
 
 ---
 
@@ -246,7 +324,7 @@ This section is the most critical addition to the original document. Recruitment
 | **AI API calls (OpenRouter)** | HTTPS to OpenRouter API. Request payloads contain NO raw PII — PII stripped before reaching AI layer. |
 | **File uploads** | Direct upload to S3 via presigned URLs (browser → S3, not browser → Django → S3). Django receives only the S3 key. This avoids buffering large files through Django. |
 
-### 5.4 AI Privacy Layer (Critical — Unique to Match Minds)
+### 5.4 AI Privacy Layer (Critical — Unique to FairFold)
 
 This is our key architectural differentiator vs. every competitor above.
 
@@ -678,6 +756,8 @@ class Job(models.Model):
     status = models.CharField(max_length=20, default="draft")  # draft, active, paused, closed
     description_embedding = VectorField(384)  # pgvector — from pgvector.django import VectorField; null until embed_job() called
     screening_questions = models.JSONField(default=list)  # AI-suggested + editor-edited
+    screening_config = models.JSONField(default=dict)  # Gap G3: stage-1 hard-filter rules {"filters": {...}}
+    screening_config_version = models.PositiveIntegerField(default=1)  # Gap G3: bumped on every rule edit
     ai_model_used = models.CharField(max_length=100, blank=True)  # which model scored candidates
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -685,23 +765,68 @@ class Job(models.Model):
 class Application(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="applications")
     candidate = models.ForeignKey(CandidateProfile, on_delete=models.CASCADE, related_name="applications")
-    status = models.CharField(max_length=20, default="applied")  # applied, screened, shortlisted, interview, offered, hired, rejected
+    status = models.CharField(max_length=20, default="applied")  # applied, screened, not_matched, shortlisted, interview, offered, hired, rejected
     match_score = models.IntegerField(null=True, blank=True)  # 0-100 from AI
     match_rationale = models.TextField(blank=True)  # AI-generated explanation
     ai_model_used = models.CharField(max_length=100, blank=True)
     screened_at = models.DateTimeField(null=True, blank=True)
     shortlisted_at = models.DateTimeField(null=True, blank=True)
+
+    # --- Gap G3: the stage-1 hard filter records what it excluded, and never decides ---
+    not_matched_reason = models.TextField(blank=True)  # which rule fired, e.g. "experience_level"
+    filter_rules_version = models.PositiveIntegerField(null=True, blank=True)  # = job.screening_config_version
+
+    # --- Gap G1 / REQ-FR-051: employer-required assessments gate the shortlist ---
+    assessment_gate_status = models.CharField(max_length=20, default="not_required")  # not_required, pending, passed, failed
+
+    # --- Gap G2 / REQ-FR-052: a decision against the ranking is recorded, never blocked ---
+    decision_override = models.BooleanField(default=False)
+    decision_override_reason = models.TextField(blank=True)
+    decided_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         unique_together = [("job", "candidate")]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(decision_override=False)
+                | models.Q(decision_override_reason__isnull=False),
+                name="chk_override_has_reason",
+            ),
+        ]
+
+    # not_matched is a filter outcome, not a rejection. Only a person may reject.
+    def can_shortlist(self) -> bool:
+        """REQ-FR-051. Shortlist is refused while the assessment gate is open or failed."""
+        return self.assessment_gate_status in ("not_required", "passed")
+
+
+class JobAssessmentRequirement(models.Model):
+    """An assessment an employer attaches to a job as a required pre-shortlist step.
+
+    Added 2026-10-03 to close Gap G1. REQ-FR-019/020 made assessments a *candidate*
+    action; nothing made them an *employer* action, so a hiring manager could reach
+    shortlist having seen no skill evidence at all. This join is what lets a job
+    require one. It reuses assessments/assessment_attempts — the gate is satisfied by
+    matching candidate + assessment on a completed attempt — so no attempt data is
+    duplicated.
+    """
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="required_assessments")
+    assessment = models.ForeignKey("candidates.Assessment", on_delete=models.CASCADE, related_name="required_by_jobs")
+    min_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # None = any completed attempt passes
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("job", "assessment")]
 
 class AuditLogEntry(models.Model):
     """Append-only audit log — never updated or deleted."""
     actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     action = models.CharField(max_length=100)  # "application.screened", "job.created", "user.login"
     resource_type = models.CharField(max_length=50)  # "application", "job", "candidate", "user"
-    resource_id = models.IntegerField()
+    resource_id = models.UUIDField()  # every core entity uses a UUID PK — IntegerField here was a bug (prd §19.2 item 6)
     details = models.JSONField(default=dict)  # action-specific context, NO raw PII
     ip_address = GenericIPAddressField()
     user_agent = models.CharField(max_length=500, blank=True)
@@ -800,7 +925,7 @@ class AuditLogEntry(models.Model):
 | **Database** | PostgreSQL 17 with pgvector extension (self-hosted on VPS, or managed like Supabase/Neon if preferred) | $0 (self-hosted) or $0-25/mo (managed) |
 | **Object storage** | MinIO (self-hosted, S3-compatible) or Cloudflare R2 (10GB free, then $0.015/GB) | $0 |
 | **Redis** | Redis 7 (self-hosted via Docker) | $0 |
-| **Domain name** | matchminds.io or similar | ~$10/year |
+| **Domain name** | fairfold.io or similar | ~$10/year |
 | **SSL certificates** | Let's Encrypt (free, auto-renewed via certbot) | $0 |
 
 ### 10.2 Software Dependencies
@@ -896,7 +1021,7 @@ sphinx >= 8.2  # documentation generation
 - **Week 10-12:** Phase 4 — security hardening, production deployment
 - **Week 13+:** Phase 5 — advanced features, billing, mobile
 
-**MVP definition:** Employer can post a job, candidates can apply with a resume, AI screens and ranks applicants with explainable scores using free-tier AI, candidates see their match scores and get interview coaching. That's Phase 1-3, ~9 weeks with a focused team of 4.
+**MVP definition:** Employer can post a job, candidates can apply with a resume, AI screens and ranks applicants with explainable scores using free-tier AI, candidates see their match scores and get interview coaching. That's Phase 1-3, ~9 weeks. (The team is **5 people**, not 4 — corrected 2026-10-03; §10.4 and `FAIRFOLD_Feasibility_and_Design.md` §2.7.3 both list five. Phase durations assume a focused team and are unaffected.)
 
 ---
 
@@ -908,7 +1033,7 @@ The following projects informed this architecture. We studied their strengths an
 - **CandiSift** (confused-ai/candisift) — Hexagonal architecture, PII stripping before AI, cost-estimate-before-process, evidence-cited breakdowns, bias-audit endpoint. We adopted all of these patterns. We diverge by using Django instead of FastAPI (ecosystem, team skills) and adding the candidate journey mapping feature.
 - **candidacy** (steelburn/candidacy) — OpenRouter integration as AI provider (directly relevant), DBML schema-as-code approach, 12-service microservices (we chose monolith-to-start for simplicity, can split later if needed).
 - **Vekt** (Behnoudmst/vekt) — GDPR-compliant by default, protected file serving, configurable data retention, privacy policy included. We adopted the privacy-first mindset.
-- **SkillAI** (olafkfreund/SkillAI) — Row-level security in PostgreSQL, MCP server concept (interesting for future — expose Match Minds data to Claude Desktop for workflow automation).
+- **SkillAI** (olafkfreund/SkillAI) — Row-level security in PostgreSQL, MCP server concept (interesting for future — expose FairFold data to Claude Desktop for workflow automation).
 
 ### Things We Explicitly Don't Copy
 - **OpenCATS** (opencats/OpenCATS): No AI, PHP stack, dated UX — confirmed why we need to build new, not fork
@@ -1087,7 +1212,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: matchminds_test
+          POSTGRES_DB: fairfold_test
         options: >-
           --health-cmd "pg_isready"
           --health-interval 5s
@@ -1118,31 +1243,31 @@ jobs:
           pip install drf-spectacular
 
       - name: Lint — flake8
-        run: flake8 matchminds/ --max-line-length=120
+        run: flake8 config/ core/ accounts/ candidates/ employers/ matching/ interviews/ ai/ --max-line-length=120
 
       - name: Lint — black (check)
-        run: black --check matchminds/
+        run: black --check config/ core/ accounts/ candidates/ employers/ matching/ interviews/ ai/
 
       - name: Lint — isort (check)
-        run: isort --check matchminds/
+        run: isort --check config/ core/ accounts/ candidates/ employers/ matching/ interviews/ ai/
 
       - name: Type check — mypy
-        run: mypy matchminds/ --ignore-missing-imports
+        run: mypy config/ --ignore-missing-imports
 
       - name: Security scan — bandit
-        run: bandit -r matchminds/ -c bandit.yaml
+        run: bandit -r config/ -c bandit.yaml
 
       - name: Dependency audit — pip-audit
         run: pip-audit -r requirements.txt
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/matchminds_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SETTINGS_MODULE: config.settings.ci
         run: |
           python manage.py migrate
-          pytest tests/ -v --cov=matchminds --cov-fail-under=80
+          pytest tests/ -v --cov=config --cov-fail-under=80
 
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
@@ -1166,7 +1291,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: matchminds/app:${{ github.sha }},matchminds/app:latest
+          tags: fairfold/app:${{ github.sha }},fairfold/app:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -1182,8 +1307,8 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Smoke test
         run: |
-          curl -f https://staging.matchminds.com/health/
-          curl -f https://staging.matchminds.com/api/v1/jobs/
+          curl -f https://staging.fairfold.com/health/
+          curl -f https://staging.fairfold.com/api/v1/jobs/
 
   deploy-production:
     needs: deploy-staging
@@ -1197,7 +1322,7 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Health check
         run: |
-          curl -f https://app.matchminds.com/health/
+          curl -f https://app.fairfold.com/health/
 
   rollback-staging:
     runs-on: ubuntu-24.04
@@ -1209,14 +1334,14 @@ jobs:
       - name: Rollback to previous release image
         run: |
           ssh ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-            "docker image tag matchminds/app:v$(cat .version-tag-staging | rev | cut -d. -f2- | rev) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:v$(cat .version-tag-staging | rev | cut -d. -f2- | rev) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
         run: |
-          curl -f https://staging.matchminds.com/health/
-          curl -f https://staging.matchminds.com/api/v1/jobs/
+          curl -f https://staging.fairfold.com/health/
+          curl -f https://staging.fairfold.com/api/v1/jobs/
       - name: Comment on PR / Notify Slack
         run: |
-          echo "Rollback to previous release completed for staging." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Staging rollback completed — matchminds/staging"} ' $SLACK_WEBHOOK_URL
+          echo "Rollback to previous release completed for staging." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Staging rollback completed — fairfold/staging"} ' $SLACK_WEBHOOK_URL
 
   rollback-production:
     runs-on: ubuntu-24.04
@@ -1228,13 +1353,13 @@ jobs:
       - name: Rollback to previous release image
         run: |
           ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
-            "docker image tag matchminds/app:v$(cat .version-tag-prod | rev | cut -d. -f2- | rev) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:v$(cat .version-tag-prod | rev | cut -d. -f2- | rev) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
         run: |
-          curl -f https://app.matchminds.com/health/
+          curl -f https://app.fairfold.com/health/
       - name: Comment on PR / Notify Slack
         run: |
-          echo "Rollback to previous release completed for production." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Production rollback completed — matchminds/production"} ' $SLACK_WEBHOOK_URL
+          echo "Rollback to previous release completed for production." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Production rollback completed — fairfold/production"} ' $SLACK_WEBHOOK_URL
 
 > **Rollback strategy:** Each successful production deploy records the current version tag to `.version-tag-prod` (and `.version-tag-staging` for staging). The rollback job reads this file, extracts the previous version tag, retags the previous image as `:latest`, and redeploys via `docker-compose`. Manual trigger via GitHub Actions "Run workflow" button with `workflow_dispatch`. Target rollback time: < 5 minutes.
 
@@ -1273,6 +1398,89 @@ jobs:
 ### C.8 Data Migration Strategy (supplements §8, §9)
 
 **Schema migrations:** Standard Django `makemigrations` / `migrate` workflow. Each migration reviewed in code review. No external migration tools needed — Django's built-in migration system handles all schema and data migrations.
+
+#### C.8.1 Generated vs hand-written migrations — the rule
+
+Added 2026-10-03 (gap R). The rule below is a **decision**, not a description: Django
+offers both, and choosing per-migration by judgement is how a schema diverges between
+`migrate` and `migrate --check` in CI.
+
+| Migration type | How it is produced | Who writes it |
+|---|---|---|
+| Table creation, `AddField`, `AlterField`, `RemoveField`, `CreateIndex`, `AddConstraint` | **`makemigrations`, committed to the repo** | Generated. The developer reviews the output and commits it |
+| Anything Django cannot express: partial/expression indexes, `CONCURRENTLY`, `RunSQL`, backfills, data cleanup | **Hand-written** | Developer, with the reasoning in the commit message |
+| `RunPython` data backfills | **Hand-written** | Developer, and it must be **idempotent** — it runs again if the migration is re-applied to a restored backup |
+
+**Three rules that are not negotiable:**
+
+1. **A migration file is never edited after it has been merged.** A changed migration
+   means the schema in production no longer matches the schema in the repo, and
+   `migrate --plan` stops being trustworthy. To change something already shipped, add
+   another migration.
+2. **CI runs `makemigrations --check --dry-run`.** If a model change was made without its
+   migration, the job fails. This is the only mechanism that actually enforces rule 1 in
+   practice; without it, "generate before commit" is a habit rather than a rule.
+3. **No `RunPython` that calls an external service.** Backfills must not call OpenRouter,
+   Redis, or the vector store. Re-embedding is a Celery task (§C.8.2), not a migration.
+
+#### C.8.2 Migrations that need a Celery task instead
+
+Long-running work never runs inside `migrate`. It is enqueued from a migration and picked
+up by a worker, with the migration recording only the fact that it was requested:
+
+| Operation | Migration does | Celery task does |
+|---|---|---|
+| PII re-encryption key rotation (90 days) | Add `key_version` column, default to the current version | Re-encrypt every `EncryptedCharField` row in batches; old keys retained 30 days for recovery |
+| Resume re-embedding after a model upgrade | Record the new model id in a `SystemConfig`-style row | Re-embed in batches via `generate_resume_embedding`; old and new vectors run side by side, traffic switches on a feature flag |
+| Skill taxonomy rename (e.g. "JS" → "JavaScript") | Create a `skill_aliases` mapping row | Re-point `skills` rows and re-score affected `Application` rows |
+
+#### C.8.3 Seed data — what must exist before the first request
+
+A fresh database has to be usable immediately after `migrate`, without a human running
+scripts. Seeded **deterministically** by Django fixtures, committed to the repo, and
+idempotent on `loaddata`:
+
+| Seed | Table | Source | Why it cannot be left empty |
+|---|---|---|---|
+| Django auth groups | `auth_group` | `core/fixtures/groups.json` | Role checks (`employer_hr`, `employer_admin`, `interviewer`) run on every permission test. Hard-coded role strings in Python would be a second source of truth |
+| Skill taxonomy | `skills` | `core/fixtures/skills.json` | Stage-1 matching filters on `skills`; a candidate with no recognised skills cannot be scored, and the bias audit compares categories that come from this table |
+| Score bands | **no table** — see note | `core/reference.py` (`SCORE_BANDS`) | `design.md` §3.4 bands are "proposed" and explicitly need a calibrated model, so they are **provisional and owned by one file** |
+| Countries / industries | **no table** — see note | `core/reference.py` (`COUNTRIES`, `INDUSTRIES`) | Job filters and forms fail on an empty select |
+
+> **Correction 2026-10-04.** This table previously named a `score_bands` table and
+> "reference tables" for countries and industries. **Neither exists in §5.1.** Only
+> `skills` and Django's own `auth_group` are tables. No tables were added to close the gap,
+> deliberately: nothing joins to these values, no user edits them at runtime, and schema
+> designed to match a fixture list rather than to a requirement is how a 24-table schema
+> becomes a 27-table one nobody chose.
+>
+> Score bands, countries and industries are therefore **constants in `core/reference.py`**,
+> checked by `reference.validate()` from the seed command — so an empty list or a gap
+> between two bands fails at `manage.py seed` rather than rendering an empty `<select>`.
+> The trade-off is stated in that module: a threshold change needs a deploy, which is right
+> while the bands are uncalibrated and wrong once they are. **If the bands are later
+> calibrated, move them to a table** — that is the trigger for revisiting this decision.
+>
+> `manage.py seed` also warns on every run that the bands are uncalibrated, because a
+> "Consider for interview" label above an unvalidated threshold is a claim the product
+> cannot back (`REQ-FR-031`).
+
+**What is deliberately not seeded.** Employers, candidates, jobs, applications and resumes
+come from `factory-boy` in tests and from real use in production. Seeding demo rows into a
+production-shaped database is how a "test employer" ends up holding a real employer's data.
+
+**Where the seed runs.** `loaddata` is called from a `seed` management command
+(`python manage.py seed --demo=false`), wired into the compose entrypoint and run after
+`migrate` in CI, so a CI database and a developer's database have identical reference
+data. `--demo=true` adds clearly-fake sample rows for local UI work and **refuses to run
+when `DEBUG=False`** — a refusal, not a warning, because demo rows in a production-shaped
+database are how a "test employer" ends up holding a real employer's data.
+
+**What the seed command asserts.** A missing fixture file is a hard error (it means a bad
+checkout, not an empty database). After loading it asserts all four roles exist — a missing
+group surfaces as `PermissionDenied` in an unrelated test, which points at the test rather
+than at the seed. Extra groups are warned about, not refused: an admin may have added a
+role deliberately.
 
 **Data migrations:** Custom Django data migration scripts for:
 - PII re-encryption key rotation (every 90 days): Re-encrypt all `EncryptedCharField` values with new key via Celery background task; old keys retained for 30 days for recovery
@@ -1568,11 +1776,38 @@ GET    /api/v1/jobs/{id}/                        # Get job details
 PATCH  /api/v1/jobs/{id}/                        # Update job
 POST   /api/v1/jobs/{id}/activate/               # Activate job posting
 POST   /api/v1/jobs/{id}/screen/                 # Trigger AI screening (with cost estimate)
-GET    /api/v1/jobs/{id}/applications/           # List applications for job (ranked)
+GET    /api/v1/jobs/{id}/applications/           # List applications for job (ranked); ?status=not_matched shows filter-excluded candidates (REQ-FR-029)
 POST   /api/v1/jobs/{id}/interview-pack/         # Generate AI interview pack
 GET    /api/v1/jobs/{id}/analytics/              # Get job analytics
+GET    /api/v1/jobs/{id}/analytics/override-rate/ # Override rate by user + job, each linking to its reason (REQ-FR-035, REQ-FR-052)
 POST   /api/v1/jobs/{id}/share/                  # Generate shareable link
 ```
+
+#### Screening Integrity Endpoints (added 2026-10-03 — REQ-FR-051, REQ-FR-052, REQ-FR-029)
+
+```http
+GET    /api/v1/jobs/{id}/required-assessments/       # List assessments required before shortlist (REQ-FR-051)
+POST   /api/v1/jobs/{id}/required-assessments/       # Attach one: {assessment_id, min_score?} (REQ-FR-051)
+DELETE /api/v1/jobs/{id}/required-assessments/{req_id}/ # Detach; existing attempts and scores are untouched (REQ-FR-051)
+POST   /api/v1/applications/{id}/shortlist/          # {reason?} — REQ-FR-052
+POST   /api/v1/applications/{id}/reject/             # {reason?} — REQ-FR-052
+POST   /api/v1/applications/{id}/review/             # Pull a not_matched candidate back into review (REQ-FR-029)
+```
+
+> **These must be action endpoints, not a bare `PATCH applications/{id}/`.** Two
+> reasons, both load-bearing:
+>
+> 1. **The reason is required by the serializer.** REQ-FR-052 asks for a written reason
+>    when a decision goes against the ranking. If the endpoint is a generic PATCH, the
+>    reason is optional in the API and the rule is only enforced by a front-end form
+>    that any API client can bypass.
+> 2. **The assessment gate returns `409`.** REQ-FR-051 is only a constraint if the
+>    server refuses a shortlist while `assessment_gate_status` is `pending` or `failed`.
+>    A generic PATCH cannot refuse an action it does not know about.
+>
+> `POST .../reject/` writes an `AuditLogEntry` with `resource_type = 'ai_decision'`
+> whenever the rejection is against the ranking, so it is retained with the
+> application record rather than rotating at 90 days.
 
 #### Assessment Endpoints
 ```http
@@ -1599,13 +1834,125 @@ GET    /api/v1/messages/?application={id}/         # Get messages for applicatio
 POST   /api/v1/messages/                         # Send message
 ```
 
+#### Public Job Discovery Endpoints (REQ-FR-042)
+
+```http
+GET    /api/v1/jobs/public/                      # Active jobs, newest first.
+                                                    # ?q= &location= &remote= &experience_level=
+                                                    # &page= &page_size=   (page_size max 50)
+GET    /api/v1/jobs/public/{id}/                 # Public job detail. 404 if not `active`.
+```
+
+> **Two rules that are requirements, not implementation details.**
+> **1. Employer name is withheld by default.** `employer_name` appears in the response
+> only if that employer has opted into candidate-facing disclosure (REQ-FR-042). A public
+> board otherwise leaks company identity for free, and "who is hiring" is itself
+> information. An employer who has not opted in gets `employer_name: null`.
+> **2. Only `status = 'active'` is ever returned.** Drafts, paused and closed jobs are
+> 404, not 403 — a 403 confirms the job exists, which is an enumeration leak.
+
+#### GDPR Endpoints (REQ-FR-040, REQ-FR-041)
+
+```http
+POST   /api/v1/gdpr/export/                      # Request an export. 202 + job id.
+GET    /api/v1/gdpr/export/{id}/                 # Status: queued | ready | expired
+GET    /api/v1/gdpr/export/{id}/download/        # Signed, short-lived URL. Valid 7 days (REQ-FR-040)
+POST   /api/v1/gdpr/deletion/                    # Request erasure. 202 + request id.
+GET    /api/v1/gdpr/deletion/{id}/               # Status: pending | approved | rejected | completed
+POST   /api/v1/gdpr/deletion/{id}/cancel/        # Withdraw a pending request
+```
+
+> **The hard part is deletion, not the endpoint.** `REQ-FR-041` hard-deletes all user
+> data. Three consequences that the route alone does not solve:
+>
+> 1. **Deletion is admin-approved, not automatic** (`DataDeletionRequest` has a
+>    `status`). A candidate-facing DELETE endpoint would hand anyone a self-service
+>    account-erasure button that silently destroys an employer's application history —
+>    which is *their* record too. The candidate requests; an admin approves.
+> 2. **`AuditLogEntry` rows are never deleted** — they are append-only and `ON DELETE SET
+>    NULL` on the actor. Erasure removes the personal data, not the evidence that a
+>    decision happened. This must be stated to the candidate in the response, or it looks
+>    like a broken promise.
+> 3. **Irreversibility needs a typed confirmation.** The approve action in
+>    `admin/compliance/` requires the candidate's email to be typed out. A single click
+>    that hard-deletes someone's account is not acceptable at any priority level.
+>
+> Deletion cascade, in order: `candidate_resumes` files (S3 **and** local disk),
+> `candidate_profiles`, `applications`, `messages`, `interviews` + `interview_feedback`,
+> `notifications`, `assessments` attempts. `applications` cascades to `interviews`, which
+> is deliberate: an interview has no separable half without its application.
+
+#### Employer Team & Roles Endpoints (REQ-FR-047)
+
+```http
+GET    /api/v1/employers/team/                   # List members: name, role, MFA status, joined_at
+POST   /api/v1/employers/team/invite/            # {email, role} -> creates a pending invite
+POST   /api/v1/employers/team/{id}/role/         # Change role
+DELETE /api/v1/employers/team/{id}/              # Remove member
+POST   /api/v1/employers/team/invitations/{token}/accept/   # Invitee accepts, MFA required first
+DELETE /api/v1/employers/team/invitations/{id}/             # Revoke a pending invite
+```
+
+> **The last-`employer_hr` rule is enforced in the serializer, not the view.** Removing or
+> demoting the only HR user would leave the company with nobody who can post a job or
+> invite a colleague, and it is unrecoverable without database access. `409 Conflict` with
+> a named explanation, checked against a `COUNT` inside the same transaction as the write —
+> two concurrent requests must not each see "one left".
+>
+> An invited member **cannot act until MFA is enabled** (`mfa_enforced = TRUE` on
+> `employer_team_members`), so the invite-accept route returns a challenge rather than a
+> session.
+
+#### Assessment Authoring Endpoints (REQ-FR-049)
+
+```http
+GET    /api/v1/assessments/                      # List. Admin sees all incl. inactive.
+POST   /api/v1/assessments/                      # Create: title, skill, difficulty, question_count, time_limit
+GET    /api/v1/assessments/{id}/                 # Detail with questions
+PATCH  /api/v1/assessments/{id}/                 # Update metadata
+POST   /api/v1/assessments/{id}/questions/        # Add a question
+PATCH  /api/v1/assessments/{id}/questions/{qid}/  # Edit a question
+DELETE /api/v1/assessments/{id}/questions/{qid}/  # Remove a question
+POST   /api/v1/assessments/{id}/reorder/          # {question_ids: [...]} — explicit order, not implicit
+POST   /api/v1/assessments/{id}/activate/         # is_active = TRUE
+POST   /api/v1/assessments/{id}/deactivate/       # is_active = FALSE
+```
+
+> **Deactivation must not delete.** Setting `is_active = FALSE` hides an assessment from
+> new attempts while leaving every existing `AssessmentAttempt` and its score intact — a
+> hard delete would cascade through `assessment_attempts` and destroy candidates' earned
+> scores and the `assessment_gate_status` on any application that depended on them
+> (REQ-FR-051). **There is no DELETE route for assessments, deliberately.**
+>
+> Reordering takes an explicit `question_ids` list rather than an index per question, so a
+> concurrent reorder cannot produce two questions at the same position.
+
+#### Broadcast Endpoints (REQ-FR-050)
+
+```http
+GET    /api/v1/admin/announcements/                  # List broadcasts with status + counts
+POST   /api/v1/admin/announcements/                  # Create (draft). {title, body, audience, audience_filter, channel, scheduled_at}
+POST   /api/v1/admin/announcements/resolve-audience/  # {audience, audience_filter} -> {recipient_count, skipped_count}
+                                                       # Called BEFORE sending. Shows the real audience size.
+POST   /api/v1/admin/announcements/{id}/send/         # Send now, or arm the scheduled send. Idempotent on idempotency_key.
+POST   /api/v1/admin/announcements/{id}/cancel/       # Cancel a scheduled/draft broadcast
+```
+
+> `resolve-audience` exists because the original criteria only caught the *empty* case.
+> The two bad outcomes are **too few recipients** and **too many** — an employer-only
+> announcement that reaches candidates is a confidentiality incident. The count is
+> resolved at send time against a suppression list of deleted, bounced and unsubscribed
+> users, and the send task re-checks each recipient's role rather than trusting the stored
+> filter. `channel=email` is capped per hour and sent from a **separate** sending
+> subaddress from verification and password-reset mail, so a burst cannot rate-limit the
+> domain that account access depends on.
+
 #### Administrative Endpoints
 ```http
 GET    /api/v1/admin/dashboard/                  # Admin dashboard stats
 GET    /api/v1/admin/users/                      # List all users
 GET    /api/v1/admin/audit-log/                  # Query audit logs
 GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
-POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 ```
 
 ### C.13 Testing Strategy (supplements §5.6, §10.2)
@@ -1625,13 +1972,30 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 | Module | Purpose |
 |---|---|
 | `base.py` | Shared settings — installed apps, middleware, security, DRF/Celery config |
-| `local.py` | Development (`DEBUG=True`, SQLite fallback if Postgres unavailable) |
-| `test.py` | Testing (in-memory SQLite, fast unit tests) |
-| `ci.py` | CI (in-memory SQLite for unit tests, Postgres for integration tests) |
+| `local.py` | Development (`DEBUG=True`, **PostgreSQL 17 + pgvector** via Docker — no SQLite fallback) |
+| `test.py` | Pure unit tests on in-memory SQLite — **anything touching a `VectorField` must use `ci.py`** |
+| `ci.py` | CI (**PostgreSQL + pgvector** for unit and integration tests alike) |
+
+> ⚠️ **SQLite is not a substitute for PostgreSQL — resolved 2026-10-03.**
+> `pgvector` does not exist in SQLite, so any model with a `VectorField` cannot be
+> created or queried there. Screening, ranking, rationale and bias audit all depend on
+> vector search (REQ-FR-028/029/030), so a SQLite-backed `local` or `test` settings
+> module **cannot run the application** — it would fail at the first migration.
+>
+> The corrected rule, applied to every reference below:
+> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d db`.
+> - **`test.py`** → in-memory SQLite is acceptable **only** for pure unit tests that
+>   touch no `VectorField`. Anything touching `matching/`, `candidates/` embeddings or
+>   `employers/` screening needs the Postgres test database.
+> - **`ci.py`** → Postgres service container, for both unit and integration jobs.
+>
+> This was a genuine contradiction: the dependency list, the schema and the settings
+> hierarchy all assumed PostgreSQL, while the settings comments invited a SQLite
+> fallback that could never work.
 | `production.py` | Production (`DEBUG=False`, Sentry, HTTPS enforcement) |
 
 **Test environment:**
-- `.github/workflows/ci-cd.yml` — runs `pytest tests/ --cov=matchminds --cov-fail-under=80` with `DJANGO_SETTINGS_MODULE=config.settings.ci`
+- `.github/workflows/ci-cd.yml` — runs `pytest tests/ --cov=config --cov-fail-under=80` with `DJANGO_SETTINGS_MODULE=config.settings.ci`
 - Local: `pytest tests/ -v --ds=config.settings.test`
 
 ### C.14 Complete Freemium Pricing Tiers (supplements §1, §9 Phase 5)
@@ -1649,6 +2013,7 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 
 | Tier | Price | Features | Limits |
 |---|---|---|---|
+| **Free** | $0/mo | 3 active job postings, 50 AI screens/mo, candidate pipeline list | Not time-limited |
 | **Starter** | $100/mo | 50 job postings, 500 AI screens/mo, basic analytics, email support | Up to 25 employees |
 | **Growth** | $500/mo | 500 job postings, 5,000 AI screens/mo, advanced analytics, interview packs, priority support | Up to 250 employees |
 | **Scale** | $1,500/mo | Unlimited jobs, 15,000 AI screens/mo, custom AI model selection, API access, dedicated support | Up to 1,000 employees |
@@ -1656,6 +2021,19 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 | **Self-Hosted** | $0 (open source) / Custom support | Everything in Enterprise, deployed on your infrastructure | Requires ops team |
 
 **Overage pricing:** $0.0001 per additional AI call beyond quota (negligible — OpenRouter free tier covers most usage).
+
+> **Conflict resolved 2026-10-03.** This table previously had **no Free employer tier**,
+> while `prd.md` §15.2 listed one ($0 · 3 jobs · 50 screens/mo) and the
+> `subscriptions` table in Arch Doc §5.1 already implements it —
+> `plan VARCHAR(20) DEFAULT 'free'`, `max_jobs INTEGER DEFAULT 3`,
+> `ai_quota_remaining INTEGER DEFAULT 50`. The schema was the tiebreaker: a default row
+> that no pricing table described is a plan nobody can explain to a customer. The Free
+> row is added here to match.
+>
+> Note also that `prd.md` §15.2 described the free plan's limit as "**Trial**", but the
+> `subscriptions` table has **no expiry column**, so the schema does not support a trial
+> period. Changed to "Not time-limited". If a trial is actually wanted, it needs a
+> `trial_ends_at` column and a decision on what happens at expiry.
 
 ### C.15 Feature Backlog Per Phase (supplements §9)
 
@@ -1708,7 +2086,7 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 - [ ] WebSocket connection for live interview coaching session
 - [ ] WebSocket connection for real-time employer notifications
 
-### C.16 Operational Procedures Addendum (supplements §8.5–§8.9 of `MATCH_MINDS_Project_Architecture_and_Requirements.md`)
+### C.16 Operational Procedures Addendum (supplements §8.5–§8.9 of `FAIRFOLD_Project_Architecture_and_Requirements.md`)
 
 This addendum consolidates the five operational-procedure sections that were added to the Architecture document as part of the SDLC gap-fill initiative (Phases 6–8: Deployment, Maintenance, Evaluation). The content below is the canonical reference; the Architecture document contains the same material for in-document navigation.
 
@@ -1729,8 +2107,8 @@ This addendum consolidates the five operational-procedure sections that were add
 **Rollback steps (production):**
 1. **Decide** — Incident Commander declares a rollback; on-call engineer acknowledges in #incidents Slack.
 2. **Trigger** — Navigate to GitHub Actions → CI/CD Pipeline → "Run workflow" → select `rollback-production` job.
-3. **Wait** — The job reads `.version-tag-prod` to identify the previous version tag, retags the previous `matchminds/app:vX.Y.Z` image as `:latest`, and redeploys via `docker-compose up -d --wait`.
-4. **Verify** — `curl -f https://app.matchminds.com/health/` must return 200. Check Sentry for new error spikes.
+3. **Wait** — The job reads `.version-tag-prod` to identify the previous version tag, retags the previous `fairfold/app:vX.Y.Z` image as `:latest`, and redeploys via `docker-compose up -d --wait`.
+4. **Verify** — `curl -f https://app.fairfold.com/health/` must return 200. Check Sentry for new error spikes.
 5. **Communicate** — Post update in #incidents with rollback time and version. Notify product and support leads.
 6. **Investigate** — Schedule post-mortem within 48 hours (see post-mortem template below).
 
@@ -1843,7 +2221,7 @@ This addendum consolidates the five operational-procedure sections that were add
 #### C.16.4 Post-Deployment Evaluation & Retrospective Process
 
 **Phase 1: Release Verification (within 1 hour of deploy)**
-- [ ] Health endpoint returns 200 (`curl -f https://app.matchminds.com/health/`)
+- [ ] Health endpoint returns 200 (`curl -f https://app.fairfold.com/health/`)
 - [ ] Key API endpoints respond (jobs list, auth login, health check)
 - [ ] Sentry shows no new error spikes
 - [ ] Prometheus shows no metric anomalies (request rate, error rate, latency)
@@ -1905,7 +2283,7 @@ A **Release Retrospective** is held after every production release:
 
 **Tagging convention:**
 - `git tag -a v{MAJOR}.{MINOR}.{PATCH} -m "Release v{MAJOR}.{MINOR}.{PATCH}"`
-- Tags pushed to GitHub trigger Docker image tagging: `matchminds/app:v{MAJOR}.{MINOR}.{PATCH}`
+- Tags pushed to GitHub trigger Docker image tagging: `fairfold/app:v{MAJOR}.{MINOR}.{PATCH}`
 - The `latest` tag always points to the most recent stable release on `main`
 
 **Pre-release process:**
@@ -1929,4 +2307,4 @@ A **Release Retrospective** is held after every production release:
 
 ---
 
-*End of document. This supersedes the original MATCH MINDS PDF proposal.*
+*End of document. This supersedes the original FAIRFOLD PDF proposal.*

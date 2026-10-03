@@ -1,7 +1,7 @@
-# MATCH MINDS — Feasibility & Design Analysis
+# FAIRFOLD — Feasibility & Design Analysis
 
-**Project Title:** MATCH MINDS
-**Subtitle:** AI-Powered Bias-Free Recruitment Platform
+**Project Title:** FAIRFOLD
+**Subtitle:** AI-Powered, Explainable Recruitment Platform
 **Document Purpose:** Feasibility analysis, user stories, formal design diagrams, data dictionary and UI/UX specifications.
 
 ---
@@ -12,11 +12,11 @@ This file supplements — and does not replace — the specifications below:
 
 | Document | Role | Status |
 |---|---|---|
-| `MATCH_MINDS_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 50 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
+| `FAIRFOLD_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 52 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
 | `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
 | `design.md` | UI design system, 62 page specs, 23 wireframes, implementation notes | Supplement |
-| `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
+| `FAIRFOLD_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
 
 **Functional requirements live in the Arch Doc §4.1.** `prd.md` proposes them and this
 document traces them to stories and pages; neither is the origin. Where a section needs
@@ -37,8 +37,8 @@ Section numbers are **ambiguous across documents by nature** — this document h
 
 | Form | Means |
 |---|---|
-| `Arch Doc §N.M` | `MATCH_MINDS_Project_Architecture_and_Requirements.md` §N.M |
-| `Complete Doc §N.M` | `MATCH_MINDS_Complete_Project_Document.md` §N.M |
+| `Arch Doc §N.M` | `FAIRFOLD_Project_Architecture_and_Requirements.md` §N.M |
+| `Complete Doc §N.M` | `FAIRFOLD_Complete_Project_Document.md` §N.M |
 | `Arch §N.M` / `Complete §N.M` | short form of the above, in tables and bullet lists |
 | `PRD §N.M` | `prd.md` §N.M |
 | `design.md §N.M` | `design.md` §N.M |
@@ -50,11 +50,12 @@ Section numbers are **ambiguous across documents by nature** — this document h
 
 ### 1.1 Project summary
 
-**What the software does.** MATCH MINDS is a web-based recruitment platform with two
+**What the software does.** FAIRFOLD is a web-based recruitment platform with two
 portals. The **Candidate Portal** provides profile and resume management, AI skill
 assessments, interview coaching, and AI-powered Professional Journey Mapping. The
-**Employer Portal** provides job posting, AI-automated resume screening, bias-free
-candidate ranking, structured interview generation, and candidate messaging.
+**Employer Portal** provides job posting, AI-automated resume screening,
+evidence-cited candidate ranking, structured interview generation, and candidate
+messaging.
 
 **Who uses it.**
 
@@ -85,55 +86,226 @@ These are not isolated product defects. They indicate a category-wide absence of
 **explainability and auditability** in automated screening, and a pricing structure
 that excludes the SMB segment entirely.
 
-> **`[PLACEHOLDER]` — Real-world example (team input required)**
->
-> A concrete incident is far more persuasive than a market table, and none is
-> currently recorded. **Still open** — `prd.md` §19.1 item 2 lists it as team-supplied.
-> Supply one of:
-> - a published discrimination lawsuit or EEOC/tribunal ruling involving an
->   automated screening tool (the 2018 Amazon CV-screening tool case is the
->   best-documented public example and directly relevant — a model trained on
->   a decade of male-dominated CVs downgraded CVs containing "women's");
-> - a local/regional case from Bangladesh;
-> - or an interview quote from a recruiter you spoke to (see §1.3).
->
-> **Suggested placement:** paste directly under this paragraph.
+#### 1.2.1 Real-world evidence
+
+**Filled in 2026-10-03**, closing the last placeholder in §1.2 (`prd.md` §19.1
+item 2). A concrete incident is more persuasive than a market table, so four are
+recorded: one primary case, three supporting.
+
+**Primary — Amazon's recruiting engine (2014–2017).** Amazon built an internal
+tool that scored applicants from one to five stars. It was trained on roughly
+ten years of past resumes, most of which came from men, and learned to downgrade
+resumes containing the word "women's" and resumes from two all-women's colleges.
+Engineers edited those specific terms, but could not be confident the system
+would not find other proxies, so the project was shut down. Amazon stated the
+tool was never the sole basis for evaluating candidates.
+*Source: Reuters, J. Dastin, 10 Oct 2018, "Amazon scraps secret AI recruiting
+tool that showed bias against women"; also summarised the same day by MIT
+Technology Review and Fortune.*
+
+**Why it matters here.** "AI removes bias" is false by default: a model trained on
+past hiring decisions copies the past. And removing a few obvious words does not
+fix proxy bias — that is the part most product teams get wrong.
+
+**FairFold design response.**
+
+1. The system is **not** trained on historical hire/reject outcomes. It compares a
+   job description to anonymised resume content (REQ-FR-029, REQ-FR-030), so it
+   has no access to the outcome data that carried the bias.
+2. Every score carries the **resume text that justifies it** (REQ-FR-030), so a
+   wrong judgement can be traced to a specific line rather than trusted.
+3. A bias audit runs on every rationale (REQ-COM-008).
+4. A human always decides (`prd.md` §8.1).
+
+**Action this triggers.** The Phase 2 versioned bias test set must include these as
+mandatory categories. **Specified 2026-10-03 — see Arch Doc §7.4** (`gendered_club_role`
+and `institution_gender_signal`, both `must_flag`). Synthetic cases in the same shape,
+each recording its `source_pattern`.
+Amazon-style proxy cases — women's-college names, "women's society captain",
+gendered club roles. Stripping names, emails and phone numbers removes **none** of
+that text, so it is exactly the residue the PII filter leaves behind.
+
+| Supporting case | Facts | Lesson for FairFold |
+|---|---|---|
+| **EEOC v. iTutorGroup** (settled Aug 2023) | Application software was programmed to auto-reject women aged 55+ and men aged 60+, screening out more than 200 applicants. Settled for **$365,000** — the EEOC's first AI-hiring discrimination settlement. | A **hard filter** can discriminate as easily as a model. Years-of-experience and experience-level filters are age proxies. This is the origin of **Gap G3** (§2.4.1). |
+| **HireVue facial analysis** (removed Jan 2021) | HireVue removed facial-expression analysis after bias and disability criticism. | Supports the non-goal of no facial, voice or emotion analysis (`prd.md` §2.3). |
+| **Mobley v. Workday** (N.D. Cal., filed 2023) | A nationwide age-discrimination collective was conditionally certified in May 2025; notice authorised 17 Feb 2026 with an opt-in deadline of 7 Mar 2026. A related California-law motion to dismiss was denied 22 Jun 2026. The court has treated the vendor as potentially liable as an agent of the employers using its tools. | Vendors, not only employers, can be liable — so the audit trail protects FAIRFOLD too. **Re-verify the status before citing this publicly**; it was mid-litigation as of Jul 2026. |
+
+#### 1.2.2 Local context — Bangladesh (supporting, not proof of the owner's case)
+
+Peer-reviewed work on Bangladeshi graduate employability points at the same
+structural issues. Hossain & Arefin (2025, *European Journal of Contemporary
+Education and E-Learning* 3(2), 55–74) list restricted professional connections
+among the structural obstacles to graduate employment, alongside curriculum
+mismatch and language skills. Zaman (2025) reports unequal access to networks and
+skills gaps from 21 structured interviews. A mixed-methods study (n = 1,320 survey
+responses, 32 interviews) reports substantial technical and digital skills
+mismatches among graduates.
+
+> **Wording rule.** These sources support the claim that *network access and skill
+> mismatch are recognised problems*. They do **not** measure how common internal
+> lobbying in interview selection is. **No prevalence figure may be stated in any
+> document until §1.3.4 produces one.** Until then the claim is stated as the
+> Product Owner's experience plus corroboration, not as a statistic.
 
 ### 1.3 Requirement collection method
 
-> **`[PLACEHOLDER]` — Must be completed by the team.**
->
-> The engineering specs contain **no record of how requirements were gathered.**
-> Requirements should be *elicited* from users, not inferred from a competitor's
-> feature list — without a stated method there is no way to tell which parts of this
-> 43-requirement set came from real user need and which from assumption.
->
-> **Confirmed still open.** The PRD was built without filling this in, and says so
-> explicitly: `prd.md` §19.1 item 1 — *"The specs record no interviews, surveys or
-> observation. State what was actually done; do not claim research that was not
-> conducted."*
->
-> Replace the table below with what actually happened. If a method was not used, say
-> so and remove that row — **do not claim research that was not conducted.**
+**Filled in 2026-10-03.** This was the last open item in the specification set
+(`prd.md` §19.1 item 1) and the only one that could not be closed by analysis
+alone. It asked for something specific: *"State what was actually done; do not
+claim research that was not conducted."*
 
-| Method | Used? | Respondents / N | Key findings | Resulting requirements |
+That instruction is honoured literally. **Every claim below is tagged**, so a
+reviewer can tell at a glance what is evidence and what is not:
+
+| Tag | Meaning |
+|---|---|
+| **[Done]** | It happened, and the Product Owner can vouch for it. |
+| **[Illustrative]** | A scenario written to explain a requirement. **Not** a research finding and must never be quoted as data. |
+| **[Planned]** | A validation step that has **not** been run. Change to [Done] only once it has actually run and the real numbers are recorded. |
+
+#### 1.3.1 Source of the requirements
+
+| Item | Detail |
+|---|---|
+| **Primary stakeholder** | The Product Owner, who is also the problem owner: a job seeker whose own interview selection was decided by internal lobbying, with **no skills check applied before shortlisting**. Around **mid-2026**, applying to a **public university** for a **Cybersecurity Engineer** role. **[Done]** |
+| **Corroboration** | Fellow job seekers who shared the same experience and later formed the project team. **[Done]** |
+| **Further corroboration** | A university senior described the same referral-driven pattern independently. One account, not a study. **[Done]** |
+| **Technique** | Problem-owner elicitation (lived experience) + group discussion + scenario-based elicitation (§1.3.3). **[Done]** |
+| **What was *not* done** | No formal interviews with recruiters, no survey, no field observation. **[Planned]** — see §1.3.4. |
+
+No employer and no individual is named anywhere in this document, by decision.
+
+**Statement for the PRD, used near-verbatim:**
+
+> Requirements for FairFold originated from the Product Owner's first-hand
+> experience of a hiring process in which interview selection was influenced by
+> internal lobbying, and in which no skills check was applied before candidates
+> were shortlisted. The same experience was shared by friends who later formed the
+> project team, and corroborated independently by a university senior. The team
+> converted these experiences into problem statements and then into requirements
+> (§1.3.2). Employer-side needs — recruiters and hiring managers — have so far been
+> *inferred* from the Product Owner's candidate-side view and from published
+> market analysis; they have **not** been validated with employers. That validation
+> is planned in §1.3.4.
+
+#### 1.3.2 From experience to requirement (traceability)
+
+Each pain point from that experience is traced to an objective and to requirements
+that **already exist**, so the link is auditable. Two of the six exposed real holes
+in the specification; those are now **Gap G1** and **Gap G2** in §2.4.1.
+
+| # | Pain point experienced | What it means for the product | Objective / requirement | Covered? |
 |---|---|---|---|---|
-| Interviews (recruiters / HR) | ? | ? | ? | ? |
-| Surveys (candidates) | ? | ? | ? | ? |
-| Observation (screening workflow) | ? | ? | ? | ? |
-| Competitor analysis | Yes | 11 systems | See Complete Doc §2 | FR-030 (evidence-cited rationale), FR-029 |
-| Stakeholder review | ? | ? | ? | ? |
+| P1 | Selection was decided by **who you knew**, not what you could do | Screening must not see identity or connections | O1; REQ-FR-011 (PII stripping), REQ-FR-029 (anonymised list; name revealed only at shortlist) | **Yes** |
+| P2 | **No skills check** before the interview | Skill evidence must be part of the decision, not only a resume | O5; REQ-FR-019/020 (assessments), REQ-FR-030 (evidence-cited rationale) | **Partly** — assessments were candidate-initiated only. Now **REQ-FR-051** (Gap G1) |
+| P3 | **No explanation** for the outcome; no feedback | Candidate must be able to see why they were ranked | O2; REQ-FR-024 (match score + rationale), REQ-FR-030 | **Yes** |
+| P4 | **Nobody could challenge** the outcome afterwards | Decisions must leave an evidence trail | O3; REQ-COM-008 (append-only audit), REQ-FR-039 | **Yes** |
+| P5 | The selection could simply be **bypassed** by someone with influence | The platform must make a bypass visible | — | **No** → now **REQ-FR-052** (Gap G2) |
+| P6 | Thin resume, strong self-taught skills | Candidate must show capability outside a fixed format | O5; REQ-FR-016–018 (Journey Map) | **Yes** |
 
-**Where the requirements actually came from** (inferred from the specs, and
-defensible if stated honestly):
+P1–P6 were derived by the team *after the fact* from the experience described in
+§1.3.1. They are an interpretation of a small number of accounts, not a coded
+qualitative study, and are tagged accordingly.
 
-- **FR-001 – FR-008 (auth):** security best practice + §5.1 architecture requirements
-- **FR-009 – FR-024 (candidate):** competitor gaps in §2.2 (no open-source project
-  offers a candidate portal) + the Journey Mapping differentiator in §3
-- **FR-025 – FR-036 (employer):** competitor shortfalls in §2.1, principally the
-  explainability gap (Eightfold) and the candidate-recording refusal problem (HireVue)
-- **FR-037 – FR-041 (admin/GDPR):** legal requirements — GDPR Arts. 17, 20 and EU AI Act
-  (REQ-COM-002, REQ-COM-003, REQ-COM-006)
+#### 1.3.3 Scenario-based elicitation — **[Illustrative]**
+
+> **[Illustrative]** The scenario below is a standard requirements-engineering
+> technique (scenario / persona walkthrough) written to help reviewers understand
+> the requirements. **The people and numbers are invented.** It is not research
+> data and must not be quoted as such.
+
+**Scenario S-1 — "The interview that was never open" (as-is).** Rafi is a final-year
+engineering graduate in Dhaka with two self-built projects and no family connections
+in industry. A mid-size company posts an entry-level role.
+
+1. Rafi applies by email with a PDF resume carrying his name, university and photo.
+2. A manager who knows a candidate personally forwards that resume to HR with a
+   note. That candidate is called first.
+3. HR reads the first ~15 resumes, then stops. No test is given to anyone.
+4. Rafi hears nothing. He never learns whether he was rejected, or why.
+5. Later he finds the interview slots were filled before the deadline.
+
+*Problems exposed: P1, P2, P3, P4, P5.*
+
+**Scenario S-2 — the same role on FairFold (to-be).**
+
+1. Rafi uploads his resume. Name, photo, phone, address and university identifiers
+   are stripped before any AI sees it (REQ-FR-011).
+2. The employer's HR officer clicks **Screen All**, sees the cost estimate
+   ($0.00 on the free tier) and confirms (REQ-FR-028).
+3. Applicants are ranked by anonymised ID. Rafi's score carries evidence from his
+   own resume — the project where he used the required skill (REQ-FR-029/030).
+4. Rafi sees his own score and the missing skills (REQ-FR-024) and takes the skill
+   assessment to close a gap (REQ-FR-019/020). If the employer made that assessment
+   **required**, his score alone cannot shortlist him (REQ-FR-051).
+5. The manager who knows a candidate wants to shortlist that candidate out of
+   order. **The system makes that visible**: a written reason is required and an
+   `ai_decision`-class audit entry is written (REQ-FR-052).
+6. Candidates the hard filter marked `not_matched` stay visible to the employer
+   with the reason shown, and can be pulled into review (REQ-FR-029, Gap G3).
+7. Every AI step is in the audit log, so a rejected candidate or a regulator can
+   ask what happened (REQ-COM-008).
+
+#### 1.3.4 Validation plan — **[Planned]**
+
+Not run. Recorded now so the sample size, channel and questions are fixed **before**
+anyone collects data, and so nobody can later describe a result that was never
+collected. The aim is a small honest evidence base, not a large study.
+
+| Activity | Who | Size (suggested) | Output | Status |
+|---|---|---|---|---|
+| Candidate interviews (20–30 min) | Recent graduates and early-career job seekers in Bangladesh | 8–10 | Themes on referral-driven hiring, feedback, skills checks | **[Planned]** |
+| Recruiter / hiring-manager interviews | HR staff at SMEs and startups | 5–6 | How they screen today; volume; tools; tolerance for AI; willingness to override | **[Planned]** |
+| Short survey | Job seekers | 30+ responses | Share reporting referral influence; share ever given a skills test; share ever given feedback | **[Planned]** |
+| Concept test of S-2 against the wireframes (`design.md` §10.5) | Both groups | 5–8 sessions | Reaction to the anonymised list, the cost estimate and the shortlist reveal | **[Planned]** |
+
+**Interview guide — candidates (core questions).**
+
+1. Tell me about the last role you applied for. What happened after you submitted?
+2. Did anyone test your skills before deciding on an interview? How?
+3. Did you ever feel the outcome depended on who you knew? What made you think so?
+4. Did you receive any explanation or feedback? What would you have wanted?
+5. Would you trust a score that shows evidence from your own resume? What would
+   make you distrust it?
+
+**Interview guide — recruiters (core questions).**
+
+1. Walk me through how you screened the last role you filled. How many applicants,
+   how much time?
+2. How often is a candidate suggested internally? What do you do with that
+   suggestion?
+3. Do you test skills before interviews? Why or why not?
+4. What would make you comfortable letting software rank applicants? What would
+   make you refuse?
+5. If you wanted to shortlist someone ranked low, would you accept having to
+   record a reason?
+
+**Survey (job seekers, 5 minutes).**
+
+1. In the last 2 years, how many roles did you apply for? (number)
+2. For how many were you given a skills test before an interview? (number)
+3. For how many did you receive any feedback after rejection? (number)
+4. "Who you know mattered more than what you could do" in my experience. (1–5 agree)
+5. I would apply through a platform that hides my name during screening. (1–5)
+6. I would trust a ranking if it showed evidence from my own resume. (1–5)
+
+**Recording results.** When this has actually run, add a table to §1.3 with the
+real counts, retag each row **[Done]**, and cite those counts in place of the §1.2.2
+local evidence. **Do not publish percentages from a sample this small as market
+facts** — present them as "of N participants".
+
+#### 1.3.5 What the other requirements came from
+
+Not every requirement came from a user. Being explicit about this is the point:
+
+| Requirement range | Origin | Confidence |
+|---|---|---|
+| REQ-FR-001 – 008 (auth) | Security best practice + the architecture spec | Assumption, standard practice |
+| REQ-FR-009 – 024 (candidate) | Competitor gaps in §1.4 — no open-source project offers a candidate portal — plus the Journey Mapping differentiator | Inferred from competitor analysis, **not validated with candidates** |
+| REQ-FR-025 – 036 (employer) | Competitor shortfalls in §1.4, principally the explainability gap (Eightfold) and the candidate-recording refusal problem (HireVue) | Inferred from competitor analysis, **not validated with recruiters** |
+| REQ-FR-037 – 041 (admin / GDPR) | Legal requirement — GDPR Arts. 17 and 20, EU AI Act (REQ-COM-002, -003, -006) | Non-negotiable, external |
+| REQ-FR-042 – 052 | Traceability audit (§2.4.1) + gaps G1, G2 and G3 | Derived from the specification's own internal gaps |
 
 ### 1.4 Background study and analysis
 
@@ -157,6 +329,105 @@ Complete and well in excess of a minimum competitor scan. Eleven systems analyse
 3. **candidacy** (steelburn) — proves the OpenRouter multi-model integration and
    schema-as-code approach. *Not adopted:* 12-service PHP/Laravel microservice
    architecture is disproportionate operational complexity for this team.
+
+#### 1.4.1 Does something like FairFold already exist?
+
+**Answer: yes, in pieces. No single product found combines everything below.** The
+name and the broad idea are not unique.
+
+| Category | Examples | What they do | Gap vs. FairFold |
+|---|---|---|---|
+| Blind / anonymised hiring | Applied, Vervoe, MeVitae, Pinpoint, GapJumpers | Hide identity during review; Applied replaces the CV sift with job-relevant questions and work samples reviewed anonymously | Priced and designed for organisations, not job seekers. No candidate-side career tooling. Little emerging-market focus. |
+| Skills assessment | TestGorilla, HackerRank, Codility, CodeSignal, Vervoe | Test skills against large libraries; TestGorilla has a free plan and paid plans from about $135/month | They assess skills but do not rank anonymised resumes, and show no evidence-cited rationale to the candidate |
+| AI video / game assessment | HireVue, Pymetrics (now Harver) | Enterprise screening at scale | Opaque and expensive; HireVue's earlier facial analysis drew sustained criticism |
+| Enterprise AI sourcing | Eightfold, SeekOut, Phenom | Talent intelligence and pipelines | Enterprise pricing; $200K+/year cited for Eightfold. Priced out of the SMB segment entirely |
+| Open-source ATS | CandiSift, OpenCATS | PII stripping, evidence-cited breakdowns (CandiSift) | No candidate portal; depends on a paid LLM |
+
+#### 1.4.2 Naming — ✅ decided (FairFold), 🟡 trademark clearance outstanding
+
+**Decided 2026-10-03: the product is FairFold.** The section is kept because the
+reasoning behind the decision is more useful than the decision itself.
+
+**Why the previous name was abandoned.** Verified 2026-10-03 (web search + DNS
+resolution; neither is a trademark clearance):
+
+| Finding | Evidence |
+|---|---|
+| **MatchMindAI** (matchmindai.com) markets itself as an AI-powered recruitment platform matching candidates to jobs | Search result title and description; `matchmindai.com` resolves to a live host (54.205.105.28) |
+| **"MatchMinds"** is also used by an AI-powered recruitment platform | Public post describing itself as "an AI-powered recruitment platform and the next frontier in hiring" |
+| **"MatchMinds"** is additionally used by an unrelated Android football-prediction app, and by an unrelated teammate-recommendation system | Two further commercial uses of the same string |
+
+Three unrelated commercial spaces, one of them recruitment. "Match Mind" is also
+descriptive of what every ATS does, which makes it hard to register as a word mark in
+class 42 and hard to defend even once registered.
+
+**Candidates screened on 2026-10-03.** "No DNS record" is *not* proof of availability:
+
+| Candidate | Meaning | Domain status | Outcome |
+|---|---|---|---|
+| **FairFold** | fair + a folded resume | fairfold.com, fairfold.ai — no DNS record | ✅ **Selected** |
+| Niyoti (নিয়তি) | Bengali for impartiality — matches the thesis *and* the Bangladesh beachhead | niyoti.app / niyoti.io — no DNS record | Not chosen: a common Bengali given name, so a bare word mark is hard to own |
+| SightFold | you can *see* the reasoning | sightfold.com — no DNS record | Not chosen: coined, so colder as a brand |
+| Evidencefold | evidence-cited rationale | evidencefold.com — no DNS record | Not chosen: long and clunky in a logo |
+
+Also rejected in the same sweep: **Meritfold** (already a UK public-sector bid
+product), Sightline, Clearscreen, Showwork, Foldwork, Talentfold, Skillfold,
+Plainfold, Proofhire, Openrank, Rankfold, Foldscore, Meritly, Fairhire — all taken.
+
+**Why FairFold works.** "Fair" states the intent. "Fold" carries the résumé being
+opened and read — the moment the product intervenes on. It names the *artefact* rather
+than the feature, which is the thing competitors cannot copy by adding a checkbox.
+No living commercial use was found.
+
+**What changed.** The three `MATCH_MINDS_*.md` files were renamed to `FAIRFOLD_*.md`
+and every internal link repaired.
+
+**✅ Domain owned.** The team already holds a domain and intends to **run on a
+temporary domain first, moving to the primary at launch**. That closes the registration
+half of `RSK-011`.
+
+**🟡 Still open — legal, not creative.** `RSK-011` stays on the register at **Medium
+probability / Low impact**: commission a formal trademark search in Bangladesh and each
+target export market, and file the word mark in classes 42 and 35 per market. Neither
+has been done. **A domain registration is not a trademark filing** — it does not confer
+the right to use a name in commerce, and it will not stop a trademark office from
+refusing the mark.
+
+**Two consequences of the temporary-domain plan**, recorded so they are not discovered
+the hard way:
+
+- Every host-dependent value — `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe
+  webhook URL, the Sentry DSN, absolute URLs in emails — must live in environment
+  variables so the switch is a config change, not a debugging session.
+- **No SEO, email-sender reputation or social handles should be built against the
+  temporary host.** Verification emails establish SPF/DKIM for *that* domain, and
+  candidate links containing it will not survive the move. Migrate before public launch,
+  not after traction exists.
+
+#### 1.4.3 How FairFold is different — and where "better" must be proven
+
+The status column is the important part. Three of these seven claims are designs we
+have made, not results we have produced.
+
+| Dimension | Typical competitor | FairFold | Status of the claim |
+|---|---|---|---|
+| **Who it serves** | Employer only | **Both sides** — the candidate sees their own score, rationale, journey map and coaching | **Designed** — §1.5 |
+| **Bias handling** | Marketed as "bias-free" | PII stripped before any AI call; bias audit on every rationale; a human always decides; immutable audit trail | **Designed — not yet measured** |
+| **Explainability** | Score only, or a black box | Evidence-cited rationale shown to employer *and* candidate; "no evidence found" is an explicit outcome | **Designed** — REQ-FR-030 |
+| **Cost** | Quote-based or enterprise | $0 AI cost on the free tier via local embeddings, free LLMs and an offline fallback | **Assumption** — depends on free-tier availability (RSK-001) |
+| **Skills evidence** | A separate tool the employer buys | Assessments and the Journey Map in one flow, with employer-required assessments (REQ-FR-051) | **Partly designed** — Gap G1, §2.4.1 |
+| **Market** | US/EU enterprise | Bangladesh and emerging-market SMEs first | **Unvalidated** — RSK-008 |
+| **Compliance** | Varies widely | Audit trail, GDPR export/delete, EU AI Act human oversight | **Designed — verification in Phase 4** |
+
+> **Use "better" carefully.** The evidence supports *different* today: two-sided,
+> evidence-cited, privacy-first, low-cost. *"Better"* is a claim about outcomes and
+> has to be earned against measured disparity data. Until the bias audit and
+> disparity analysis in `prd.md` §8.7 have run, this is the wording to use:
+>
+> *FairFold is designed to make screening explainable and auditable for both
+> employers and candidates, at a price small employers can afford. Whether it
+> reduces biased outcomes will be measured through the bias audit and disparity
+> analysis described in `prd.md` §8.7.*
 
 ### 1.5 Proposed solution, objectives, scope and target users
 
@@ -193,12 +464,16 @@ and (d) inverts the market's pricing by offering strong candidate-side tooling f
 
 ### 2.1 Requirement collection method
 
-See §1.3. **`[PLACEHOLDER]`**
+**Complete** — see §1.3. Filled in 2026-10-03: problem-owner elicitation from the
+Product Owner's own experience **[Done]**, plus competitor analysis and legal
+requirements. No recruiter interviews, no survey and no observation were run; the
+validation plan that would close those gaps is **[Planned]** in §1.3.4 and stays
+there until it has actually been run.
 
 ### 2.2 Functional requirements
 
-**Complete.** 50 functional requirements with unique IDs, priorities, and Given/When/Then
-acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` §4.1.
+**Complete.** 52 functional requirements with unique IDs, priorities, and Given/When/Then
+acceptance criteria — `FAIRFOLD_Project_Architecture_and_Requirements.md` §4.1.
 
 | Group | ID range | Count | Priority distribution |
 |---|---|---|---|
@@ -209,6 +484,7 @@ acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` �
 | Job discovery & messaging | REQ-FR-042 – FR-043 | 2 | 1 High, 1 Medium |
 | Employer organisation & billing | REQ-FR-045 – FR-048 | 4 | 1 High, 3 Medium |
 | Certification & content management | REQ-FR-044, FR-049 – FR-050 | 3 | 2 Medium, 1 Low |
+| **Screening integrity** (override visibility, required assessments) | REQ-FR-051 – FR-052 | 2 | **2 High** |
 
 Representative example:
 
@@ -244,7 +520,7 @@ by axe-core/pa11y in CI (REQ-COM-007).
 
 ### 2.4 User stories
 
-Derived one-to-one from the 50 FRs in Arch Doc §4.1. Written in standard
+Derived one-to-one from the 52 FRs in Arch Doc §4.1. Written in standard
 *As a / I want / so that* form with story points and MoSCoW priority.
 
 #### Authentication — actor: Registered User
@@ -321,15 +597,27 @@ Derived one-to-one from the 50 FRs in Arch Doc §4.1. Written in standard
 | US-059 | As an **employer admin**, I want to invite colleagues and set their roles, so that the right people can act on my behalf. | FR-047 | 5 | Should |
 | US-060 | As an **employer**, I want to see my plan, usage and invoices, so that I can manage cost without contacting support. | FR-048 | 5 | Could |
 | US-061 | As an **admin**, I want to create and edit assessments, so that candidates can be tested on skills. | FR-049 | 5 | Should |
-| US-062 | As an **admin**, I want to send a scheduled announcement to a chosen audience, so that I can communicate service changes. | FR-050 | 3 | Could |
+| US-062 | As an **admin**, I want to send a scheduled announcement to a chosen audience, so that I can communicate service changes. | FR-050 | **8** | Could |
 
-**Priority model:** MoSCoW — **Must** = 26 stories (core flow, MVP-blocking),
-**Should** = 13, **Could** = 3. No "Won't" items; deliberate exclusions are listed in
-Arch Doc §1.2 Out of Scope.
+#### Screening integrity — actor: Employer / Recruiter
 
-**Coverage:** all 50 functional requirements map to at least one user story.
-**Total effort:** 49 stories, 199 story points.
-**MoSCoW:** 27 Must · 17 Should · 5 Could.
+> Added with `REQ-FR-051` and `REQ-FR-052` and the Gap G3 amendment to
+> `REQ-FR-029`, all approved 2026-10-03. These three trace back to the Product
+> Owner's own experience (§1.3.1) — pain points P2 (no skills check) and P5
+> (the selection could be bypassed).
+
+| Story ID | User story | FR | Pts | Priority |
+|---|---|---|---|---|
+| US-063 | As an **employer**, I want to require a skill assessment before shortlisting, so that a decision cannot be made on a resume alone. | FR-051 | 5 | Must |
+| US-064 | As an **employer**, I want to have to give a reason when I shortlist someone the ranking put below my cut-off, so that the decision is visible rather than invisible. | FR-052 | 5 | Must |
+| US-065 | As an **employer**, I want to see and review the candidates an automatic filter excluded, so that a rule cannot silently decide who is considered. | FR-029 | 3 | Must |
+
+**Priority model:** MoSCoW — **Must** = core flow, MVP-blocking. No "Won't" items;
+deliberate exclusions are listed in Arch Doc §1.2 Out of Scope.
+
+**Coverage:** all 52 functional requirements map to at least one user story.
+**Total effort:** 52 stories, 217 story points.
+**MoSCoW:** 30 Must · 17 Should · 5 Could.
 
 #### 2.4.1 Traceability gaps
 
@@ -391,11 +679,105 @@ Four conditions were written into the requirements rather than left to implement
   requirement is marked **optional**: if the team decides the page is not worth building,
   remove `REQ-FR-050`, `US-062` and page #62 together.
 
-The Arch Doc now holds **50 functional requirements**.
+The Arch Doc held **50 functional requirements** at the end of this round. Round 3
+(below) took it to 52.
 
 One further follow-up from round 1 remains: `Complete Doc §C.12` does not yet list public
 job browse/search endpoints for REQ-FR-042, nor the GDPR export/delete endpoints for
 REQ-FR-040/041 — nor endpoints for the seven requirements added in round 2.
+
+##### Round 3 — found by tracing the Product Owner's own experience, and now closed ✅
+
+Rounds 1 and 2 worked **outwards from the specification**: use cases, journeys, then
+pages. Round 3 worked **inwards from the problem** — the traceability table in §1.3.2,
+which maps the six pain points of the Product Owner's actual hiring experience to
+requirements. Two of the six could not be traced to any requirement at all.
+
+This is a different kind of finding. Rounds 1 and 2 found *capabilities with no
+requirement* — a requirement-shaped hole. Round 3 found *requirements that do not
+answer the problem that started the project* — a coverage-shaped hole, which is
+harder to see because the document looks complete.
+
+| Gap | What the specification could not do | Requirement | Status |
+|---|---|---|---|
+| **G1** | Attach a skill assessment as a **required** step. REQ-FR-019/020 assessments are candidate-initiated and Medium priority, so an employer could still shortlist on a resume with no skill evidence at all. The experience was *"no skills check before the interview."* | **REQ-FR-051** Employer-Required Skill Assessment (High, Phase 3) | **Closed** |
+| **G2** | Record a shortlist or rejection that goes **against** the ranking. Nothing did. Anonymised ranking is worthless if the ranking can be quietly ignored — and the specific failure here was a selection decided by internal lobbying. | **REQ-FR-052** Override Visibility and Record (High, Phase 2–3) | **Closed** |
+| **G3** | Review an automatic `not_matched`. Stage 1 marked candidates on experience level and minimum years with no reason recorded and no route back. `EEOC v. iTutorGroup` (§1.2.1) is the case that makes this concrete: a hard-coded age filter *was* the discriminating mechanism, and years of experience is an age proxy. | **Amendment to REQ-FR-029**, plus `screening_config` versioning | **Closed** |
+
+Three decisions are worth stating, because each could reasonably have gone the other way:
+
+- **An override is recorded, not blocked.** REQ-FR-052 requires a written reason and
+  writes an `ai_decision`-class audit entry, but the employer can still do it. A
+  human stays the decision-maker (`prd.md` §8.1). The requirement makes an informal
+  decision *visible and countable* — which is what "bias-free" can honestly mean —
+  rather than pretending software can remove a hiring manager's judgement. The
+  `CHECK` constraint on `applications` enforces non-empty reasons in the database,
+  not only in the form.
+- **A filter may produce `not_matched`, never `rejected`.** Only a person can reject a
+  candidate. This keeps `prd.md` §8.1 true at the schema level rather than in prose.
+- **Filter rules are versioned, not just recorded.** `jobs.screening_config_version`
+  increments on every edit and each application stores the version that judged it, so
+  "which rule excluded this candidate?" is still answerable a year later after the job
+  has been edited five times.
+
+New in this round: **2 requirements** (`REQ-FR-051`, `REQ-FR-052`), **1 amendment**
+(`REQ-FR-029`), **3 user stories** (`US-063`–`US-065`), **1 new table**
+(`job_assessment_requirements`, §5.1), **6 new columns** on `jobs` and `applications`,
+**1 `CHECK` constraint**, **2 new indexes**.
+
+The Arch Doc now holds **52 functional requirements** and the feasibility document
+**52 user stories / 217 points**.
+
+##### Round 4 — the only approved requirement with no data model, now fixed ✅
+
+Rounds 1–3 looked for capabilities and pain points. This one looks for **approved
+requirements that cannot be built**, and there was exactly one.
+
+**`REQ-FR-050` (Broadcast Announcement) had no table.** It was approved in scope, given a
+page (`design.md` #62) and an endpoint — and nowhere to store the announcement, its
+audience, its schedule, or who it reached. `notifications` cannot substitute: it has a
+single `recipient_id`, so it can record that a user *was notified* but never *what was
+announced, to whom, or whether it was sent*. **The requirement was unimplementable as
+written**, and it had been sitting in the approved set since 2026-10-03 without anyone
+checking whether the schema supported it.
+
+**Added:** the `announcements` table (Arch Doc §5.1), the ER diagram entry, the data
+dictionary section, and the five-endpoint API.
+
+##### What goes wrong if `REQ-FR-050` is kept — asked and answered 2026-10-03
+
+The honest answer is that it is **the highest blast-radius feature per story point in the
+whole specification**, and the original 3-point estimate was wrong by more than half.
+
+| # | What goes wrong | Severity | Now handled? |
+|---|---|---|---|
+| 1 | **No data model.** Nowhere to store the announcement, audience, schedule or delivery record. The feature cannot be built at all | 🔴 Blocks the feature | ✅ Table added |
+| 2 | **A wrong audience is a confidentiality incident, not a UI bug.** The criteria only caught an *empty* audience. An employers-only announcement reaching candidates leaks employer-side information | 🔴 High | ✅ Role re-checked at send + `resolve-audience` preflight |
+| 3 | **Email sender reputation.** Bulk sends share a provider and domain with verification and password-reset mail. A burst can get the domain rate-limited or blocked — which then **breaks account access for every user on the platform** | 🔴 High | ✅ Separate sending subaddress + hourly cap |
+| 4 | **GDPR contradiction.** `REQ-FR-041` hard-deletes user data. A scheduled announcement with a snapshot audience will happily email a since-deleted account | 🟡 Medium | ✅ Audience resolved at **send** time; suppression list; `skipped_count` |
+| 5 | **Celery retry double-sends.** Beat retries on timeout, and a broadcast is the one action here that cannot be recalled | 🟡 Medium | ✅ `idempotency_key` unique, set before the task runs |
+| 6 | **Zero differentiation.** Every enterprise ATS has admin announcements. It competes on nothing and is not in `prd.md` §4.1's differentiation table | 🟢 Minor | Accepted |
+
+**Re-estimated from 3 to 8 points**, because a table, a Celery Beat scheduler, an audience
+matcher, a suppression list, a rate cap and an idempotency key are not three points of
+work. Phase 4 moves 39 → 44; total 212 → **217**.
+
+**DECIDED 2026-10-03 — the team kept it. Phase 4 only, never a launch dependency.**
+It is cheap enough now that it is fixed, and an operator genuinely needs to tell users
+about a pricing or maintenance change. But it is also the one feature in the build whose
+worst case is a platform-wide incident caused by an admin clicking Send — so the "never
+a launch dependency" half is the load-bearing part of the decision, not a caveat on it.
+
+Two conditions now bind:
+
+1. **It never becomes a launch blocker.** If Phase 4 hardening is short, this is what
+   slips. Not the GDPR export, not the load test, not the backup restore.
+2. **The four artefacts stay coupled.** A later cut removes **`REQ-FR-050` + `US-062` +
+   page #62 + the `announcements` table`** in one change. The coupling is written into the
+   requirement itself so a partial cut cannot leave a phantom table behind.
+
+Keeping it does not lower the bar on the five constraints; they are the reason it is
+affordable at all, since each one removes a failure mode rather than adding a feature.
 
 ### 2.5 Product backlog and priority
 
@@ -405,17 +787,23 @@ criteria in Arch Doc §10. The phase breakdown aligns with the backlog:
 | Phase | Weeks | Story points | Theme |
 |---|---|---|---|
 | 1 — Foundation | 1–3 | ~41 | Auth, profiles, jobs, job search (FR-042), applications, employer onboarding (no AI) |
-| 2 — AI Integration | 4–6 | ~41 | PII stripping, screening, rationale, bias audit |
-| 3 — Candidate AI | 7–9 | ~45 | Assessments, coaching, journey mapping, messaging (FR-043), certifications |
-| 4 — Hardening | 10–12 | ~39 | Security, GDPR, monitoring, CI/CD, announcements |
+| 2 — AI Integration | 4–6 | ~49 | PII stripping, screening, rationale, bias audit, **override recording (FR-052)**, **reviewable hard filters (FR-029)** |
+| 3 — Candidate AI | 7–9 | ~50 | Assessments, **employer-required assessments (FR-051)**, coaching, journey mapping, messaging (FR-043), certifications |
+| 4 — Hardening | 10–12 | ~44 | Security, GDPR, monitoring, CI/CD, announcements |
 | 5 — Advanced | 13+ | ~33 | i18n, billing (FR-048), WebSockets, skill ontology |
 
-**Total: ~199 story points**, matching the 49 stories in §2.4.
+**Total: ~217 story points**, matching the 52 stories in §2.4.
 
 *(Point figures are a planning estimate for the Gantt in §2.7, not an independent
 measurement — re-estimate at sprint planning. The authoritative task lists are
 Complete Doc §9. The earlier split of 21/34/31/30/25 summed to 141 and did not
-reconcile with the 170-point total; the figures above now do.)*
+reconcile with the 170-point total; the 199-point split then reconciled but
+predated the 2026-10-03 screening-integrity work; the figures above now do.)*
+
+> **Schedule warning, restated.** The three requirements added on 2026-10-03 add
+> **13 points** to Phases 2 and 3, and the Phase 4 milestone already lands on
+> **Fri 25 Dec 2026** (§2.7.2). The plan does not fit as drawn. The scope must be
+> cut or the timeline moved — this is tracked as an open item in `HISTORY.md` §4.5.
 
 ### 2.6 Feasibility study
 
@@ -528,15 +916,123 @@ stretch beyond it.**
 **Assessment.** Phases 1–4 (12 weeks) form a coherent MVP with each phase ending in
 a demonstrable increment. Phase 5 is correctly identified as optional. The phased
 structure de-risks the schedule: if Phase 5 never happens, Phases 1–4 still deliver
-the core value proposition (bias-free, explainable screening).
+the core value proposition (explainable, auditable screening).
 
 **Risk:** Phase 3 is the most feature-dense (3 distinct AI features) for a
 3-week window. Mitigation: §9 defines the journey-mapping MVP as the must-have, with
 skill evolution and dynamic storytelling as separable increments.
 
+#### 2.6.4.1 Capacity update — double shifts, recorded 2026-10-03
+
+**The team has stated it is working double shifts.** That is recorded here as a
+planning input, and it changes one thing: the *hours available per week*.
+
+| | Before | After |
+|---|---|---|
+| Capacity assumption | Single shift, 5 students, part-time around coursework | **Double shift** |
+| 217 points over 12 weeks | ~18 points/week, tight | More comfortable |
+| Schedule verdict | At risk | **No longer capacity-constrained** |
+
+**What this does *not* fix.** The 12-week plan starting 2026-10-05 originally ended
+**Fri 2026-12-25, which is Christmas Day**. That was a calendar fact, not a capacity
+problem — more hours in a week do not create a day that is not there. ✅ **Resolved
+2026-10-03: the Phase 4 milestone moved to Thu 2026-12-24** and the team is off on the
+25th. The date was the thing that needed to change, and it did.
+
+**Double shifts raise a different risk, and it is recorded rather than dismissed.**
+   Five students on double shifts for twelve weeks is a burnout and quality risk, not a
+   free 2× multiplier. Sustained overtime reliably produces: slower code review, deferred
+   testing (which directly threatens REQ-NFR-019's 80% coverage gate), and silent scope
+   cuts that leave the documentation lying about what was built.
+
+   **Mitigation, and it is a documentation control rather than a scheduling one:** the
+   team commits to *not* cutting scope silently. Any reduction in a phase's deliverables
+   updates this document, `prd.md` §5.1 and the acceptance criteria in the same commit.
+   A documented scope cut is recoverable; an undocumented one is how a spec becomes
+   fiction.
+
+**New assumption recorded:** `ASM-002` — the team sustains double shifts for the full 12
+weeks without attrition or quality degradation. **Unvalidated.** If it turns out to be
+false at the end of Phase 2, the honest response is to re-scope, not to compress.
+
+#### 2.6.4.2 AI-assisted development — recorded 2026-10-03, with controls
+
+**The team has stated it is using AI to produce the code**, and that this is the reason
+the 217-point scope is expected to fit. That is a legitimate reason and it is recorded
+here so the plan rests on a stated assumption rather than an unexamined hope.
+
+**What it plausibly buys:** boilerplate volume. Django models, serializers, migrations,
+admin registrations, test scaffolding and Docker config are the parts of this stack that
+take the most typing and the least judgement. *Plausibly* — that is a judgement, not a
+measurement, and it is not evidence. It is recorded as `ASM-003` in §2.6.4.3 and is
+tested at the end of Phase 1, where it costs almost nothing to be wrong.
+
+**What it does not buy.** The specification has been built around one repeated rule —
+*never state anything that was not verified* — and AI assistance attacks that rule from
+several directions:
+
+| Failure mode | Why it happens | Control | Enforced by |
+|---|---|---|---|
+| **Confident, plausible, wrong code** | A migration or serializer that looks right and fails on an edge case nobody asked about | No generated code merges unread | PR review — a human is a required reviewer on every PR |
+| **Tests written to match the code, not the spec** | Generating the test after the implementation makes them agree by construction | **Acceptance criteria in Arch Doc §4.1 are written before the test.** A test traceable only to the implementation proves nothing | `US-###` rows name their FR; the CI traceability check fails on an orphan test |
+| **Provenance and licensing** | Generated code may reproduce a known or non-OSI-licensed implementation | Record any third-party code copied in | `pip-audit`, `safety` in CI — **plus a licence scan, still to add** |
+| **Security review debt** | Generated auth, crypto and query code looks plausible and is wrong exploitably | `bandit` in CI, plus the **no-AI-review-list** below | `bandit -r config/` on every push |
+| **Security-relevant falsehoods in the docs** | This repository's own discipline is what is at risk | §2.19 item 12 is the precedent: when an unverifiable claim was found, it was narrowed rather than shipped | Documentation review, same as code review |
+
+#### The no-AI-review-list
+
+**This is the load-bearing control, so it names files rather than topics.** "Auth" is not
+checkable; `accounts/` is. A named human must read these before merge — not "someone
+should", not "review carefully" — and the PR cannot be approved without it.
+
+| # | Path | Why it is on the list |
+|---|---|---|
+| 1 | `accounts/` — login, MFA, lockout, JWT, sessions | The one place a subtle flaw gives an attacker an account |
+| 2 | `candidates/` PII stripping, `candidate_resumes` encryption | Leaked PII **cannot be recalled**. `RSK-004` treats this as a release blocker |
+| 3 | `ai/` rationale generation and the **citation check** | If the "cites resume text" check passes a hallucinated quote, the evidence-cited differentiator is *false* and the audit trail is worthless. This is the single highest-risk file in the product |
+| 4 | `ai/` bias-audit keyword pass | If the keyword list silently misses a seeded phrase, the audit reports a pass that is not true |
+| 5 | `matching/` embeddings, pgvector ranking, Stage-1 hard filters | Gaps G1–G3 live here: `not_matched` must carry a reason, a filter must never produce `rejected`, and rules must stay versioned |
+| 6 | `employers/` shortlist / reject / required-assessment gate | `REQ-FR-051`/`052`: the gate and the override reason are the product's answer to its founding problem |
+| 7 | All migrations | `chk_override_has_reason` and the `filter_rules_version` stamp are constraints, not conventions, and a generated migration can silently drop one |
+| 8 | Any Celery task that sends or mutates | Retries are the default. `announcements.idempotency_key` and the screening task are the two that must be idempotent by construction |
+
+**The list is not "risky files" — it is files where a wrong answer is invisible.** Every
+one of them is a place where the code runs, returns normally, and is still wrong. That is
+the common property, and it is the reason a topic-level list was not enough.
+
+**The honest statement of the risk.** AI raises *throughput*, not *correctness*. The
+product's entire differentiator is that it makes decisions explainable and auditable, and
+a confidently-wrong codebase is a far worse outcome here than a visibly incomplete one —
+because the whole pitch is that FairFold does not make claims it cannot evidence.
+
+**Recorded as assumption `ASM-003`** (measurable, tested in Phase 1) and risk **RSK-012**
+(mitigated by the list above). Neither is a reason to slow down.
+
 **Gantt chart:** see §2.7.
 
-#### 2.6.5 Legal feasibility
+#### 2.6.4.3 Assumptions added 2026-10-03
+
+| ID | Assumption | Basis | **How it is tested** | If it fails |
+|---|---|---|---|---|
+| **`ASM-001`** | The 52 requirements are the right scope for an MVP | Team judgement | Anyone who has used the product and found a missing capability | Cut `REQ-FR-050` first — it is the only requirement the team itself called optional |
+| **`ASM-002`** | The team sustains **double shifts** for the full 12 weeks without attrition or quality degradation | Stated by the team | End of Phase 2: are 5 people still on it, and is review debt rising? | **Re-scope, do not compress.** A cut scope updates `prd.md` §5.1 and the acceptance criteria in the same commit |
+| **`ASM-003`** | AI assistance raises delivery capacity for the 217 points | Stated by the team. *Plausible for boilerplate; unmeasured* | **End of Phase 1: points actually delivered.** If Phase 1 (41 points, 3 weeks) lands at or under schedule, the assumption holds | Drop the capacity assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
+
+> **Correction to an earlier draft of this table (2026-10-03).** `ASM-003` previously read
+> *"…**without reducing review capacity**"* and its basis column claimed *"the throughput
+> half is well founded"*. **Both were wrong.** The first clause is not measurable, so it
+> could never be falsified — a thing that cannot be falsified is not an assumption, it is
+> a hope. The second asserted a conclusion as though it were evidence.
+>
+> It has been split: the **capacity** claim stays an assumption and is now measured at the
+> end of Phase 1; the **review** obligation was never an assumption and has been promoted
+> to a mandate — the no-AI-review-list above and the four controls, which are things the
+> team *does*, not things the team *believes*.
+>
+> `ASM-001` exists so the ID series does not start at 002. It is the assumption the other
+> two sit on: that the scope is right in the first place.
+
+#### 2.6.5 Legal feasibility#### 2.6.5 Legal feasibility
 
 **Verdict: Feasible, with obligations to be met rather than avoided.**
 
@@ -554,7 +1050,7 @@ skill evolution and dynamic storytelling as separable increments.
 
 **AI-specific regulation — EU AI Act** (REQ-COM-006): employment AI is classified
 **high-risk**, which obligates risk management, data governance, technical
-documentation, logging, transparency, and human oversight. MATCH MINDS addresses
+documentation, logging, transparency, and human oversight. FAIRFOLD addresses
 these directly:
 
 - *Logging* → immutable `AuditLogEntry` (REQ-COM-008)
@@ -612,19 +1108,28 @@ each "week" below is five working days.
 | Phase 1 — Foundation | 1–3 | Fri 2026-10-23 |
 | Phase 2 — AI Integration | 4–6 | Fri 2026-11-13 |
 | Phase 3 — Candidate AI | 7–9 | Fri 2026-12-04 |
-| Phase 4 — Hardening | 10–12 | Fri 2026-12-25 |
+| Phase 4 — Hardening | 10–12 | **Thu 2026-12-24** *(moved from Fri 2026-12-25 — decision 2026-10-03, option A)* |
 
-> ⚠️ **The Phase 4 milestone lands on Christmas Day.** This is a real scheduling problem,
-> not a formality: a 5-person student team losing ~2 weeks a year to holidays will not
-> finish a 12-week plan that starts in October without slipping. Two ways out — either
-> start earlier, or plan a **demo at the end of Phase 3 (early December)** and treat the
-> hardened build as a January continuation. The phase *durations* are the commitment;
-> **the dates are a plan.**
+> ✅ **Resolved 2026-10-03 — Option A. Phase 4 ends Thu 2026-12-24**, one day early,
+> and the team is off on 25 December. The one day of Phase 4 work moves into the Phase 3
+> buffer, which exists for exactly this.
+>
+> The background, kept because the reasoning is reusable: the plan originally ended
+> Fri 2026-12-25, which is Christmas Day. That was never a capacity problem — 25 December
+> is a holiday regardless of how many hours the team works — so the fix had to move a
+> date, not add effort. Double shifts (§2.6.4.1) removed the capacity constraint
+> separately and did not touch the calendar.
+>
+> | Option | Outcome |
+> |---|---|
+> | **A — Move the milestone one day** | ✅ **Chosen.** Phase 4 ends **Thu 2026-12-24** |
+> | B — Demo at end of Phase 3 | Not needed. Public demo is Fri 2026-12-04, still Phase 3 |
+> | C — Start earlier | Not needed. Re-basing would move every date for no gain |
 
 
 ```mermaid
 gantt
-    title MATCH MINDS — 12-Week MVP Schedule (kickoff 2026-10-05)
+    title FAIRFOLD — 12-Week MVP Schedule (kickoff 2026-10-05)
     dateFormat  YYYY-MM-DD
     axisFormat  %b %d
     excludes weekends
@@ -696,10 +1201,10 @@ Complete Doc §10.4:
 | Person | Role | Responsibilities | Assigned stories |
 |---|---|---|---|
 | Sardar Shihab | Full-Stack Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts; backend endpoints as needed | US-013, US-014, US-030–032 |
-| Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040 |
-| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062 |
+| Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040, **US-065** |
+| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062, **US-063, US-064** |
 | Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — tokens, component library, accessibility (WCAG 2.1 AA) | US-040, all design tokens and UI specs |
-| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping interaction design | US-013, all wireframes |
+| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping interaction design | US-013, all wireframes, **US-064** (override dialog flow) |
 
 **Declared gap:** no dedicated DevOps/Infrastructure role — currently absorbed by the
 backend engineer. §2.6.3 identifies this as the largest operational risk.
@@ -784,7 +1289,7 @@ flowchart LR
     end
 
     %% ---------- SYSTEM BOUNDARY ----------
-    subgraph MMS["MATCH MINDS SYSTEM"]
+    subgraph MMS["FAIRFOLD SYSTEM"]
         direction LR
         subgraph UC_AUTH["Authentication"]
             UC1([Register])
@@ -896,7 +1401,7 @@ flowchart LR
     class MMS,UC_AUTH,UC_CAND,UC_EMP,UC_INT,UC_ADM boundary
 ```
 
-**System boundary:** everything inside the dashed box is MATCH MINDS. External systems
+**System boundary:** everything inside the dashed box is FAIRFOLD. External systems
 (S3, OpenRouter, Piston, email provider, Stripe) are *outside* the boundary and appear
 as integration points in Arch Doc §5.1 and §C.12 rather than as actors, because they
 have no goals of their own in this context.
@@ -1286,7 +1791,7 @@ classDiagram
 
 ### 3.7 ER diagram
 
-Derived from the SQL schema in Arch Doc §5.1 (22 tables) and the Django models in
+Derived from the SQL schema in Arch Doc §5.1 (24 tables) and the Django models in
 Complete Doc §8.2 / §C.11.
 
 ```mermaid
@@ -1304,6 +1809,9 @@ erDiagram
     CANDIDATE_PROFILES ||--o{ CANDIDATE_SKILLS : "declares"
     CANDIDATE_PROFILES ||--o{ CERTIFICATIONS : "holds"
     CANDIDATE_PROFILES ||--o{ ASSESSMENT_ATTEMPTS : "attempts"
+    USERS ||--o{ ANNOUNCEMENTS : "authors"
+    USERS ||--o{ DATA_DELETION_REQUESTS : "approves erasure"
+
     CANDIDATE_PROFILES ||--o{ APPLICATIONS : "submits"
 
     SKILLS ||--o{ CANDIDATE_SKILLS : "canonicalises"
@@ -1311,6 +1819,7 @@ erDiagram
 
     ASSESSMENTS ||--o{ ASSESSMENT_QUESTIONS : "contains"
     ASSESSMENTS ||--o{ ASSESSMENT_ATTEMPTS : "attempted in"
+    ASSESSMENTS ||--o{ JOB_ASSESSMENT_REQUIREMENTS : "required by job (FR-051)"
 
     EMPLOYER_PROFILES ||--o| SUBSCRIPTIONS : "subscribes via"
     EMPLOYER_PROFILES ||--o{ JOBS : "posts"
@@ -1319,6 +1828,7 @@ erDiagram
 
     JOBS ||--o{ APPLICATIONS : "receives"
     JOBS ||--o{ INTERVIEW_PACKS : "has"
+    JOBS ||--o{ JOB_ASSESSMENT_REQUIREMENTS : "requires"
 
     APPLICATIONS ||--o{ INTERVIEWS : "schedules"
     APPLICATIONS ||--o{ MESSAGES : "exchanges"
@@ -1375,6 +1885,7 @@ erDiagram
         text company_name "ENCRYPTED"
         varchar industry
         integer company_size
+        boolean show_company_name "REQ-FR-042: public-board disclosure opt-in, off by default"
         varchar billing_plan
         varchar billing_cycle
         text stripe_customer_id "ENCRYPTED"
@@ -1426,12 +1937,18 @@ erDiagram
         uuid id PK
         uuid job_id FK
         uuid candidate_id FK
-        varchar status "applied-screened-shortlisted-interview-offered-hired-rejected"
+        varchar status "applied-screened-not_matched-shortlisted-interview-offered-hired-rejected"
         integer match_score "0-100 from AI"
         text match_rationale "evidence-cited"
         varchar ai_model_used
         timestamptz screened_at
         timestamptz shortlisted_at
+        text not_matched_reason "G3: which filter fired"
+        integer filter_rules_version "G3: which rule set judged it"
+        varchar assessment_gate_status "G1 FR-051: not_required-pending-passed-failed"
+        boolean decision_override "G2 FR-052"
+        text decision_override_reason "G2 FR-052: required if override"
+        uuid decided_by FK "nullable, SET NULL"
         timestamptz created_at
     }
 
@@ -1496,6 +2013,15 @@ erDiagram
         decimal score
         varchar status
         jsonb answers
+    }
+
+    JOB_ASSESSMENT_REQUIREMENTS {
+        uuid id PK
+        uuid job_id FK
+        uuid assessment_id FK
+        decimal min_score "nullable: pass mark"
+        integer sort_order
+        timestamptz created_at
     }
 
     INTERVIEW_PACKS {
@@ -1565,6 +2091,24 @@ erDiagram
         timestamptz created_at "indexed"
     }
 
+    ANNOUNCEMENTS {
+        uuid id PK
+        varchar title
+        text body
+        varchar audience "all-candidates-employers-employers_by_plan-custom"
+        jsonb audience_filter "the resolved predicate"
+        varchar channel "in_app-email-both"
+        varchar status "draft-scheduled-sending-sent-failed-cancelled"
+        timestamptz scheduled_at
+        timestamptz sent_at
+        integer recipient_count "resolved at SEND time"
+        integer skipped_count "suppressed: deleted, bounced, unsubscribed"
+        uuid created_by FK "nullable, SET NULL"
+        uuid idempotency_key UK "Celery retry must not double-send"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     DATA_EXPORT_REQUESTS {
         uuid id PK
         uuid user_id FK
@@ -1577,26 +2121,29 @@ erDiagram
 
     DATA_DELETION_REQUESTS {
         uuid id PK
-        uuid user_id FK "unique"
+        uuid user_id FK "nullable, SET NULL"
         text reason
         timestamptz requested_at
         timestamptz processed_at
-        varchar status
+        uuid approved_by FK "nullable, SET NULL"
+        varchar status "pending-approved-rejected-completed"
     }
 ```
 
 **Cardinality reading:** `||` = exactly one, `o|` = zero or one, `o{` = zero or many.
-All 22 tables and 28 relationships shown. The canonical SQL (Arch Doc §5.1) declares
-**30** foreign keys; the two not drawn are redundant self-references on `users` that
-would clutter the diagram without adding information — `USERS → CANDIDATE_PROFILES`
-and `USERS → EMPLOYER_PROFILES` are both already shown. PK/FK detail is carried in the
-attribute blocks.
+All 24 tables and 32 relationships shown. The canonical SQL (Arch Doc §5.1) declares
+**35** foreign keys; the three not drawn are redundant self-references on `users` that
+would clutter the diagram without adding information — `USERS → CANDIDATE_PROFILES`,
+`USERS → EMPLOYER_PROFILES` and `USERS → APPLICATIONS.decided_by` are all already
+implied by a drawn relationship. PK/FK detail is carried in the attribute blocks.
 
 Note the three special cases:
 
 - `AUDIT_LOG_ENTRIES.actor_id` is nullable with `ON DELETE SET NULL` — audit records
   must survive deletion of the actor.
-- `DATA_DELETION_REQUESTS.user_id` is unique — at most one active erasure request.
+- `DATA_DELETION_REQUESTS` has `UNIQUE (user_id, status)` — at most one erasure request
+  per status, so a user cannot hold two `pending` deletions. **This constraint is in the DDL
+  as of 2026-10-03**; the ER diagram had been asserting it while the SQL did not have it.
 - `APPLICATIONS` carries a composite `UNIQUE(job_id, candidate_id)` constraint, not
   expressible in Mermaid's ER notation; it is documented here and in the class diagram.
 - `EMPLOYER_TEAM_MEMBERS` is the join that makes an employer organisation many-to-many
@@ -1625,9 +2172,10 @@ with no separable half, so deleting a user's interview history is correct.
 
 ### 3.8 Data dictionary
 
-Field-level definitions for the 8 entities that carry the interesting behaviour: the four
-lifecycle tables plus the four with non-obvious constraints or erasure semantics
-(`EMPLOYER_TEAM_MEMBERS`, `MESSAGES`). Full SQL DDL: Arch Doc §5.1 (22 tables).
+Field-level definitions for the 10 entities that carry the interesting behaviour: the four
+lifecycle tables plus the five with non-obvious constraints or erasure semantics
+(`EMPLOYER_TEAM_MEMBERS`, `MESSAGES`, `JOB_ASSESSMENT_REQUIREMENTS`). Full SQL DDL:
+Arch Doc §5.1 (24 tables).
 
 #### USERS
 
@@ -1682,6 +2230,8 @@ lifecycle tables plus the four with non-obvious constraints or erasure semantics
 | status | VARCHAR(20) | | NO | `'draft'` | — | `draft`, `active`, `paused`, `closed` |
 | description_embedding | VECTOR(384) | | YES | — | — | pgvector; for semantic ranking |
 | screening_questions | JSONB | | NO | `'[]'` | — | AI-suggested + edited |
+| screening_config | JSONB | | NO | `'{}'` | — | **G3** stage-1 hard-filter rule set, e.g. `{"filters":{"min_years":2}}` |
+| screening_config_version | INTEGER | | NO | `1` | — | **G3** increments on every rule edit; stamped onto each application as `filter_rules_version` |
 | ai_model_used | VARCHAR(100) | | YES | — | — | Provenance for audit |
 | cost_estimate | DECIMAL(10,4) | | YES | — | — | Pre-screening estimate |
 | created_at | TIMESTAMPTZ | | NO | `NOW()` | — | — |
@@ -1694,16 +2244,54 @@ lifecycle tables plus the four with non-obvious constraints or erasure semantics
 | id | UUID | **PK** | NO | `gen_random_uuid()` | — | Primary identifier |
 | job_id | UUID | **FK** → `jobs.id` | NO | — | — | `ON DELETE CASCADE` |
 | candidate_id | UUID | **FK** → `candidate_profiles.id` | NO | — | — | `ON DELETE CASCADE` |
-| status | VARCHAR(20) | | NO | `'applied'` | — | `applied`→`screened`→`shortlisted`→`interview`→`offered`→`hired`/`rejected` |
+| status | VARCHAR(20) | | NO | `'applied'` | — | `applied`→`screened`→`shortlisted`→`interview`→`offered`→`hired`/`rejected`; **`not_matched`** is a filter outcome, not a decision (G3) |
 | match_score | INTEGER | | YES | — | — | 0–100, from AI |
 | match_rationale | TEXT | | YES | — | — | Evidence-cited explanation |
 | ai_model_used | VARCHAR(100) | | YES | — | — | Provenance for audit |
 | screened_at | TIMESTAMPTZ | | YES | — | — | Screening completion time |
 | shortlisted_at | TIMESTAMPTZ | | YES | — | — | Shortlist decision time |
+| not_matched_reason | TEXT | | YES | — | — | **G3** which hard-filter rule fired, e.g. `experience_level` |
+| filter_rules_version | INTEGER | | YES | — | — | **G3** = `jobs.screening_config_version` at screening time |
+| assessment_gate_status | VARCHAR(20) | | NO | `'not_required'` | — | **G1 / REQ-FR-051** `not_required`, `pending`, `passed`, `failed` |
+| decision_override | BOOLEAN | | NO | `FALSE` | — | **G2 / REQ-FR-052** shortlist or reject went against the ranking |
+| decision_override_reason | TEXT | | YES | — | — | **G2** required when `decision_override` is true |
+| decided_by | UUID | **FK** → `users.id` | YES | — | — | **G2** `ON DELETE SET NULL` — the record survives the account |
 | created_at | TIMESTAMPTZ | | NO | `NOW()` | — | Application timestamp |
 
 > **Composite constraint:** `UNIQUE(job_id, candidate_id)` — a candidate may apply to
 > a given job only once.
+>
+> **Check constraint:** `chk_override_has_reason` — `decision_override = FALSE OR
+> (decision_override_reason IS NOT NULL AND length(btrim(...)) > 0)`. A recorded
+> override cannot have an empty reason even if it is written by a script rather than
+> the UI. (G2 / REQ-FR-052)
+>
+> **Why these nine columns exist:** they were all added on 2026-10-03 to answer pain
+> points P2 and P5 of the Product Owner's own hiring experience (§1.3.2). Before this,
+> the platform could rank fairly and still have the real decision made informally and
+> invisibly — which is the exact failure that started the project.
+
+#### JOB_ASSESSMENT_REQUIREMENTS
+
+| Field | Type | Key | Null | Default | Description |
+|---|---|---|---|---|---|
+| id | UUID | **PK** | NO | `gen_random_uuid()` | — |
+| job_id | UUID | **FK** → `jobs.id` | NO | — | `ON DELETE CASCADE` — the requirement dies with the job |
+| assessment_id | UUID | **FK** → `assessments.id` | NO | — | `ON DELETE CASCADE` |
+| min_score | DECIMAL(5,2) | | YES | — | Pass mark; NULL = any completed attempt satisfies the gate |
+| sort_order | INTEGER | | NO | `0` | Display order on the job form |
+| created_at | TIMESTAMPTZ | | NO | `NOW()` | — |
+
+> **Constraint:** `UNIQUE(job_id, assessment_id)` — the same assessment cannot be
+> attached to one job twice.
+>
+> **Why this table exists:** `REQ-FR-019/020` made assessments a *candidate* action.
+> Nothing made them an *employer* action, so an employer could reach shortlist having
+> seen no skill evidence at all — pain point P2. This table is the join that lets an
+> employer attach an assessment to a job as a required step (REQ-FR-051). It reuses
+> the existing `assessments` / `assessment_attempts` pair; the gate is satisfied by
+> matching candidate + assessment on a completed attempt, so no attempt data is
+> duplicated.
 
 #### EMPLOYER_TEAM_MEMBERS
 
@@ -1726,6 +2314,39 @@ lifecycle tables plus the four with non-obvious constraints or erasure semantics
 > **Why this table exists:** `EmployerProfile.user` is `OneToOneField`, so before this
 > table an employer company could have exactly **one** person. `REQ-FR-047` requires
 > inviting, re-roling and removing colleagues, which a 1-to-1 relation cannot express.
+
+#### ANNOUNCEMENTS
+
+| Field | Type | Key | Null | Default | Description |
+|---|---|---|---|---|---|
+| id | UUID | **PK** | NO | `gen_random_uuid()` | — |
+| title | VARCHAR(200) | | NO | — | — |
+| body | TEXT | | NO | — | The message |
+| audience | VARCHAR(30) | | NO | `'all'` | `all`, `candidates`, `employers`, `employers_by_plan`, `custom` |
+| audience_filter | JSONB | | NO | `'{}'` | The resolved predicate, e.g. `{"plan": ["growth"]}` |
+| channel | VARCHAR(20) | | NO | `'in_app'` | `in_app`, `email`, `both` |
+| status | VARCHAR(20) | | NO | `'draft'` | `draft`, `scheduled`, `sending`, `sent`, `failed`, `cancelled` |
+| scheduled_at | TIMESTAMPTZ | | YES | — | Null = send now |
+| sent_at | TIMESTAMPTZ | | YES | — | — |
+| recipient_count | INTEGER | | NO | `0` | **Resolved at send time, not at create time** |
+| skipped_count | INTEGER | | NO | `0` | Suppressed: deleted, bounced, unsubscribed |
+| failure_detail | TEXT | | YES | — | Why a send failed |
+| created_by | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` — the record survives the admin account |
+| idempotency_key | UUID | **UK** | YES | — | Set before the task runs, so a Celery retry cannot double-send |
+| created_at | TIMESTAMPTZ | | NO | `NOW()` | — |
+| updated_at | TIMESTAMPTZ | | NO | `NOW()` | — |
+
+> **Why this table exists.** `REQ-FR-050` was approved in scope and given a page
+> (`design.md` #62) and an endpoint, but had **no table at all**. `notifications` cannot
+> substitute: it carries a single `recipient_id`, so it can record that a user was
+> notified but never what was announced, to whom, or whether it was sent. The requirement
+> was unimplementable as written.
+>
+> **Two fields carry the weight.** `recipient_count` is resolved at **send** time, not at
+> create time — an audience stored as a snapshot goes stale, and a scheduled announcement
+> whose audience includes a since-deleted account would email a user that `REQ-FR-041`
+> has hard-deleted. `idempotency_key` is unique and set *before* the task runs, because
+> Celery retries on timeout and a broadcast is the one action here that cannot be undone.
 
 #### MESSAGES (soft-delete)
 
@@ -1822,6 +2443,11 @@ Wireframes `X01`–`X05` add the remaining core-flow pages: landing (#1), passwo
 recovery and verification (#9–11), candidate dashboard (#15), skills manager (#18),
 and employer dashboard (#34).
 
+**Not drawn yet:** the two components added on 2026-10-03 for gaps G1–G2 — the Override
+Reason Dialog (`design.md` §7.11) and the Assessment Gate Pill (§7.12) — are specified
+but have no screen drawing, nor does the `not_matched` filter state of page #40. Tracked
+as `design.md` §12 item 11.
+
 **What `design.md` delivers** — all owned by Mohammad Abdul Ahad, UI/UX Designer
 (Complete Doc §10.4):
 
@@ -1871,7 +2497,7 @@ separated — a candidate has no access to employer functions and vice versa,
 enforced by Django group permissions (Complete Doc §5.1).
 
 ```
-MATCH MINDS
+FAIRFOLD
 ├── Public (no auth)
 │   ├── Home / value proposition
 │   ├── Job search & public job board
@@ -1967,14 +2593,14 @@ Section coverage of this document against the project specification. ✅ = compl
 | **PROJECT FOUNDATION** ||||
 | 1 | Title, team and roles | ✅ | Header; §2.7.3 for the full table |
 | 2 | Project summary and users | ✅ | §1.1 |
-| 3 | Problem statement + real example | ⚠️ | §1.2 — example needs team input |
-| 4 | Background study, competitor analysis | ✅ | §1.4 (11 systems, 3 in depth) |
+| 3 | Problem statement + real example | ✅ | §1.2 — **complete 2026-10-03**: Amazon 2018 primary case, iTutorGroup / HireVue / Mobley supporting, three Bangladesh sources (§1.2.1) |
+| 4 | Background study, competitor analysis | ✅ | §1.4 (11 systems, 3 in depth; §1.4.1 second pass by job-to-be-done; §1.4.2 naming risk) |
 | 5 | Solution, objectives, scope, users | ✅ | §1.5 |
 | **REQUIREMENTS & PLANNING** ||||
-| 6 | Requirement collection method | ❌ | §1.3 — **team must complete** |
-| 7 | Functional requirements with IDs | ✅ | §2.2 (50 FRs — Arch Doc §4.1) |
+| 6 | Requirement collection method | ✅ | §1.3 — **complete 2026-10-03**, tagged [Done]/[Illustrative]/[Planned]. Validation plan §1.3.4 remains [Planned] |
+| 7 | Functional requirements with IDs | ✅ | §2.2 (52 FRs — Arch Doc §4.1) |
 | 8 | Measurable NFRs | ✅ | §2.3 (50 NFRs — Arch Doc §4.2) |
-| 9 | User stories, priority, backlog | ✅ | §2.4 (49 stories), §2.5 |
+| 9 | User stories, priority, backlog | ✅ | §2.4 (52 stories), §2.5 |
 | 10 | Five-way feasibility | ✅ | §2.6.1 – §2.6.5 |
 | 11 | Methodology, Gantt, roles, risk | ✅ | §2.7.1 – §2.7.4 |
 | **SYSTEM ANALYSIS & DESIGN** ||||
@@ -1987,24 +2613,268 @@ Section coverage of this document against the project specification. ✅ = compl
 
 ### Outstanding items requiring team input
 
-1. **§1.3 — Requirement collection method.** State the real method, respondents and
-   sample size. Do not claim research that was not conducted.
-2. **§1.2 — Real-world problem example.** Supply one concrete case (the 2018 Amazon
-   CV-screening case is directly relevant and well documented).
+1. ~~**§1.3 — Requirement collection method.**~~ **Closed 2026-10-03.** Stated in §1.3
+   with every claim tagged **[Done]** / **[Illustrative]** / **[Planned]**. The
+   validation plan in §1.3.4 remains **[Planned]** and needs the team to actually run
+   it — but it no longer blocks the document.
+2. ~~**§1.2 — Real-world problem example.**~~ **Closed 2026-10-03.** §1.2.1: Amazon
+   (2018) primary, *EEOC v. iTutorGroup*, HireVue and *Mobley v. Workday*
+   supporting, three Bangladesh sources. **Caveat:** *Mobley v. Workday* was
+   mid-litigation as of Jul 2026 and must be re-verified before public citation.
 3. **§3.9.1 — design tooling.** Wireframes are now complete for low fidelity (23 of them,
    covering all 18 required screens and all 22 core-flow pages), but the **Figma file,
    Figma components and high-fidelity mockups have not been started**. The decisions they
    would encode are recorded as text in `design.md` §3–§7, §6.6 and §11, which is enough to
-   brief a build. Tracked as `design.md` §12 items 1–4.
+   brief a build. Tracked as `design.md` §12 items 1–4. The two new screening-integrity
+   components (§7.11, §7.12) are specified but not yet drawn — `design.md` §12 item 11.
 4. **§2.4.1 round 2 — decided.** The page-level design audit found 7 pages with features
    but no functional requirement. All seven are now in the Arch Doc as `REQ-FR-044`–`050`
    with matching stories `US-056`–`US-062`. **One decision remains: is `REQ-FR-050`
    (broadcast announcement, page #62) worth building?** It is marked optional; if not,
    remove the FR, the story and the page together.
-5. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` does not list public job
-   browse/search endpoints for the new REQ-FR-042, nor the GDPR export/delete
-   endpoints for REQ-FR-040/041. The same list also lacks endpoints for the seven
-   requirements added on 2026-10-03.
-6. **Unconfirmed design decisions** (`design.md` §12) — most importantly, **when the
-   candidate's name is revealed to the employer**, which changes screens #40 and #41
-   and is also open in `prd.md` §19 item 4.
+5. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` now lists the screening-integrity
+   endpoints added for `REQ-FR-051`/`052` and the `not_matched` review endpoint for
+   `REQ-FR-029`, so the new requirements do not recreate the gap they were written to
+   close. **Still open:** public job browse/search endpoints for `REQ-FR-042` and the
+   GDPR export/delete endpoints for `REQ-FR-040`/`041`.
+6. **§1.4.2 / `prd.md` §4.3 — ✅ name decided (FairFold); 🟡 clearance outstanding.**
+   The old name was contested by three unrelated commercial users, so it was abandoned
+   on 2026-10-03. FairFold was chosen from four screened candidates; no living
+   commercial use was found. The four `MATCH_MINDS_*.md` files were renamed and all
+   internal links repaired. **Still to do, and it is legal work rather than a design
+   decision:** a formal trademark search in Bangladesh and each target export market,
+   registration of `fairfold.com` / `fairfold.ai`, and filing the word mark in classes
+   42 and 35 per market. Logged as **RSK-011**, downgraded to Medium/Low.
+7. **Unconfirmed design decisions** (`design.md` §12) — score band thresholds, dark
+   mode, Bengali at launch, and brand styling. ~~When the candidate's name is revealed~~
+   was **decided 2026-10-03: at shortlist**; branding is now blocked on item 6 above.
+
+---
+
+## 5. PRE-DEVELOPMENT READINESS REVIEW
+
+**Compiled 2026-10-03.** One place to answer: *is the documentation complete enough to
+start building?* Nothing here repeats §2.4.1 or §1.3; it is the consolidated verdict.
+
+### 5.1 The files, and what each one owns
+
+| File | Role | Canonical for | Lines |
+|---|---|---|---|
+| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), migrations/seed (§C.8), team (§10.4) | 2245 |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2324 |
+| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1240 |
+| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML, Gantt, data dictionary, this readiness review | 2850 |
+| `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 23 wireframes, build tooling (§11.2), deliverables checklist | 1418 |
+| `HISTORY.md` | Log | What was done, what is still open, and why | 1269 |
+| `README.md` | Entry point | Setup, project structure, the two standing warnings | 246 |
+
+**⚠️ Ownership rule that must survive the rename.** *Functional requirements live in
+the Arch Doc §4.1, not the PRD.* The PRD proposes and summarises them. Any new FR starts
+in the Arch Doc; the PRD table is a pointer, never the definition.
+
+### 5.2 Verification run on 2026-10-03
+
+| Check | Result |
+|---|---|
+| Internal markdown links resolve | ✅ all, 0 dangling |
+| `REQ-FR-###` references point at a real requirement | ✅ 0 dangling across all 7 documents |
+| Every FR has at least one user story | ✅ 52/52 |
+| Story rows parse and sum | ✅ 52 stories, 217 points, 30 Must / 17 Should / 5 Could |
+| Duplicate FR rows | ✅ none — 52 rows, 52 unique IDs |
+| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 24 / 35 / 13 |
+| Mermaid diagrams parse | ✅ 5 of 5 |
+| `scripts/verify_docs.py` (added 2026-10-03, runs in CI) | ✅ all checks pass — counts, id contiguity, dangling refs, story arithmetic, links, anchors, naming, stale figures, placeholders, secrets, self-reported line counts |
+| `scripts/verify_bias_set.py` (added 2026-10-03, runs in CI) | ✅ **both versions** internally consistent — v1.0.0 (76 cases) and v1.0.1 (103), including the manifest SHA guard |
+| `tests/bias/test_bias_pass.py` (25 assertions, runs in CI) | ✅ 25 passing — recall 1.0, **0 false positives**, flag rate 0.7282. Read `manifest.measured.caveat` before quoting |
+| `makemigrations --check` in CI | ✅ so a model change cannot land without its migration (Complete Doc §C.8.1) |
+| Frontend build in CI | ✅ `npm ci && npm run build`, plus a hard 30 KB budget on the built CSS (`design.md` §11.4) |
+| `[PLACEHOLDER]` / `?` cells / `TBD` remaining | ✅ none |
+| Secrets in committed files | ✅ none; `.env` is gitignored, `.env.example` is placeholders |
+| Old product name anywhere | ✅ none except where it describes *other* companies' products |
+
+### 5.3 Conflicts found in this review, and how each was settled
+
+Nine. Every one was a contradiction between two documents or between a document and the
+code, not a missing idea.
+
+| # | Conflict | Resolution | Evidence used |
+|---|---|---|---|
+| 1 | **Django project package** — Complete Doc §4.2 implied `fairfold/`; `.env.example`, the CI workflow and the README all set `DJANGO_SETTINGS_MODULE=config.settings.*` | Project package is **`config/`**; apps are top-level packages at the repo root. All lint/test/coverage commands corrected | `.env.example` and `config.settings.ci` both assume `config` |
+| 2 | **SQLite fallback** — settings comments offered a SQLite fallback, but pgvector does not exist in SQLite and screening depends on vector search | **No SQLite fallback.** Local dev uses PostgreSQL + pgvector via Docker. `test.py` is SQLite **only** for tests touching no `VectorField`; `ci.py` is Postgres for everything | The schema — `VECTOR(384)` columns cannot be created in SQLite |
+| 3 | **No Django Redis cache backend** — §5.4 and §C.2 specify a 7-key Redis cache strategy with TTLs and invalidation, and rate-limit counters in Redis, but no Redis cache library was in `requirements.txt` | **`django-redis==5.4.0` added** | The cache strategy was unimplementable as written |
+| 4 | **Rate limiting would not have limited** — `django-ratelimit` defaults to the local-memory cache, so under gunicorn each worker would enforce its own limit | Documented that it **must** be pointed at the Redis cache | The stack matrix listed `django-ratelimit`; §5.4 puts its counters in Redis |
+| 5 | **`drf-spectacular` in dev dependencies** — `prd.md` §13 serves the OpenAPI schema, so it is a runtime dependency | **Moved to `requirements.txt`** | A missing package in production breaks `/api/schema/` |
+| 6 | **Version drift in the stack matrix** — DRF listed as 3.14, pinned 3.15.1; pgvector 0.2.4 vs 0.2.0+; "Django Templates 5.x" in a version column | Corrected to match `requirements.txt` | `requirements.txt` is executable; the matrix is prose |
+| 7 | **No Free employer tier in the pricing table** — `prd.md` §15.2 listed one; Complete Doc §C.14 did not | **Free row added to §C.14** | The `subscriptions` table already implements it: `plan DEFAULT 'free'`, `max_jobs 3`, `ai_quota_remaining 50` |
+| 8 | **"Trial" on the free plan** — unsupported by the schema | Changed to **"Not time-limited"**; flagged that a real trial needs a `trial_ends_at` column | `subscriptions` has no expiry column |
+| 9 | **"a focused team of 4"** vs a five-person team | Corrected to 5 | §10.4 and §2.7.3 both list five |
+
+**How these were settled.** In every case the **executable artefact won** — the SQL
+schema, `requirements.txt`, `.env.example`. Those can be checked; prose cannot. Where
+two documents merely disagreed and neither was executable (§7, candidate pricing),
+the canonical document's rule was applied and the stale one corrected.
+
+### 5.4 New gaps opened by this review
+
+| Gap | What it is | Severity | Where it is tracked | Status |
+|---|---|---|---|---|
+| **O** | **Prebuilt frontend tooling is unspecified.** TailwindCSS 3.4, HTMX 1.18 and Chart.js 4.4 were in the stack matrix, but there was no `package.json`, no Tailwind config file and no build step in CI — so `design.md` §11.2's *"build Tailwind to a static CSS file"* was an instruction nobody could execute, and production would have fallen back to the Tailwind CDN the CSP does not allow | 🟡 | `design.md` §11.2/§12, Arch Doc §3.4/§6.2/§6.5, `README.md` §Build Order | ✅ Closed 2026-10-03 |
+| **P** | **ClamAV had no service, only clients.** `python-magic` and `clamav-client` were pinned and `.env.example` documents `CLAMD_HOST`/`CLAMD_PORT`, and `libmagic1`/`clamav-daemon` *were* already in the Dockerfile — but there was **no ClamAV daemon in `docker-compose` or in CI**. `.env.example` says uploads are *rejected* if ClamAV is unreachable, so every resume upload would have failed | 🟡 | Arch Doc §6.1/§6.2/§6.5 | ✅ Closed 2026-10-03 (with a correction — see below) |
+| **Q** | **`torch` is not pinned to a CPU build.** `requirements.txt` has `torch>=2.3.0`, which by default pulls the full CUDA wheel — multi-gigabyte, and it does not fit the "2–4 vCPU VPS" assumption in §18.2 | 🟡 | `requirements.txt`, Arch Doc §3.4 | ✅ Closed 2026-10-03 |
+| **R** | **No migration/seed strategy for existing data.** `C.8` had a migration *plan*, but no decision on `makemigrations` vs hand-written migrations, and no seed fixtures for roles, skills or the taxonomy | 🟢 | Complete Doc §C.8.1–C.8.3, Arch Doc §6.5 | ✅ Closed 2026-10-03 |
+| **S** | **Double-shift assumption is unvalidated.** Now recorded as `ASM-002`. If it fails at the end of Phase 2 the answer is to re-scope, not compress | 🟡 | §2.6.4.1 | ⏳ Open by design — tested at the end of Phase 2 |
+
+> **Correction on gap P.** The gap as first written said the OS packages "have not been
+> checked to install `libmagic1` and a ClamAV daemon". That was wrong about the
+> Dockerfile — `libmagic1` and `clamav-daemon` were both already installed there. The
+> real gap was narrower and worse: **no ClamAV *daemon* anywhere to connect to**, in
+> Compose or in CI, on a path that rejects files when the daemon is unreachable. The
+> row above states the corrected gap. Recording it because the original wording would
+> have sent a reviewer to check something that was already correct.
+
+### 5.5 Everything still open, in one list
+
+**🟠 Blocks the start of development** — the specification contradicts itself or cannot be executed:
+
+| # | Blocker | Owner | Effort |
+|---|---|---|---|
+| — | ~~**API list is incomplete.**~~ ✅ **Closed 2026-10-03.** All five missing groups written into Complete Doc §C.12: `jobs/public/` (`REQ-FR-042`), `gdpr/export/*` + `gdpr/deletion/*` (`REQ-FR-040/041`), `employers/team/*` (`REQ-FR-047`), `assessments/*` authoring (`REQ-FR-049`). Writing them exposed two schema holes, both now filled — see §5.7 | — | Done |
+| — | ~~**Phase 4 milestone is 25 December.**~~ ✅ **Resolved 2026-10-03** — moved to **Thu 2026-12-24**, team off on the 25th (§2.7.2 option A) | — | Done |
+
+> **There are no orange items left.** The two that existed on the first pass are both
+> closed, and both closures changed something downstream rather than just ticking a box.
+
+**🟡 Blocks the public launch, not the build:**
+
+| # | Item | Owner |
+|---|---|---|
+| 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned, but a search is not a clearance | Legal / PM |
+| 4 | ~~Phase 2 **versioned bias test set**~~ — ✅ **Authored, implemented and measured 2026-10-03.** Two versions: `v1.0.0` (76 cases) and **`v1.0.1` (103 cases, 13 categories, numeric rule layer)**. `ai/bias_pass.py`, 25 CI assertions. Recall 1.0 · **0** false positives · flag rate **0.7282**. `LIM-001` and `LIM-002` closed by fix. Two decisions recorded: `LIM-003` no Bengali list (accepted out of scope), `GAP-001` bare adjectives stay out | Ishrak |
+| 5 | Cross-border data transfer (SCCs) and provider ToS — `prd.md` §19.1 item 4, still open | Legal / PM |
+| 6 | Figma file, components and hi-fi mockups (`design.md` §12 items 1–4) | UI/UX |
+| 7 | Screens for the two new components (§7.11, §7.12) — `design.md` §12 item 11 | UI/UX |
+| 8 | ~~**`REQ-FR-050` (broadcast, page #62) — keep or cut.**~~ ✅ **Decided 2026-10-03: kept**, Phase 4 only, never a launch dependency. Two binding conditions recorded in §2.4.1 and in the requirement itself | — |
+
+**🟢 Build work, no decision needed:** dark mode, Bengali at launch, score-band
+thresholds (they need a calibrated model, not a meeting). Gaps **O–R are now closed**;
+`ASM-002` and `ASM-003` remain assumptions **by design** — both have a stated test date
+(Phase 2 end, Phase 1 end) and a stated fallback.
+
+### 5.6 Verdict
+
+**The specification is complete enough to start Phase 1.** Requirements, schema, stack,
+acceptance criteria and user stories are consistent and machine-verifiable.
+
+**Both first-hour blockers are now closed** — the API list (Complete Doc §C.12) and the
+Phase 4 milestone date (Thu 2026-12-24). Nothing else in §5.5 prevents work starting
+today; the remaining items are legal, design or measurement work that belongs to a later
+phase by design.
+
+**What is deliberately *not* settled, and why that is the honest position.** Three
+assumptions remain open and each has a test date rather than a hopeful tone:
+`ASM-001` (52 requirements is the right MVP scope — test at the end of Phase 1; if it
+fails, cut `REQ-FR-050` first), `ASM-002` (double shifts — test at the end of Phase 2; if
+it fails, re-scope rather than compress), and `ASM-003` (AI assistance raises capacity for
+217 points — test at the end of Phase 1, 41 points in 3 weeks). A specification that
+claimed to have no open assumptions would be less useful than one that names them and says
+when each will be found out.
+
+### 5.7 Two schema holes found by writing the API, not by reading it
+
+Worth recording as a method note. These were **not** caught by any table-by-table review of
+§5.1. They appeared only when the endpoints had to be written down, because each one
+forces a question the schema had never been asked.
+
+| Hole | What the endpoints needed | Schema had | Now |
+|---|---|---|---|
+| `employer_profiles.show_company_name` | `GET /api/v1/jobs/public/` has to decide whether an employer's name is exposed to an unauthenticated caller. A public job board cannot answer that without a stored per-employer preference, and inferring it from "is this the default" would make anonymity a side effect of lazy data entry | no column | `show_company_name BOOLEAN DEFAULT FALSE` — withheld by default, opt-in by the employer. The endpoint also returns **404, not 403**, for a hidden draft, so the response does not confirm that a private job exists |
+| `data_deletion_requests.approved_by` | `POST /gdpr/deletion/` is admin-approved, not self-service (Complete Doc §7), so an approval has to record *who* approved it and *when* — that is the whole audit value of an erasure request. It also needs the requester and the approver to be different people | no column, and `UNIQUE (user_id, status)` was drawn in the ER diagram but absent from the DDL | `approved_by BIGINT REFERENCES users(id)` plus `UNIQUE (user_id, status)`. Audit rows are **never deleted**, even after the personal data is |
+
+The second one is the more interesting: the ER diagram and the `CREATE TABLE` disagreed,
+and both were previously described as verified. A diagram is prose with boxes. The DDL is
+the artefact.
+
+### 5.8 Readiness status — re-checked 2026-10-04
+
+**Question asked: can Phase 1 start today?** Answered against the tree as it stands, not
+from memory. Re-run `scripts/verify_docs.py`, `scripts/verify_bias_set.py`,
+`pytest tests/bias/test_bias_pass.py` and the Mermaid parse to reproduce it.
+
+#### Nothing blocks the start of development
+
+Both first-hour blockers are closed (§5.5). There is no orange item, no contradiction
+between documents, and no figure that fails to reconcile against the SQL. **Work can begin
+today.** As of 2026-10-04 the scaffold the build needs also exists — `manage.py`, `config/`
+with four settings modules, eleven app packages, the seed command, and the frontend build
+files — so "start development" is no longer a documentation exercise.
+
+#### What remains, grouped by what it actually costs
+
+| Group | Items | Blocks the build? |
+|---|---|---|
+| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); the 24 tables are DDL but no Django model exists yet; dark mode, Bengali UI, score-band calibration | No — these *are* Phases 1–3 |
+
+> **Does "no Django model yet" block *starting* development? No — it blocks the app *running*.**
+> Writing code can begin immediately: `manage.py`, the four settings modules, the app packages,
+> the seed command and the bias pass are all present and do not depend on a model. The first
+> `models.py` is the first task of the first day, not a prerequisite for opening the repository.
+>
+> What a model *is* a prerequisite for is anything that touches the database: `migrate`,
+> `collectstatic` against real settings, the ORM-dependent tests, and every endpoint. So the
+> honest split is:
+>
+> | Can be done today, with no model | Needs `accounts.User` and `core.AuditLogEntry` first |
+> |---|---|
+> | Templates and static assets · the seed command's own validation · `ai/bias_pass.py` · `ai/bias_audit.py` · validators, serializers and forms that have no ORM call · `manage.py check` | Anything importing a model · `migrate` · ORM queries and factories · API viewsets · the Django admin |
+| **Assumptions, with test dates** | `ASM-001` (scope, end of Phase 1), `ASM-002` (double shifts, end of Phase 2), `ASM-003` (AI capacity, end of Phase 1) | No — each has a stated test date and fallback |
+| **Decisions taken, not fixed** | `LIM-003` no Bengali term list · `GAP-001` no bare adjectives | No — recorded with residual risk |
+| **Needs a person** | `RSK-011` trademark search + class 42/35 filing · SCCs / cross-border transfer (`prd.md` §19.1 item 4) | No — legal, and both before launch |
+| **Needs a designer** | `design.md` §12 items 1–4 (Figma, components, hi-fi), 7–8 (logo, icons), 10 (usability test plan) | No — content decisions are recorded as text |
+| **Low-severity open** | `LIM-004` substring matching has no word boundaries | No |
+
+> **The wireframes are no longer on this list.** `design.md` §10.6 previously listed "26 pages
+> specified but not wireframed"; all **62** pages now carry a wireframe (52 in total: 18 `S`,
+> 5 `X`, 29 `W`), including the four screening-integrity components that had only specs.
+> `scripts/verify_docs.py` §11 fails if any page row's wireframe cell is blank, so the claim
+> is checked rather than asserted. What is still outstanding is *Figma* and *hi-fi*, which
+> are `design.md` §12 items 1–4 — a different thing from having no wireframe.
+
+#### Four things this section deliberately does not claim
+
+1. **"Complete" means the documentation is internally consistent and executable** — not
+   that the product is designed. Design judgement is `design.md`'s job and most of it is not
+   started.
+2. **The bias pass measures nothing about real candidates.** 103 fixture cases and 0 false
+   positives say the *rules* behave. They say nothing about the embedding model, the ranking
+   function, or whether outcomes differ across groups. `manifest.json` says so in
+   `does_not_support`.
+3. **The validation plan has not been run.** §1.3.4 fixes the sample size, channel and
+   questions *in advance* so nobody can later describe a result that was never collected.
+   **No interview, survey or concept test has happened.** Every requirement traced to local
+   evidence in §1.2.2 is tagged **[Illustrative]**, and that tag is still accurate.
+4. **The scaffold is not a running system.** No Django model exists, so `manage.py migrate`
+   creates zero tables and no endpoint responds. The scaffold's value is that a first
+   `manage.py check` is an import-and-config check rather than a from-scratch setup — and that
+   check has **not been run**, because Django is not installed in the environment where the
+   scaffold was written. `docker-compose.yml`, `Dockerfile` and `.github/workflows/ci-cd.yml`
+   exist as files but have likewise **never been built or executed**. **Treat "the scaffold is
+   correct" as an unverified claim until `manage.py check` and a first `docker compose up`
+   both pass.**
+
+#### The one number that would change the verdict
+
+If `ASM-001` fails at the end of Phase 1 — 52 requirements is too much scope — the answer is
+to cut `REQ-FR-050` first, and only that, because it is the sole requirement whose four
+artefacts are coupled by design. 217 → 209 points. Everything else in this document is
+either closed or scheduled against a phase.
+
+#### Reproducing this section
+
+```bash
+python3 scripts/verify_docs.py        # cross-document consistency
+python3 scripts/verify_bias_set.py    # every bias set version
+pytest tests/bias/test_bias_pass.py   # the pass itself
+```
+
+All three must pass. If a figure in this document disagrees with what they report, the
+figure is wrong — these check the artefacts, and the artefacts win.

@@ -1,0 +1,22 @@
+{
+  "name": "fairfold-assets",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build-time asset pipeline for FairFold. No bundler, no SPA, and node_modules never reaches the runtime image.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --minify",
+    "watch": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --watch",
+    "check-budget": "gzip -c static/css/tailwind.css | wc -c | awk '{ if ($1 >= 30720) { print \"tailwind.css is \" $1 \" bytes gzipped, budget is 30720\"; exit 1 } }'"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  },
+  "dependencies": {
+    "chart.js": "4.4.7",
+    "htmx.org": "1.18.0"
+  }
+}

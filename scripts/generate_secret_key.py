@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate the cryptographic secrets required by Match Minds.
+Generate the cryptographic secrets required by FairFold.
 
 Emits values for two variables in `.env`:
 

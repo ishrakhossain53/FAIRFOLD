@@ -8,6 +8,10 @@ django-otp==0.16.0
 celery==5.4.0
 redis==5.0.3
 django-celery-beat==2.7.0  # periodic task scheduling (Celery Beat)
+django-redis==5.4.0    # Redis cache backend — REQUIRED: Arch Doc §5.4 / Complete Doc §C.2
+                        # specify Redis-backed caching, and rate-limit counters live in
+                        # Redis so they are shared across gunicorn workers. Without
+                        # this the documented cache strategy is unimplementable.
 
 psycopg2-binary>=2.9.9
 pgvector>=0.2.0  # pgvector.django VectorField
@@ -15,7 +19,11 @@ pgvector>=0.2.0  # pgvector.django VectorField
 openai>=1.40.2  # OpenRouter SDK (OpenAI-compatible)
 
 sentence-transformers>=3.0.1  # offline embeddings
-torch>=2.3.0  # required by sentence-transformers
+# CPU-ONLY build. The default PyPI wheel for linux/x86_64 bundles CUDA and pulls
+# several GB of NVIDIA libraries that will never run on a CPU-only VPS — which is
+# exactly the deployment target in prd.md §18.2. Pinned to the CPU index.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.3.0,<3.0.0  # required by sentence-transformers; CPU wheel only
 transformers>=4.44.2
 
 spacy>=3.8.2  # PII detection NER
@@ -34,6 +42,10 @@ pdfplumber>=0.11.0  # PDF text extraction for resume parsing
 
 # Frontend
 django-htmx>=1.0.0  # HTMX integration
+
+# API schema — runtime, not dev: prd.md §13 serves /api/schema/ and the OpenAPI
+# document is consumed by the frontend team, so it must be installed in production.
+drf-spectacular==0.28.1
 
 # Production
 gunicorn>=22.0.0

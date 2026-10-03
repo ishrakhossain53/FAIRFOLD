@@ -1,11 +1,11 @@
-# MATCH MINDS — Detailed Architecture & Requirements Specification
+# FAIRFOLD — Detailed Architecture & Requirements Specification
 
-**Version:** 4.0 (50 FRs · employer_team_members · message soft-delete)  
+**Version:** 4.1 (52 FRs · override visibility · employer-required assessments · versioned hard filters)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
 **Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque  
 
-> **Companion document to:** `MATCH_MINDS_Complete_Project_Document.md`  
+> **Companion document to:** `FAIRFOLD_Complete_Project_Document.md`  
 > This document provides the detailed, implementation-ready architecture and requirements that supplement the high-level project document. Where the project document describes *what* to build and *why*, this document specifies *how* — with concrete APIs, data models, acceptance criteria, and measurable quality attributes.
 
 ---
@@ -37,7 +37,7 @@
 
 ## 1. Purpose & Scope
 
-This document defines the complete technical architecture, functional requirements (FRs), and non-functional requirements (NFRs) for the **Match Minds** platform. It serves as the implementation contract between the design team and engineering.
+This document defines the complete technical architecture, functional requirements (FRs), and non-functional requirements (NFRs) for the **FairFold** platform. It serves as the implementation contract between the design team and engineering.
 
 ### 1.1 Out of Scope
 - Mobile app native development (Phase 5; PWA is the Phase 4 fallback)
@@ -133,7 +133,13 @@ This document defines the complete technical architecture, functional requiremen
 
 #### AD-006: Monolith-First Architecture
 **Status:** Accepted  
-**Context:** Team of 4 developers, single deployment target.  
+**Context:** Team of 5 developers, single deployment target.  
+
+> *Corrected 2026-10-03.* This line still said 4 after the rename pass, so conflict 9
+> (§5.3 of the feasibility document) was recorded as settled when one of its two
+> occurrences had never been touched. The correction note is kept on its own line on
+> purpose: a note sharing the line would also share the exemption that lets a line
+> describe a stale figure, and the claim would then never be checked again.
 **Decision:** Single Django monolith with app-level separation (candidates, employers, matching, assessments, interviews, journey, ai, core). Docker Compose for local; single-container or Kubernetes for prod. Microservices split only when scaling demands it.  
 **Consequences:** Faster development, simpler debugging, atomic deployments. Future risk of tight coupling mitigated by app-level boundaries.
 
@@ -232,28 +238,33 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 
 | Layer | Technology | Version | Rationale |
 |---|---|---|---|
-| **Frontend** | Django Templates | 5.x | Single framework, faster MVP |
+| **Frontend** | Django Templates | ships with Django 5.2 | Single framework, faster MVP |
 | | HTMX | 1.18+ | SPA-like interactivity without separate frontend |
 | | TailwindCSS | 3.4 | Rapid UI development |
 | | Django-HTMX | 1.0+ | HTMX ↔ Django integration |
 | | Chart.js | 4.4 | Journey mapping visualization |
+| **Build Tooling** | Node.js | 20 LTS | **Build-time only.** Runs the Tailwind CLI and nothing else — there is no SPA, no bundler and no `node_modules` in the production image. Added 2026-10-03 (gap O): the frontend stack was named but no toolchain was specified, so "build Tailwind to a static CSS file" (`design.md` §11.2) was an instruction with no way to execute it |
+| | Tailwind CSS CLI | 3.4 | `npm run build` → `static/css/tailwind.css`, compiled from `tailwind.config.js` and the tokens in `design.md` §3–§5 |
+| | HTMX (npm) | 1.18 | Vendored to `static/js/htmx.min.js` so the CSP does not need a third-party script host |
+| | Chart.js (npm) | 4.4 | Vendored the same way; loaded only on Journey Map and Analytics pages (`design.md` §11.4) |
 | **Backend** | Django | 5.2+ | LTS — production-proven (Instagram, Pinterest) |
-| | Django REST Framework | 3.14 | API layer for future SPA |
+| | Django REST Framework | 3.15.1 | API layer for the DRF endpoints; pinned in `requirements.txt` |
 | | DRF Spectacular | 0.28 | OpenAPI 3.0 auto-generation |
 | **Database** | PostgreSQL | 17 | JSON support, row-level security |
 | | psycopg2-binary | 2.9.9+ | PostgreSQL driver |
-| | pgvector | 0.2.4 | Semantic similarity search |
+| | pgvector (Python) | 0.2.0+ | Semantic similarity search; the PostgreSQL extension is a separate version — see below |
 | | pgcrypto | built-in | Additional field encryption |
 | **AI/ML** | sentence-transformers | 3.0+ | Offline embeddings ($0 cost) |
 | | spaCy | 3.8+ | PII detection NER (offline) |
 | | OpenRouter SDK (openai) | 1.40+ | Free tier AI access |
-| | torch | 2.3+ | Required by sentence-transformers |
+| | torch | 2.3+, **CPU wheel** | Required by sentence-transformers. Installed from `download.pytorch.org/whl/cpu`; the default PyPI wheel bundles CUDA and pulls several GB onto a CPU-only VPS |
 | | transformers | 4.44+ | Required by sentence-transformers |
 | **Background** | Celery | 5.4+ | Async task processing |
 | | Celery Beat | built-in | Scheduled tasks |
 | | Celery Results (django-celery-results) | 2.5+ | Task result backend |
 | | Celery Beat UI (django-celery-beat) | 2.7+ | Periodic task scheduler |
-| | Redis | 5.0+ | Broker + cache |
+| | Redis | 5.0+ | Celery broker + result backend |
+| | django-redis | 5.4 | **Redis cache backend.** Added 2026-10-03: §5.4 specifies Redis-backed caching and Redis rate-limit counters, but no Django Redis cache backend was in the dependency list, so the cache strategy was unimplementable and rate limits would have been per-process |
 | | Flower | 2.0+ | Celery monitoring UI |
 | **Infrastructure** | Docker | 24.x | Containerization |
 | | Docker Compose | v2 | Local dev orchestration |
@@ -269,7 +280,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | **Security** | Argon2id | via argon2-cffi | Password hashing |
 | | cryptography | 43.0+ | AES-256-GCM field encryption |
 | | django-encrypted-model-fields | 1.3.0 | EncryptedCharField |
-| | django-ratelimit | 4.1.0 | Rate limiting |
+| | django-ratelimit | 4.1.0 | Rate limiting. **Must be configured against the Redis cache**, not the default local-memory cache, or limits are enforced per gunicorn worker and are therefore not limits |
 | | django-otp | 0.16.0 | TOTP MFA |
 | | djangorestframework-simplejwt | 5.3.3 | JWT authentication |
 | **Email** | django-anymail | 10.0+ | Unified email backend |
@@ -337,13 +348,13 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | REQ-FR-026 | Job Editing | High | **Given** existing job (draft status); **When** employer edits; **Then** all fields updated; **And** audit log entry created |
 | REQ-FR-027 | Job Activation | High | **Given** draft job; **When** employer publishes; **Then** status changes to "active"; **And** job visible to candidates |
 | REQ-FR-028 | AI Screening Trigger | High | **Given** active job with applications; **When** employer clicks "Screen All"; **Then** cost estimate shown ($0.00 for free tier); **And** user confirms; **And** Celery batch task queued |
-| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030) |
+| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030); **And** candidates the hard filter marked `not_matched` **remain listed and visible to the employer with the reason shown** — a rule-based rejection is never hidden and never final on its own; **And** the employer can pull any `not_matched` candidate into review, which sets `status` back to `screened` and writes an audit entry; **And** the version of the hard-filter rule set that produced each result is recorded on the application (`filter_rules_version`) and shown in the UI. *Amended 2026-10-03 from Gap G3 — see `FAIRFOLD_Feasibility_and_Design.md` §2.4.1. Motivated by EEOC v. iTutorGroup, where a hard-coded age filter was the entire discriminating mechanism (§1.2.1).* |
 | REQ-FR-030 | Evidence-Cited Rationale | High | **Given** AI-generated rationale; **When** employer views candidate; **Then** rationale shows specific resume text for each claim; **And** missing skills listed; **And** bias audit status shown; **And** the candidate's name, photo and contact details stay hidden until the employer shortlists them, at which point they are revealed to that employer only and the reveal writes an audit entry; **And** unrevealed PII is never sent to any external AI provider |
 | REQ-FR-031 | Interview Pack Generation | Medium | **Given** job with requirements; **When** employer generates interview pack; **Then** AI produces structured Qs + scoring rubric; **And** pack stored and linked to job |
 | REQ-FR-032 | Interview Scheduling | Medium | **Given** shortlisted candidate; **When** employer schedules; **Then** calendar invite sent; **And** video call URL generated; **And** candidate notified |
 | REQ-FR-033 | Interview Feedback | Medium | **Given** completed interview; **When** interviewer submits feedback; **Then** scores + comments stored; **And** recommendation recorded |
 | REQ-FR-034 | Offer Generation | Low | **Given** selected candidate; **When** employer generates offer; **Then** AI drafts offer letter from job details; **And** employer can edit |
-| REQ-FR-035 | Analytics Dashboard | Medium | **Given** jobs with applications; **When** employer views analytics; **Then** time-to-hire, source of hire, drop-off points, AI accuracy shown in charts |
+| REQ-FR-035 | Analytics Dashboard | Medium | **Given** jobs with applications; **When** employer views analytics; **Then** time-to-hire, source of hire, drop-off points, AI accuracy shown in charts; **And** an **override rate** is shown — the number and share of shortlist/reject decisions that went against the AI ranking, broken down by who made them and by job — so a reviewer can see whether the ranking is actually being respected, and each override links to its recorded reason (REQ-FR-052); **And** the count of `not_matched` candidates pulled into review is shown alongside the count that were not, so the hard filter's effect is measurable |
 | REQ-FR-036 | Job Sharing | Medium | **Given** published job; **When** employer generates share link; **Then** unique URL created; **And** embed code provided for career page |
 
 #### Administrative
@@ -362,7 +373,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 > capabilities already existed as use cases (`UC16`, `UC31`), user stories
 > (`US-023`, `US-050`), a `Message` model (Complete Doc §C.11) and page
 > specifications (`design.md` pages #4, #5, #31, #48) — but had no requirement
-> anywhere. See `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1 for the analysis
+> anywhere. See `FAIRFOLD_Feasibility_and_Design.md` §2.4.1 for the analysis
 > and `prd.md` §7.2–7.3 for the original proposal.
 
 | ID | Requirement | Priority | Acceptance Criteria |
@@ -381,7 +392,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 > `design.md` §10 found seven pages building real features with no requirement
 > behind them — the same failure mode as GAP-1/GAP-2, missed by the use-case
 > pass because those pages are supporting features rather than core journeys.
-> See `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1 for the analysis.
+> See `FAIRFOLD_Feasibility_and_Design.md` §2.4.1 for the analysis.
 
 | ID | Requirement | Priority | Acceptance Criteria |
 |---|---|---|---|
@@ -389,9 +400,45 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 | REQ-FR-045 | Employer Company Profile | High | **Given** registered user with the employer role; **When** completing onboarding; **Then** `EmployerProfile` created with company name (encrypted), industry and company size; **And** an employer cannot hold both the candidate and employer roles; **And** a job cannot be activated until a company profile exists |
 | REQ-FR-046 | Employer Dashboard | Medium | **Given** authenticated employer; **When** opening the dashboard; **Then** open job count, new applications, applications awaiting screening and interviews this week are shown; **And** quota usage is displayed against the current subscription; **And** applications flagged by the bias check are surfaced for human review; **And** every KPI links to the underlying list |
 | REQ-FR-047 | Employer Team and Roles | Medium | **Given** an employer with `employer_hr` role; **When** inviting, re-roling or removing a team member; **Then** `employer_manager`, `employer_hr` or `interviewer` role assigned from the defined set; **And** the last `employer_hr` cannot be removed or demoted, which would orphan the account; **And** an `employer_team_members` row is created or updated (§5.1); **And** an audit entry is written for every role change; **And** MFA is required before an invited member can act |
-| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches MATCH MINDS; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
+| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches FAIRFOLD; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
 | REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
-| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, message, audience and schedule captured with a preview; **And** the announcement is delivered to the selected audience on schedule; **And** an empty audience match sends nothing and is reported rather than silently succeeding. **This requirement is optional** — kept in scope by decision 2026-10-03 because it is 3 story points, Low priority and Phase 4, and removing it would touch four documents for no benefit. If the team later decides against it, remove REQ-FR-050, US-062 and `design.md` page #62 **together** |
+| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, body, audience, channel and schedule are captured in an `Announcement` row with a preview; **And** the announcement is delivered to the selected audience on schedule via Celery Beat; **And** an empty audience match sends nothing and is reported rather than silently succeeding; **And** the resolved audience size is shown **before** sending, because "empty" is only one of the two bad outcomes — see the five constraints below. **HARDENED 2026-10-03.** This is the highest blast-radius feature per story point in the specification, and the original criteria covered only the *empty*-audience case. Five conditions are now written into the requirement itself rather than left to implementation: **(1) Suppression list** — the audience is resolved at send time, not create time, and deleted, bounced and unsubscribed users are skipped and counted in `skipped_count`. Otherwise a scheduled announcement emails a hard-deleted account, contradicting `REQ-FR-041`. **(2) Audience-type confinement** — an `employers`-only announcement must never be readable by a candidate, and vice versa. A wrong audience is a confidentiality incident, not a UI bug, so the send task re-checks the recipient's role rather than trusting the stored filter. **(3) Transactional-email protection** — bulk sends are capped per hour and go through a **separate** sending domain/subaddress from verification and password-reset mail. A burst from the transactional path can get the sending domain rate-limited or blocked, which would break account access for every user; a marketing feature must not be able to do that. **(4) Idempotency** — `idempotency_key` is unique and set before the task runs, so a Celery retry cannot send the same announcement twice. **(5) Audit entry** on create, send and cancel. **KEPT — decided 2026-10-03.** The team confirmed: keep `REQ-FR-050`, **Phase 4 only, never a launch dependency.** The total stays **217 points** and Phase 4 stays **44**. Two conditions ride on that decision, and both are binding: **(a)** it must never become a launch blocker — if Phase 4 hardening is short, this is the thing that slips, not GDPR export or the load test; **(b)** the four artefacts stay coupled, so if it is ever cut later, `REQ-FR-050`, `US-062`, `design.md` page #62 **and** the `announcements` table go together in one change. The original estimate was 3 points, which was wrong: it was re-estimated at **8** on 2026-10-03 once the missing table and these five constraints were priced |
+
+#### Screening Integrity — Employer-Required Assessments, Override Visibility, Reviewable Filters
+
+> Added 2026-10-03 to close **G1**, **G2** and **G3**, the three gaps exposed by writing
+> the experience-to-requirement traceability table
+> (`FAIRFOLD_Feasibility_and_Design.md` §1.3.2, analysis in §2.4.1). All three
+> trace back to the same root cause — the Product Owner's own hiring process — and
+> all three were approved by the team on 2026-10-03.
+>
+> **G2 is the important one.** Anonymised ranking only matters if the ranking is
+> respected. Nothing in the previous specification recorded a shortlist or rejection
+> that went *against* the ranking, which meant the platform could have offered a
+> fair-looking process while the real decision was still made informally.
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|---|---|---|---|
+| REQ-FR-051 | Employer-Required Skill Assessment | High | **Given** an active job; **When** the employer attaches one or more assessments to that job as a required step; **Then** a `job_assessment_requirements` row is created per assessment with an optional `min_score` pass mark (§5.1); **And** an applicant who has not completed a required assessment has `assessment_gate_status = 'pending'` and **cannot be shortlisted on their match score alone** — the Shortlist action is disabled and explains why; **And** `assessment_gate_status` becomes `passed` or `failed` once a completed `AssessmentAttempt` is matched on candidate + assessment, and it is shown on the application row; **And** a job with no required assessment sets the gate to `not_required` for all its applicants, so existing behaviour is unchanged; **And** removing a required assessment never deletes existing attempts or scores; **And** every change to a job's required assessments writes an audit entry. **Phase 3** — this is the requirement that answers pain point P2 ("no skills check before the interview"), which the candidate-initiated assessments of REQ-FR-019/020 did not |
+| REQ-FR-052 | Override Visibility and Record | High | **Given** a ranked application; **When** a user shortlists a candidate ranked **below** the employer's cut-off, or rejects one ranked **above** it; **Then** a written reason is **required** before the action completes — the dialog cannot be dismissed with an empty reason; **And** the application records `decision_override = TRUE`, `decision_override_reason` and `decided_by`; **And** an `AuditLogEntry` is written with `resource_type = 'ai_decision'`, so it is retained with the application record (2 years, 5 years if hired) rather than rotating at 90 days; **And** the employer can override with the reason empty only where the job has no cut-off configured, and that exception is recorded in the audit entry; **And** the override is surfaced on the application row, in the audit log, and as the override-rate chart in REQ-FR-035; **And** overrides are **not** blocked — the employer remains the decision-maker (`prd.md` §8.1). Requiring a reason makes an informal decision *visible and countable*, it does not prevent it. **Phase 2–3** |
+
+#### Reviewable Hard Filters — implementation notes for G3
+
+`not_matched` was previously a terminal state created by a rule, with no reason
+recorded and no route back. Three changes make it defensible:
+
+1. **Reason.** `applications.not_matched_reason` stores which rule fired (e.g.
+   `experience_level`, `min_years`, `location`). Without it the employer cannot
+   review the decision and the candidate cannot be told.
+2. **Version.** `jobs.screening_config` holds the rule set as JSONB and
+   `jobs.screening_config_version` increments on every edit. Each application stores
+   `filter_rules_version`, so "which rule rejected this?" is answerable months later
+   even after the job has been edited. An unversioned rule set is an unauditable one.
+3. **Route back.** `not_matched` candidates stay in the ranked list behind a filter
+   toggle, with the reason shown, and the employer can pull any of them into review.
+
+**Constraint:** a filter may only ever produce `not_matched`, never `rejected`. Only
+a person can reject a candidate.
 
 ### 4.2 Non-Functional Requirements
 
@@ -465,7 +512,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 
 | ID | Requirement | Target | Measurement |
 |---|---|---|---|
-| REQ-NFR-019 | Test coverage | ≥ 80% | `pytest --cov=matchminds --cov-fail-under=80` in CI |
+| REQ-NFR-019 | Test coverage | ≥ 80% | `pytest --cov=. --cov-fail-under=80` in CI |
 | REQ-NFR-020 | Code formatting | 100% compliant | `black --check` and `flake8` in CI |
 | REQ-NFR-021 | Type safety | 100% of new code | `mypy --strict` passes |
 | REQ-NFR-022 | Import ordering | 100% compliant | `isort --check` in CI |
@@ -537,6 +584,9 @@ CREATE TABLE employer_profiles (
     company_name    TEXT ENCRYPTED,                 -- AES-256-GCM
     industry        VARCHAR(100),
     company_size    INTEGER,
+    show_company_name BOOLEAN DEFAULT FALSE,      -- REQ-FR-042: public board shows the company
+                                                      -- name only after the employer opts in. Off by default,
+                                                      -- because "who is hiring" is itself information.
     billing_plan    VARCHAR(20) DEFAULT 'free',
     billing_cycle   VARCHAR(10) DEFAULT 'monthly',
     stripe_customer_id TEXT ENCRYPTED,
@@ -590,6 +640,8 @@ CREATE TABLE jobs (
     status          VARCHAR(20) DEFAULT 'draft',   -- draft, active, paused, closed
     description_embedding VECTOR(384),              -- pgvector
     screening_questions JSONB DEFAULT '[]',
+    screening_config JSONB DEFAULT '{}',            -- G3: stage-1 hard-filter rule set {"filters": {...}}
+    screening_config_version INTEGER DEFAULT 1,     -- G3: increments on every rule edit; stamped onto each application
     ai_model_used   VARCHAR(100),
     cost_estimate   DECIMAL(10,4),
     created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -600,15 +652,31 @@ CREATE TABLE applications (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id          UUID REFERENCES jobs(id) ON DELETE CASCADE,
     candidate_id    UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
-    status          VARCHAR(20) DEFAULT 'applied',  -- applied, screened, shortlisted, interview, offered, hired, rejected
+    status          VARCHAR(20) DEFAULT 'applied',  -- applied, screened, not_matched, shortlisted, interview, offered, hired, rejected
     match_score     INTEGER,                       -- 0-100 from AI
     match_rationale TEXT,                          -- AI-generated explanation
     ai_model_used   VARCHAR(100),
     screened_at     TIMESTAMPTZ,
     shortlisted_at  TIMESTAMPTZ,
+    -- Gap G3: the stage-1 hard filter records what it excluded and under which
+    -- rule-set version, and the employer can always pull the candidate back.
+    not_matched_reason   TEXT,                     -- which rule fired, e.g. experience_level
+    filter_rules_version INTEGER,                  -- = jobs.screening_config_version at screening time
+    -- Gap G1: employer-required assessments gate the shortlist.
+    assessment_gate_status VARCHAR(20) DEFAULT 'not_required', -- not_required, pending, passed, failed
+    -- Gap G2: a decision that goes against the ranking is recorded, not prevented.
+    decision_override        BOOLEAN DEFAULT FALSE,
+    decision_override_reason TEXT,                 -- required whenever decision_override is TRUE
+    decided_by               UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(job_id, candidate_id)
+    UNIQUE(job_id, candidate_id),
+    -- A recorded override must always carry a reason. Enforced in the database, not only in the form.
+    CONSTRAINT chk_override_has_reason CHECK (
+        decision_override = FALSE OR (decision_override_reason IS NOT NULL AND length(btrim(decision_override_reason)) > 0)
+    )
 );
+
+CREATE INDEX idx_applications_gate ON applications(assessment_gate_status);
 
 -- === SKILLS & CERTIFICATIONS ===
 CREATE TABLE skills (
@@ -682,6 +750,22 @@ CREATE TABLE assessment_attempts (
     answers         JSONB DEFAULT '[]'
 );
 
+-- === EMPLOYER-REQUIRED ASSESSMENTS (Gap G1, REQ-FR-051) ===
+-- An employer attaches an assessment to a job as a step that must be completed
+-- before shortlist. Reuses the existing assessments/assessment_attempts pair: the
+-- gate is satisfied by matching candidate + assessment on a completed attempt.
+CREATE TABLE job_assessment_requirements (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id          UUID REFERENCES jobs(id) ON DELETE CASCADE,
+    assessment_id   UUID REFERENCES assessments(id) ON DELETE CASCADE,
+    min_score       DECIMAL(5,2),                  -- pass mark; NULL = any completed attempt satisfies it
+    sort_order      INTEGER DEFAULT 0,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(job_id, assessment_id)
+);
+
+CREATE INDEX idx_job_assessment_req_job ON job_assessment_requirements(job_id);
+
 -- === INTERVIEWS ===
 CREATE TABLE interview_packs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -745,6 +829,34 @@ CREATE TABLE notifications (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- === BROADCAST ANNOUNCEMENTS (REQ-FR-050) ===
+-- Added 2026-10-03. REQ-FR-050 was approved in scope, given a page (#62) and an endpoint,
+-- but had **no table**: nothing could store the announcement, its audience, its schedule,
+-- or which users it reached. `notifications` cannot substitute — it is per-recipient with
+-- a single `recipient_id`, so it can record a delivery but never the broadcast itself.
+-- The requirement was unimplementable as written.
+CREATE TABLE announcements (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           VARCHAR(200) NOT NULL,
+    body            TEXT NOT NULL,
+    audience        VARCHAR(30) NOT NULL DEFAULT 'all',  -- all, candidates, employers, employers_by_plan, custom
+    audience_filter JSONB DEFAULT '{}',                -- the resolved predicate, e.g. {"plan": ["growth"]}
+    channel         VARCHAR(20) NOT NULL DEFAULT 'in_app',  -- in_app, email, both
+    status          VARCHAR(20) NOT NULL DEFAULT 'draft',   -- draft, scheduled, sending, sent, failed, cancelled
+    scheduled_at    TIMESTAMPTZ,
+    sent_at         TIMESTAMPTZ,
+    recipient_count INTEGER DEFAULT 0,                -- resolved at send time, not at create time
+    skipped_count   INTEGER DEFAULT 0,                -- suppressed: deleted, bounced or unsubscribed
+    failure_detail  TEXT,
+    created_by      UUID REFERENCES users(id) ON DELETE SET NULL,  -- SET NULL: the record survives the admin account
+    idempotency_key UUID UNIQUE,                      -- Celery Beat retry must not double-send
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_announcements_status ON announcements(status, scheduled_at);
+CREATE INDEX idx_announcements_sent ON announcements(sent_at);
+
 -- === COMPLIANCE ===
 CREATE TABLE data_export_requests (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -762,7 +874,12 @@ CREATE TABLE data_deletion_requests (
     reason          TEXT,
     requested_at    TIMESTAMPTZ DEFAULT NOW(),
     processed_at    TIMESTAMPTZ,
-    status          VARCHAR(20) DEFAULT 'pending'
+    approved_by     UUID REFERENCES users(id) ON DELETE SET NULL,  -- REQ-FR-041: erasure is
+                                        -- admin-approved, not self-service. A candidate-facing
+                                        -- DELETE would also destroy the employer's own
+                                        -- application history, which is their record too.
+    status          VARCHAR(20) DEFAULT 'pending',  -- pending, approved, rejected, completed
+    UNIQUE (user_id, status)
 );
 
 -- === AUDIT LOG (append-only) ===
@@ -898,6 +1015,15 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 
 ### 6.1 Docker Compose (Development)
 
+> **The real file is [`docker-compose.yml`](docker-compose.yml), added 2026-10-04.**
+> The block below is the specification and the reasoning; where the two differ, the file wins
+> and the difference is recorded here. Differences as built: `clamav` has a real 120s
+> `start_period` (freshclam downloads definitions on first boot); `redis` uses
+> `--appendonly yes`, because without persistence a restart silently discards queued screening
+> and email jobs that were already accepted; and `celery` / `celery-beat` **disable** the image
+> healthcheck, which otherwise probes an HTTP endpoint neither container serves and reports a
+> permanently unhealthy worker.
+
 ```yaml
 # docker-compose.yml
 version: "3.9"
@@ -905,24 +1031,24 @@ version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg17
-    container_name: matchminds-postgres
+    container_name: fairfold-postgres
     environment:
-      POSTGRES_DB: matchminds_dev
-      POSTGRES_USER: matchminds
+      POSTGRES_DB: fairfold_dev
+      POSTGRES_USER: fairfold
       POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U matchminds"]
+      test: ["CMD-SHELL", "pg_isready -U fairfold"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: matchminds-redis
+    container_name: fairfold-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -931,20 +1057,40 @@ services:
       timeout: 3s
       retries: 5
 
+  clamav:
+    # ADDED 2026-10-03 (gap P). The resume-upload path REJECTS a file when ClamAV is
+    # unreachable rather than passing it through unscanned (.env.example), so without this
+    # service every upload fails in development. clamav/clamav ships its own definitions and
+    # daemon; the "freshclam" entrypoint updates them on start.
+    image: clamav/clamav:1.4
+    container_name: fairfold-clamav
+    ports:
+      - "3310:3310"
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
   django:
     build: .
-    container_name: matchminds-django
+    container_name: fairfold-django
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://matchminds:${DB_PASSWORD:-devpassword}@postgres:5432/matchminds_dev
+      DATABASE_URL: postgresql://fairfold:${DB_PASSWORD:-devpassword}@postgres:5432/fairfold_dev
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CLAMD_HOST: clamav
+      CLAMD_PORT: 3310
     volumes:
       - .:/app
       - media_data:/app/media
@@ -958,13 +1104,13 @@ services:
 
   celery:
     build: .
-    container_name: matchminds-celery
+    container_name: fairfold-celery
     depends_on:
       - redis
       - postgres
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://matchminds:${DB_PASSWORD:-devpassword}@postgres:5432/matchminds_dev
+      DATABASE_URL: postgresql://fairfold:${DB_PASSWORD:-devpassword}@postgres:5432/fairfold_dev
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -974,12 +1120,12 @@ services:
 
   celery-beat:
     build: .
-    container_name: matchminds-celery-beat
+    container_name: fairfold-celery-beat
     depends_on:
       - celery
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://matchminds:${DB_PASSWORD:-devpassword}@postgres:5432/matchminds_dev
+      DATABASE_URL: postgresql://fairfold:${DB_PASSWORD:-devpassword}@postgres:5432/fairfold_dev
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -989,7 +1135,7 @@ services:
 
   nginx:
     image: nginx:1.25-alpine
-    container_name: matchminds-nginx
+    container_name: fairfold-nginx
     depends_on:
       - django
     ports:
@@ -1009,23 +1155,55 @@ volumes:
   media_data:
 ```
 
-> **Container names:** every service sets an explicit `container_name`, so the containers can be addressed by a stable name regardless of the Compose project directory. This is what the README's `docker exec -it matchminds-django ...` commands rely on.
+> **Container names:** every service sets an explicit `container_name`, so the containers can be addressed by a stable name regardless of the Compose project directory. This is what the README's `docker exec -it fairfold-django ...` commands rely on.
 
 | Service | Container name | Port |
 |---|---|---|
-| `postgres` | `matchminds-postgres` | 5432 |
-| `redis` | `matchminds-redis` | 6379 |
-| `django` | `matchminds-django` | 8000 |
-| `celery` | `matchminds-celery` | — |
-| `celery-beat` | `matchminds-celery-beat` | — |
-| `nginx` | `matchminds-nginx` | 8080 |
+| `postgres` | `fairfold-postgres` | 5432 |
+| `redis` | `fairfold-redis` | 6379 |
+| `django` | `fairfold-django` | 8000 |
+| `celery` | `fairfold-celery` | — |
+| `celery-beat` | `fairfold-celery-beat` | — |
+| `nginx` | `fairfold-nginx` | 8080 |
+| `clamav` | `fairfold-clamav` | 3310 |
 
 ### 6.2 Production Dockerfile
 
+> **The real file is [`Dockerfile`](Dockerfile), added 2026-10-04.** Three stages rather
+> than two: the split adds a Python dependency layer that is cached independently of application
+> source, so editing a view no longer reinstalls PyTorch. Differences from the block below:
+> `node:20-slim` not `-alpine` (the Tailwind CLI's glibc/musl difference produces a build that
+> works locally and fails in CI); `libmagic1` and `clamav-daemon` installed **before** the app
+> code, because python-magic wraps a system library and the image otherwise starts and then
+> fails on the first resume upload; and the app runs as a non-root user with `media/` and
+> `staticfiles/` pre-chowned, so a deploy does not fail on a root-owned file left by the last
+> one.
+
 ```dockerfile
+# ---- Stage 1: frontend build (ADDED 2026-10-03, gap O) ----
+# design.md §11.2 requires Tailwind to be compiled to a static CSS file so the CSP can
+# drop the CDN and `unsafe-inline`. That compile needs a Node toolchain, but Node must
+# NOT be in the final image. So it lives in a throwaway stage whose only output is
+# static/css/tailwind.css and static/js/*.min.js.
+FROM node:20-alpine AS assets
+
+WORKDIR /build
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+COPY tailwind.config.js postcss.config.js* ./
+COPY templates/ ./templates/
+COPY static/ ./static/
+RUN npm run build
+
+# ---- Stage 2: runtime ----
 FROM python:3.12-slim
 
-# System dependencies
+# System dependencies.
+#   libmagic1    — python-magic is a pip package wrapping this system library; without it
+#                  the module fails at import.
+#   clamav-daemon — the upload path REJECTS a file when ClamAV is unreachable rather than
+#                  passing it through unscanned, so this must be present in the image even
+#                  where the daemon itself runs as a separate service.
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
@@ -1033,22 +1211,31 @@ RUN apt-get update && apt-get install -y \
     clamav-daemon \
     && rm -rf /var/lib/apt/lists/*
 
+# torch is installed CPU-only. requirements.txt carries
+# --extra-index-url https://download.pytorch.org/whl/cpu for local installs; here it is
+# explicit, because the default CUDA wheel adds several GB to the image for hardware this
+# project does not target (prd.md §18.2 — a 2-4 vCPU VPS).
+
 # Create non-root user
-RUN groupadd -r matchminds && useradd -r -g matchminds matchminds
+RUN groupadd -r fairfold && useradd -r -g fairfold fairfold
 
 # Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
-COPY --chown=matchminds:matchminds . /app
+COPY --chown=fairfold:fairfold . /app
+# Built frontend assets from stage 1. Copied *after* the application code on purpose:
+# COPY . /app would otherwise overwrite the compiled files with whatever is in the working
+# tree, and the compiled CSS is the artefact the CSP depends on.
+COPY --from=assets --chown=fairfold:fairfold /build/static/ /app/static/
 WORKDIR /app
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
 # Switch to non-root user
-USER matchminds
+USER fairfold
 
 # Gunicorn
 EXPOSE 8000
@@ -1065,17 +1252,17 @@ upstream django {
 
 server {
     listen 80;
-    server_name matchminds.com www.matchminds.com;
+    server_name fairfold.com www.fairfold.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name matchminds.com www.matchminds.com;
+    server_name fairfold.com www.fairfold.com;
 
     # SSL (Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/matchminds.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/matchminds.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/fairfold.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/fairfold.com/privkey.pem;
     ssl_protocols TLSv1.3 TLSv1.2;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
     ssl_prefer_server_ciphers off;
@@ -1136,7 +1323,7 @@ server {
 replicaCount: 3
 
 image:
-  repository: matchminds/app
+  repository: fairfold/app
   tag: latest
   pullPolicy: Always
 
@@ -1174,7 +1361,7 @@ postgresql:
 
 s3:
   endpointUrl: https://s3.amazonaws.com  # or MinIO
-  bucketName: matchminds-production
+  bucketName: fairfold-production
   region: us-east-1
 
 resources:
@@ -1194,6 +1381,26 @@ autoscaling:
 ```
 
 ### 6.5 CI/CD Pipeline (GitHub Actions)
+
+> **The real file is [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml), added
+> 2026-10-04.** Until it existed, every step in this section — including the two documentation
+> checkers — was a snippet in a document that nothing executed, which is the same failure mode
+> as a check that passes vacuously. Differences from the block below:
+>
+> - **The documentation checkers run before the Django steps**, not after. They need no
+>   database, no Node build and no image, so a stale count now fails in about two seconds
+>   instead of after a full pip and npm install.
+> - **`manage.py check --deploy` runs before the tests**, so an import error or a missing
+>   module in an `include()` surfaces as itself rather than as a traceback from whichever later
+>   step imported the file first.
+> - **The schema generation failure is not silent.** The original uploaded `schema.yml` as an
+>   artifact and stopped; a view whose serializer changed still responded, and no frontend knew
+>   the contract had moved.
+> - **`permissions: contents: read`** at the workflow level, with `on:` widened to the working
+>   branch so this repo's own pushes are checked rather than only pull requests.
+> - **The licence scan is `continue-on-error`.** It is informational: the right response to a
+>   flagged licence is often to record it, not to delete the dependency, so it must not block a
+>   build that is otherwise correct.
 
 ```yaml
 # .github/workflows/ci-cd.yml
@@ -1217,7 +1424,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: matchminds_test
+          POSTGRES_DB: fairfold_test
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s
@@ -1232,9 +1439,27 @@ jobs:
           --health-timeout 3s
           --health-retries 5
         ports: ["6379:6379"]
+      clamav:
+        # ADDED 2026-10-03 (gap P). The upload path rejects a file when ClamAV is
+        # unreachable rather than passing it unscanned, so without this service every
+        # upload test fails for the wrong reason. `start_period` is generous because
+        # freshclam downloads definitions on first boot.
+        image: clamav/clamav:1.4
+        ports: ["3310:3310"]
+        options: >-
+          --health-cmd "clamdcheck.sh"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 60s
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install OS dependencies
+        # python-magic binds to libmagic; it is a pip package wrapping a system library,
+        # so pip alone is not enough and the job fails at import otherwise.
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -1249,35 +1474,103 @@ jobs:
       - name: Install spaCy model
         run: python -m spacy download en_core_web_sm
 
+      # ADDED 2026-10-03 (gap O). There is no SPA, but there is a compiled CSS file:
+      # design.md §11.2 requires Tailwind to be built to a static file rather than loaded
+      # from the CDN, so the CSP can drop `unsafe-inline`. Without this step CI would test
+      # a stylesheet that does not exist in production, and a broken tailwind.config.js
+      # would only be discovered at deploy time. This runs before the Django steps because
+      # `collectstatic` and the template tests both read static/css/tailwind.css.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Fail if built CSS exceeds the size budget
+        # design.md §11.4 budgets built CSS at < 30 KB gzipped. A missing content glob in
+        # tailwind.config.js silently produces a near-empty stylesheet, which passes every
+        # other check in this job, so the budget is asserted rather than trusted.
+        run: |
+          gzip -c static/css/tailwind.css | wc -c | awk '{ if ($1 >= 30720) { print "::error::tailwind.css is " $1 " bytes gzipped, budget is 30720"; exit 1 } }'
+
+      # NOTE 2026-10-03: these commands previously targeted `fairfold/`, which is the
+      # repository name, not a directory. The Django project package is `config/` and the
+      # apps are top-level packages (Complete Doc §4.2). `bandit.yaml` and `pyproject.toml`
+      # (black/isort/mypy config) must exist at the repository root for these to run.
+
       - name: Lint — flake8
-        run: flake8 matchminds/ --max-line-length=120
+        run: flake8 config/ core/ accounts/ candidates/ employers/ matching/ assessments/ interviews/ notifications/ api/ admin/ journey/ ai/ --max-line-length=120
 
       - name: Lint — black (check)
-        run: black --check matchminds/
+        run: black --check .
 
       - name: Lint — isort (check)
-        run: isort --check matchminds/
+        run: isort --check-only .
 
       - name: Type check — mypy
-        run: mypy matchminds/ --ignore-missing-imports
+        run: mypy config/ core/ accounts/ candidates/ employers/ matching/ ai/ --ignore-missing-imports
 
       - name: Security scan — bandit
-        run: bandit -r matchminds/ -c bandit.yaml
+        run: bandit -r . -c bandit.yaml
 
       - name: Dependency audit — pip-audit
         run: pip-audit -r requirements.txt
 
+      - name: Licence scan — REQ-COM / RSK-012
+        # Added 2026-10-03. AI-assisted development can reproduce a known or non-OSI
+        # implementation, and the product claims it does not assert anything it cannot
+        # evidence. A licence check is the cheapest way to keep that claim honest.
+        run: |
+          pip install licensedb
+          licensedb cache
+          licensedb report --format csv --packages . > licence-report.csv
+          licensedb whitelist --from-file=licensedb.yml || true
+
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/matchminds_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
           REDIS_URL: redis://localhost:6379/0
+          CLAMD_HOST: localhost
+          CLAMD_PORT: 3310
           DJANGO_SETTINGS_MODULE: config.settings.ci
         run: |
+          # `--check` fails if any model change has no committed migration, which is the
+          # only thing that actually enforces the Complete Doc §C.8.1 rule that migration
+          # files are generated and committed rather than hand-crafted per-PR.
+          python manage.py makemigrations --check --dry-run
           python manage.py migrate
-          pytest tests/ -v --cov=matchminds --cov-fail-under=80
+          python manage.py seed
+          python manage.py collectstatic --noinput --clear
+          pytest tests/ -v --cov=. --cov-fail-under=80
 
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
+
+      - name: Documentation consistency check
+        # Added 2026-10-03. The six documents state the same figures in many places,
+        # and those figures had already drifted twice (34 -> 35 FKs, 212 -> 217 points)
+        # plus a live team-size figure in an ADR that an earlier pass had missed. Reading
+        # the docs does not catch that; running the checker does.
+        #
+        # Section 11 additionally asserts that every one of design.md's 62 page rows
+        # names a wireframe and that no reference dangles. That check exists because
+        # "26 pages are not wireframed" was true for months and only one reader
+        # noticed, which is the failure mode a status line in a document cannot
+        # prevent and a failing command can.
+        run: python3 scripts/verify_docs.py
+
+      - name: Bias test set consistency check
+        # Validates EVERY version's fixture set: every declared term or rule exists, no
+        # must-not-flag case contains a term, category counts match that version's targets,
+        # and each manifest's keyword_list_sha matches the file it hashes. The pass's own
+        # behaviour is asserted by pytest below, not here.
+        run: python3 scripts/verify_bias_set.py
 
       - name: Upload schema artifact
         uses: actions/upload-artifact@v4
@@ -1298,7 +1591,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: matchminds/app:${{ github.sha }},matchminds/app:latest
+          tags: fairfold/app:${{ github.sha }},fairfold/app:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -1314,8 +1607,8 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Smoke test
         run: |
-          curl -f https://staging.matchminds.com/health/
-          curl -f https://staging.matchminds.com/api/v1/jobs/
+          curl -f https://staging.fairfold.com/health/
+          curl -f https://staging.fairfold.com/api/v1/jobs/
 
   deploy-production:
     needs: deploy-staging
@@ -1329,7 +1622,7 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Health check
         run: |
-          curl -f https://app.matchminds.com/health/
+          curl -f https://app.fairfold.com/health/
 
   rollback-staging:
     runs-on: ubuntu-24.04
@@ -1340,9 +1633,9 @@ jobs:
       - name: Rollback to previous image
         run: |
           ssh "${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}" \
-            "docker image tag matchminds/app:$(git rev-parse --short HEAD~1) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:$(git rev-parse --short HEAD~1) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
-        run: curl -f https://staging.matchminds.com/health/
+        run: curl -f https://staging.fairfold.com/health/
 
   rollback-production:
     runs-on: ubuntu-24.04
@@ -1353,9 +1646,9 @@ jobs:
       - name: Rollback to previous image
         run: |
           ssh "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
-            "docker image tag matchminds/app:$(git rev-parse --short HEAD~1) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:$(git rev-parse --short HEAD~1) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
-        run: curl -f https://app.matchminds.com/health/
+        run: curl -f https://app.fairfold.com/health/
 ```
 
 > **Rollback strategy:** Each successful production deploy tags the current image with `github.sha`. The rollback job retags the *previous* commit's image as `:latest` and redeploys via `docker-compose`. Manual trigger via GitHub Actions "Run workflow" button. Target rollback time: < 5 minutes.
@@ -1381,6 +1674,15 @@ jobs:
 tests/
 ├── __init__.py
 ├── conftest.py                    # Pytest fixtures (DB, Redis, test users)
+├── bias/                          # versioned bias test set — spec in §7.4, authored v1.0.0
+│   ├── CHANGELOG.md               # what changed per version and why
+│   ├── v1.0.0/
+│   │   ├── manifest.json          # version + keyword_list_sha + case count + "measured": false
+│   │   ├── keyword_terms.json     # 62 terms, 6 deliberate exclusions, 5 known limitations
+│   │   ├── proxy_cases.jsonl      # 48 must_flag, categories 1-7
+│   │   ├── negative_cases.jsonl   # 18 must_not_flag, categories 9-10
+│   │   └── rationale_cases.jsonl  # 10 must_flag, category 8 (LLM pass only, not CI-gated)
+│   └── test_bias_pass.py          # ✅ WRITTEN — 25 assertions, CI-gated
 ├── unit/
 │   ├── test_pii_stripping.py     # PII detection regex + NER accuracy tests
 │   ├── test_matching.py           # pgvector cosine similarity correctness
@@ -1409,7 +1711,7 @@ tests/
 | PII stripping accuracy | Unit | 95%+ of PII types (name, email, phone, location) correctly stripped from test resumes |
 | Offline fallback | Contract | When OpenRouter returns 5xx, system uses pgvector + spaCy without user-facing error |
 | Evidence-cited rationale | Integration | LLM rationale always contains specific resume text citations; no hallucinated claims |
-| Bias audit pass rate | Integration | 100% of LLM rationales pass bias keyword check; flagged rationales are re-processed |
+| Bias audit pass rate | Integration | 100% of LLM rationales pass bias keyword check; flagged rationales are re-processed. **Measured against the versioned set in §7.4, not against examples the keyword list was written from** |
 | Cost estimate accuracy | Unit | Estimated cost matches actual API cost within ±10% |
 | Audit log completeness | Integration | Every screening action creates audit entry with timestamp, model, rationale hash |
 | GDPR export | Integration | User can export all personal data as JSON/PDF; includes resume text, skills, applications |
@@ -1417,6 +1719,252 @@ tests/
 | MFA enforcement | Integration | Employer admin accounts require TOTP; incorrect codes rejected; recovery codes work |
 | Rate limiting | Security | 1000 req/hr user limit enforced; AI endpoints 20 req/min limit enforced; excess returns 429 |
 | Concurrent applications | Load | 1000 candidates applying to same job simultaneously; no data loss; < 5 sec response |
+
+### 7.4 Versioned Bias Test Set — Phase 2, owner Ishrak Hossain
+
+**Specified 2026-10-03.** Until this file existed, the bias audit had no measurable
+target: §7.3 says *"100% of LLM rationales pass bias keyword check"*, and the Phase 2
+acceptance criterion says *"flags every seeded phrase in the versioned bias test set"* —
+and there was no test set to seed. **A keyword list with no fixture set is a list that
+can only be shown to work on the examples it was written from.**
+
+#### 7.4.0 Status — **v1.0.1 authored and measured, 2026-10-03**
+
+Two versions exist and **both** are checked in CI, because versions are immutable and a
+stale one nobody maintains is exactly what a reader would trust by accident.
+
+| | v1.0.0 | **v1.0.1 (current)** |
+|---|---|---|
+| Cases | 76 | **103** |
+| Categories | 10 | **13** (adds `numeric_age`, `graduation_year_proximity`, `numeric_near_miss`) |
+| Phrase terms | 62 | 62 — **unchanged** |
+| Numeric rules | none | **5**, in 2 families (`stated_age`, `graduation_recency`) |
+| Must-flag / must-not-flag | 58 / 18 | **75 / 28** |
+| Measured | recall 1.0 · 0 FP · rate 0.7632 | recall **1.0** · **0 FP** · rate **0.7282** |
+| CI assertions | 18 | **25** |
+
+`ai/bias_pass.py` is the deterministic pass and `tests/bias/test_bias_pass.py` the CI-gated
+suite. `scripts/verify_bias_set.py` validates every version's internal consistency.
+
+> **Read the caveat before quoting those numbers.** Recall of 1.0 on a set whose rules were
+> authored alongside the cases is close to tautological. The figures that carry information
+> are the **zero false positives across 28 must-not-flag cases** — including 10 numeric
+> near-misses that exist to prove a rule has not learned to read any two-digit number as an
+> age — and the **flag rate landing inside [0.60, 0.95]**, which shows the pass is not
+> flagging everything. A fixture result, not evidence about real candidates or the ranking
+> model, and it supports no disparity claim.
+
+| | |
+|---|---|
+| **First source in the repo** | `ai/bias_pass.py` is the **first source file**. Kept dependency-free so it runs and tests with no Django, database or settings module |
+| Known limitations | **3 remaining** — `LIM-004` (no word boundaries, low); **`LIM-003` and `GAP-001` closed by decision**. `LIM-001` and `LIM-002` are **closed by fix in v1.0.1** |
+
+**`LIM-001` closed — a stated age is now caught.** `"24 years old"`, `"Age: 31"`,
+`"Aged 22"`, `"DOB: 12/03/1998"`, `"Born on 1999-06-14"` and `"Date of birth 4 July 1995"`
+all fire. Six forms, because a rule that reads one date format reads none of the others in
+a Bangladeshi CV.
+
+**`LIM-002` closed — graduation recency, parameterised.** `ScanContext` carries
+`reference_year` and `graduation_window_years` rather than reading the clock, so the rule is
+reproducible and a test can assert an exact year. Two guards make it usable at all:
+
+- **The year must sit within 24 characters of an education keyword.** A bare four-digit year
+  is a phone number or a budget; without the keyword this rule would fire on every CV.
+- **The year must fall inside the window.** `NUMF-009` — *"Graduated in 1994"* — must not
+  flag. Every resume has a graduation year, so an unbounded rule would flag everything and
+  report clean by doing so.
+
+**Two decisions taken 2026-10-03**, both recorded in `keyword_terms.json`:
+
+- **`LIM-003` — no Bengali term list. Accepted out of scope.** A Bengali or transliterated
+  resume receives a flag rate of zero from this pass and **no indication that the check
+  did not apply**. That residual risk is stated once, here. The compensating control is the
+  existing design: the pass is advisory, the rationale is shown with evidence, and a human
+  decides. It is weaker than a Bengali list and is not claimed to be equivalent.
+- **`GAP-001` — bare adjectives stay out of the term list.** *Energetic, articulate,
+  mature, ambitious, young, dynamic, passive* are not terms, so a rationale reading
+  *"Energetic and culturally aligned"* is age-coded and **will not be flagged**. **Closed
+  by decision, not by fix** — the gap still exists.
+  `test_no_bare_vague_adjectives_in_the_list` enforces the decision in CI, so adding one
+  after reading a missed case has to be argued for rather than slipped in.
+
+**Three findings from writing the cases.** Each is in `tests/bias/CHANGELOG.md` in full:
+
+1. **The validator caught three authoring errors in the first draft** — cases whose
+   `expected_terms` their own text did not contain (`PROXY-040` declared *not planning to
+   marry* over text reading "no plans to marry"; `RAT-007` and `RAT-010` likewise). All
+   three looked caught and were not. This is precisely the failure mode `expected_terms`
+   exists to prevent: a keyword pass whose fixtures agree with it by construction reports
+   a clean result forever.
+2. **§7.4.3 itself contained a collision.** It listed *"recent graduate programme 2026"*
+   as a must-NOT-flag example while *recent graduate* belongs in `age_reference`. The same
+   phrase cannot both flag and not flag. Resolved by removing *recent graduate* from the
+   term list and rewording `NEG-015` — and the underlying gap is **not** closed:
+   graduation-year proximity is the mechanism behind the 2018 case, tracked as `LIM-002`.
+3. **`GAP-001` is a deliberate non-fix.** Single-word vague and age-coded adjectives —
+   *energetic, articulate, mature, ambitious, young, dynamic, passive* — are **not** terms.
+   A rationale reading "Energetic and culturally aligned" is age-coded and **will not be
+   flagged** by v1.0.0. Adding those words bare would flag ordinary professional text, and
+   the zero-false-positive criterion is not negotiable. The gap is recorded rather than
+   papered over, because an unwritten term is a known gap and a quietly widened list is an
+   unnoticed one.
+
+#### 7.4.1 What the set is for, and what it is not for
+
+| The set measures | The set does **not** measure |
+|---|---|
+| Whether the deterministic keyword pass flags text it should flag | Whether FairFold is "bias-free", or unbiased, or fair in any statistical sense |
+| Whether a proxy phrase survives PII stripping | Whether the *model* is biased, or whether outcomes differ across groups |
+| Whether a regression in the keyword list is caught by CI | Anything publishable as a disparity statistic |
+
+That second column is the reason the set is sized at tens of cases and not thousands.
+**A 40-case fixture cannot support a disparity claim**, and §1.4.1 already records that
+the product makes no such claim. A test set that quietly became a diversity statistic is
+how a "bias-free" assertion creeps back in through the side door — the exact withdrawal
+recorded in §2.22 of `HISTORY.md`.
+
+#### 7.4.2 File layout and case format
+
+```
+tests/bias/
+├── __init__.py
+├── CHANGELOG.md              # one line per version: what was added and why
+├── v1.0.0/
+│   ├── manifest.json         # version, created, author, keyword_list_sha, case count
+│   ├── proxy_cases.jsonl     # MUST-FLAG cases (the Amazon-style category)
+│   ├── negative_cases.jsonl  # MUST-NOT-FLAG cases
+│   └── rationale_cases.jsonl # uncited / vague-rationale cases (LLM pass only)
+```
+
+Versions are **immutable**. Fixing a case means adding `v1.0.1`, not editing `v1.0.0`,
+so a CI run months later reproduces the set it thought it ran.
+
+One JSON object per line:
+
+```json
+{
+  "id": "PROXY-014",
+  "category": "gendered_club_role",
+  "text": "President, University Women's Society; organised the annual intra-faculty debate",
+  "must_flag": true,
+  "expected_terms": ["women's society"],
+  "note": "A gendered organisation name in an otherwise strong CV. PII stripping removes the candidate's name and does not touch this.",
+  "source_pattern": "Amazon 2018 - gendered club/society roles correlated with male-dominated technical roles"
+}
+```
+
+**`expected_terms` is what makes this a test rather than a demo.** The keyword pass has to
+flag the case *and* the case asserts which terms should have triggered it, so a keyword
+list that flags everything still fails. Without it, "accuracy" on a flag-only test is
+meaningless.
+
+#### 7.4.3 Case categories
+
+| # | Category | What it catches | `must_flag` | v1.0.0 target |
+|---|---|---|---|---:|
+| 1 | `gendered_club_role` | "President, University Women's Society", "women's sports captain" | ✅ true | 12 |
+| 2 | `institution_gender_signal` | College names that correlate with gender in the labour market | ✅ true | 8 |
+| 3 | `age_reference` | "young and energetic", "recent graduate", "must be under 30", "digital native" | ✅ true | 8 |
+| 4 | `nationality_origin_proxy` | "Bangladeshi male", "native speaker", "must be from Dhaka" | ✅ true | 6 |
+| 5 | `family_status` | "married", "no children", "young male preferred", "family responsibilities" | ✅ true | 6 |
+| 6 | `disability_health` | "must be physically fit", "no glasses", "healthy and fit" | ✅ true | 4 |
+| 7 | `photo_appearance` | "attach a photo", "formal appearance", "well-presented" | ✅ true | 4 |
+| 8 | `uncited_vague_rationale` | "cultural fit", "not a team player", "seems junior", no resume text cited | ✅ true | 10 |
+| 9 | `legitimate_skill_match` | A real skills match with no proxy language — must **not** flag | ❌ false | 12 |
+
+Categories 11–13 were added in **v1.0.1** alongside the numeric rule layer. Category 13 is
+the one to watch: it is ten lines of ordinary professional text, and it is what stops a rule
+learning to read any two-digit number as an age.
+| 10 | `necessary_context` | "Eligible for a women-only safety officer role", "must hold a valid visa", "co-founded a women's rights reading group" | ❌ false | 6 |
+| 11 | `numeric_age` | `24 years old`, `Age: 31`, `DOB: 12/03/1998`, `Born on 1999-06-14` — closes `LIM-001` | ✅ true | 9 |
+| 12 | `graduation_year_proximity` | `Graduated in 2026`, `Class of 2025`, `Currently pursuing B.Sc` — closes `LIM-002` | ✅ true | 8 |
+| 13 | `numeric_near_miss` | `team of 12 junior engineers`, `120 req/s`, `1,000-concurrent load test`, `Graduated in 1994` | ❌ false | 10 |
+
+Categories 9 and 10 matter more than their size suggests. **A keyword pass that flags
+everything reports a clean result by flagging the whole file**, and category 10 exists
+specifically to stop someone "fixing" a false positive by deleting the case. In v1.0.0
+these 18 cases also justify the **six deliberately-excluded terms**: each exclusion names
+the case that enforces it, and the validator checks that link still holds.
+
+#### 7.4.4 The Amazon-style proxy cases, and why PII stripping is not enough
+
+The Amazon 2018 case (`Feasibility §1.2.1`) is in the specification for one reason. The
+screening model did not use gender, age or college as features. It learned a proxy from
+**the resume text itself** — activities, clubs, societies — which correlate with gender in
+the applicant pool.
+
+**Every one of those phrases survives PII stripping untouched.** The stripping pipeline
+removes names, emails, phone numbers and locations. "President, University Women's
+Society" contains none of those, so it passes through clean, is embedded, and is ranked.
+This is the single most important thing the bias test set has to prove, and it is why
+categories 1 and 2 are mandatory rather than aspirational.
+
+The cases are **synthetic, in the same shape, with the source pattern recorded** in the
+`source_pattern` field. That is a deliberate choice over quoting the published material
+verbatim: the test needs the *shape* of the failure, not another company's wording
+committed into this repository. The reasoning stays traceable through the field, so a
+reviewer can check the derivation without the repo carrying the text.
+
+**A synthetic set has one honest weakness**, stated here so nobody is surprised: invented
+phrases are drawn from the patterns we already know about, so the set can only find
+proxies we thought of. It cannot bound the ones we did not. This is why category 8 is
+hand-extended after every production use that produced a flagged rationale — the set
+grows from real cases, and the version bump records which production incident added
+which line.
+
+#### 7.4.5 Pass criteria
+
+The Phase 2 criterion *"flags every seeded phrase"* means precisely this, and it is
+checked in CI:
+
+| Metric | Threshold | Why that number |
+|---|---|---|
+| `must_flag` cases flagged | **100%** | A proxy phrase that gets through is a silent ranking error. There is no acceptable miss rate for a known-bad phrase |
+| `must_flag` cases flagged by an `expected_terms` hit (not incidentally) | **100%** | Stops the flag-everything strategy passing |
+| `must_flag` **false** positives (categories 9, 10) | **0** | Every false positive is an employer shown a rationale the product calls biased when it is not. It trains recruiters to ignore the badge |
+| Overall flag rate, **all cases in the version** | **between 60% and 95%** | The band is the check. Under 60% means the list is too thin; over 95% means it is flagging noise. Measured **0.7282** (75/103) on v1.0.1 |
+
+```python
+# tests/bias/test_bias_pass.py -- runs in CI, no network, no AI provider.
+def test_bias_keyword_pass(bias_pass, manifest):
+    cases = load(f"tests/bias/{manifest['version']}")
+    result = bias_pass.run_all(cases)
+    assert result.recall == 1.0, f"missed: {result.missed_ids}"       # must_flag
+    assert result.false_positives == [], result.false_positives         # must_not_flag
+    assert 0.60 <= result.flag_rate <= 0.95, result.flag_rate
+```
+
+`bias_pass` is the deterministic keyword implementation only. **The LLM bias pass is
+advisory and is not gated on this set** — an advisory signal is allowed to be wrong, and
+§10 Phase 2 already records that it may not block auto-shortlist. Gating CI on an
+advisory signal makes the suite flaky and tempts someone to disable it.
+
+> **Correction, 2026-10-03.** The flag-rate band originally read *"between 60% and 95% on
+> categories 1–8."* **That was unsatisfiable**: 100% recall is required on exactly those
+> categories, so their flag rate is necessarily 1.0 — permanently above the 0.95 ceiling.
+> Two requirements in one spec section, mutually exclusive. The band applies to the
+> **overall** rate across every case in the version, which is the only denominator under which it
+> carries information. Found by implementing the pass and running it, not by reading the
+> section: the two requirements look fine on the page and cannot both be met.
+
+#### 7.4.6 Versioning
+
+`manifest.json` records the **SHA of the keyword list the cases were written against**.
+If the keyword list changes and the manifest SHA does not, the set is stale and CI says
+so. Without that field, adding a term silently makes old cases pass for a new reason,
+and the set stops being a regression test — it becomes a snapshot of whatever the list
+happened to be.
+
+**`scripts/verify_bias_set.py` checks every version, not just the newest.** Two exist
+(v1.0.0, v1.0.1) and both are validated, with per-version category targets. The guard
+earned its place twice within one session: adding `GAP-001` to the term list failed the
+manifest SHA check immediately, and adding the rules layer to v1.0.1 without bumping the
+SHA did the same.
+
+**v1.0.1 changed the pass, not the phrase list.** The 62 terms are byte-identical to
+v1.0.0; the version bump carries the numeric rules and 27 new cases. That separation is the
+point of versioning — a reader can tell whether a regression came from the phrases or from
+the rules without diffing two large files.
 
 ---
 
@@ -1449,7 +1997,7 @@ All application logs use structured JSON format:
 {
   "timestamp": "2026-09-24T14:30:00.123Z",
   "level": "INFO",
-  "service": "matchminds-django",
+  "service": "fairfold-django",
   "trace_id": "a1b2c3d4-e5f6-7890-g123-h456i789j012",
   "user_id": "uuid-or-null",
   "action": "ai.screening_completed",
@@ -1471,9 +2019,26 @@ All application logs use structured JSON format:
 
 The document references settings separation into:
 - `config/settings/base.py` — shared settings (security, installed apps, middleware)
-- `config/settings/local.py` — development (`DEBUG=True`, SQLite fallback)
-- `config/settings/test.py` — testing (in-memory SQLite, fast unit tests; referenced via `pytest --ds=config.settings.test`)
-- `config/settings/ci.py` — CI/testing (in-memory SQLite for unit, Postgres for integration)
+- `config/settings/local.py` — development (`DEBUG=True`, **PostgreSQL 17 + pgvector** via Docker; no SQLite fallback)
+- `config/settings/test.py` — **pure unit tests only** (in-memory SQLite; referenced via `pytest --ds=config.settings.test`). Any test touching a `VectorField` must use `ci.py`, because pgvector does not exist in SQLite
+- `config/settings/ci.py` — CI/testing (**PostgreSQL + pgvector** for unit and integration tests alike)
+
+> ⚠️ **SQLite is not a substitute for PostgreSQL — resolved 2026-10-03.**
+> `pgvector` does not exist in SQLite, so any model with a `VectorField` cannot be
+> created or queried there. Screening, ranking, rationale and bias audit all depend on
+> vector search (REQ-FR-028/029/030), so a SQLite-backed `local` or `test` settings
+> module **cannot run the application** — it would fail at the first migration.
+>
+> The corrected rule, applied to every reference below:
+> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d db`.
+> - **`test.py`** → in-memory SQLite is acceptable **only** for pure unit tests that
+>   touch no `VectorField`. Anything touching `matching/`, `candidates/` embeddings or
+>   `employers/` screening needs the Postgres test database.
+> - **`ci.py`** → Postgres service container, for both unit and integration jobs.
+>
+> This was a genuine contradiction: the dependency list, the schema and the settings
+> hierarchy all assumed PostgreSQL, while the settings comments invited a SQLite
+> fallback that could never work.
 - `config/settings/production.py` — production (`DEBUG=False`, Sentry, HTTPS)
 
 The full variable reference (including `DB_PASSWORD`, `CELERY_BROKER_URL`, and `CELERY_RESULT_BACKEND`, which are consumed directly by the Compose file above) lives in the Complete Project Document, §C.7.
@@ -1575,7 +2140,7 @@ n  - HH:MM — Acknowledgment
 ### 8.7 Post-Deployment Evaluation & Retrospective Process
 
 **Phase 1: Release Verification (within 1 hour of deploy)**
-- [ ] Health endpoint returns 200 (`curl -f https://app.matchminds.com/health/`)
+- [ ] Health endpoint returns 200 (`curl -f https://app.fairfold.com/health/`)
 - [ ] Key API endpoints respond (jobs list, auth login, health check)
 - [ ] Sentry shows no new error spikes
 - [ ] Prometheus shows no metric anomalies (request rate, error rate, latency)
@@ -1625,7 +2190,7 @@ local (dev laptop) → CI (test) → staging → production
 **Configuration parity:**
 - Same Docker images promoted across environments (no rebuild)
 - Environment-specific settings via env vars only (never baked into images)
-- `docker tag matchminds/app:%SHA% matchminds/app:latest` then promote same image
+- `docker tag fairfold/app:%SHA% fairfold/app:latest` then promote same image
 
 **Configuration drift detection:**
 - [ ] `env0` or `terraform` state diff before deployment (compares env configs)
@@ -1653,7 +2218,7 @@ local (dev laptop) → CI (test) → staging → production
 
 **Tagging convention:**
 - `git tag -a v{MAJOR}.{MINOR}.{PATCH} -m "Release v{MAJOR}.{MINOR}.{PATCH}"`
-- Tags pushed to GitHub trigger Docker image tagging: `matchminds/app:v{MAJOR}.{MINOR}.{PATCH}`
+- Tags pushed to GitHub trigger Docker image tagging: `fairfold/app:v{MAJOR}.{MINOR}.{PATCH}`
 - The `latest` tag always points to the most recent stable release on `main`
 
 **Pre-release process:**
@@ -1677,7 +2242,7 @@ local (dev laptop) → CI (test) → staging → production
 1. Trigger `rollback-production` GitHub Actions workflow manually
 2. The job retags the previous release image (`v{MAJOR}.{MINOR}.{PATCH-1}`) as `:latest`
 3. `docker-compose` on the production server pulls the previous image and restarts
-4. Health check runs (`curl -f https://app.matchminds.com/health/`)
+4. Health check runs (`curl -f https://app.fairfold.com/health/`)
 5. Incident commander notified via Slack #incidents channel
 6. Post-rollback: capture forensic data and schedule post-mortem
 
@@ -1699,6 +2264,23 @@ local (dev laptop) → CI (test) → staging → production
 | RSK-008 | Bangladesh market doesn't convert | Business | Medium | High | MVP targets both BD market + global SMBs; self-hostable option for price-sensitive markets | Product Lead |
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
+| RSK-011 | **Trademark clearance for the chosen name.** The previous working name was abandoned because it was contested by three unrelated commercial users (see `FAIRFOLD_Feasibility_and_Design.md` §1.4.2). **FairFold was selected on 2026-10-03** after a search found no living commercial use, but a web search and a DNS lookup are **not** a clearance. If the name turns out to be unregistable in a target market, a rename would again force a rebrand, a domain change and a support burden. | Legal / Brand | Medium | Low | **Domain: ✅ owned** (temporary first, primary at launch). **Still to do:** commission a **formal trademark search** in Bangladesh and every target export market, and file the word mark in classes 42 (software/SaaS) and 35 (recruitment services) per market. A domain registration is **not** a trademark filing — it does not confer the right to use the name in commerce. None of this has been done yet | Product Owner |
+| RSK-012 | **AI-assisted development degrades review quality.** The team is using AI to produce code to fit 217 points into 12 weeks. AI raises throughput, not correctness: it produces confident, plausible, wrong code, and — worse for this product — tests derived from the implementation rather than the acceptance criteria, which agree by construction. The product's whole claim is that it does not assert anything it cannot evidence, so a confidently-wrong codebase is the worst outcome available to it. | Technical / Process | **High** | High | Acceptance criteria in §4.1 are written before the test. No generated code merges unread. `bandit` + `pip-audit` + `safety` already in CI; add a licence scan. **No-AI-review-list** — eight named paths (`accounts/`, PII stripping + resume encryption, the rationale **citation check**, the bias-audit keyword pass, `matching/` filters and ranking, the shortlist/reject gate, all migrations, any Celery task that sends or mutates) require a named human reader before merge; see `FAIRFOLD_Feasibility_and_Design.md` §2.6.4.2. The rationale citation check is the single highest-risk file in the product: if it passes a hallucinated quote, the evidence-cited differentiator is false. Capacity claim measured as `ASM-003` at the end of Phase 1 | Backend Engineer |
+**Domain — ✅ owned, recorded 2026-10-03.** The team already holds a domain and intends
+to **run on a temporary domain first and move to the primary domain at launch**. That
+closes the registration half of this risk. Two consequences worth writing down:
+
+- **Every environment variable and CI secret must be able to change host without a code
+  change.** `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `SITE_ID`'s absolute URLs, the
+  Stripe webhook URL and the Sentry DSN are all host-bound. The temporary → primary
+  switch is a deployment-config change, not a code change. If any of those values is
+  hard-coded, the migration will be a debugging session rather than an edit.
+- **Do not build SEO, email reputation or social handles against the temporary domain.**
+  Verification emails sent from it establish SPF/DKIM for *that* host, and candidate
+  links containing it will not survive the move. This is a real cost of starting on a
+  temporary domain, and it is why the move should happen before any public launch
+  rather than after traction exists.
+
 
 ---
 
@@ -1721,12 +2303,18 @@ local (dev laptop) → CI (test) → staging → production
 - ✅ Resume embeddings generated via sentence-transformers (384-dim vectors)
 - ✅ pgvector cosine similarity returns ranked results in < 2s for 100 candidates
 - ✅ LLM rationale generated for top 10 candidates per job (evidence-cited format)
-- ⬜ Deterministic keyword pass flags every seeded phrase in the versioned bias test set (set does not exist yet — Phase 2)
+- ✅ The versioned bias test set **exists**: `tests/bias/v1.0.0/` (76 cases) and **`tests/bias/v1.0.1/` (103 cases, 13 categories, + the numeric rule layer)**. Both validated in CI by `scripts/verify_bias_set.py`
+- ✅ Deterministic keyword pass flags **100%** of the `must_flag` cases, with **0** false positives on the 28 must-not-flag cases, and an overall flag rate inside the 60–95% band. **Measured 2026-10-03 on v1.0.1: 75/103 flagged, rate 0.7282** — `ai/bias_pass.py`, 25 assertions passing. Read `manifest.measured.caveat` before quoting it
+- ✅ A **stated age** in any of six common forms is caught, and a **graduation year inside the recency window** is caught only when an education keyword sits near it (`LIM-001`, `LIM-002` closed by fix)
+- ✅ The bias test set **includes Amazon-style proxy cases** as mandatory categories 1 and 2 — synthetic, in the same shape, source pattern recorded in each case's `source_pattern` field (§7.4.4). These survive PII stripping untouched, which is why stripping names is not sufficient. Pattern source: `FAIRFOLD_Feasibility_and_Design.md` §1.2.1
 - ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
 - ⚠️ LLM bias pass is advisory only and may not block auto-shortlist
 - ✅ Employer sees ranked candidates with scores + evidence-cited rationales
 - ✅ Cost estimate shown before processing; $0.00 for free tier
 - ✅ Audit entries logged for every AI scoring action (timestamp, model, rationale hash)
+- ⬜ Hard-filter `not_matched` results show the rule that fired and stay listed behind a filter toggle, and can be pulled into review (REQ-FR-029, Gap G3)
+- ⬜ `filter_rules_version` is stamped onto every screened application and survives later edits to the job's rules (Gap G3)
+- ⬜ A shortlist/reject that goes against the ranking requires a written reason and writes an `ai_decision`-class audit entry (REQ-FR-052, Gap G2)
 
 ### Phase 3: Candidate AI Features (Weeks 7-9)
 - ✅ Candidate sees interactive career timeline from parsed resume (Chart.js)
@@ -1735,6 +2323,10 @@ local (dev laptop) → CI (test) → staging → production
 - ✅ AI interview coaching provides structured feedback on practice answers
 - ✅ Dynamic storytelling generates a narrative optimized for a specific target job
 - ✅ Candidate sees match scores for all applied jobs with AI rationale
+- ⬜ An employer can attach an assessment to a job as a required step, and an applicant without a passing attempt cannot be shortlisted on their score alone (REQ-FR-051, Gap G1)
+- ⬜ `assessment_gate_status` (not_required / pending / passed / failed) is shown on the application row and disables the Shortlist action with an explanation (REQ-FR-051)
+- ⬜ Removing a required assessment leaves existing attempts and scores intact (REQ-FR-051)
+- ⬜ Analytics shows override rate, broken down by user and by job, each override linking to its recorded reason (REQ-FR-035, REQ-FR-052)
 
 ### Phase 4: Production Hardening (Weeks 10-12)
 - ✅ MFA (TOTP) works for employer admin accounts
@@ -1774,4 +2366,4 @@ local (dev laptop) → CI (test) → staging → production
 
 ---
 
-*End of document. This document supersedes all previous versions of `MATCH_MINDS_Project_Architecture_and_Requirements.md`.*
+*End of document. This document supersedes all previous versions of `FAIRFOLD_Project_Architecture_and_Requirements.md`.*

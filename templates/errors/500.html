@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Something went wrong — FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-prose py-16 text-center">
+  <h1 class="text-h1 font-bold text-ink">Something went wrong on our side</h1>
+  <p class="mt-4 text-body text-ink-2">The problem has been recorded and we will look at it. Nothing you submitted has been lost.</p>
+  <p class="mt-8 text-body-sm text-ink-3">Quote this reference if you contact support:</p>
+  {# The reference is the request ID from core.middleware: an opaque identifier
+     and nothing else. It is the only thing that lets support find the traceback. #}
+  {% if reference %}
+  <p class="mt-2 font-mono text-body-sm text-ink-2">{{ reference }}</p>
+  {% endif %}
+  <p class="mt-8">
+    <a href="/"
+       class="inline-flex h-touch items-center rounded-md bg-primary px-6 text-body font-medium text-white hover:bg-primary-strong">
+      Go to the homepage
+    </a>
+  </p>
+</div>
+{% endblock %}

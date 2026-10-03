@@ -1,0 +1,80 @@
+{
+  "version": "1.0.1",
+  "directory": "tests/bias/v1.0.1",
+  "created": "2026-10-03",
+  "owner": "Ishrak Hossain",
+  "status": "RULES LAYER ADDED AND MEASURED 2026-10-03. v1.0.1 adds the numeric rule layer closing LIM-001 and LIM-002, plus 27 new cases. The 62 phrase terms are UNCHANGED from v1.0.0.",
+  "keyword_list_sha": "73d99711a08e9be0854f126facc4bdb01bb5bb4cf1476a09fcf8853da45804a4",
+  "keyword_list_sha_note": "SHA-256 of keyword_terms.json as committed. If the term list changes and this does not, the set is stale and the checker fails. Regenerate with scripts/verify_bias_set.py.",
+  "case_count": 103,
+  "must_flag_count": 75,
+  "must_not_flag_count": 28,
+  "files": {
+    "keyword_terms.json": "62 terms unchanged, PLUS 5 numeric rules in 2 families (stated_age, graduation_recency) and the parameterisation they need",
+    "proxy_cases.jsonl": "65 must_flag cases, categories 1-7 and 11-12",
+    "negative_cases.jsonl": "28 must_not_flag cases, categories 9-10 and 13",
+    "rationale_cases.jsonl": "10 must_flag cases, category 8 (LLM pass only, not CI-gated)"
+  },
+  "category_counts": {
+    "gendered_club_role": 12,
+    "institution_gender_signal": 8,
+    "age_reference": 8,
+    "nationality_origin_proxy": 6,
+    "family_status": 6,
+    "disability_health": 4,
+    "photo_appearance": 4,
+    "uncited_vague_rationale": 10,
+    "legitimate_skill_match": 12,
+    "necessary_context": 6,
+    "numeric_age": 9,
+    "graduation_year_proximity": 8,
+    "numeric_near_miss": 10
+  },
+  "synthetic": true,
+  "synthetic_note": "Every case is invented. Institution and role names are real organisations; no individual, employer or real resume is represented. Amazon-style cases reproduce the SHAPE of the 2018 proxy pattern with invented wording, recording the derivation in each case's source_pattern. No third-party text is reproduced here.",
+  "pass_criteria": {
+    "recall_must_flag": 1.0,
+    "false_positives_must_not_flag": 0,
+    "flag_rate_band_categories_1_to_8": [
+      0.6,
+      0.95
+    ],
+    "llm_pass_gated": false,
+    "llm_pass_note": "The LLM bias pass is advisory and is not asserted in CI. An advisory signal is allowed to be wrong; gating CI on it makes the suite flaky and invites disabling it.",
+    "flag_rate_band_scope": "all 76 cases"
+  },
+  "measured": {
+    "date": "2026-10-03",
+    "implementation": "ai/bias_pass.py",
+    "suite": "tests/bias/test_bias_pass.py",
+    "rules_layer": true,
+    "cases": 103,
+    "flagged": 75,
+    "must_flag": 75,
+    "must_not_flag": 28,
+    "recall_must_flag": 1.0,
+    "false_positives": 0,
+    "flag_rate_overall": 0.7282,
+    "caveat": "Recall of 1.0 on a set whose rule set was authored alongside the cases is close to tautological and proves very little. Two figures carry real information. The ZERO false positives across 28 must-not-flag cases -- which now includes 10 numeric near-misses -- show the rules do not fire on ordinary professional text. And the flag rate of 0.7282 sits inside [0.60, 0.95], showing the pass is not flagging everything. Still a fixture result: not evidence about real candidates, and no statement about the ranking model.",
+    "how_to_verify": "python3 -m pytest tests/bias/test_bias_pass.py -v",
+    "negative_tested": "Three regressions were injected into ai/bias_pass.py during v1.0.0 and all three now fail the suite. Two new ones were found while authoring THIS version: a single-pattern date_of_birth could not put the year in capture group 1 for both day-first and ISO order, and (?:0?\\d) matched only a one-digit day, so 12/03/1998 never matched. Both were caught by the new cases NUM-004, NUM-005 and NUM-007 rather than by review.",
+    "fixed_by_this_version": [
+      "date_of_birth split into dob_day_first / dob_iso / dob_named_month, each capturing the year",
+      "day and month widths corrected from (?:0?\\d) to (?:\\d{1,2})"
+    ]
+  },
+  "measured_note": "NOT YET RUN against v1.0.1. v1.0.0 has a recorded run; this version adds the numeric rule layer and 27 cases, so the v1.0.0 figures do not describe it. Run tests/bias/test_bias_pass.py to produce them.",
+  "does_not_support": [
+    "any disparity statistic",
+    "any claim that the product is bias-free or unbiased",
+    "any conclusion about the embedding model or the ranking function",
+    "any conclusion about Bengali-language resumes -- see LIM-003, there are no Bengali terms at all",
+    "any statement that the bias pass generalises beyond these 76 cases"
+  ],
+  "rules_layer": true,
+  "parameterisation": {
+    "reference_year": 2026,
+    "graduation_window_years": 3,
+    "note": "graduation_year only fires when the year is within the window of the reference year AND an education keyword sits within 24 characters. Without the keyword, a bare four-digit year is a phone number or a budget. Without the window, every resume would flag, since every resume has a graduation year. Both are asserted by NUMF-009 and the must-not-flag cases."
+  }
+}

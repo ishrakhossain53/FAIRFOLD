@@ -1,0 +1,353 @@
+# ==============================================================================
+# FairFold — CI/CD pipeline
+# ==============================================================================
+# Specified in FAIRFOLD_Project_Architecture_and_Requirements.md §6.5. That section
+# described this workflow as a YAML block inside a document; this file is the
+# workflow. A step that only exists as documentation does not run, so nothing in
+# §6.5 counts as implemented until it is here.
+#
+# Added 2026-10-04.
+# ==============================================================================
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, 'ishrakhossain53-patch-1']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# One build per branch. A new push cancels the in-flight run rather than queueing
+# behind it — on a docs-heavy repo with frequent pushes, the queued run tests a
+# commit nobody is waiting for.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: fairfold_test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports: ["5432:5432"]
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+        ports: ["6379:6379"]
+
+      clamav:
+        # The upload path REJECTS a file when ClamAV is unreachable rather than
+        # passing it unscanned, so without this service every upload test fails
+        # for the wrong reason and the product's fail-closed behaviour looks like
+        # a bug. `start_period` is generous because freshclam downloads its
+        # definitions on first boot and the first scan is genuinely slow.
+        image: clamav/clamav:1.4
+        ports: ["3310:3310"]
+        options: >-
+          --health-cmd "clamdcheck.sh"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 60s
+
+    env:
+      DJANGO_SECRET_KEY: ci-only-not-a-secret-key-0000000000000000000000000000
+      # Placeholder. No CI test round-trips an encrypted field; production.py is
+      # the module that rejects a missing or unchanged value.
+      ENCRYPTION_KEY: ci-only-fernet-placeholder-0000000000=
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # python-magic binds to the system libmagic, so pip alone is not enough and
+      # the job fails at import otherwise. ClamAV's client library is pure Python;
+      # the OS package below is for the file-type sniffing only.
+      - name: Install OS dependencies
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install spaCy model
+        run: python -m spacy download en_core_web_sm
+
+      # There is no SPA, but there IS a compiled CSS file: design.md §11.2 builds
+      # Tailwind to a static file rather than loading it from the CDN, which is
+      # what lets the CSP drop third-party script hosts. Without this step CI
+      # would test a stylesheet that does not exist in production, and a broken
+      # tailwind.config.js would only surface at deploy time. Runs before the
+      # Django steps because collectstatic and the template tests both read
+      # static/css/tailwind.css.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Fail if built CSS exceeds the size budget
+        # design.md §11.4 budgets built CSS at < 30 KB gzipped. A wrong `content`
+        # glob in tailwind.config.js silently produces a near-empty stylesheet
+        # rather than an error, so it would pass every other check in this job
+        # and ship unstyled. The budget is asserted, not trusted.
+        run: npm run check-budget
+
+      # NOTE: these target the app packages at the repository root. The Django
+      # project package is `config/` (Complete Doc §4.2) — an earlier version of
+      # §6.5 pointed them at `fairfold/`, which is the repository name and not a
+      # directory. `pyproject.toml` and `bandit.yaml` must exist at the root or
+      # these steps fail for a reason unrelated to any finding.
+
+      - name: Lint — flake8
+        run: |
+          flake8 config/ core/ accounts/ candidates/ employers/ matching/ \
+            assessments/ interviews/ notifications/ api/ journey/ ai/ \
+            --max-line-length=120
+
+      - name: Lint — black (check)
+        run: black --check .
+
+      - name: Lint — isort (check)
+        run: isort --check-only .
+
+      - name: Type check — mypy
+        run: |
+          mypy config/ core/ accounts/ candidates/ employers/ matching/ ai/ \
+            --ignore-missing-imports
+
+      - name: Security scan — bandit
+        run: bandit -r . -c bandit.yaml
+
+      - name: Dependency audit — pip-audit
+        # A known CVE in a transitive dependency is an inherited risk nobody
+        # chose, and it is the cheapest thing on this list to fix.
+        run: pip-audit -r requirements.txt
+
+      - name: Licence scan — RSK-012
+        # AI-assisted development can reproduce a known or non-OSI implementation,
+        # and the product claims it does not assert anything it cannot evidence.
+        # A licence check is the cheapest way to keep that claim honest.
+        # `report` and `whitelist` are informational: a finding here should be
+        # read, not auto-fail a build, because the correct response is often to
+        # record the licence rather than remove the dependency.
+        run: |
+          pip install licensedb
+          licensedb cache
+          licensedb report --format csv --packages . > licence-report.csv || true
+          licensedb whitelist --from-file=licensedb.yml || true
+        continue-on-error: true
+
+      # ------------------------------------------------------------------------
+      # Documentation and fixture consistency
+      # ------------------------------------------------------------------------
+      # These run BEFORE the Django steps. They need no database, no Node build
+      # and no image, so a documentation drift fails in ~2 seconds instead of
+      # after a full pip and npm install. Putting them last would mean every
+      # stale count also paid for a complete toolchain install first.
+      - name: Documentation consistency check
+        run: python3 scripts/verify_docs.py
+
+      - name: Bias test set consistency check
+        # Validates every version's fixture set: each declared term or rule
+        # exists, no must-not-flag case contains a term, category counts match
+        # that version's targets, and each manifest's keyword_list_sha matches the
+        # file it hashes. The pass's own behaviour is asserted by pytest below,
+        # not here.
+        run: python3 scripts/verify_bias_set.py
+
+      # ------------------------------------------------------------------------
+      # Django
+      # ------------------------------------------------------------------------
+      - name: Django system check
+        # Runs first because it is the cheapest way to find an import error, a
+        # missing module in an `include()`, or a settings module that will not
+        # load. Without it those surface as a confusing traceback from whichever
+        # later step happened to import the file first.
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
+          DJANGO_SETTINGS_MODULE: config.settings.ci
+        run: python manage.py check --deploy --fail-level WARNING
+
+      - name: Run migrations and seed
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.ci
+          POSTGRES_DB: fairfold_test
+          DB_HOST: localhost
+          DB_PASSWORD: postgres
+          CLAMD_HOST: localhost
+          CLAMD_PORT: 3310
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          # `--check` fails if any model change has no committed migration. This
+          # is the only thing that actually enforces Complete Doc §C.8.1's rule
+          # that migrations are generated and committed rather than hand-crafted
+          # per PR — a hand-written migration that happens to match the models
+          # is indistinguishable from a generated one until a field changes.
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate
+          python manage.py seed
+
+      - name: Collect static files
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.ci
+          POSTGRES_DB: fairfold_test
+          DB_HOST: localhost
+          DB_PASSWORD: postgres
+          CLAMD_HOST: localhost
+          CLAMD_PORT: 3310
+        run: python manage.py collectstatic --noinput --clear
+
+      - name: Run tests
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.ci
+          POSTGRES_DB: fairfold_test
+          DB_HOST: localhost
+          DB_PASSWORD: postgres
+          CLAMD_HOST: localhost
+          CLAMD_PORT: 3310
+          REDIS_URL: redis://localhost:6379/0
+        run: pytest tests/ -v --cov=. --cov-fail-under=80
+
+      - name: Generate OpenAPI schema
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.ci
+          POSTGRES_DB: fairfold_test
+          DB_HOST: localhost
+          DB_PASSWORD: postgres
+          CLAMD_HOST: localhost
+          CLAMD_PORT: 3310
+        run: python manage.py spectacular --file schema.yml
+
+      # A schema that fails to generate is a silent API regression: the views
+      # work, the endpoints respond, and no frontend knows the contract changed.
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: schema.yml
+
+  # --------------------------------------------------------------------------
+  # Deploy jobs
+  # --------------------------------------------------------------------------
+  # Gated on `main` only. Every one of them requires a manual approval in the
+  # repository settings (staging: required reviewers; production: required
+  # reviewers + wait timer), because the alternative is a push to main deploying
+  # to production with no human in the loop.
+  build-and-push:
+    needs: lint-and-test
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: fairfold/app:${{ github.sha }},fairfold/app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    needs: build-and-push
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        run: |
+          ssh "${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}" \
+            "docker compose pull && docker compose up -d --wait"
+
+      - name: Smoke test
+        run: |
+          # /health/ is liveness and checks no dependency, so it fails only when
+          # the process itself is broken. /health/ready/ reports the database and
+          # cache without failing the deploy — during a rolling restart a brief
+          # database blip should not roll back a healthy release.
+          curl -f --retry 5 --retry-delay 3 https://staging.fairfold.com/health/
+          curl -f https://staging.fairfold.com/health/ready/
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Deploy to production
+        run: |
+          ssh "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
+            "docker compose pull && docker compose up -d --wait"
+      - name: Health check
+        run: curl -f --retry 5 --retry-delay 3 https://app.fairfold.com/health/
+
+  # Manual only (`workflow_dispatch`). Rollback retags the PREVIOUS commit's image
+  # as :latest, which works only because every successful deploy is tagged with
+  # its own github.sha.
+  rollback-staging:
+    runs-on: ubuntu-24.04
+    needs: build-and-push
+    if: github.event_name == 'workflow_dispatch'
+    environment: staging
+    steps:
+      - name: Roll back to the previous image
+        run: |
+          ssh "${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}" \
+            "docker image tag fairfold/app:$(git rev-parse --short HEAD~1) fairfold/app:latest \
+             && docker compose up -d --wait"
+      - name: Post-rollback health check
+        run: curl -f https://staging.fairfold.com/health/
+
+  rollback-production:
+    runs-on: ubuntu-24.04
+    needs: build-and-push
+    if: github.event_name == 'workflow_dispatch'
+    environment: production
+    steps:
+      - name: Roll back to the previous image
+        run: |
+          ssh "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
+            "docker image tag fairfold/app:$(git rev-parse --short HEAD~1) fairfold/app:latest \
+             && docker compose up -d --wait"
+      - name: Post-rollback health check
+        run: curl -f https://app.fairfold.com/health/

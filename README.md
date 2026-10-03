@@ -1,24 +1,56 @@
-# MATCH MINDS - AI-Powered Recruitment Platform
+# FAIRFOLD — AI-Powered, Explainable Recruitment Platform
 
-> **NOTE:** This is the development version. See [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) for detailed documentation.
+> **NOTE:** This is the development version. See [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) for detailed documentation.
+
+> ### ✅ Named: FairFold (decided 2026-10-03)
+> The working name "Match Minds" was abandoned — it was in commercial use by at least two
+> other AI recruitment products and two unrelated software products, and it is descriptive
+> enough of what every ATS does to be hard to trademark. **FairFold** was chosen from four
+> screened candidates; no living commercial use of the string was found. The
+> `MATCH_MINDS_*.md` files were renamed to `FAIRFOLD_*.md`. Reasoning:
+> [`prd.md` §4.3](prd.md) and [Feasibility Doc §1.4.2](FAIRFOLD_Feasibility_and_Design.md).
+>
+> **✅ Domain owned** — a temporary domain first, moving to the primary at launch.
+> **🟡 Still to do before any public launch:** commission a **formal trademark search** in
+> Bangladesh and each target export market, and file the word mark in classes 42 and 35
+> per market. A web search, a DNS lookup and a domain registration are **not** a
+> trademark clearance. Tracked as **RSK-011** (Medium/Low).
+>
+> Because the host will change, keep `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe
+> webhook URL and the Sentry DSN in environment variables — the switch should be a config
+> edit, not a debugging session — and do not build SEO or email reputation against the
+> temporary host.
+
+> ### ⚠️ The product does not claim to be bias-free — yet
+> There is **no disparity measurement**, so "bias-free" was removed from every document on
+> 2026-10-03. The subtitle is now *"AI-Powered, **Explainable** Recruitment Platform"*,
+> which describes what the product does rather than what it achieves. FairFold makes every
+> score carry cited evidence and every action write an audit entry — that is a guarantee
+> about **process**. Whether it reduces biased **outcomes** is what `prd.md` §8.7 has to
+> measure, and it may not be advertised before it has. Approved wording:
+> [`prd.md` §4.2](prd.md).
 
 ## Documentation
 
 | Document | Role | Covers |
 |---|---|---|
-| [MATCH_MINDS_Complete_Project_Document.md](MATCH_MINDS_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
-| [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 50 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
+| [FAIRFOLD_Complete_Project_Document.md](FAIRFOLD_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
+| [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 52 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
 | [prd.md](prd.md) | **Canonical** | Product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| [MATCH_MINDS_Feasibility_and_Design.md](MATCH_MINDS_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 10 product components, 62 page specs, 23 wireframes covering all 18 required screens, implementation notes |
+| [FAIRFOLD_Feasibility_and_Design.md](FAIRFOLD_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
+| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 12 product components, 62 page specs, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
 | [HISTORY.md](HISTORY.md) | Log | What has been done on this repo and what is still outstanding |
+| [`validation/`](validation/) | Instrument | Consent form, interview guide, survey and results log for the §1.3.4 user validation — **built, never run** |
 
-**Start here:** `prd.md` if you want the product, `MATCH_MINDS_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.
+**Start here:** `prd.md` if you want the product, `FAIRFOLD_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.
 
-## What is Match Minds?
+## What is FairFold?
 
-Match Minds is an AI-powered, bias-free recruitment platform that:
-- **Eliminates unconscious bias** in candidate screening
+FairFold is an AI-powered recruitment platform that makes screening **explainable and
+auditable** — by employers *and* candidates:
+
+- **Strips identity before any AI call** — names, photos, emails, locations and phone
+  numbers never reach a model provider
 - **Gives candidates control** over their professional narrative via AI-Powered Journey Mapping
 - **Enables explainable AI** - candidates and recruiters see why matches were scored
 - **Runs on free-tier AI** (OpenRouter's free models)
@@ -47,28 +79,53 @@ Match Minds is an AI-powered, bias-free recruitment platform that:
 
 2. **Start the stack:**
    ```bash
-   docker-compose up -d
+   docker compose up -d --wait
    ```
 
 3. **Initialize database:**
    ```bash
-   docker exec -it matchminds-django python manage.py migrate
+   docker compose exec django python manage.py migrate
+   docker compose exec django python manage.py seed
    ```
+
+   `seed` loads the reference data a fresh database needs before serving a request: the
+   four Django role groups and the 68-skill taxonomy. It also validates the score bands,
+   countries and industries in `core/reference.py` and **warns that the bands are
+   uncalibrated** — `design.md` §3.4 calls them provisional pending a calibrated model, so
+   do not present them as measured.
 
 4. **Create superuser:**
    ```bash
-   docker exec -it matchminds-django python manage.py createsuperuser
+   docker compose exec django python manage.py createsuperuser
    ```
 
 5. **Access the application:**
-   - Admin: http://localhost:8000/admin/
+   - Django admin: http://localhost:8000/django-admin/
    - API: http://localhost:8000/api/v1/
+   - Health check: http://localhost:8000/health/
 
 ## Project Structure
 
 ```
-matchminds/
-├── core/                    # Shared utilities, middleware, security
+fairfold/
+├── manage.py                # Django entrypoint; defaults to config.settings.local
+├── config/                  # Django PROJECT package (not an app)
+│   ├── settings/
+│   │   ├── base.py          # Shared settings (security, apps, middleware, env helpers)
+│   │   ├── local.py         # Development (DEBUG=True, PostgreSQL 17 + pgvector via Docker)
+│   │   ├── ci.py            # CI — every test uses this. There is NO test.py; see below.
+│   │   └── production.py    # Production (DEBUG=False, Sentry, HTTPS, asserts everything)
+│   ├── urls.py              # mounts /api/v1/ and the app prefixes
+│   ├── celery.py
+│   └── wsgi.py
+├── core/                    # middleware, logging, exceptions, pagination, reference data
+│   ├── middleware.py        # RequestIDMiddleware — the correlation ID in every log line
+│   ├── logging.py           # RequestIDFilter — without it every log record fails to format
+│   ├── exceptions.py        # a 500 body never carries the exception text
+│   ├── pagination.py        # page_size ceiling of 100
+│   ├── reference.py         # score bands, countries, industries (constants, NOT tables)
+│   ├── fixtures/            # groups.json (4 roles), skills.json (68 skills)
+│   └── management/commands/seed.py
 ├── accounts/                # User model, auth, RBAC, profiles
 ├── candidates/              # Candidate dashboard, journey mapping, assessments
 ├── employers/               # Employer dashboard, job postings, screening
@@ -77,39 +134,51 @@ matchminds/
 ├── interviews/              # Interview scheduling, AI-generated Q packs
 ├── notifications/           # Email, in-app notifications
 ├── api/                     # DRF API root, versioning
-├── admin/                   # Custom admin for super-admin operations
 ├── journey/                 # AI-Powered Professional Journey Mapping
-└── ai/                      # AI provider abstraction (OpenRouter + fallback)
+└── ai/                      # provider abstraction + bias_pass.py / bias_audit.py
 
-config/
-├── settings/
-│   ├── base.py              # Shared settings (security, apps, middleware)
-│   ├── local.py             # Development (DEBUG=True, SQLite fallback)
-│   ├── test.py              # Testing (in-memory SQLite, fast)
-│   ├── ci.py                # CI/testing settings
-│   └── production.py        # Production (DEBUG=False, Sentry, HTTPS)
-├── urls.py
-└── wsgi.py
+templates/              # base.html + errors/{403,404,500}.html
+static/css/             # tokens.css (from design.md §3–§5), tailwind.src.css, tailwind.css (built)
+tests/
+├── conftest.py           # Django setup; degrades gracefully when Django is absent
+└── bias/                 # versioned bias test set — v1.0.0 (76) + v1.0.1 (103 cases); spec in Arch Doc §7.4
 
 docker-compose.yml
 Dockerfile
-requirements.txt
-.env.example        # template for all 25 env vars (never put secrets here)
+package.json            # Tailwind 3.4 · HTMX 1.18 · Chart.js 4.4 (build-time only)
+tailwind.config.js      # maps design tokens onto utility names
+pyproject.toml          # black · isort · mypy · pytest config
+bandit.yaml             # bandit skips, each with its reason
+requirements.txt / requirements-dev.txt
+.env.example        # template for every env var (never put secrets here)
 .gitignore          # keeps .env out of git; .env.example stays tracked
 scripts/
-└── generate_secret_key.py   # generates DJANGO_SECRET_KEY + ENCRYPTION_KEY
+├── generate_secret_key.py   # generates DJANGO_SECRET_KEY + ENCRYPTION_KEY
+├── verify_docs.py           # cross-document consistency check (also runs in CI)
+└── verify_bias_set.py       # validates the bias test set's internal consistency (CI)
 ```
 
-> **Settings modules:** The project uses split Django settings — `base.py` for shared config, `local.py` for development, `test.py` for fast unit tests, `ci.py` for CI, and `production.py` for production. Set `DJANGO_SETTINGS_MODULE` in `.env`.
-See `config/settings/` for the full settings hierarchy.
+> **There is no `config/settings/test.py`, and that is deliberate.** SQLite has no pgvector, so
+> a SQLite test module would let the embedding, ranking and screening tests pass on a database
+> that cannot represent a vector — and fail in production. **Every test uses
+> `config.settings.ci`** against real PostgreSQL. Set `DJANGO_SETTINGS_MODULE` in `.env`.
+
+> **`ai/bias_pass.py` and `ai/bias_audit.py` need none of this.** The pass is dependency-free
+> pure text matching, so `pytest tests/bias/` runs with or without Django, a database or a
+> settings module — which is deliberate, because it is the highest-risk logic in the product
+> and should not be gated on infrastructure being up.
 
 ## Build Order
 
-**Start with these components (in order) — see [§9 Implementation Roadmap](MATCH_MINDS_Complete_Project_Document.md#9-implementation-roadmap) in the Complete Project Document for phase details:**
+**Start with these components (in order) — see [§9 Implementation Roadmap](FAIRFOLD_Complete_Project_Document.md#9-implementation-roadmap) in the Complete Project Document for phase details:**
 
 1. **Development Environment** *(Complete Project Doc: §10.1, §10.2 | Architecture Doc: §6.1)*
-   - `docker-compose.yml` — starts PostgreSQL, Redis, Django, Celery
+   - `docker-compose.yml` — starts PostgreSQL, Redis, ClamAV, Django, Celery
    - `.env` configuration
+   - `npm ci && npm run build` — compiles Tailwind to `static/css/tailwind.css` and
+     vendors HTMX and Chart.js into `static/js/`. **Build-time only**: Node is not in the
+     runtime image, so a container rebuild without this step ships the unstyled CDN
+     fallback. See `design.md` §11.2.
 
 2. **Authentication System** *(Complete Project Doc: §9 Phase 1 | Architecture Doc: §4.1 Functional Requirements)*
    - User model with role-based access
@@ -165,23 +234,32 @@ See `config/settings/` for the full settings hierarchy.
 
 ### Running Tests
 ```bash
-# Local
-pip install pytest pytest-django
+# Local — needs PostgreSQL + pgvector (no SQLite fallback; see above)
+pip install -r requirements.txt -r requirements-dev.txt
 pytest tests/ -v
 
+# The bias pass alone needs NO database and NO Django
+pytest tests/bias/ -v
+
 # Docker
-docker exec matchminds-django pytest tests/ -v
+docker compose exec -T django pytest tests/ -v
+```
+
+### Verifying the documentation
+```bash
+python3 scripts/verify_docs.py       # counts, ids, links, line counts, wireframe coverage
+python3 scripts/verify_bias_set.py   # every bias fixture version's internal consistency
 ```
 
 ### Running Migrations
 ```bash
-docker exec matchminds-django python manage.py makemigrations
-docker exec matchminds-django python manage.py migrate
+docker compose exec -T django python manage.py makemigrations
+docker compose exec django python manage.py migrate
 ```
 
 ### Opening Django Shell
 ```bash
-docker exec -it matchminds-django python manage.py shell
+docker compose exec django python manage.py shell
 ```
 
 ## Production Deployment
