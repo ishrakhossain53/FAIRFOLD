@@ -18,17 +18,17 @@ specifications, requirements, and supporting configuration.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `FAIRFOLD_Complete_Project_Document.md` | 2006 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 1856 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 23-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1189 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 1378 | Supplement — UI design system, 62 page specifications, 23 wireframes, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2406 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| `README.md` | 230 | Project overview, documentation index, setup |
+| `FAIRFOLD_Complete_Project_Document.md` | 2245 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2047 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `prd.md` | 1223 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `design.md` | 1418 | Supplement — UI design system, 62 page specifications, 23 wireframes, frontend build tooling, implementation notes |
+| `FAIRFOLD_Feasibility_and_Design.md` | 2778 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+| `README.md` | 240 | Project overview, documentation index, setup |
 | `.env.example` | 143 | 25 environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
-**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23 and §2.24):
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24 and §2.25):
 
 - **52 functional requirements**, `REQ-FR-001` … `REQ-FR-052` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
@@ -37,9 +37,10 @@ specifications, requirements, and supporting configuration.
   `REQ-SEC-001`–`014` (14), `REQ-COM-001`–`009` (9), `REQ-NFR-001`–`018` (18),
   `REQ-NFR-019`–`023` (5, code quality), and four operational `REQ-NFOR-001`, `-002`, `-024`, `-025`.
   ⚠️ `REQ-NFR` and `REQ-NFOR` interleave — a naive `REQ-NF` regex conflates them. Use `REQ-NFR-[0-9]+`.
-- **24 database tables** in Arch Doc §5.1, with 34 foreign keys declared (31 drawn in the ER
-  diagram; 3 redundant `users` self-references intentionally omitted). `MESSAGES` is the one
-  table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
+- **24 database tables** in Arch Doc §5.1, with **35 foreign keys** declared (32 drawn in
+  the ER diagram; 3 redundant `users` self-references intentionally omitted). The count
+  went 34 → 35 when `data_deletion_requests.approved_by` was added in §2.25. `MESSAGES` is
+  the one table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
 - **10 AES-256-GCM encrypted fields** (PII at rest)
 - **52 user stories / 217 story points**, MoSCoW **30 Must / 17 Should / 5 Could** —
   every one of the 52 FRs maps to at least one story (verified programmatically)
@@ -608,6 +609,124 @@ answer is §5 of the feasibility document. As of this commit:
 
 ---
 
+### 2.25 The four items closed — review list, `ASM-003`, the API list, and gaps O–R
+
+Four items were open from §2.23–§2.24. All four are now closed. Two of the closures
+changed something downstream rather than just ticking a box, and one of them found a
+defect that only appeared because the work was done in the right order.
+
+#### 1. The no-AI-review-list is now eight files, not four topics
+
+§2.24 listed auth, encryption, PII stripping and `chk_override_has_reason`. That was a
+list of *topics*, and a topic cannot be reviewed — "auth" is nine files. The list is now
+eight concrete paths (`Feasibility §2.6.4.2`):
+
+| # | Path | Why it is on the list | Enforced by |
+|---|---|---|---|
+| 1 | `accounts/` — auth, MFA, lockout, JWT issuance and rotation | A wrong answer here is an authentication bypass. Every other control is downstream of this | Integration tests per path; `bandit` |
+| 2 | `candidates/` — PII stripping and resume encryption | The product's core claim is that names do not reach the employer. A silent stripping regression sends personal data to the wrong reader | Round-trip tests asserting the encrypted value never decrypts to plaintext in a template |
+| 3 | `ai/` — **rationale citation check** | Flagged as the single highest-risk file in the product: it produces the evidence a human uses to reject a candidate, and an uncited or fabricated citation is exactly the failure the product claims to prevent | The citation check is itself the test; human reads the diff |
+| 4 | `ai/` — bias-audit keyword pass | A missed proxy term is invisible by construction — the output looks fine | Versioned bias test set (Phase 2) |
+| 5 | `matching/` — embeddings, pgvector, Stage-1 filters | A ranking bug is not an error message, it is a different shortlist | Golden-set comparison of top-N against a stored expected list |
+| 6 | `employers/` — shortlist, reject, assessment gate | Employer actions are the decisions the product is accountable for; `REQ-FR-051`/`052` gates live here | Constraint tests |
+| 7 | All migrations | Schema drift is invisible until a deploy. `makemigrations --check` in CI is now part of this (§2.25 item 4) | CI |
+| 8 | Any Celery task that sends or mutates | A retry double-sends, and an email cannot be recalled | `idempotency_key`, task tests |
+
+> The list is not "risky files" — it is **files where a wrong answer is invisible.** That
+> is the criterion, and it is stated so that a new file can be tested against it instead of
+> argued onto or off the list by seniority.
+
+The review obligation was also promoted: it is no longer one of four *controls* alongside
+bandit and pip-audit, it is a **mandate**. The scanning tools stay; they are a backstop,
+not the plan.
+
+#### 2. `ASM-003` corrected — it was not falsifiable
+
+The old text read *"AI assistance increases development throughput without reducing review
+capacity."* Two problems, both mine:
+
+- **The second half cannot fail.** No measurement distinguishes "review capacity held" from
+  "review quietly got thinner". A test that cannot fail is not a test, and calling it one
+  invited exactly the silent-deferral failure `ASM-002`/`RSK-012` describe.
+- **The basis column asserted a conclusion.** It said the throughput half *"is well
+  founded"* — which is the finding, stated as the evidence. Plausible-for-boilerplate is
+  what we actually know, because nobody has measured this team's output yet.
+
+Rewritten: **`ASM-003` — AI assistance raises delivery capacity for the 217 points.**
+Basis: *plausible for boilerplate; **unmeasured***. **Tested at the end of Phase 1**
+(41 points / 3 weeks) against the story points actually accepted. If it fails, the 217
+reverts to a double-shift-hours calculation and Phase 2 is re-scoped — **never** by
+reducing review.
+
+`ASM-001` was added so the ID series starts at 001: *the 52 requirements are the right MVP
+scope.* Tested at the end of Phase 1; if it fails, **cut `REQ-FR-050` first** — it is the
+only requirement whose removal is clean, because its three artefacts are coupled by
+design.
+
+#### 3. The API blocker is closed, and writing it found two schema holes
+
+All five missing groups written into `Complete Doc §C.12`: `jobs/public/` (`REQ-FR-042`),
+`gdpr/export/*` + `gdpr/deletion/*` (`REQ-FR-040/041`), `employers/team/*` (`REQ-FR-047`),
+`assessments/*` authoring (`REQ-FR-049`). Details worth keeping:
+
+- **Public job browse** withholds the employer name by default, and returns **404, not
+  403**, for a hidden draft — a 403 confirms that a private job exists.
+- **GDPR export/delete is admin-approved, not self-service.** Deletion needs a typed
+  confirmation, a defined cascade order, and audit rows that are **never** deleted.
+- **Team management** forbids removing or demoting the last `employer_hr`, enforced in the
+  serializer inside the same transaction as the update.
+- **Assessment authoring has no DELETE route.** Deactivation only — a deleted assessment
+  would orphan every candidate attempt. Reordering takes an explicit `question_ids` list
+  rather than a positional patch.
+
+**Two columns appeared only because the endpoints were written, not because the schema was
+read.** This is the useful part:
+
+| Hole | Why the endpoint needed it | Now |
+|---|---|---|
+| `employer_profiles.show_company_name` | `GET /jobs/public/` must decide whether to expose an employer to an unauthenticated caller, and a stored per-employer preference is the only honest way — inferring it from "is this the default" makes anonymity a side effect of lazy data entry | `show_company_name BOOLEAN DEFAULT FALSE` |
+| `data_deletion_requests.approved_by` | Erasure is admin-approved, so *who* approved and *when* is the entire audit value. The ER diagram also drew `UNIQUE (user_id, status)` that the DDL did not have | `approved_by BIGINT REFERENCES users(id)` + `UNIQUE (user_id, status)` |
+
+The second is the more interesting one: **the ER diagram and the `CREATE TABLE`
+disagreed, and both had previously been described as verified.** A diagram is prose with
+boxes; the DDL is the artefact. FK count 34 → **35**.
+
+#### 4. Gaps O–R closed, and gap P was wrong when first written
+
+| Gap | Closed as |
+|---|---|
+| **O** | `package.json` (Tailwind 3.4, HTMX 1.18, Chart.js 4.4) and `tailwind.config.js` are now specified as real files in `design.md` §11.2; `npm ci && npm run build` runs in CI **and** in a throwaway Docker stage, so Node never reaches the runtime image. HTMX and Chart.js are vendored to `static/js/` because the CSP allows no third-party script host. CI asserts the built CSS against the 30 KB budget — a wrong `content` glob produces a near-empty stylesheet, which passes every other check in the job |
+| **P** | **`clamav: clamav/clamav:1.4` service added to `docker-compose` and to CI**, plus `sudo apt-get install -y libmagic1` in CI. `CLAMD_HOST`/`CLAMD_PORT` wired into the Django, Celery and test environments |
+| **Q** | `--extra-index-url https://download.pytorch.org/whl/cpu` and `torch>=2.3.0,<3.0.0` in `requirements.txt`; stack matrix and Dockerfile comment updated |
+| **R** | `Complete Doc §C.8.1–C.8.3`: the generated-vs-hand-written rule, three non-negotiables (never edit a merged migration; **`makemigrations --check --dry-run` in CI**; no `RunPython` calling an external service), the three operations that belong in Celery instead, and the seed set (auth groups, `skills` taxonomy, score bands, reference tables) with an explicit list of what is *not* seeded |
+
+> **Correction to gap P, kept in the record.** The gap was written as *"`libmagic` and
+> `ClamAV` are OS packages not yet checked in the Dockerfile."* **That was wrong** —
+> `libmagic1` and `clamav-daemon` were already in the Dockerfile. The real gap was
+> narrower and worse: there was **no ClamAV daemon anywhere to connect to**, in Compose or
+> CI, on a path that *rejects* uploads when ClamAV is unreachable. So every resume upload
+> would have failed. Recorded because the original wording would have sent a reviewer to
+> verify something that was already correct, and because "I checked and it was already
+> fine" is a result worth having.
+
+Gap **S** (`ASM-002`, double shifts) stays open **by design** — it has a test date (end of
+Phase 2) and a stated fallback (re-scope, do not compress). An assumption with a test date
+is not an unfinished item.
+
+#### Standing numbers after this commit
+
+- **🔴 24 tables, 35 FKs, 13 indexes, 52 FRs, 52 stories / 217 points** — 30 Must / 17
+  Should / 5 Could. 5/5 Mermaid diagrams parse, 0 dangling `REQ-FR-` references.
+- **🟠 Blockers blocking the start of development: none.** Both first-hour blockers (the
+  API list, the 25 December milestone) are closed.
+- **Five items still need a person, not a document:** trademark filing, the Phase 2 bias
+  test set, SCCs / cross-border transfer, Figma work, and the `REQ-FR-050` keep-or-cut
+  call.
+- **Three assumptions are deliberately open**, each with a test date: `ASM-001` (end of
+  Phase 1), `ASM-002` (end of Phase 2), `ASM-003` (end of Phase 1).
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |
@@ -626,23 +745,25 @@ answer is §5 of the feasibility document. As of this commit:
 | **L** — FR count contradicted itself | 🟡 header 50 / note 43 / §19.2 50 | ✅ **fixed** — three dated notes, all now agree on 52 (§2.20, `prd.md` §19.2 item 15) |
 | **M** — Product name contested | *(not previously found)* | ✅ **closed** — the old name was abandoned and the product renamed to **FairFold** (§2.21). **Domain owned**; residual trademark clearance on **RSK-011** at Medium/Low |
 | **N** — "Bias-free" subtitle unverifiable | 🟡 claimed everywhere, measured nowhere | ✅ **closed** — subtitle is now "AI-Powered, **Explainable** Recruitment Platform" (§2.22) |
-| **O** — Frontend build tooling unspecified | 🟡 stack names Tailwind/HTMX/Chart.js, no `package.json` or Tailwind config | ❌ **open** — Phase 1 build work (§5.4) |
-| **P** — `libmagic` / ClamAV OS packages unchecked | 🟡 pip packages pinned, OS deps never verified in Dockerfile/CI | ❌ **open** — Phase 1 build work (§5.4) |
-| **Q** — `torch` pulls the CUDA wheel by default | 🟡 multi-gigabyte, contradicts the 2–4 vCPU assumption | ❌ **open** — pin the CPU build (§5.4) |
-| **R** — No migration/seed strategy | 🟢 `C.8` has a plan, not a decision | ❌ **open** — low priority |
-| **S** — Double-shift capacity unvalidated | 🟡 new assumption `ASM-002` | ❌ **open** — re-scope if it fails, do not compress (§2.6.4.1) |
-| **T** — AI-assisted development degrades review | *(not previously found)* | ⚠️ **recorded, controlled** — `ASM-003` + `RSK-012`, four controls written into the process (§2.6.4.2, §2.24) |
+| **O** — Frontend build tooling unspecified | 🟡 stack names Tailwind/HTMX/Chart.js, no `package.json` or Tailwind config | ✅ **closed** — `package.json` + `tailwind.config.js` specified (`design.md` §11.2), Node 20 build stage in the Dockerfile, `npm ci && npm run build` + a 30 KB CSS budget in CI (§2.25) |
+| **P** — No ClamAV service for a path that rejects uploads when ClamAV is unreachable | 🟡 pip clients pinned and OS libs already in the Dockerfile, but **no daemon in Compose or CI** — *the gap as first written misstated this* | ✅ **closed** — `clamav: clamav/clamav:1.4` service in Compose and CI, `libmagic1` in CI, `CLAMD_HOST`/`CLAMD_PORT` wired through (§2.25) |
+| **Q** — `torch` pulls the CUDA wheel by default | 🟡 multi-gigabyte, contradicts the 2–4 vCPU assumption | ✅ **closed** — CPU extra-index and a `<3.0.0` pin in `requirements.txt` (§2.25) |
+| **R** — No migration/seed strategy | 🟢 `C.8` had a plan, not a decision | ✅ **closed** — `C.8.1–C.8.3`: generated-vs-hand-written rule, `makemigrations --check` in CI, seed fixtures for groups/skills/score bands/reference (§2.25) |
+| **S** — Double-shift capacity unvalidated | 🟡 new assumption `ASM-002` | ⏳ **open by design** — tested at the end of Phase 2; re-scope if it fails, do not compress (§2.6.4.1) |
+| **T** — AI-assisted development degrades review | *(not previously found)* | ⚠️ **recorded, controlled** — `ASM-003` **corrected to be falsifiable** and `ASM-001` added; review obligation promoted from control to mandate; the no-AI-review-list is now eight paths with an enforced-by column (§2.25) |
 | **U** — `REQ-FR-050` had no data model | 🔴 approved requirement, unimplementable | ✅ **fixed** — `announcements` table, 5 endpoints, five constraints, re-estimated 3 → 8 pts (§2.24) |
 | **V** — Phase 4 milestone on Christmas Day | 🟡 25 Dec is a holiday | ✅ **fixed** — moved to Thu 2026-12-24 (§2.24) |
+| **W** — API list incomplete | 🟠 blocker on the frontend build | ✅ **closed** — all five groups written (`Complete Doc §C.12`); writing them exposed two further schema holes (§2.25) |
+| **X** — ER diagram and DDL disagreed on `UNIQUE (user_id, status)` | *(not previously found)* — both had been reported as verified | ✅ **fixed** — constraint added to the DDL, plus `data_deletion_requests.approved_by` and `employer_profiles.show_company_name` (§2.25) |
 
 ---
 
 ## 4. Outstanding work
 
-**Seventeen of the thirty-two gaps found across this work are now closed.** What remains is
-listed here. Two items genuinely need a decision from the team; the rest is build work.
-The full picture, including the conflicts settled in §2.23, is in
-`FAIRFOLD_Feasibility_and_Design.md` **§5 Pre-Development Readiness Review**.
+**No item in this section blocks the start of development.** Both first-hour blockers —
+the incomplete API list and the 25 December milestone — are closed (§2.25). What remains
+needs a person rather than a document. The full picture, including the conflicts settled in
+§2.23, is in `FAIRFOLD_Feasibility_and_Design.md` **§5 Pre-Development Readiness Review**.
 
 ### 4.1 🟡 Trademark clearance for FairFold — `prd.md` §4.3 · **RSK-011**
 
@@ -680,22 +801,19 @@ Until it runs, the method stays tagged **[Planned]**, and **no prevalence figure
 stated for Bangladesh** — the local sources establish that network access and skill
 mismatch are recognised problems, not how often internal lobbying decides an interview.
 
-### 4.3 🟡 API list is behind — `Complete Doc §C.12`
+### 4.3 ✅ API list — closed 2026-10-03 — `Complete Doc §C.12`
 
-**This is now a 🟠 blocker on the start of development** (§5.5): the frontend cannot be
-built against an incomplete API list. It took roughly two hours to fix when the
-requirement was written and still has not been done, which is the lesson.
+**Was a 🟠 blocker on the start of development** (§5.5): the frontend cannot be built
+against an incomplete API list. It sat open for roughly two hours after the requirement
+was written, which is the lesson.
 
-The screening-integrity endpoints for `REQ-FR-051`/`052` and the `not_matched` review
-endpoint for `REQ-FR-029` were added in §2.20, so the new requirements do not recreate the
-gap they were written to close. **Still open:**
-
-| Requirement | Missing |
-|---|---|
-| REQ-FR-042 | Public job browse/search endpoints (design.md page #4) |
-| REQ-FR-040 / 041 | GDPR export and delete endpoints |
-| REQ-FR-047 | Team invite / role-change / remove |
-| REQ-FR-049 | Assessment create/edit/deactivate — only `GET /api/v1/assessments/` exists || REQ-FR-050 | Broadcast (`admin/broadcast/` is cited in design.md but not defined) |
+All five groups are now written: `REQ-FR-042` (public browse/search), `REQ-FR-040/041`
+(GDPR export/delete), `REQ-FR-047` (team), `REQ-FR-049` (assessment authoring) and
+`REQ-FR-050` (broadcast). **The lesson is now on the record twice** — the list is written in
+the same session as the requirement, not after. Writing it found two schema holes that no
+amount of re-reading §5.1 had surfaced (`employer_profiles.show_company_name`,
+`data_deletion_requests.approved_by`, and a constraint the ER diagram had but the DDL did
+not). Full detail in §2.25 and `Feasibility §5.7`.
 
 
 ### 4.4 🟡 Bias test set — Phase 2, now with required content
@@ -709,23 +827,22 @@ captain", gendered club roles. PII stripping removes names, emails and phone num
 **none** of that text, which is why stripping names alone is not sufficient. Added in §2.20
 to Arch Doc §10 Phase 2 and `prd.md` §17.4.
 
-### 4.5 🟠 Schedule — capacity solved, one date still open
+### 4.5 ✅ Schedule — capacity solved, and the one open date is closed
 
 **Updated 2026-10-03:** the team is working **double shifts**, so the plan is no longer
 capacity-constrained (§2.6.4.1). The 212 points over 12 weeks that made this tight is
-now comfortable.
+now comfortable — 217 after the `REQ-FR-050` re-estimate.
 
-**But 25 December is still a holiday, and that is a calendar fact rather than a capacity
-problem.** Phase 4 ends Fri 2026-12-25. Three options in `Feasibility §2.7.2` — move the
-milestone to Thu 24 Dec (**recommended**), demo at the end of Phase 3 and continue
-hardening in January, or re-base to a September kickoff. **One decision, not a
-documentation fix.**
+**And the 25 December problem is resolved.** Phase 4 now ends **Thu 2026-12-24**, team off
+on the 25th (`Feasibility §2.7.2`, option A). One day of Phase 4 work moved into the
+Phase 3 buffer. Nothing about this was a capacity problem: double shifts fixed capacity,
+which is a different question from the calendar.
 
-**New in the other direction:** double shifts for twelve weeks is a burnout and quality
-risk, and the failure mode is *silent* — deferred testing (which threatens REQ-NFR-019's
-80% coverage gate) and undocumented scope cuts that leave the spec describing something
-nobody built. The team commits to updating this document, `prd.md` §5.1 and the acceptance
-criteria in the same commit as any scope reduction. Tracked as **gap S / `ASM-002`**.
+**What stays open is `ASM-002`, not the date.** Double shifts for twelve weeks is a
+burnout and quality risk, and the failure mode is *silent* — deferred testing (which
+threatens `REQ-NFR-019`'s 80% coverage gate) and undocumented scope cuts that leave the
+spec describing something nobody built. Tested at the end of Phase 2; if it fails, re-scope
+rather than compress. Tracked as **gap S**.
 
 ### 4.6 🟡 Design tooling — `design.md` §12
 
@@ -743,7 +860,7 @@ two messaging pages**, so `REQ-FR-043` has no drawing even though the requiremen
 2. ~~Name reveal~~ — **decided at shortlist** (§2.18)
 3. Whether dark mode ships in the MVP
 4. Whether Bengali ships at launch (the PRD defers it to Phase 5)
-5. ~~Final brand name styling~~ — **now blocked on the name itself** (§4.1), not on styling
+5. ~~Final brand name styling~~ — **unblocked 2026-10-03** — the name is FairFold (§2.21). Logo and accent-colour work can start; do not print on public collateral until **RSK-011** returns (§4.1)
 
 ### 4.8 🟢 Open questions the docs still record
 
@@ -784,6 +901,9 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
+4b4ea7e  docs: move the Phase 4 milestone, record AI-assisted development, and build the broadcast feature
+ca4061f  docs: readiness review before development — nine conflicts settled, five gaps opened
+1079588  docs: rename to FairFold, and withdraw the bias-free claim the product cannot support
 2f7f01f  docs: trace requirements back to the problem, and flag a contested product name
 f342dd0  docs: re-base the Gantt, close two schema holes, and decide the open questions
 34fbe78  Create design.md

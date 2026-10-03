@@ -792,9 +792,13 @@ UNIQUE(job_id, candidate_id) on Application
 CHECK chk_override_has_reason on Application              (REQ-FR-052)
 ```
 
-**24 tables, 34 foreign keys.** Added 2026-10-03: `job_assessment_requirements`
+**24 tables, 35 foreign keys.** Added 2026-10-03: `job_assessment_requirements`
 (2 FKs), `applications.decided_by` (1 FK) and `announcements` (1 FK, for `REQ-FR-050`,
-which had no table at all — see Feasibility §2.4.1 round 4).
+which had no table at all — see Feasibility §2.4.1 round 4), then
+`data_deletion_requests.approved_by` (1 FK, added while writing the `gdpr/deletion/`
+endpoints — an erasure request that records no approver has no audit value).
+`employer_profiles.show_company_name` was also added, for the same reason: the public
+job endpoints need a stored per-employer choice rather than a guess.
 
 ### 11.3 Application Status Lifecycle
 
@@ -911,7 +915,14 @@ shortlist or reject that goes against the ranking goes through `shortlist/` or
 form that can be bypassed. The `409` on a closed assessment gate is what makes
 REQ-FR-051 a constraint rather than a hint.
 
-**Gap to close:** public job browse/search endpoints (`GET jobs/public/` with filters) are required by REQ-FR-042 and are not in the §C.12 list; GDPR export/delete endpoints (REQ-FR-040/041) are also absent from that list and need to be added. Both pre-date this work and remain open — the screening-integrity endpoints above were added here so the two new requirements would not recreate the very gap they were written to close.
+| **Public discovery, GDPR, team, assessments, broadcast** | **Now complete** — `GET jobs/public/` + `{id}/`, `gdpr/export/*` and `gdpr/deletion/*`, `employers/team/*`, `assessments/*` authoring, `admin/announcements/*` |
+
+✅ **Gap closed 2026-10-03.** All five endpoint groups were missing from `Complete Doc §C.12`
+and are now written. Two of them exposed a further problem: `REQ-FR-042` requires an
+employer disclosure opt-in and `REQ-FR-041` requires admin-approved erasure, and **neither
+had a column to store it**. `employer_profiles.show_company_name` and
+`data_deletion_requests.approved_by` were added, the latter with a `UNIQUE (user_id, status)`
+constraint the ER diagram had been claiming existed but the DDL did not have.
 
 ---
 
@@ -1096,10 +1107,19 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 
 - **`ASM-002`** — the team sustains double shifts for the full 12 weeks without attrition
   or quality degradation. If it fails, **re-scope; do not compress.**
-- **`ASM-003`** — AI-assisted development materially increases delivery capacity for the
-  217 points **without reducing review capacity.** These are two separate claims and only
-  the first is an optimisation. If the second fails, drop the throughput assumption —
-  **never** answer a schedule problem by reducing review. See **RSK-012**.
+- **`ASM-001`** — the 52 requirements are the right scope for an MVP. If it fails, cut
+  `REQ-FR-050` first; it is the only requirement the team itself called optional.
+- **`ASM-003`** — AI assistance raises delivery capacity for the 217 points. *Plausible
+  for boilerplate; unmeasured.* **Tested at the end of Phase 1** by points actually
+  delivered against the 41-point, 3-week phase. If it fails, drop the capacity assumption
+  and re-plan — **never** answer a schedule problem by reducing review. See **RSK-012**.
+
+> **Correction, 2026-10-03.** `ASM-003` previously read *"...without reducing review
+> capacity."* That clause is not measurable, so it could never be falsified — a thing that
+> cannot be falsified is not an assumption, it is a hope. The review obligation was never
+> an assumption either; it is now a **mandate** — the no-AI-review-list in
+> `FAIRFOLD_Feasibility_and_Design.md` §2.6.4.2, which names eight paths a named human
+> must read before merge.
 
 ### 18.3 External Dependencies
 

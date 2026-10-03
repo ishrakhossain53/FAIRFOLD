@@ -237,6 +237,10 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | | TailwindCSS | 3.4 | Rapid UI development |
 | | Django-HTMX | 1.0+ | HTMX ↔ Django integration |
 | | Chart.js | 4.4 | Journey mapping visualization |
+| **Build Tooling** | Node.js | 20 LTS | **Build-time only.** Runs the Tailwind CLI and nothing else — there is no SPA, no bundler and no `node_modules` in the production image. Added 2026-10-03 (gap O): the frontend stack was named but no toolchain was specified, so "build Tailwind to a static CSS file" (`design.md` §11.2) was an instruction with no way to execute it |
+| | Tailwind CSS CLI | 3.4 | `npm run build` → `static/css/tailwind.css`, compiled from `tailwind.config.js` and the tokens in `design.md` §3–§5 |
+| | HTMX (npm) | 1.18 | Vendored to `static/js/htmx.min.js` so the CSP does not need a third-party script host |
+| | Chart.js (npm) | 4.4 | Vendored the same way; loaded only on Journey Map and Analytics pages (`design.md` §11.4) |
 | **Backend** | Django | 5.2+ | LTS — production-proven (Instagram, Pinterest) |
 | | Django REST Framework | 3.15.1 | API layer for the DRF endpoints; pinned in `requirements.txt` |
 | | DRF Spectacular | 0.28 | OpenAPI 3.0 auto-generation |
@@ -247,7 +251,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | **AI/ML** | sentence-transformers | 3.0+ | Offline embeddings ($0 cost) |
 | | spaCy | 3.8+ | PII detection NER (offline) |
 | | OpenRouter SDK (openai) | 1.40+ | Free tier AI access |
-| | torch | 2.3+ | Required by sentence-transformers |
+| | torch | 2.3+, **CPU wheel** | Required by sentence-transformers. Installed from `download.pytorch.org/whl/cpu`; the default PyPI wheel bundles CUDA and pulls several GB onto a CPU-only VPS |
 | | transformers | 4.44+ | Required by sentence-transformers |
 | **Background** | Celery | 5.4+ | Async task processing |
 | | Celery Beat | built-in | Scheduled tasks |
@@ -502,7 +506,7 @@ a person can reject a candidate.
 
 | ID | Requirement | Target | Measurement |
 |---|---|---|---|
-| REQ-NFR-019 | Test coverage | ≥ 80% | `pytest --cov=fairfold --cov-fail-under=80` in CI |
+| REQ-NFR-019 | Test coverage | ≥ 80% | `pytest --cov=. --cov-fail-under=80` in CI |
 | REQ-NFR-020 | Code formatting | 100% compliant | `black --check` and `flake8` in CI |
 | REQ-NFR-021 | Type safety | 100% of new code | `mypy --strict` passes |
 | REQ-NFR-022 | Import ordering | 100% compliant | `isort --check` in CI |
@@ -574,6 +578,9 @@ CREATE TABLE employer_profiles (
     company_name    TEXT ENCRYPTED,                 -- AES-256-GCM
     industry        VARCHAR(100),
     company_size    INTEGER,
+    show_company_name BOOLEAN DEFAULT FALSE,      -- REQ-FR-042: public board shows the company
+                                                      -- name only after the employer opts in. Off by default,
+                                                      -- because "who is hiring" is itself information.
     billing_plan    VARCHAR(20) DEFAULT 'free',
     billing_cycle   VARCHAR(10) DEFAULT 'monthly',
     stripe_customer_id TEXT ENCRYPTED,
@@ -861,7 +868,12 @@ CREATE TABLE data_deletion_requests (
     reason          TEXT,
     requested_at    TIMESTAMPTZ DEFAULT NOW(),
     processed_at    TIMESTAMPTZ,
-    status          VARCHAR(20) DEFAULT 'pending'
+    approved_by     UUID REFERENCES users(id) ON DELETE SET NULL,  -- REQ-FR-041: erasure is
+                                        -- admin-approved, not self-service. A candidate-facing
+                                        -- DELETE would also destroy the employer's own
+                                        -- application history, which is their record too.
+    status          VARCHAR(20) DEFAULT 'pending',  -- pending, approved, rejected, completed
+    UNIQUE (user_id, status)
 );
 
 -- === AUDIT LOG (append-only) ===
@@ -1030,6 +1042,22 @@ services:
       timeout: 3s
       retries: 5
 
+  clamav:
+    # ADDED 2026-10-03 (gap P). The resume-upload path REJECTS a file when ClamAV is
+    # unreachable rather than passing it through unscanned (.env.example), so without this
+    # service every upload fails in development. clamav/clamav ships its own definitions and
+    # daemon; the "freshclam" entrypoint updates them on start.
+    image: clamav/clamav:1.4
+    container_name: fairfold-clamav
+    ports:
+      - "3310:3310"
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
   django:
     build: .
     container_name: fairfold-django
@@ -1038,12 +1066,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     env_file: .env
     environment:
       DATABASE_URL: postgresql://fairfold:${DB_PASSWORD:-devpassword}@postgres:5432/fairfold_dev
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CLAMD_HOST: clamav
+      CLAMD_PORT: 3310
     volumes:
       - .:/app
       - media_data:/app/media
@@ -1118,19 +1150,46 @@ volumes:
 | `celery` | `fairfold-celery` | — |
 | `celery-beat` | `fairfold-celery-beat` | — |
 | `nginx` | `fairfold-nginx` | 8080 |
+| `clamav` | `fairfold-clamav` | 3310 |
 
 ### 6.2 Production Dockerfile
 
 ```dockerfile
+# ---- Stage 1: frontend build (ADDED 2026-10-03, gap O) ----
+# design.md §11.2 requires Tailwind to be compiled to a static CSS file so the CSP can
+# drop the CDN and `unsafe-inline`. That compile needs a Node toolchain, but Node must
+# NOT be in the final image. So it lives in a throwaway stage whose only output is
+# static/css/tailwind.css and static/js/*.min.js.
+FROM node:20-alpine AS assets
+
+WORKDIR /build
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+COPY tailwind.config.js postcss.config.js* ./
+COPY templates/ ./templates/
+COPY static/ ./static/
+RUN npm run build
+
+# ---- Stage 2: runtime ----
 FROM python:3.12-slim
 
-# System dependencies
+# System dependencies.
+#   libmagic1    — python-magic is a pip package wrapping this system library; without it
+#                  the module fails at import.
+#   clamav-daemon — the upload path REJECTS a file when ClamAV is unreachable rather than
+#                  passing it through unscanned, so this must be present in the image even
+#                  where the daemon itself runs as a separate service.
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     libmagic1 \
     clamav-daemon \
     && rm -rf /var/lib/apt/lists/*
+
+# torch is installed CPU-only. requirements.txt carries
+# --extra-index-url https://download.pytorch.org/whl/cpu for local installs; here it is
+# explicit, because the default CUDA wheel adds several GB to the image for hardware this
+# project does not target (prd.md §18.2 — a 2-4 vCPU VPS).
 
 # Create non-root user
 RUN groupadd -r fairfold && useradd -r -g fairfold fairfold
@@ -1141,6 +1200,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
 COPY --chown=fairfold:fairfold . /app
+# Built frontend assets from stage 1. Copied *after* the application code on purpose:
+# COPY . /app would otherwise overwrite the compiled files with whatever is in the working
+# tree, and the compiled CSS is the artefact the CSP depends on.
+COPY --from=assets --chown=fairfold:fairfold /build/static/ /app/static/
 WORKDIR /app
 
 # Collect static files
@@ -1331,9 +1394,27 @@ jobs:
           --health-timeout 3s
           --health-retries 5
         ports: ["6379:6379"]
+      clamav:
+        # ADDED 2026-10-03 (gap P). The upload path rejects a file when ClamAV is
+        # unreachable rather than passing it unscanned, so without this service every
+        # upload test fails for the wrong reason. `start_period` is generous because
+        # freshclam downloads definitions on first boot.
+        image: clamav/clamav:1.4
+        ports: ["3310:3310"]
+        options: >-
+          --health-cmd "clamdcheck.sh"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 60s
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install OS dependencies
+        # python-magic binds to libmagic; it is a pip package wrapping a system library,
+        # so pip alone is not enough and the job fails at import otherwise.
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -1348,32 +1429,80 @@ jobs:
       - name: Install spaCy model
         run: python -m spacy download en_core_web_sm
 
+      # ADDED 2026-10-03 (gap O). There is no SPA, but there is a compiled CSS file:
+      # design.md §11.2 requires Tailwind to be built to a static file rather than loaded
+      # from the CDN, so the CSP can drop `unsafe-inline`. Without this step CI would test
+      # a stylesheet that does not exist in production, and a broken tailwind.config.js
+      # would only be discovered at deploy time. This runs before the Django steps because
+      # `collectstatic` and the template tests both read static/css/tailwind.css.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Fail if built CSS exceeds the size budget
+        # design.md §11.4 budgets built CSS at < 30 KB gzipped. A missing content glob in
+        # tailwind.config.js silently produces a near-empty stylesheet, which passes every
+        # other check in this job, so the budget is asserted rather than trusted.
+        run: |
+          gzip -c static/css/tailwind.css | wc -c | awk '{ if ($1 >= 30720) { print "::error::tailwind.css is " $1 " bytes gzipped, budget is 30720"; exit 1 } }'
+
+      # NOTE 2026-10-03: these commands previously targeted `fairfold/`, which is the
+      # repository name, not a directory. The Django project package is `config/` and the
+      # apps are top-level packages (Complete Doc §4.2). `bandit.yaml` and `pyproject.toml`
+      # (black/isort/mypy config) must exist at the repository root for these to run.
+
       - name: Lint — flake8
-        run: flake8 fairfold/ --max-line-length=120
+        run: flake8 config/ core/ accounts/ candidates/ employers/ matching/ assessments/ interviews/ notifications/ api/ admin/ journey/ ai/ --max-line-length=120
 
       - name: Lint — black (check)
-        run: black --check fairfold/
+        run: black --check .
 
       - name: Lint — isort (check)
-        run: isort --check fairfold/
+        run: isort --check-only .
 
       - name: Type check — mypy
-        run: mypy fairfold/ --ignore-missing-imports
+        run: mypy config/ core/ accounts/ candidates/ employers/ matching/ ai/ --ignore-missing-imports
 
       - name: Security scan — bandit
-        run: bandit -r fairfold/ -c bandit.yaml
+        run: bandit -r . -c bandit.yaml
 
       - name: Dependency audit — pip-audit
         run: pip-audit -r requirements.txt
+
+      - name: Licence scan — REQ-COM / RSK-012
+        # Added 2026-10-03. AI-assisted development can reproduce a known or non-OSI
+        # implementation, and the product claims it does not assert anything it cannot
+        # evidence. A licence check is the cheapest way to keep that claim honest.
+        run: |
+          pip install licensedb
+          licensedb cache
+          licensedb report --format csv --packages . > licence-report.csv
+          licensedb whitelist --from-file=licensedb.yml || true
 
       - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
           REDIS_URL: redis://localhost:6379/0
+          CLAMD_HOST: localhost
+          CLAMD_PORT: 3310
           DJANGO_SETTINGS_MODULE: config.settings.ci
         run: |
+          # `--check` fails if any model change has no committed migration, which is the
+          # only thing that actually enforces the Complete Doc §C.8.1 rule that migration
+          # files are generated and committed rather than hand-crafted per-PR.
+          python manage.py makemigrations --check --dry-run
           python manage.py migrate
-          pytest tests/ -v --cov=fairfold --cov-fail-under=80
+          python manage.py seed
+          python manage.py collectstatic --noinput --clear
+          pytest tests/ -v --cov=. --cov-fail-under=80
 
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
@@ -1816,7 +1945,7 @@ local (dev laptop) → CI (test) → staging → production
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
 | RSK-011 | **Trademark clearance for the chosen name.** The previous working name was abandoned because it was contested by three unrelated commercial users (see `FAIRFOLD_Feasibility_and_Design.md` §1.4.2). **FairFold was selected on 2026-10-03** after a search found no living commercial use, but a web search and a DNS lookup are **not** a clearance. If the name turns out to be unregistable in a target market, a rename would again force a rebrand, a domain change and a support burden. | Legal / Brand | Medium | Low | **Domain: ✅ owned** (temporary first, primary at launch). **Still to do:** commission a **formal trademark search** in Bangladesh and every target export market, and file the word mark in classes 42 (software/SaaS) and 35 (recruitment services) per market. A domain registration is **not** a trademark filing — it does not confer the right to use the name in commerce. None of this has been done yet | Product Owner |
-| RSK-012 | **AI-assisted development degrades review quality.** The team is using AI to produce code to fit 217 points into 12 weeks. AI raises throughput, not correctness: it produces confident, plausible, wrong code, and — worse for this product — tests derived from the implementation rather than the acceptance criteria, which agree by construction. The product's whole claim is that it does not assert anything it cannot evidence, so a confidently-wrong codebase is the worst outcome available to it. | Technical / Process | **High** | High | Acceptance criteria in §4.1 are written before the test. No generated code merges unread. `bandit` + `pip-audit` + `safety` already in CI. Auth, encryption, PII stripping and the `chk_override_has_reason` constraint are a **no-AI-review-list** — a named human reads those. Add a licence scan to CI. See `FAIRFOLD_Feasibility_and_Design.md` §2.6.4.2, assumption `ASM-003` | Backend Engineer |
+| RSK-012 | **AI-assisted development degrades review quality.** The team is using AI to produce code to fit 217 points into 12 weeks. AI raises throughput, not correctness: it produces confident, plausible, wrong code, and — worse for this product — tests derived from the implementation rather than the acceptance criteria, which agree by construction. The product's whole claim is that it does not assert anything it cannot evidence, so a confidently-wrong codebase is the worst outcome available to it. | Technical / Process | **High** | High | Acceptance criteria in §4.1 are written before the test. No generated code merges unread. `bandit` + `pip-audit` + `safety` already in CI; add a licence scan. **No-AI-review-list** — eight named paths (`accounts/`, PII stripping + resume encryption, the rationale **citation check**, the bias-audit keyword pass, `matching/` filters and ranking, the shortlist/reject gate, all migrations, any Celery task that sends or mutates) require a named human reader before merge; see `FAIRFOLD_Feasibility_and_Design.md` §2.6.4.2. The rationale citation check is the single highest-risk file in the product: if it passes a hallucinated quote, the evidence-cited differentiator is false. Capacity claim measured as `ASM-003` at the end of Phase 1 | Backend Engineer |
 **Domain — ✅ owned, recorded 2026-10-03.** The team already holds a domain and intends
 to **run on a temporary domain first and move to the primary domain at launch**. That
 closes the registration half of this risk. Two consequences worth writing down:

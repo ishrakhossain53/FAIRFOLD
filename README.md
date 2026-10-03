@@ -139,8 +139,12 @@ See `config/settings/` for the full settings hierarchy.
 **Start with these components (in order) — see [§9 Implementation Roadmap](FAIRFOLD_Complete_Project_Document.md#9-implementation-roadmap) in the Complete Project Document for phase details:**
 
 1. **Development Environment** *(Complete Project Doc: §10.1, §10.2 | Architecture Doc: §6.1)*
-   - `docker-compose.yml` — starts PostgreSQL, Redis, Django, Celery
+   - `docker-compose.yml` — starts PostgreSQL, Redis, ClamAV, Django, Celery
    - `.env` configuration
+   - `npm ci && npm run build` — compiles Tailwind to `static/css/tailwind.css` and
+     vendors HTMX and Chart.js into `static/js/`. **Build-time only**: Node is not in the
+     runtime image, so a container rebuild without this step ships the unstyled CDN
+     fallback. See `design.md` §11.2.
 
 2. **Authentication System** *(Complete Project Doc: §9 Phase 1 | Architecture Doc: §4.1 Functional Requirements)*
    - User model with role-based access

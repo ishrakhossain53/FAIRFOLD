@@ -210,7 +210,12 @@ fairfold/                   # repository root
 ├── api/                    # DRF API root, versioning
 ├── admin/                  # Custom admin for super-admin operations
 ├── journey/                # AI-Powered Professional Journey Mapping (MVP feature)
-└── ai/                     # AI provider abstraction (OpenRouter + fallback)
+├── ai/                     # AI provider abstraction (OpenRouter + fallback)
+├── templates/              # Django templates (base.html, components/, public/, candidate/, employer/, admin/)
+├── static/                 # css/tokens.css, css/tailwind.src.css, css/tailwind.css (built), js/
+├── package.json            # Frontend build tooling — build-time only (design.md §11.2)
+├── tailwind.config.js      # Maps the design tokens onto Tailwind utility names
+└── postcss.config.js       # PostCSS plugins, if the Tailwind CLI is invoked through PostCSS
 ```
 
 > **Naming resolved 2026-10-03.** This tree previously had no `config/` entry and
@@ -1354,6 +1359,64 @@ jobs:
 
 **Schema migrations:** Standard Django `makemigrations` / `migrate` workflow. Each migration reviewed in code review. No external migration tools needed — Django's built-in migration system handles all schema and data migrations.
 
+#### C.8.1 Generated vs hand-written migrations — the rule
+
+Added 2026-10-03 (gap R). The rule below is a **decision**, not a description: Django
+offers both, and choosing per-migration by judgement is how a schema diverges between
+`migrate` and `migrate --check` in CI.
+
+| Migration type | How it is produced | Who writes it |
+|---|---|---|
+| Table creation, `AddField`, `AlterField`, `RemoveField`, `CreateIndex`, `AddConstraint` | **`makemigrations`, committed to the repo** | Generated. The developer reviews the output and commits it |
+| Anything Django cannot express: partial/expression indexes, `CONCURRENTLY`, `RunSQL`, backfills, data cleanup | **Hand-written** | Developer, with the reasoning in the commit message |
+| `RunPython` data backfills | **Hand-written** | Developer, and it must be **idempotent** — it runs again if the migration is re-applied to a restored backup |
+
+**Three rules that are not negotiable:**
+
+1. **A migration file is never edited after it has been merged.** A changed migration
+   means the schema in production no longer matches the schema in the repo, and
+   `migrate --plan` stops being trustworthy. To change something already shipped, add
+   another migration.
+2. **CI runs `makemigrations --check --dry-run`.** If a model change was made without its
+   migration, the job fails. This is the only mechanism that actually enforces rule 1 in
+   practice; without it, "generate before commit" is a habit rather than a rule.
+3. **No `RunPython` that calls an external service.** Backfills must not call OpenRouter,
+   Redis, or the vector store. Re-embedding is a Celery task (§C.8.2), not a migration.
+
+#### C.8.2 Migrations that need a Celery task instead
+
+Long-running work never runs inside `migrate`. It is enqueued from a migration and picked
+up by a worker, with the migration recording only the fact that it was requested:
+
+| Operation | Migration does | Celery task does |
+|---|---|---|
+| PII re-encryption key rotation (90 days) | Add `key_version` column, default to the current version | Re-encrypt every `EncryptedCharField` row in batches; old keys retained 30 days for recovery |
+| Resume re-embedding after a model upgrade | Record the new model id in a `SystemConfig`-style row | Re-embed in batches via `generate_resume_embedding`; old and new vectors run side by side, traffic switches on a feature flag |
+| Skill taxonomy rename (e.g. "JS" → "JavaScript") | Create a `skill_aliases` mapping row | Re-point `skills` rows and re-score affected `Application` rows |
+
+#### C.8.3 Seed data — what must exist before the first request
+
+A fresh database has to be usable immediately after `migrate`, without a human running
+scripts. Seeded **deterministically** by Django fixtures, committed to the repo, and
+idempotent on `loaddata`:
+
+| Seed | Table | Source | Why it cannot be left empty |
+|---|---|---|---|
+| Django auth groups | `auth_group` | `core/fixtures/groups.json` | Role checks (`employer_hr`, `employer_admin`, `interviewer`) run on every permission test. Hard-coded role strings in Python would be a second source of truth |
+| Skill taxonomy | `skills` | `core/fixtures/skills.json` | Stage-1 matching filters on `skills`; a candidate with no recognised skills cannot be scored, and the bias audit compares categories that come from this table |
+| Score bands | `score_bands` (or a config row) | `core/fixtures/score_bands.json` | `design.md` §3.4 bands are "proposed" and explicitly need a calibrated model, so they are **seeded as provisional and owned by one file** — changing a threshold is then a fixture edit, not a code hunt |
+| Countries / industries | reference tables | `core/fixtures/reference.json` | Job filters and forms fail on an empty select |
+
+**What is deliberately not seeded.** Employers, candidates, jobs, applications and resumes
+come from `factory-boy` in tests and from real use in production. Seeding demo rows into a
+production-shaped database is how a "test employer" ends up holding a real employer's data.
+
+**Where the seed runs.** `loaddata` is called from a `seed` management command
+(`python manage.py seed --demo=false`), wired into the compose entrypoint and run after
+`migrate` in CI, so a CI database and a developer's database have identical reference
+data. `--demo=true` adds clearly-fake sample rows for local UI work and **refuses to run
+when `DEBUG=False`**.
+
 **Data migrations:** Custom Django data migration scripts for:
 - PII re-encryption key rotation (every 90 days): Re-encrypt all `EncryptedCharField` values with new key via Celery background task; old keys retained for 30 days for recovery
 - Resume embedding upgrades: When `sentence-transformers` model is updated, re-embed all resumes via batched Celery task
@@ -1705,6 +1768,99 @@ POST   /api/v1/notifications/{id}/read/          # Mark notification as read
 GET    /api/v1/messages/?application={id}/         # Get messages for application
 POST   /api/v1/messages/                         # Send message
 ```
+
+#### Public Job Discovery Endpoints (REQ-FR-042)
+
+```http
+GET    /api/v1/jobs/public/                      # Active jobs, newest first.
+                                                    # ?q= &location= &remote= &experience_level=
+                                                    # &page= &page_size=   (page_size max 50)
+GET    /api/v1/jobs/public/{id}/                 # Public job detail. 404 if not `active`.
+```
+
+> **Two rules that are requirements, not implementation details.**
+> **1. Employer name is withheld by default.** `employer_name` appears in the response
+> only if that employer has opted into candidate-facing disclosure (REQ-FR-042). A public
+> board otherwise leaks company identity for free, and "who is hiring" is itself
+> information. An employer who has not opted in gets `employer_name: null`.
+> **2. Only `status = 'active'` is ever returned.** Drafts, paused and closed jobs are
+> 404, not 403 — a 403 confirms the job exists, which is an enumeration leak.
+
+#### GDPR Endpoints (REQ-FR-040, REQ-FR-041)
+
+```http
+POST   /api/v1/gdpr/export/                      # Request an export. 202 + job id.
+GET    /api/v1/gdpr/export/{id}/                 # Status: queued | ready | expired
+GET    /api/v1/gdpr/export/{id}/download/        # Signed, short-lived URL. Valid 7 days (REQ-FR-040)
+POST   /api/v1/gdpr/deletion/                    # Request erasure. 202 + request id.
+GET    /api/v1/gdpr/deletion/{id}/               # Status: pending | approved | rejected | completed
+POST   /api/v1/gdpr/deletion/{id}/cancel/        # Withdraw a pending request
+```
+
+> **The hard part is deletion, not the endpoint.** `REQ-FR-041` hard-deletes all user
+> data. Three consequences that the route alone does not solve:
+>
+> 1. **Deletion is admin-approved, not automatic** (`DataDeletionRequest` has a
+>    `status`). A candidate-facing DELETE endpoint would hand anyone a self-service
+>    account-erasure button that silently destroys an employer's application history —
+>    which is *their* record too. The candidate requests; an admin approves.
+> 2. **`AuditLogEntry` rows are never deleted** — they are append-only and `ON DELETE SET
+>    NULL` on the actor. Erasure removes the personal data, not the evidence that a
+>    decision happened. This must be stated to the candidate in the response, or it looks
+>    like a broken promise.
+> 3. **Irreversibility needs a typed confirmation.** The approve action in
+>    `admin/compliance/` requires the candidate's email to be typed out. A single click
+>    that hard-deletes someone's account is not acceptable at any priority level.
+>
+> Deletion cascade, in order: `candidate_resumes` files (S3 **and** local disk),
+> `candidate_profiles`, `applications`, `messages`, `interviews` + `interview_feedback`,
+> `notifications`, `assessments` attempts. `applications` cascades to `interviews`, which
+> is deliberate: an interview has no separable half without its application.
+
+#### Employer Team & Roles Endpoints (REQ-FR-047)
+
+```http
+GET    /api/v1/employers/team/                   # List members: name, role, MFA status, joined_at
+POST   /api/v1/employers/team/invite/            # {email, role} -> creates a pending invite
+POST   /api/v1/employers/team/{id}/role/         # Change role
+DELETE /api/v1/employers/team/{id}/              # Remove member
+POST   /api/v1/employers/team/invitations/{token}/accept/   # Invitee accepts, MFA required first
+DELETE /api/v1/employers/team/invitations/{id}/             # Revoke a pending invite
+```
+
+> **The last-`employer_hr` rule is enforced in the serializer, not the view.** Removing or
+> demoting the only HR user would leave the company with nobody who can post a job or
+> invite a colleague, and it is unrecoverable without database access. `409 Conflict` with
+> a named explanation, checked against a `COUNT` inside the same transaction as the write —
+> two concurrent requests must not each see "one left".
+>
+> An invited member **cannot act until MFA is enabled** (`mfa_enforced = TRUE` on
+> `employer_team_members`), so the invite-accept route returns a challenge rather than a
+> session.
+
+#### Assessment Authoring Endpoints (REQ-FR-049)
+
+```http
+GET    /api/v1/assessments/                      # List. Admin sees all incl. inactive.
+POST   /api/v1/assessments/                      # Create: title, skill, difficulty, question_count, time_limit
+GET    /api/v1/assessments/{id}/                 # Detail with questions
+PATCH  /api/v1/assessments/{id}/                 # Update metadata
+POST   /api/v1/assessments/{id}/questions/        # Add a question
+PATCH  /api/v1/assessments/{id}/questions/{qid}/  # Edit a question
+DELETE /api/v1/assessments/{id}/questions/{qid}/  # Remove a question
+POST   /api/v1/assessments/{id}/reorder/          # {question_ids: [...]} — explicit order, not implicit
+POST   /api/v1/assessments/{id}/activate/         # is_active = TRUE
+POST   /api/v1/assessments/{id}/deactivate/       # is_active = FALSE
+```
+
+> **Deactivation must not delete.** Setting `is_active = FALSE` hides an assessment from
+> new attempts while leaving every existing `AssessmentAttempt` and its score intact — a
+> hard delete would cascade through `assessment_attempts` and destroy candidates' earned
+> scores and the `assessment_gate_status` on any application that depended on them
+> (REQ-FR-051). **There is no DELETE route for assessments, deliberately.**
+>
+> Reordering takes an explicit `question_ids` list rather than an index per question, so a
+> concurrent reorder cannot produce two questions at the same position.
 
 #### Broadcast Endpoints (REQ-FR-050)
 

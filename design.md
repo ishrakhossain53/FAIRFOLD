@@ -1281,9 +1281,46 @@ These 26 pages have a written spec in Sections 10.1–10.4 but no wireframe yet.
 
 > In dark mode, primary buttons keep `#4F46E5` fill with white text (6.29 : 1); only text/link colours switch to the lighter indigo. Verify soft backgrounds for the semantic colours in dark mode before shipping it.
 
-### 11.2 Tailwind Config (`tailwind.config.js`)
+### 11.2 Frontend Build Tooling (`package.json`, `tailwind.config.js`)
+
+**The config is a real file at the repository root, not a snippet.** Added 2026-10-03
+(gap O): the frontend stack named Tailwind, HTMX and Chart.js but no toolchain was
+specified, so "build Tailwind to a static CSS file" below had no way to be executed.
+`package.json` pins the three libraries and the one command that produces
+`static/css/tailwind.css`; `npm ci && npm run build` runs in CI (Arch Doc §6.5) and in
+a throwaway Docker stage (Arch Doc §6.2), so Node never reaches the runtime image.
+
+```json
+// package.json — build-time only. No bundler, no SPA, no node_modules in the image.
+{
+  "name": "fairfold-assets",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --minify",
+    "watch": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  },
+  "dependencies": {
+    "htmx.org": "1.18.0",
+    "chart.js": "4.4.7"
+  }
+}
+```
+
+`tailwind.src.css` is the entry point and carries only three `@apply`-free lines: the
+`@tailwind base/components/utilities` directives and an `@import` of
+`static/css/tokens.css`. The tokens themselves stay in **§3–§5 of this file** and are
+compiled to CSS custom properties by §11.1; the Tailwind config below only points at
+those variables, so there is exactly one place a colour is defined.
+
+`htmx.org` and `chart.js` are vendored into `static/js/` rather than loaded from a CDN,
+because the Content-Security-Policy in the Complete Doc does not allow third-party script
+hosts. Chart.js is loaded only on the Journey Map and Analytics pages (§11.4).
 
 ```js
+// tailwind.config.js
 module.exports = {
   content: ["./templates/**/*.html", "./**/templates/**/*.html"],
   theme: {
@@ -1306,7 +1343,10 @@ module.exports = {
 };
 ```
 
-> The PRD's CSP allows the Tailwind CDN script for early development. For production, **build Tailwind to a static CSS file** (Tailwind CLI) so the CSP can drop the CDN and `unsafe-inline` styles where possible.
+> **The CDN is not a fallback in production.** The PRD's CSP allows the Tailwind CDN script
+> for early development only; `npm run build` compiles to `static/css/tailwind.css` and the
+> CSP drops the CDN. A missing `content` glob produces a near-empty stylesheet rather than an
+> error, so CI asserts the built file against the 30 KB budget in §11.4.
 
 ### 11.3 Template Structure
 

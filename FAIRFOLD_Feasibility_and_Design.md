@@ -946,49 +946,81 @@ false at the end of Phase 2, the honest response is to re-scope, not to compress
 #### 2.6.4.2 AI-assisted development — recorded 2026-10-03, with controls
 
 **The team has stated it is using AI to produce the code**, and that this is the reason
-the 212-point scope is expected to fit. That is a legitimate reason and it is recorded
+the 217-point scope is expected to fit. That is a legitimate reason and it is recorded
 here so the plan rests on a stated assumption rather than an unexamined hope.
 
-**What it genuinely buys:** boilerplate volume. Django models, serializers, migrations,
+**What it plausibly buys:** boilerplate volume. Django models, serializers, migrations,
 admin registrations, test scaffolding and Docker config are the parts of this stack that
-take the most typing and the least judgement. That is real, and it is exactly where the
-schedule pressure was.
+take the most typing and the least judgement. *Plausibly* — that is a judgement, not a
+measurement, and it is not evidence. It is recorded as `ASM-003` in §2.6.4.3 and is
+tested at the end of Phase 1, where it costs almost nothing to be wrong.
 
-**What it does not buy, and this is the part that matters.** The specification has been
-built around one repeated rule — *never state anything that was not verified* — and AI
-assistance attacks that rule from two directions:
+**What it does not buy.** The specification has been built around one repeated rule —
+*never state anything that was not verified* — and AI assistance attacks that rule from
+several directions:
 
-| Failure mode | Why it happens | Control |
+| Failure mode | Why it happens | Control | Enforced by |
+|---|---|---|---|
+| **Confident, plausible, wrong code** | A migration or serializer that looks right and fails on an edge case nobody asked about | No generated code merges unread | PR review — a human is a required reviewer on every PR |
+| **Tests written to match the code, not the spec** | Generating the test after the implementation makes them agree by construction | **Acceptance criteria in Arch Doc §4.1 are written before the test.** A test traceable only to the implementation proves nothing | `US-###` rows name their FR; the CI traceability check fails on an orphan test |
+| **Provenance and licensing** | Generated code may reproduce a known or non-OSI-licensed implementation | Record any third-party code copied in | `pip-audit`, `safety` in CI — **plus a licence scan, still to add** |
+| **Security review debt** | Generated auth, crypto and query code looks plausible and is wrong exploitably | `bandit` in CI, plus the **no-AI-review-list** below | `bandit -r config/` on every push |
+| **Security-relevant falsehoods in the docs** | This repository's own discipline is what is at risk | §2.19 item 12 is the precedent: when an unverifiable claim was found, it was narrowed rather than shipped | Documentation review, same as code review |
+
+#### The no-AI-review-list
+
+**This is the load-bearing control, so it names files rather than topics.** "Auth" is not
+checkable; `accounts/` is. A named human must read these before merge — not "someone
+should", not "review carefully" — and the PR cannot be approved without it.
+
+| # | Path | Why it is on the list |
 |---|---|---|
-| **Confident, plausible, wrong code** | An LLM produces a migration or a serializer that looks right and fails on an edge case nobody asked about | **No generated code merges without a human reading it.** `REQ-NFR-019`'s 80% coverage gate is the backstop, not the plan |
-| **Tests written to match the code, not the spec** | Generating a test after generating the implementation makes the test agree by construction | **Acceptance criteria in Arch Doc §4.1 are written before the test.** If a test is derived from the implementation rather than the Given/When/Then, it proves nothing |
-| **Provenance and licensing** | Generated code may reproduce a known implementation or a non-OSI-licensed snippet | **`pip-audit` and `safety` already run in CI** (`REQ-COM` supply-chain checks). Add a licence scan and record any third-party code copied in |
-| **Security review debt** | Generated auth, crypto or query code looks plausible and is wrong in ways that are exploitable | **`bandit` is already in CI.** Auth, encryption, PII stripping and the override-reason constraint (`chk_override_has_reason`) are **no-AI-review-list** — a named human must read these |
-| **Security-relevant falsehoods in the docs** | This repository's own discipline is the thing at risk | **§2.19 item 12 is the precedent.** When an unverifiable claim was found, it was narrowed rather than shipped. The same rule applies to generated documentation |
+| 1 | `accounts/` — login, MFA, lockout, JWT, sessions | The one place a subtle flaw gives an attacker an account |
+| 2 | `candidates/` PII stripping, `candidate_resumes` encryption | Leaked PII **cannot be recalled**. `RSK-004` treats this as a release blocker |
+| 3 | `ai/` rationale generation and the **citation check** | If the "cites resume text" check passes a hallucinated quote, the evidence-cited differentiator is *false* and the audit trail is worthless. This is the single highest-risk file in the product |
+| 4 | `ai/` bias-audit keyword pass | If the keyword list silently misses a seeded phrase, the audit reports a pass that is not true |
+| 5 | `matching/` embeddings, pgvector ranking, Stage-1 hard filters | Gaps G1–G3 live here: `not_matched` must carry a reason, a filter must never produce `rejected`, and rules must stay versioned |
+| 6 | `employers/` shortlist / reject / required-assessment gate | `REQ-FR-051`/`052`: the gate and the override reason are the product's answer to its founding problem |
+| 7 | All migrations | `chk_override_has_reason` and the `filter_rules_version` stamp are constraints, not conventions, and a generated migration can silently drop one |
+| 8 | Any Celery task that sends or mutates | Retries are the default. `announcements.idempotency_key` and the screening task are the two that must be idempotent by construction |
+
+**The list is not "risky files" — it is files where a wrong answer is invisible.** Every
+one of them is a place where the code runs, returns normally, and is still wrong. That is
+the common property, and it is the reason a topic-level list was not enough.
 
 **The honest statement of the risk.** AI raises *throughput*, not *correctness*. The
-product's entire differentiator is that it makes decisions explainable and auditable — a
-codebase that is confidently wrong is a far worse outcome for this product than a
-codebase that is visibly incomplete, because the whole pitch is that FairFold does not
-make claims it cannot evidence.
+product's entire differentiator is that it makes decisions explainable and auditable, and
+a confidently-wrong codebase is a far worse outcome here than a visibly incomplete one —
+because the whole pitch is that FairFold does not make claims it cannot evidence.
 
-**Recorded as assumption `ASM-003`** (see §2.6.4.3) and risk **RSK-012**. Neither is a
-reason to slow down; both are reasons to keep the merge discipline that is already in
-the requirements.
+**Recorded as assumption `ASM-003`** (measurable, tested in Phase 1) and risk **RSK-012**
+(mitigated by the list above). Neither is a reason to slow down.
 
 **Gantt chart:** see §2.7.
 
 #### 2.6.4.3 Assumptions added 2026-10-03
 
-| ID | Assumption | Basis | If it fails |
-|---|---|---|---|
-| **`ASM-002`** | The team sustains **double shifts** for the full 12 weeks without attrition or quality degradation | Stated by the team | **Re-scope, do not compress.** A cut scope updates `prd.md` §5.1 and the acceptance criteria in the same commit |
-| **`ASM-003`** | AI-assisted development materially increases delivery capacity for the 217 points, **without reducing review capacity** | Stated by the team; the throughput half is well founded, the review half is the risk | Drop the throughput assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
+| ID | Assumption | Basis | **How it is tested** | If it fails |
+|---|---|---|---|---|
+| **`ASM-001`** | The 52 requirements are the right scope for an MVP | Team judgement | Anyone who has used the product and found a missing capability | Cut `REQ-FR-050` first — it is the only requirement the team itself called optional |
+| **`ASM-002`** | The team sustains **double shifts** for the full 12 weeks without attrition or quality degradation | Stated by the team | End of Phase 2: are 5 people still on it, and is review debt rising? | **Re-scope, do not compress.** A cut scope updates `prd.md` §5.1 and the acceptance criteria in the same commit |
+| **`ASM-003`** | AI assistance raises delivery capacity for the 217 points | Stated by the team. *Plausible for boilerplate; unmeasured* | **End of Phase 1: points actually delivered.** If Phase 1 (41 points, 3 weeks) lands at or under schedule, the assumption holds | Drop the capacity assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
 
-`ASM-003` has two halves and only one of them is an optimisation. Treating them as a
-single assumption is the mistake; they are tracked separately in §2.6.4.2.
+> **Correction to an earlier draft of this table (2026-10-03).** `ASM-003` previously read
+> *"…**without reducing review capacity**"* and its basis column claimed *"the throughput
+> half is well founded"*. **Both were wrong.** The first clause is not measurable, so it
+> could never be falsified — a thing that cannot be falsified is not an assumption, it is
+> a hope. The second asserted a conclusion as though it were evidence.
+>
+> It has been split: the **capacity** claim stays an assumption and is now measured at the
+> end of Phase 1; the **review** obligation was never an assumption and has been promoted
+> to a mandate — the no-AI-review-list above and the four controls, which are things the
+> team *does*, not things the team *believes*.
+>
+> `ASM-001` exists so the ID series does not start at 002. It is the assumption the other
+> two sit on: that the scope is right in the first place.
 
-#### 2.6.5 Legal feasibility
+#### 2.6.5 Legal feasibility#### 2.6.5 Legal feasibility
 
 **Verdict: Feasible, with obligations to be met rather than avoided.**
 
@@ -1766,6 +1798,7 @@ erDiagram
     CANDIDATE_PROFILES ||--o{ CERTIFICATIONS : "holds"
     CANDIDATE_PROFILES ||--o{ ASSESSMENT_ATTEMPTS : "attempts"
     USERS ||--o{ ANNOUNCEMENTS : "authors"
+    USERS ||--o{ DATA_DELETION_REQUESTS : "approves erasure"
 
     CANDIDATE_PROFILES ||--o{ APPLICATIONS : "submits"
 
@@ -1840,6 +1873,7 @@ erDiagram
         text company_name "ENCRYPTED"
         varchar industry
         integer company_size
+        boolean show_company_name "REQ-FR-042: public-board disclosure opt-in, off by default"
         varchar billing_plan
         varchar billing_cycle
         text stripe_customer_id "ENCRYPTED"
@@ -2075,17 +2109,18 @@ erDiagram
 
     DATA_DELETION_REQUESTS {
         uuid id PK
-        uuid user_id FK "unique"
+        uuid user_id FK "nullable, SET NULL"
         text reason
         timestamptz requested_at
         timestamptz processed_at
-        varchar status
+        uuid approved_by FK "nullable, SET NULL"
+        varchar status "pending-approved-rejected-completed"
     }
 ```
 
 **Cardinality reading:** `||` = exactly one, `o|` = zero or one, `o{` = zero or many.
-All 24 tables and 31 relationships shown. The canonical SQL (Arch Doc §5.1) declares
-**34** foreign keys; the three not drawn are redundant self-references on `users` that
+All 24 tables and 32 relationships shown. The canonical SQL (Arch Doc §5.1) declares
+**35** foreign keys; the three not drawn are redundant self-references on `users` that
 would clutter the diagram without adding information — `USERS → CANDIDATE_PROFILES`,
 `USERS → EMPLOYER_PROFILES` and `USERS → APPLICATIONS.decided_by` are all already
 implied by a drawn relationship. PK/FK detail is carried in the attribute blocks.
@@ -2094,7 +2129,9 @@ Note the three special cases:
 
 - `AUDIT_LOG_ENTRIES.actor_id` is nullable with `ON DELETE SET NULL` — audit records
   must survive deletion of the actor.
-- `DATA_DELETION_REQUESTS.user_id` is unique — at most one active erasure request.
+- `DATA_DELETION_REQUESTS` has `UNIQUE (user_id, status)` — at most one erasure request
+  per status, so a user cannot hold two `pending` deletions. **This constraint is in the DDL
+  as of 2026-10-03**; the ER diagram had been asserting it while the SQL did not have it.
 - `APPLICATIONS` carries a composite `UNIQUE(job_id, candidate_id)` constraint, not
   expressible in Mermaid's ER notation; it is documented here and in the class diagram.
 - `EMPLOYER_TEAM_MEMBERS` is the join that makes an employer organisation many-to-many
@@ -2611,13 +2648,13 @@ start building?* Nothing here repeats §2.4.1 or §1.3; it is the consolidated v
 
 | File | Role | Canonical for | Lines |
 |---|---|---|---|
-| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), team (§10.4) | 2070 |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 1889 |
-| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1196 |
-| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML, Gantt, data dictionary, this readiness review | 2571 |
-| `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 23 wireframes, deliverables checklist | 1378 |
-| `HISTORY.md` | Log | What was done, what is still open, and why | 654 |
-| `README.md` | Entry point | Setup, project structure, the two standing warnings | 236 |
+| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), migrations/seed (§C.8), team (§10.4) | 2245 |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2047 |
+| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1223 |
+| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML, Gantt, data dictionary, this readiness review | 2778 |
+| `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 23 wireframes, build tooling (§11.2), deliverables checklist | 1418 |
+| `HISTORY.md` | Log | What was done, what is still open, and why | 808 |
+| `README.md` | Entry point | Setup, project structure, the two standing warnings | 240 |
 
 **⚠️ Ownership rule that must survive the rename.** *Functional requirements live in
 the Arch Doc §4.1, not the PRD.* The PRD proposes and summarises them. Any new FR starts
@@ -2632,8 +2669,10 @@ in the Arch Doc; the PRD table is a pointer, never the definition.
 | Every FR has at least one user story | ✅ 52/52 |
 | Story rows parse and sum | ✅ 52 stories, 217 points, 30 Must / 17 Should / 5 Could |
 | Duplicate FR rows | ✅ none — 52 rows, 52 unique IDs |
-| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 24 / 34 / 13 |
+| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 24 / 35 / 13 |
 | Mermaid diagrams parse | ✅ 5 of 5 |
+| `makemigrations --check` in CI | ✅ so a model change cannot land without its migration (Complete Doc §C.8.1) |
+| Frontend build in CI | ✅ `npm ci && npm run build`, plus a hard 30 KB budget on the built CSS (`design.md` §11.4) |
 | `[PLACEHOLDER]` / `?` cells / `TBD` remaining | ✅ none |
 | Secrets in committed files | ✅ none; `.env` is gitignored, `.env.example` is placeholders |
 | Old product name anywhere | ✅ none except where it describes *other* companies' products |
@@ -2662,13 +2701,21 @@ the canonical document's rule was applied and the stale one corrected.
 
 ### 5.4 New gaps opened by this review
 
-| Gap | What it is | Severity | Where it is tracked |
-|---|---|---|---|
-| **O** | **Prebuilt frontend tooling is unspecified.** TailwindCSS 3.4, HTMX 1.18 and Chart.js 4.4 are in the stack matrix, but there is no `package.json`, no Tailwind config file and no build step in CI. `design.md` §11 has the *content* of a Tailwind config but no file | 🟡 | `design.md` §12, `README.md` §Build Order |
-| **P** | **`libmagic` and `ClamAV` are OS packages, not pip packages.** `python-magic` and `clamav-client` are pinned, and `.env.example` documents `CLAMD_HOST`/`CLAMD_PORT`, but the Dockerfile and CI service definitions have not been checked to install `libmagic1` and a ClamAV daemon | 🟡 | Arch Doc §6.1/§6.2 |
-| **Q** | **`torch` is not pinned to a CPU build.** `requirements.txt` has `torch>=2.3.0`, which by default pulls the full CUDA wheel — multi-gigabyte, and it does not fit the "2–4 vCPU VPS" assumption in §18.2 | 🟡 | `requirements.txt`, Arch Doc §3.4 |
-| **R** | **No migration/seed strategy for existing data.** `C.8` has a migration *plan*, but there is no decision on `makemigrations` vs hand-written migrations, and no seed fixtures for roles, skills or the taxonomy | 🟢 | Complete Doc §C.8, Arch Doc §5 |
-| **S** | **Double-shift assumption is unvalidated.** Now recorded as `ASM-002`. If it fails at the end of Phase 2 the answer is to re-scope, not compress | 🟡 | §2.6.4.1 |
+| Gap | What it is | Severity | Where it is tracked | Status |
+|---|---|---|---|---|
+| **O** | **Prebuilt frontend tooling is unspecified.** TailwindCSS 3.4, HTMX 1.18 and Chart.js 4.4 were in the stack matrix, but there was no `package.json`, no Tailwind config file and no build step in CI — so `design.md` §11.2's *"build Tailwind to a static CSS file"* was an instruction nobody could execute, and production would have fallen back to the Tailwind CDN the CSP does not allow | 🟡 | `design.md` §11.2/§12, Arch Doc §3.4/§6.2/§6.5, `README.md` §Build Order | ✅ Closed 2026-10-03 |
+| **P** | **ClamAV had no service, only clients.** `python-magic` and `clamav-client` were pinned and `.env.example` documents `CLAMD_HOST`/`CLAMD_PORT`, and `libmagic1`/`clamav-daemon` *were* already in the Dockerfile — but there was **no ClamAV daemon in `docker-compose` or in CI**. `.env.example` says uploads are *rejected* if ClamAV is unreachable, so every resume upload would have failed | 🟡 | Arch Doc §6.1/§6.2/§6.5 | ✅ Closed 2026-10-03 (with a correction — see below) |
+| **Q** | **`torch` is not pinned to a CPU build.** `requirements.txt` has `torch>=2.3.0`, which by default pulls the full CUDA wheel — multi-gigabyte, and it does not fit the "2–4 vCPU VPS" assumption in §18.2 | 🟡 | `requirements.txt`, Arch Doc §3.4 | ✅ Closed 2026-10-03 |
+| **R** | **No migration/seed strategy for existing data.** `C.8` had a migration *plan*, but no decision on `makemigrations` vs hand-written migrations, and no seed fixtures for roles, skills or the taxonomy | 🟢 | Complete Doc §C.8.1–C.8.3, Arch Doc §6.5 | ✅ Closed 2026-10-03 |
+| **S** | **Double-shift assumption is unvalidated.** Now recorded as `ASM-002`. If it fails at the end of Phase 2 the answer is to re-scope, not compress | 🟡 | §2.6.4.1 | ⏳ Open by design — tested at the end of Phase 2 |
+
+> **Correction on gap P.** The gap as first written said the OS packages "have not been
+> checked to install `libmagic1` and a ClamAV daemon". That was wrong about the
+> Dockerfile — `libmagic1` and `clamav-daemon` were both already installed there. The
+> real gap was narrower and worse: **no ClamAV *daemon* anywhere to connect to**, in
+> Compose or in CI, on a path that rejects files when the daemon is unreachable. The
+> row above states the corrected gap. Recording it because the original wording would
+> have sent a reviewer to check something that was already correct.
 
 ### 5.5 Everything still open, in one list
 
@@ -2676,14 +2723,17 @@ the canonical document's rule was applied and the stale one corrected.
 
 | # | Blocker | Owner | Effort |
 |---|---|---|---|
-| 1 | **API list is still incomplete.** ✅ `REQ-FR-050` (broadcast) was written on 2026-10-03 as part of the `REQ-FR-050` analysis, along with the missing `announcements` table. ⬜ **Still missing:** `REQ-FR-042` (public job browse/search), `REQ-FR-040/041` (GDPR export/delete), `REQ-FR-047` (team management), `REQ-FR-049` (assessment authoring) | Backend (Ishrak) | ~1.5 h |
+| — | ~~**API list is incomplete.**~~ ✅ **Closed 2026-10-03.** All five missing groups written into Complete Doc §C.12: `jobs/public/` (`REQ-FR-042`), `gdpr/export/*` + `gdpr/deletion/*` (`REQ-FR-040/041`), `employers/team/*` (`REQ-FR-047`), `assessments/*` authoring (`REQ-FR-049`). Writing them exposed two schema holes, both now filled — see §5.7 | — | Done |
 | — | ~~**Phase 4 milestone is 25 December.**~~ ✅ **Resolved 2026-10-03** — moved to **Thu 2026-12-24**, team off on the 25th (§2.7.2 option A) | — | Done |
+
+> **There are no orange items left.** The two that existed on the first pass are both
+> closed, and both closures changed something downstream rather than just ticking a box.
 
 **🟡 Blocks the public launch, not the build:**
 
 | # | Item | Owner |
 |---|---|---|
-| 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned | Legal / PM |
+| 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned, but a search is not a clearance | Legal / PM |
 | 4 | Phase 2 **versioned bias test set**, now required to include Amazon-style proxy cases | Ishrak |
 | 5 | Cross-border data transfer (SCCs) and provider ToS — `prd.md` §19.1 item 4, still open | Legal / PM |
 | 6 | Figma file, components and hi-fi mockups (`design.md` §12 items 1–4) | UI/UX |
@@ -2691,14 +2741,40 @@ the canonical document's rule was applied and the stale one corrected.
 | 8 | `REQ-FR-050` (broadcast, page #62) — keep or cut, and cut all three artefacts together | Team |
 
 **🟢 Build work, no decision needed:** dark mode, Bengali at launch, score-band
-thresholds (they need a calibrated model, not a meeting), and gaps O–R above.
+thresholds (they need a calibrated model, not a meeting). Gaps **O–R are now closed**;
+`ASM-002` and `ASM-003` remain assumptions **by design** — both have a stated test date
+(Phase 2 end, Phase 1 end) and a stated fallback.
 
 ### 5.6 Verdict
 
 **The specification is complete enough to start Phase 1.** Requirements, schema, stack,
 acceptance criteria and user stories are consistent and machine-verifiable.
 
-Two things should be settled in the first hour of Phase 1, because they cost almost
-nothing now and are expensive later: **the API list** (blocker 1) and **the Phase 4
-milestone date** (blocker 2). Everything else can be resolved during the phase it
-affects, and nothing else prevents work starting today.
+**Both first-hour blockers are now closed** — the API list (Complete Doc §C.12) and the
+Phase 4 milestone date (Thu 2026-12-24). Nothing else in §5.5 prevents work starting
+today; the remaining items are legal, design or measurement work that belongs to a later
+phase by design.
+
+**What is deliberately *not* settled, and why that is the honest position.** Three
+assumptions remain open and each has a test date rather than a hopeful tone:
+`ASM-001` (52 requirements is the right MVP scope — test at the end of Phase 1; if it
+fails, cut `REQ-FR-050` first), `ASM-002` (double shifts — test at the end of Phase 2; if
+it fails, re-scope rather than compress), and `ASM-003` (AI assistance raises capacity for
+217 points — test at the end of Phase 1, 41 points in 3 weeks). A specification that
+claimed to have no open assumptions would be less useful than one that names them and says
+when each will be found out.
+
+### 5.7 Two schema holes found by writing the API, not by reading it
+
+Worth recording as a method note. These were **not** caught by any table-by-table review of
+§5.1. They appeared only when the endpoints had to be written down, because each one
+forces a question the schema had never been asked.
+
+| Hole | What the endpoints needed | Schema had | Now |
+|---|---|---|---|
+| `employer_profiles.show_company_name` | `GET /api/v1/jobs/public/` has to decide whether an employer's name is exposed to an unauthenticated caller. A public job board cannot answer that without a stored per-employer preference, and inferring it from "is this the default" would make anonymity a side effect of lazy data entry | no column | `show_company_name BOOLEAN DEFAULT FALSE` — withheld by default, opt-in by the employer. The endpoint also returns **404, not 403**, for a hidden draft, so the response does not confirm that a private job exists |
+| `data_deletion_requests.approved_by` | `POST /gdpr/deletion/` is admin-approved, not self-service (Complete Doc §7), so an approval has to record *who* approved it and *when* — that is the whole audit value of an erasure request. It also needs the requester and the approver to be different people | no column, and `UNIQUE (user_id, status)` was drawn in the ER diagram but absent from the DDL | `approved_by BIGINT REFERENCES users(id)` plus `UNIQUE (user_id, status)`. Audit rows are **never deleted**, even after the personal data is |
+
+The second one is the more interesting: the ER diagram and the `CREATE TABLE` disagreed,
+and both were previously described as verified. A diagram is prose with boxes. The DDL is
+the artefact.

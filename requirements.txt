@@ -19,7 +19,11 @@ pgvector>=0.2.0  # pgvector.django VectorField
 openai>=1.40.2  # OpenRouter SDK (OpenAI-compatible)
 
 sentence-transformers>=3.0.1  # offline embeddings
-torch>=2.3.0  # required by sentence-transformers
+# CPU-ONLY build. The default PyPI wheel for linux/x86_64 bundles CUDA and pulls
+# several GB of NVIDIA libraries that will never run on a CPU-only VPS — which is
+# exactly the deployment target in prd.md §18.2. Pinned to the CPU index.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.3.0,<3.0.0  # required by sentence-transformers; CPU wheel only
 transformers>=4.44.2
 
 spacy>=3.8.2  # PII detection NER
