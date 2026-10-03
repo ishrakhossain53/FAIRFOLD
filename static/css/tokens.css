@@ -1,0 +1,136 @@
+/* FairFold — design tokens.
+ *
+ * Values transcribed from design.md §3 (colour), §4 (type) and §5 (spacing and
+ * elevation). `tailwind.config.js` maps these custom properties onto utility
+ * names, so a template says `bg-surface` and never `#ffffff`.
+ *
+ * ⚠️ THIS FILE IS NOT THE SOURCE OF TRUTH. design.md §3–§5 is. The contrast
+ * ratios in §3.2 were computed against these exact hex values, so changing one
+ * here invalidates the table without changing the table. Change §3 first.
+ *
+ * Palette: one accent (indigo), neutral slate greys, four semantic colours, and
+ * a violet reserved **exclusively** for AI-generated content — so a user can
+ * always tell what the AI produced without reading a label.
+ *
+ * Dark mode is NOT defined here. §3.3 holds its tokens and whether it ships in
+ * the MVP is open decision 3 in design.md.
+ */
+
+:root {
+  /* ---- Colour: light theme (§3.1) ----------------------------------- */
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+
+  --ink: #0f172a; /* 17.85:1 on --surface */
+  --ink-2: #334155; /* 10.35:1 */
+  --ink-3: #475569; /* 7.58:1 — secondary and help text */
+  --ink-4: #64748b; /* 4.76:1 — placeholder and timestamps ONLY */
+
+  /* §3.2 rule: --border is decorative only, 1.48:1. Any border that marks the
+   * edge of an interactive control uses --border-input (4.76:1). A decorative
+   * grey on an input would fail WCAG 1.4.11 and is the single most common
+   * accessibility defect in this pattern. */
+  --border: #cbd5e1;
+  --border-input: #64748b;
+
+  --primary: #4f46e5; /* white on this is 6.29:1 */
+  --primary-strong: #4338ca;
+  --primary-soft: #eef2ff;
+
+  --success: #15803d;
+  --success-soft: #f0fdf4;
+  --success-ink: #166534;
+
+  --warning: #b45309;
+  --warning-soft: #fffbeb;
+  --warning-ink: #92400e;
+
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --danger-ink: #991b1b;
+
+  --info: #0369a1;
+  --info-soft: #f0f9ff;
+  --info-ink: #075985;
+
+  /* AI-generated content ONLY. Never a success and never a warning: the first
+   * would claim the system endorses the output, the second that it is suspect. */
+  --ai: #7e22ce;
+  --ai-soft: #faf5ff;
+  --ai-ink: #6b21a8;
+
+  /* ---- Type (§4) ----------------------------------------------------- */
+  /* Fonts are SELF-HOSTED from /static/fonts/. The CSP is `default-src 'self'`
+   * with no Google Fonts allowed (design.md §4.1). Inter 400/500/600/700 only. */
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-bn: "Noto Sans Bengali", Kalpurush, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Type scale (§4.2): base 16px, ratio ~1.25, body line height 1.5.
+   * Names are semantic (`h1`, `caption`), not sized (`xl`, `2xl`), so a scale
+   * change does not rename every class in every template. */
+  --text-display: 2.25rem; /* 36 / 44 — landing hero only */
+  --text-h1: 1.875rem; /* 30 / 38 */
+  --text-h2: 1.5rem; /* 24 / 32 */
+  --text-h3: 1.25rem; /* 20 / 28 */
+  --text-h4: 1rem; /* 16 / 24 */
+  --text-body: 1rem; /* 16 / 24 */
+  --text-body-sm: 0.875rem; /* 14 / 20 — dense tables, help text */
+  --text-caption: 0.75rem; /* 12 / 16 — badges, timestamps ONLY */
+  --text-score: 3rem; /* 48 / 52 — the match score number */
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---- Spacing (§5.1) — 4px base ------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ---- Radius and elevation (§5.2) ------------------------------------ */
+  --radius-sm: 6px; /* inputs, badges */
+  --radius-md: 10px; /* buttons, cards */
+  --radius-lg: 16px; /* modals */
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.1);
+  --shadow-modal: 0 10px 30px rgba(15, 23, 42, 0.2);
+}
+
+/* Respect the OS preference. design.md §8 caps motion at 150ms, but a cap is a
+ * ceiling, not a reason to ignore a user who has already answered the question
+ * at the system level. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus is restyled, never removed. `:focus-visible` rather than `:focus` so a
+ * mouse click leaves no ring while a keyboard user always gets one — the
+ * Override Reason Dialog and the bias-pass badge both depend on it being
+ * visible. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

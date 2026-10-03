@@ -1,0 +1,940 @@
+[
+  {
+    "model": "core.skill",
+    "pk": "1d6d8d1f-be5d-59e1-92a2-5b5cadc9f3f5",
+    "fields": {
+      "id": "1d6d8d1f-be5d-59e1-92a2-5b5cadc9f3f5",
+      "canonical_name": "Python",
+      "aliases": [
+        "python3",
+        "py"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "57d6889a-602f-5769-bdaa-01536b257794",
+    "fields": {
+      "id": "57d6889a-602f-5769-bdaa-01536b257794",
+      "canonical_name": "JavaScript",
+      "aliases": [
+        "JS",
+        "ECMAScript",
+        "Node.js",
+        "nodejs"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "dcd16ec5-9865-526d-88fa-4c631f54feb8",
+    "fields": {
+      "id": "dcd16ec5-9865-526d-88fa-4c631f54feb8",
+      "canonical_name": "TypeScript",
+      "aliases": [
+        "TS"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "5c4941f1-1458-5a2b-b820-5d461b444b3d",
+    "fields": {
+      "id": "5c4941f1-1458-5a2b-b820-5d461b444b3d",
+      "canonical_name": "Java",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "62454410-697d-5ba7-ad65-6e4365e5a1d0",
+    "fields": {
+      "id": "62454410-697d-5ba7-ad65-6e4365e5a1d0",
+      "canonical_name": "Kotlin",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "a82886d5-081e-5e54-9ce6-d227f1119623",
+    "fields": {
+      "id": "a82886d5-081e-5e54-9ce6-d227f1119623",
+      "canonical_name": "Swift",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "ec2092fe-acc1-547e-8715-ae7cadd20e8e",
+    "fields": {
+      "id": "ec2092fe-acc1-547e-8715-ae7cadd20e8e",
+      "canonical_name": "Go",
+      "aliases": [
+        "Golang"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "0a0aacb5-f836-5470-a95f-def4eb04aefc",
+    "fields": {
+      "id": "0a0aacb5-f836-5470-a95f-def4eb04aefc",
+      "canonical_name": "Rust",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "0bdcac40-15db-57dc-a575-71b92351c852",
+    "fields": {
+      "id": "0bdcac40-15db-57dc-a575-71b92351c852",
+      "canonical_name": "C#",
+      "aliases": [
+        "C Sharp",
+        "Dotnet",
+        ".NET"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "3cb96f89-311e-5cab-a0c6-f29444afdd41",
+    "fields": {
+      "id": "3cb96f89-311e-5cab-a0c6-f29444afdd41",
+      "canonical_name": "C++",
+      "aliases": [
+        "CPP"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "b0cdf795-7082-5ef8-99b6-74730d1427a1",
+    "fields": {
+      "id": "b0cdf795-7082-5ef8-99b6-74730d1427a1",
+      "canonical_name": "C",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "6ca27c8b-5422-5216-b4e7-14c97ef4a626",
+    "fields": {
+      "id": "6ca27c8b-5422-5216-b4e7-14c97ef4a626",
+      "canonical_name": "PHP",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "a1786782-ad0a-5080-a6d7-2a1b6972d1e0",
+    "fields": {
+      "id": "a1786782-ad0a-5080-a6d7-2a1b6972d1e0",
+      "canonical_name": "Ruby",
+      "aliases": [
+        "Ruby on Rails",
+        "Rails"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "8a8f27ac-0d8d-53cb-b4e8-bfa36e380a6b",
+    "fields": {
+      "id": "8a8f27ac-0d8d-53cb-b4e8-bfa36e380a6b",
+      "canonical_name": "Django",
+      "aliases": [
+        "Django REST Framework",
+        "DRF"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "adc0c9df-ee63-544c-9195-4b5dc866b9f5",
+    "fields": {
+      "id": "adc0c9df-ee63-544c-9195-4b5dc866b9f5",
+      "canonical_name": "Flask",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "061539ea-063f-579a-b76d-66b3900aabd3",
+    "fields": {
+      "id": "061539ea-063f-579a-b76d-66b3900aabd3",
+      "canonical_name": "FastAPI",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "34d84e4a-cd4d-58f5-992b-9ddbad00c51f",
+    "fields": {
+      "id": "34d84e4a-cd4d-58f5-992b-9ddbad00c51f",
+      "canonical_name": "Node.js",
+      "aliases": [
+        "Node",
+        "Express",
+        "Express.js"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "1977f927-646f-5620-8df6-46cfd2dbc2e7",
+    "fields": {
+      "id": "1977f927-646f-5620-8df6-46cfd2dbc2e7",
+      "canonical_name": "React",
+      "aliases": [
+        "React.js",
+        "ReactJS"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "c503f2a9-2948-5fe2-b664-e1b3af5f372e",
+    "fields": {
+      "id": "c503f2a9-2948-5fe2-b664-e1b3af5f372e",
+      "canonical_name": "Next.js",
+      "aliases": [
+        "NextJS"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "34a25370-79ef-5d71-b25a-9d601d5154d0",
+    "fields": {
+      "id": "34a25370-79ef-5d71-b25a-9d601d5154d0",
+      "canonical_name": "Vue.js",
+      "aliases": [
+        "Vue",
+        "VueJS"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "12f21ef5-da8c-59f2-b32d-3930a7915441",
+    "fields": {
+      "id": "12f21ef5-da8c-59f2-b32d-3930a7915441",
+      "canonical_name": "Angular",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "23636c95-5990-51b8-aa06-0358d97ddb5e",
+    "fields": {
+      "id": "23636c95-5990-51b8-aa06-0358d97ddb5e",
+      "canonical_name": "Svelte",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "e6e0e35d-e267-5093-a5c4-8857e8625ea4",
+    "fields": {
+      "id": "e6e0e35d-e267-5093-a5c4-8857e8625ea4",
+      "canonical_name": "HTML",
+      "aliases": [
+        "HTML5"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "ec420613-185b-5a89-b85a-964fe2a4f8e2",
+    "fields": {
+      "id": "ec420613-185b-5a89-b85a-964fe2a4f8e2",
+      "canonical_name": "CSS",
+      "aliases": [
+        "CSS3"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "ac5f5377-93ca-5208-92a3-2022fa8d8f2e",
+    "fields": {
+      "id": "ac5f5377-93ca-5208-92a3-2022fa8d8f2e",
+      "canonical_name": "Tailwind CSS",
+      "aliases": [
+        "Tailwind",
+        "TailwindCSS"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "60c1dc4c-c50b-515b-9dec-04bf7737aaba",
+    "fields": {
+      "id": "60c1dc4c-c50b-515b-9dec-04bf7737aaba",
+      "canonical_name": "PostgreSQL",
+      "aliases": [
+        "Postgres",
+        "PostgreSQL",
+        "psql"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "d73bfbc9-7c1f-567c-b676-cd83310838da",
+    "fields": {
+      "id": "d73bfbc9-7c1f-567c-b676-cd83310838da",
+      "canonical_name": "MySQL",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "35afa242-aee2-5890-892d-64731385897b",
+    "fields": {
+      "id": "35afa242-aee2-5890-892d-64731385897b",
+      "canonical_name": "MongoDB",
+      "aliases": [
+        "Mongo"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "890c381a-b03c-57a6-a4fa-a324a4cbf81f",
+    "fields": {
+      "id": "890c381a-b03c-57a6-a4fa-a324a4cbf81f",
+      "canonical_name": "Redis",
+      "aliases": [],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "5b7b32c6-c97c-50a4-ad85-b8b91d9bd438",
+    "fields": {
+      "id": "5b7b32c6-c97c-50a4-ad85-b8b91d9bd438",
+      "canonical_name": "SQL",
+      "aliases": [
+        "SQL Queries"
+      ],
+      "category": "programming",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "683cdbbc-6b5c-5336-aee2-386180c6aa95",
+    "fields": {
+      "id": "683cdbbc-6b5c-5336-aee2-386180c6aa95",
+      "canonical_name": "Git",
+      "aliases": [
+        "GitHub",
+        "GitLab",
+        "Bitbucket"
+      ],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "7e541f0d-ae81-5fe5-9f6a-1d963f821e7b",
+    "fields": {
+      "id": "7e541f0d-ae81-5fe5-9f6a-1d963f821e7b",
+      "canonical_name": "Docker",
+      "aliases": [],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "5c278d18-b1e4-5d5b-a771-f28a377e7188",
+    "fields": {
+      "id": "5c278d18-b1e4-5d5b-a771-f28a377e7188",
+      "canonical_name": "Kubernetes",
+      "aliases": [
+        "K8s",
+        "k8s"
+      ],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "5e205315-9e83-5c48-a819-9c6977551b99",
+    "fields": {
+      "id": "5e205315-9e83-5c48-a819-9c6977551b99",
+      "canonical_name": "Terraform",
+      "aliases": [],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "033aefec-5765-5045-9d6c-df46cbcc34b9",
+    "fields": {
+      "id": "033aefec-5765-5045-9d6c-df46cbcc34b9",
+      "canonical_name": "AWS",
+      "aliases": [
+        "Amazon Web Services",
+        "EC2",
+        "S3"
+      ],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "00d3a145-e930-5551-ac53-b2a5e6939920",
+    "fields": {
+      "id": "00d3a145-e930-5551-ac53-b2a5e6939920",
+      "canonical_name": "GCP",
+      "aliases": [
+        "Google Cloud",
+        "Google Cloud Platform"
+      ],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "4238d0ec-09a0-5332-bc68-425aabd56585",
+    "fields": {
+      "id": "4238d0ec-09a0-5332-bc68-425aabd56585",
+      "canonical_name": "Azure",
+      "aliases": [
+        "Microsoft Azure"
+      ],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "48e7d252-8be8-50a6-8a6c-fd8bef92e5bd",
+    "fields": {
+      "id": "48e7d252-8be8-50a6-8a6c-fd8bef92e5bd",
+      "canonical_name": "CI/CD",
+      "aliases": [
+        "CICD",
+        "GitHub Actions",
+        "Jenkins"
+      ],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "8edb8764-54b5-561a-87aa-fd59597e62a5",
+    "fields": {
+      "id": "8edb8764-54b5-561a-87aa-fd59597e62a5",
+      "canonical_name": "Linux",
+      "aliases": [
+        "Ubuntu",
+        "Debian"
+      ],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "0a1b666a-b73d-5b4e-b825-302695637d70",
+    "fields": {
+      "id": "0a1b666a-b73d-5b4e-b825-302695637d70",
+      "canonical_name": "Nginx",
+      "aliases": [],
+      "category": "tools",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "0b3f1bae-2cc9-5205-a6fd-7c416da28042",
+    "fields": {
+      "id": "0b3f1bae-2cc9-5205-a6fd-7c416da28042",
+      "canonical_name": "Machine Learning",
+      "aliases": [
+        "ML"
+      ],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "23d78eab-181f-5a50-a174-e2233c47a2df",
+    "fields": {
+      "id": "23d78eab-181f-5a50-a174-e2233c47a2df",
+      "canonical_name": "Deep Learning",
+      "aliases": [
+        "DL",
+        "Neural Networks"
+      ],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "bef918e9-7705-5723-8853-a149ebfdc50a",
+    "fields": {
+      "id": "bef918e9-7705-5723-8853-a149ebfdc50a",
+      "canonical_name": "Natural Language Processing",
+      "aliases": [
+        "NLP"
+      ],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "c537de32-425e-5cc2-9638-32d54ba0d1ee",
+    "fields": {
+      "id": "c537de32-425e-5cc2-9638-32d54ba0d1ee",
+      "canonical_name": "Data Engineering",
+      "aliases": [],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "e0cc9fe0-59fd-5edb-80c1-42ed25ba2efa",
+    "fields": {
+      "id": "e0cc9fe0-59fd-5edb-80c1-42ed25ba2efa",
+      "canonical_name": "Data Analysis",
+      "aliases": [],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "ed471584-ac59-55ba-a348-3cceed958d8a",
+    "fields": {
+      "id": "ed471584-ac59-55ba-a348-3cceed958d8a",
+      "canonical_name": "Pandas",
+      "aliases": [],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "f2089def-0d51-5813-b3b9-55b0fce1c780",
+    "fields": {
+      "id": "f2089def-0d51-5813-b3b9-55b0fce1c780",
+      "canonical_name": "NumPy",
+      "aliases": [],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "a911bfa3-8582-5f4e-abeb-33cc947b14e5",
+    "fields": {
+      "id": "a911bfa3-8582-5f4e-abeb-33cc947b14e5",
+      "canonical_name": "pgvector",
+      "aliases": [
+        "Vector Search",
+        "Vector Database"
+      ],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "367317f2-5d60-53b8-9181-bc92139b2a5a",
+    "fields": {
+      "id": "367317f2-5d60-53b8-9181-bc92139b2a5a",
+      "canonical_name": "PyTorch",
+      "aliases": [
+        "Torch"
+      ],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "affd9b7c-a33b-5d2c-b8a0-7075567ea4e1",
+    "fields": {
+      "id": "affd9b7c-a33b-5d2c-b8a0-7075567ea4e1",
+      "canonical_name": "spaCy",
+      "aliases": [],
+      "category": "data",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "a16ddf60-8d03-5f6d-91da-04cea380a0d1",
+    "fields": {
+      "id": "a16ddf60-8d03-5f6d-91da-04cea380a0d1",
+      "canonical_name": "Backend Development",
+      "aliases": [
+        "Back-end",
+        "Server Side"
+      ],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "187feaae-ec3a-5d1a-87c7-f75d6f2507e9",
+    "fields": {
+      "id": "187feaae-ec3a-5d1a-87c7-f75d6f2507e9",
+      "canonical_name": "Frontend Development",
+      "aliases": [
+        "Front-end",
+        "Client Side"
+      ],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "056810e7-a33b-5722-834c-cdc3c285b8ac",
+    "fields": {
+      "id": "056810e7-a33b-5722-834c-cdc3c285b8ac",
+      "canonical_name": "Full Stack Development",
+      "aliases": [
+        "Fullstack",
+        "Full Stack"
+      ],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "7b37147a-35fe-526c-a75c-570451dfb0f4",
+    "fields": {
+      "id": "7b37147a-35fe-526c-a75c-570451dfb0f4",
+      "canonical_name": "DevOps",
+      "aliases": [],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "d8137bf3-b5a4-550f-91cb-952a3bb4fdba",
+    "fields": {
+      "id": "d8137bf3-b5a4-550f-91cb-952a3bb4fdba",
+      "canonical_name": "System Design",
+      "aliases": [],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "fa873b4f-af51-5e75-93db-a984cc767690",
+    "fields": {
+      "id": "fa873b4f-af51-5e75-93db-a984cc767690",
+      "canonical_name": "API Design",
+      "aliases": [
+        "REST API",
+        "RESTful"
+      ],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "78a16e22-64cd-5ef0-963f-8c06043f05b2",
+    "fields": {
+      "id": "78a16e22-64cd-5ef0-963f-8c06043f05b2",
+      "canonical_name": "Database Design",
+      "aliases": [
+        "Schema Design"
+      ],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "7e821d4d-d962-518a-a55a-33afedda077e",
+    "fields": {
+      "id": "7e821d4d-d962-518a-a55a-33afedda077e",
+      "canonical_name": "Testing",
+      "aliases": [
+        "Unit Testing",
+        "Test Driven Development",
+        "TDD"
+      ],
+      "category": "domain",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "bc80e4ae-9c81-596d-b4eb-84f84351878e",
+    "fields": {
+      "id": "bc80e4ae-9c81-596d-b4eb-84f84351878e",
+      "canonical_name": "Communication",
+      "aliases": [
+        "Verbal Communication",
+        "Written Communication"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "ce97ee60-c4e0-5b34-b9ee-9ab1fe7941de",
+    "fields": {
+      "id": "ce97ee60-c4e0-5b34-b9ee-9ab1fe7941de",
+      "canonical_name": "Leadership",
+      "aliases": [
+        "Team Leadership"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "93d9b992-6d4b-56b3-b147-053ab9414a1c",
+    "fields": {
+      "id": "93d9b992-6d4b-56b3-b147-053ab9414a1c",
+      "canonical_name": "Mentoring",
+      "aliases": [
+        "Mentorship"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "6f57198d-739d-58bc-af01-3270b7077619",
+    "fields": {
+      "id": "6f57198d-739d-58bc-af01-3270b7077619",
+      "canonical_name": "Project Management",
+      "aliases": [
+        "PM",
+        "Scrum"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "82346fcd-0900-50c3-82b2-6f874d7420f5",
+    "fields": {
+      "id": "82346fcd-0900-50c3-82b2-6f874d7420f5",
+      "canonical_name": "Problem Solving",
+      "aliases": [
+        "Problem Solving"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "73548dec-8aa9-5403-9192-82d13a9823de",
+    "fields": {
+      "id": "73548dec-8aa9-5403-9192-82d13a9823de",
+      "canonical_name": "Collaboration",
+      "aliases": [
+        "Teamwork"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "a0cfe167-9f0b-522e-b868-9f206a2d9c60",
+    "fields": {
+      "id": "a0cfe167-9f0b-522e-b868-9f206a2d9c60",
+      "canonical_name": "Time Management",
+      "aliases": [],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "bdcebbf5-ee9e-5558-8c9e-87115e685c79",
+    "fields": {
+      "id": "bdcebbf5-ee9e-5558-8c9e-87115e685c79",
+      "canonical_name": "Adaptability",
+      "aliases": [],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "ac129a21-2f84-5a5e-ba56-49e89f4a0e63",
+    "fields": {
+      "id": "ac129a21-2f84-5a5e-ba56-49e89f4a0e63",
+      "canonical_name": "Critical Thinking",
+      "aliases": [
+        "Analytical Thinking"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  },
+  {
+    "model": "core.skill",
+    "pk": "b8f82204-65e2-5f28-9169-4367884283d9",
+    "fields": {
+      "id": "b8f82204-65e2-5f28-9169-4367884283d9",
+      "canonical_name": "Attention to Detail",
+      "aliases": [
+        "Detail Oriented"
+      ],
+      "category": "soft_skill",
+      "description": "",
+      "created_at": "2026-10-04T00:00:00Z"
+    }
+  }
+]

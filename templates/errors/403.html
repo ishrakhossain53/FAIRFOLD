@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Not allowed — FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-prose py-16 text-center">
+  <h1 class="text-h1 font-bold text-ink">You don't have access to this page</h1>
+  <p class="mt-4 text-body text-ink-2">This page belongs to another account. If you think that is a mistake, ask the account owner — we cannot grant access on your behalf, because access to candidate data is scoped per account.</p>
+  <p class="mt-8 text-body-sm text-ink-3">We say this rather than showing you an empty page, so you do not spend time wondering whether there is simply nothing here.</p>
+
+  <p class="mt-8">
+    <a href="/"
+       class="inline-flex h-touch items-center rounded-md bg-primary px-6 text-body font-medium text-white hover:bg-primary-strong">
+      Go to the homepage
+    </a>
+  </p>
+</div>
+{% endblock %}

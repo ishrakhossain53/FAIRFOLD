@@ -1,0 +1,17 @@
+/* FairFold — Tailwind entry point.
+ *
+ * Three directives and one import. Everything else lives in `tokens.css`, which
+ * is compiled from design.md §3–§5 and is the single place a design token is
+ * defined.
+ *
+ * This file deliberately contains NO utility classes and NO `@apply`. A
+ * component style belongs in a Django template or in a component class in
+ * `tokens.css`; an `@apply` chain here makes the compiled output depend on the
+ * build, so a Tailwind upgrade changes rendered pages with no diff to review.
+ */
+
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

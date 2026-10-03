@@ -655,8 +655,8 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | # | Page | Layout and content | Key components | Requirement | Phase | Core flow | Wireframe |
 |---|---|---|---|---|---|---|---|
 | 1 | **Home / landing** | Hero ("Hiring that explains itself"), two CTAs (I'm hiring / I'm looking for work), 3-pillar section (Private · Explainable · Affordable), how it works (3 steps), pricing teaser, footer | Buttons, cards | — (marketing) | P1 | Yes | X01 |
-| 2 | **Pricing** | Two tabs: Candidates / Employers; tier cards; comparison table; FAQ | Tabs, tier cards, accordion | — (marketing) | P5 (static P1) |  | — |
-| 3 | **How our AI works** | Plain-language diagram: resume → details removed → AI → human decides; bias check; what we never do (no facial analysis) | Diagram (SVG + text), accordion | REQ-COM-006 | P2 |  | — |
+| 2 | **Pricing** | Two tabs: Candidates / Employers; tier cards; comparison table; FAQ | Tabs, tier cards, accordion | — (marketing) | P5 (static P1) |  | W01 |
+| 3 | **How our AI works** | Plain-language diagram: resume → details removed → AI → human decides; bias check; what we never do (no facial analysis) | Diagram (SVG + text), accordion | REQ-COM-006 | P2 |  | W02 |
 | 4 | ★ **Job board / search** | Search bar + filters (location, remote, level) left on desktop / sheet on mobile; result cards; pagination | Search, filter chips, job card, pagination | REQ-FR-042 | P1 | Yes | S04 |
 | 5 | ★ **Public job detail** | Title, company, meta chips, description sections, sticky Apply button; guests are prompted to log in | Chips, sticky CTA | REQ-FR-042 | P1 | Yes | S05 |
 | 6 | ★ **Register** | Role selector (Candidate / Employer), email, password (+ rules), consent checkbox with policy links; link to login | Form, role cards | REQ-FR-001, REQ-COM-002/003-004 | P1 | Yes | S01 |
@@ -665,8 +665,8 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 9 | **Forgot password** | Email field; generic confirmation ("If this email exists…") | Form | REQ-FR-004 | P1 | Yes | X02 |
 | 10 | **Reset password** | New password + confirm, strength/breach hint; expired-link state with resend | Form | REQ-FR-004 | P1 | Yes | X02 |
 | 11 | **Email verification** | States: pending (resend button with cooldown), success, expired | Alert, button | REQ-FR-001 | P1 | Yes | X02 |
-| 12 | **Privacy policy / Terms** | Long-form text, table of contents, last-updated date | Prose layout | REQ-COM-004 | P1 |  | — |
-| 13 | **Error pages** | 403, 404, 500 with helpful next step; "AI delayed" is a badge, not a page | Illustration (decorative, `alt=""`), button | REQ-NFR-017 | P1 |  | — |
+| 12 | **Privacy policy / Terms** | Long-form text, table of contents, last-updated date | Prose layout | REQ-COM-004 | P1 |  | W03 |
+| 13 | **Error pages** | 403, 404, 500 with helpful next step; "AI delayed" is a badge, not a page | Illustration (decorative, `alt=""`), button | REQ-NFR-017 | P1 |  | W04 |
 
 ### 10.2 Candidate Portal (19)
 
@@ -677,60 +677,60 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 16 | ★ **Profile** | Sections: headline/title, bio, location, remote preference; inline edit per section | Form, inline edit | REQ-FR-009 | P1 | Yes | S02 |
 | 17 | ★ **Resume manager** | Upload dropzone + progress; list of resumes (name, date, parse status); actions: view, replace, delete; "Personal details removed" note; opens Resume Review (7.6) | Upload, table/cards, AI badge | REQ-FR-010–013 | P1–P2 | Yes | S03 |
 | 18 | **Skills manager** | Skill chips with level and source badge (Resume, Self-reported, Assessment, Journey); add via autocomplete (aliases mapped: JS → JavaScript); delete with undo toast | Chips, autocomplete | REQ-FR-014/015 | P1 | Yes | X04 |
-| 19 | **Certifications** | List + add form (name, issuer, dates, credential ID, URL) | Form, list | REQ-FR-044 | P3 |  | — |
+| 19 | **Certifications** | List + add form (name, issuer, dates, credential ID, URL) | Form, list | REQ-FR-044 | P3 |  | W05 |
 | 20 | ★ **Journey Map: Timeline** | See 7.5; target job selector optional | Timeline chart + table alt | REQ-FR-016 | P3 |  | S08 |
 | 21 | ★ **Journey Map: Skill evolution** | See 7.5 | Area chart + table alt | REQ-FR-017 | P3 |  | S08 |
 | 22 | **Journey Map: Story** | See 7.5 | AI action, editable card | REQ-FR-018 | P3 |  | S08 |
-| 23 | **Assessments list** | Cards by skill with difficulty, duration, question count; filters; earned badges section | Cards, filters, badges | REQ-FR-019 | P3 |  | — |
-| 24 | **Assessment intro** | Rules, time limit, "autosave on", accessibility note about timer, Start | Alert, button | REQ-FR-019 | P3 |  | — |
+| 23 | **Assessments list** | Cards by skill with difficulty, duration, question count; filters; earned badges section | Cards, filters, badges | REQ-FR-019 | P3 |  | W06 |
+| 24 | **Assessment intro** | Rules, time limit, "autosave on", accessibility note about timer, Start | Alert, button | REQ-FR-019 | P3 |  | W07 |
 | 25 | ★ **Assessment taking** | Single question per view; question navigator; sticky timer with live-region announcements; Save and Next; Submit review screen; multiple choice, free text, code editor (monospace, no auto-run on this page) | Timer, navigator, radio groups | REQ-FR-019 | P3 |  | S09 |
 | 26 | **Assessment result** | Score, per-question breakdown, skill added to profile (verified badge), retry info | Score card, table | REQ-FR-020 | P3 |  | S09 |
 | 27 | ★ **Interview coaching** | Left: choose job or role, question (AI or template). Right: textarea for answer (character count) → "Get feedback" (AI action + cost note) → feedback sections: Structure, Content, Missing points, Suggested rewrite | AI action, feedback card | REQ-FR-021 | P3 |  | S10 |
 | 28 | ★ **Applications tracker** | Table/cards: job, company, status pill, last update, score chip; filters by status; row opens detail | Table, pills | REQ-FR-023 | P1 | Yes | S06 |
 | 29 | ★ **Application detail + match score** | Header (job, company, pipeline stepper); Score Card (7.2); "View my story for this job"; messages link | Stepper, score card | REQ-FR-024 | P2 | Yes | S07 |
 | 30 | ★ **Apply flow** | Stepper: Resume → Screening questions → Review and submit. Shows what employer will see ("Personal details removed for AI screening") | Stepper, form | REQ-FR-022 | P1 | Yes | S05 |
-| 31 | **Messages** | Two-pane: conversation list / thread; composer; unread markers; mobile shows one pane at a time | List, thread, composer | REQ-FR-043 | P3 |  | — |
-| 32 | **Settings** | Tabs: Account · Security (password, MFA) · Notifications · Privacy (download my data, delete account) · Plan | Tabs, toggles, confirm dialog | REQ-FR-040/041, REQ-COM-002/003 | P1–P4 |  | — |
+| 31 | **Messages** | Two-pane: conversation list / thread; composer; unread markers; mobile shows one pane at a time | List, thread, composer | REQ-FR-043 | P3 |  | W08 |
+| 32 | **Settings** | Tabs: Account · Security (password, MFA) · Notifications · Privacy (download my data, delete account) · Plan | Tabs, toggles, confirm dialog | REQ-FR-040/041, REQ-COM-002/003 | P1–P4 |  | W09 |
 
 ### 10.3 Employer Portal (22)
 
 | # | Page | Layout and content | Key components | Requirement | Phase | Core flow | Wireframe |
 |---|---|---|---|---|---|---|---|
-| 33 | **Employer onboarding** | Company name, industry, size, logo; invite team (optional) | Form | REQ-FR-045 | P1 |  | — |
+| 33 | **Employer onboarding** | Company name, industry, size, logo; invite team (optional) | Form | REQ-FR-045 | P1 |  | W10 |
 | 34 | **Dashboard** | KPI cards (open jobs, new applications, awaiting screening, interviews this week), quota meter, activity feed, "Needs review" list (flagged rationales) | KPI cards, meter | REQ-FR-046 | P1 | Yes | X05 |
 | 35 | ★ **Jobs list** | Tabs by status (Draft / Active / Paused / Closed) with counts; table: title, applicants, last activity, actions | Tabs, table | REQ-FR-025–027 | P1 | Yes | S11 |
 | 36 | ★ **Create / edit job** | Sections: Basics · Description · Requirements (required / nice-to-have skills) · Screening questions · **Required assessments** · Review. AI suggests skills and questions (✦ chips; accept/dismiss). Auto-save draft | Form, AI chips | REQ-FR-025/026 · **REQ-FR-051** | P1–P2 | Yes | S11 |
-| 37 | **Job overview** | Pipeline funnel (counts per stage), share link + embed code (copy buttons), edit/pause/close | Funnel, copy field | REQ-FR-036 | P1–P3 |  | — |
+| 37 | **Job overview** | Pipeline funnel (counts per stage), share link + embed code (copy buttons), edit/pause/close | Funnel, copy field | REQ-FR-036 | P1–P3 |  | W11 |
 | 38 | ★ **Screening confirm** | Cost Estimate Modal (7.3) | Modal | REQ-FR-028 | P2 | Yes | S14 |
 | 39 | **Screening progress** | Progress bar, stage text (Filtering → Ranking → Analysing top 10 → Checking for bias), degraded badge if needed, "Leave this page; we'll notify you" | Progress, badge | REQ-FR-028 | P2 |  | S14 |
 | 40 | ★ **Ranked applications** | Table: rank, anonymized candidate ID (name reveals on shortlist — decided 2026-10-03), score chip, bias-check status, **assessment-gate pill** (`not required` / `pending` / `passed` / `failed`), **override ⚑ marker** with its reason on hover, status pill, selected; filters (score range, status, **excluded by filter — with reason shown**, flagged); bulk bar (Shortlist / Reject / Export); sort by score. Footer note shows the filter-rule version in force | Table, bulk bar, chips | REQ-FR-029 · **REQ-FR-051/052** | P2–P3 | Yes | S12 |
 | 41 | ★ **Candidate review** | Split view (xl): left = anonymized resume with placeholder tokens (name reveals on shortlist — decided 2026-10-03); right = Score Card (7.2), Bias Audit Panel (7.7), **assessment-gate panel** with the pending/failed state and what the candidate still has to do, screening answers, notes. Sticky action bar: Shortlist · Reject (with reason) · Message — **a decision against the ranking opens a required-reason dialog (7.11), and Shortlist is disabled with an explanation while the gate is `pending` or `failed`** | Score card, panels | REQ-FR-030 · **REQ-FR-051/052** | P2–P3 | Yes | S13 |
 | 42 | ★ **Interview pack builder** | Generate (AI action + cost note) → editable list of questions grouped by category, follow-ups, rubric table (criterion, weight, scale); drag to reorder (keyboard alternative: move up/down buttons) | AI action, sortable list | REQ-FR-031 | P3 |  | S15 |
 | 43 | ★ **Schedule interview** | Candidate, date/time (with timezone shown), duration, interviewers, pack, video URL; confirmation summary | Form, date picker | REQ-FR-032 | P3 |  | S16 |
-| 44 | **Interviews list / calendar** | Toggle list ↔ week calendar; status chips; calendar has list alternative | Calendar, table | REQ-FR-032 | P3 |  | — |
+| 44 | **Interviews list / calendar** | Toggle list ↔ week calendar; status chips; calendar has list alternative | Calendar, table | REQ-FR-032 | P3 |  | W12 |
 | 45 | ★ **Interview feedback form** | Scorecard (7.10) | Radio groups | REQ-FR-033 | P3 |  | S16 |
-| 46 | **Offer letter editor** | AI draft in `--ai-soft` card, editable rich text, merge fields, Save/Send | Editor, AI badge | REQ-FR-034 | P5 |  | — |
+| 46 | **Offer letter editor** | AI draft in `--ai-soft` card, editable rich text, merge fields, Save/Send | Editor, AI badge | REQ-FR-034 | P5 |  | W13 |
 | 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy, **override rate by user and by job (each row links to its recorded reason)**, **not-matched vs pulled-into-review**; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 · **REQ-FR-052** | P4 |  | S17 |
-| 48 | **Messages** | Same as #31, grouped by job | List, thread | REQ-FR-043 | P3 |  | — |
-| 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 | P1–P4 |  | — |
-| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (Stripe-hosted) | Cards, meters | REQ-FR-048 | P5 |  | — |
-| 51 | **Company settings** | Company profile, security (MFA mandatory for HR admin), notifications, default AI model preference ("Auto (free)" / "Best available (paid)") | Tabs, radio cards | REQ-SEC-009 | P1–P4 |  | — |
-| 52 | **MFA setup** | QR code, manual key (copy), verify code field; recovery note | QR, OTP input | REQ-FR-005/006 | P4 |  | — |
-| 53 | **Data retention settings** | Retention period selectors per record type with plain-language impact; saves with audit entry | Form, alert | REQ-COM-005 | P4 |  | — |
-| 54 | **Notifications centre** | Full list, filters (unread, type), mark all read; shared with candidate portal | List | REQ-FR-023 | P1 |  | — |
+| 48 | **Messages** | Same as #31, grouped by job | List, thread | REQ-FR-043 | P3 |  | W08 |
+| 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 | P1–P4 |  | W14 |
+| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (Stripe-hosted) | Cards, meters | REQ-FR-048 | P5 |  | W15 |
+| 51 | **Company settings** | Company profile, security (MFA mandatory for HR admin), notifications, default AI model preference ("Auto (free)" / "Best available (paid)") | Tabs, radio cards | REQ-SEC-009 | P1–P4 |  | W16 |
+| 52 | **MFA setup** | QR code, manual key (copy), verify code field; recovery note | QR, OTP input | REQ-FR-005/006 | P4 |  | W17 |
+| 53 | **Data retention settings** | Retention period selectors per record type with plain-language impact; saves with audit entry | Form, alert | REQ-COM-005 | P4 |  | W18 |
+| 54 | **Notifications centre** | Full list, filters (unread, type), mark all read; shared with candidate portal | List | REQ-FR-023 | P1 |  | W19 |
 
 ### 10.4 Admin (8)
 
 | # | Page | Layout and content | Key components | Requirement | Phase | Core flow | Wireframe |
 |---|---|---|---|---|---|---|---|
-| 55 | **Overview** | KPI cards (users, active jobs, screenings today, error rate), AI usage chart (+ table), health indicators | KPI, chart + table | REQ-FR-037 | P4 |  | — |
+| 55 | **Overview** | KPI cards (users, active jobs, screenings today, error rate), AI usage chart (+ table), health indicators | KPI, chart + table | REQ-FR-037 | P4 |  | W20 |
 | 56 | ★ **Users list** | Search, filters (role, status, MFA), table, row actions | Table, filters | REQ-FR-038 | P1–P4 |  | S18 |
-| 57 | **User detail** | Profile summary (no PII beyond need), roles, lock status, unlock/reset, recent audit events | Cards, actions | REQ-FR-038 | P4 |  | — |
+| 57 | **User detail** | Profile summary (no PII beyond need), roles, lock status, unlock/reset, recent audit events | Cards, actions | REQ-FR-038 | P4 |  | W21 |
 | 58 | ★ **Audit log search** | Filters: action, resource, user, date range; results table (time, actor, action, resource, result, IP); expand row for details JSON; CSV export | Table, filters, export | REQ-FR-039 | P4 |  | S18 |
-| 59 | **Compliance queue** | Tabs: Export requests / Deletion requests; approve/reject with confirm; status timeline; deletion shows irreversible warning | Table, confirm dialog | REQ-FR-040/041 | P4 |  | — |
-| 60 | **AI quota and usage** | Daily quota meter, fallback level indicator (0–3), cost per day, error rate, provider status | Meters, chart + table | REQ-FR-037 | P4 |  | — |
-| 61 | **Assessment management** | List; create/edit assessment and questions; activate/deactivate | Form, table | REQ-FR-049 | P3 |  | — |
-| 62 | **Broadcast announcement** | Title, body, audience (all / candidates / employers / by plan / custom), channel (in-app / email / both), schedule; preview **with the resolved recipient count shown before send** and a confirm on any audience over 1,000; send history table with `sent` / `skipped` counts | Form, preview, table | REQ-FR-050 | P4 (optional) |  | — |
+| 59 | **Compliance queue** | Tabs: Export requests / Deletion requests; approve/reject with confirm; status timeline; deletion shows irreversible warning | Table, confirm dialog | REQ-FR-040/041 | P4 |  | W22 |
+| 60 | **AI quota and usage** | Daily quota meter, fallback level indicator (0–3), cost per day, error rate, provider status | Meters, chart + table | REQ-FR-037 | P4 |  | W23 |
+| 61 | **Assessment management** | List; create/edit assessment and questions; activate/deactivate | Form, table | REQ-FR-049 | P3 |  | W24 |
+| 62 | **Broadcast announcement** | Title, body, audience (all / candidates / employers / by plan / custom), channel (in-app / email / both), schedule; preview **with the resolved recipient count shown before send** and a confirm on any audience over 1,000; send history table with `sent` / `skipped` counts | Form, preview, table | REQ-FR-050 | P4 (optional) |  | W25 |
 
 ### 10.5 Low-Fidelity Wireframes
 
@@ -740,7 +740,26 @@ These wireframes show **structure, hierarchy and states**, not final styling. Th
 
 **Placeholder data:** every name, number and date below is sample content, not real data.
 
-**Coverage:** wireframes S01–S18 cover all 18 required screens. X01–X05 add the remaining first-priority (core flow) pages. The page-to-wireframe map is in Section 10.0 and in the *Wireframe* column of each table.
+**Coverage — all 62 pages, verified 2026-10-04:**
+
+| Series | Wireframes | Page rows | What it is |
+|---|---|---|---|
+| `S01`–`S18` | 18 | 29 | First pass: the 18 required screens plus core-flow pages |
+| `X01`–`X05` | 5 | 7 | Cross-cutting patterns (error page, empty states, …) |
+| `W01`–`W25` | 25 | 26 | Second pass, §10.6 — pages that previously had a spec only |
+| `W26`–`W29` | 4 | — | Screening-integrity components and states (§12 item 11), not whole pages |
+| **Total** | **52** | **62** | **Every page row carries a wireframe** |
+
+Page rows exceed wireframes because several wireframes serve two pages — `S01` covers
+register/login/MFA, `X02` the three empty states, `W08` both messages pages. The three
+counts are counted by script rather than asserted, because the earlier version of this
+paragraph said "26 + 26 = 52" and left 10 pages unaccounted for; the numbers were never
+wrong, the arithmetic was.
+
+`scripts/verify_docs.py` fails if any of the 62 rows carries a blank wireframe cell, so
+coverage is checked rather than claimed.
+
+The page-to-wireframe map is in Section 10.0 and in the *Wireframe* column of each table.
 
 ---
 
@@ -1243,9 +1262,812 @@ Needs review (flagged by bias check)            Recent activity
 
 ---
 
-### 10.6 Still Not Drawn (spec only)
+### 10.6 Second Pass — the Remaining Pages, and the Integrity Components (W01–W29)
 
-These 26 pages have a written spec in Sections 10.1–10.4 but no wireframe yet. They reuse components already drawn above, so they are lower risk: #2, #3, #12, #13, #19, #23, #24, #31, #32, #33, #37, #44, #46, #48, #49, #50, #51, #52, #53, #54, #55, #57, #59, #60, #61, #62.
+⚠️ **This subsection was previously titled "Still Not Drawn". It no longer is.** As of
+2026-10-04 every one of the 62 pages in Sections 10.1–10.4 has a wireframe, so there is no
+longer a page whose only artefact is prose.
+
+**The numbering restarts at `W` rather than continuing from `S18`, deliberately.** `S01`–`S18`
+were the original pass — the 18 required screens plus the core-flow additions — and `X01`–`X05`
+are cross-cutting patterns. Renumbering the originals would have broken every existing
+reference in `prd.md`, the Arch Doc and `HISTORY.md` in exchange for tidier-looking
+identifiers, which is a bad trade. **`S` = first pass, `X` = pattern, `W` = second pass**, and
+the *Wireframe* column in Section 10.0 is the authoritative page→wireframe map.
+
+`W01`–`W25` are whole pages; **`W26`–`W29` are components and states** that belong to pages
+already drawn, which is why they have no page number of their own. 25 wireframes cover 26
+pages because **W08 serves two pages** (#31 candidate messages and #48 employer messages) —
+the same conversation surface from opposite sides of the match, and drawing it twice would
+have produced two layouts that drift apart.
+
+These pages reuse components already drawn in the first pass, so the annotation standard is
+unchanged: `A11y:` notes name the specific failure being designed against, not generic advice.
+
+#### W01 · Pricing (page #2)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ FairFold                          [ I'm hiring ] [ Log in ]│
+├────────────────────────────────────────────────────────────┤
+│ [ Candidates ]  [ Employers ]  ← tabs, not two pages       │
+├────────────────────────────────────────────────────────────┤
+│  Free        Essential       Professional      Premium     │
+│  $0          $5/mo           $20/mo            $50/mo     │
+│  5 apps/day  Unlimited       Unlimited apps    Unlimited  │
+│  [Get started] [Choose]       [Choose]          [Choose]   │
+│                                                            │
+│  ▾ Compare every tier                                       │
+│                                                            │
+│  ▾ Do I need a paid plan?                                   │
+│  ▾ What happens when I hit my limit?                        │
+│  ▾ Can I cancel?                                            │
+├────────────────────────────────────────────────────────────┤
+│ Employer tiers shown when the Employers tab is active.      │
+│ Free row lists 3 jobs · 50 screens/mo · NOT TIME-LIMITED.   │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** tabs are `role="tablist"` with arrow-key navigation and `aria-selected`; the
+active tab is in the URL (`?tab=employers`) so the page survives a reload and can be
+linked. Comparison table is a real `<table>` with `<th scope="col">`, not a grid of divs.
+Each accordion header is a `<button>` with `aria-expanded` and `aria-controls`. The
+"NOT TIME-LIMITED" wording is deliberate: the `subscriptions` table has no expiry column,
+so the page must not imply a trial that the schema cannot enforce.
+
+---
+
+#### W02 · How our AI works (page #3)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> How our AI works                                       │
+│ Plain language. No jargon.                                   │
+├────────────────────────────────────────────────────────────┤
+│  ① Your resume                                             │
+│     │                                                      │
+│     ▼                                                      │
+│  ② We remove your details                                  │
+│     Name, email, phone, address, photo references.          │
+│     What is left: skills, experience, education, projects.  │
+│     │                                                      │
+│     ▼                                                      │
+│  ③ The model reads the anonymised text                      │
+│     It writes a reason for every claim, quoting your own    │
+│     words back at you.                                     │
+│     │                                                      │
+│     ▼                                                      │
+│  ④ A person decides                                         │
+│     The ranking is advice. Your name stays hidden until     │
+│     an employer shortlists you.                             │
+├────────────────────────────────────────────────────────────┤
+│  ✔ We check every reason for biased language               │
+│                                                            │
+│  ✖ What we never do                                        │
+│     No facial analysis · No emotion reading                 │
+│     No audio · No automatic rejection                      │
+│                                                            │
+│  ▾ "What is a biased phrase?"                               │
+│  [ Read the bias audit method ]  → Arch Doc §7.4           │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the four steps are an ordered list, not a CSS grid, so the sequence survives a
+screen reader and a 320px viewport. The `✖` list is a real list — the "what we never do"
+panel is the trust argument and must be as legible as the feature list. Every claim here
+maps to something in the specification; **if a step is added to the product, this page is
+wrong until it is added here**, which is why the diagram and the pipeline sit in the same
+document.
+
+---
+
+#### W03 · Privacy policy / Terms (page #12)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ FairFold  Privacy Policy            Last updated 2026-10-03 │
+├──────────────┬─────────────────────────────────────────────┤
+│ On this page │ # What we collect                             │
+│  · What we   │   Name, email, phone — encrypted at rest    │
+│    collect   │   with a per-deployment key.                 │
+│  · What we   │                                             │
+│    never    │ # What we send to an AI provider             │
+│    send     │   Nothing. Your name, email, phone and        │
+│  · Retention │   address are removed before any model      │
+│  · Your     │   call. The model sees: "Candidate           │
+│    rights    │   worked at [COMPANY_A] as [ROLE_B]".       │
+│  · Contact   │                                             │
+│              │ # Retention                                  │
+│              │   2 years for applications · 5 years if      │
+│              │   hired · audit entries 90 days, decision    │
+│              │   evidence 2–5 years                         │
+│              │                                             │
+│              │ # Your rights                                │
+│              │   Export everything → gdpr/export/           │
+│              │   Ask to be deleted → gdpr/deletion/         │
+│              │   An admin reviews each request.             │
+│              │   ⚑ Audit records of decisions are kept      │
+│              │   even after your data is deleted.           │
+│ [Print] [Download PDF]                                      │
+└──────────────┴─────────────────────────────────────────────┘
+```
+**A11y:** the contents list is a `<nav>` of in-page anchors; on a narrow viewport it
+collapses to a disclosure above the prose. Prose is a single measure, max ~75 characters,
+`line-height` ≥ 1.5. Headings are `h1` → `h2` in document order, not styled `<p>`s, so
+the policy is navigable by heading. **The last-updated date is content, not metadata** —
+it is the only way a reader can tell whether the document they relied on is current.
+
+---
+
+#### W04 · Error pages (page #13)
+
+```
+404  Not found                              403  Not allowed
+┌─────────────────────────────┐              ┌─────────────────────────────┐
+│        [illustration]       │              │        [illustration]       │
+│  <h1> We can't find that   │              │  <h1> That page isn't yours │
+│                             │              │                             │
+│  The job or profile may     │              │  You don't have access to   │
+│  have been removed, or the  │              │  this. If you think that's  │
+│  link may be wrong.         │              │  wrong, ask the employer    │
+│                             │              │  who posted it to add you.  │
+│  [ Browse open roles ]      │              │                             │
+│  [ Go to home ]             │              │  [ Go to my dashboard ]     │
+└─────────────────────────────┘              └─────────────────────────────┘
+
+500  Something went wrong
+┌─────────────────────────────┐
+│  <h1> Something went wrong  │
+│  We've logged it. Your work │
+│  is saved.                  │
+│  Reference: FF-7c41-9ae2    │  ← quote this to support
+│  [ Try again ] [ Go home ]  │
+└─────────────────────────────┘
+```
+**A11y:** `illustration` is decorative — `alt=""`, `aria-hidden="true"`, because the
+heading already says what happened. **The support reference is the important part of the
+500 page** and must be selectable text, not an image. Error pages return the real HTTP
+status code; a 404 rendered with a 200 breaks assistive technology and every crawler.
+"AI delayed" is deliberately **not** a page — it is a badge on the card that is waiting
+(§6.6), because a whole page for a wait implies the work is not happening.
+
+---
+
+#### W05 · Candidate — Certifications (page #19)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ Candidate portal            [Dashboard] [Profile] [✉ 2]   │
+├────────────────────────────────────────────────────────────┤
+│ <h1> Certifications                        [ + Add ]       │
+├────────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────────────────────────────────┐ │
+│ │ AWS Certified Solutions Architect        2024 – 2026    │ │
+│ │ Amazon Web Services · ID: AWS-PSA-44219                 │ │
+│ │ ▸ View credential                          [ Remove ]   │ │
+│ ├────────────────────────────────────────────────────────┤ │
+│ │ Panjab National Skills — Web Dev (L2)   2026 – present │ │
+│ │ No expiry                                              │ │
+│ └────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  EMPTY:  <h2>No certifications yet</h2>                      │
+│          Certifications let an employer filter by           │
+│          qualification. They are optional.                 │
+│          [ Add your first certification ]                   │
+├────────────────────────────────────────────────────────────┤
+│ ADD (dialog)                                                │
+│ Name*  [__________________]  Issuer  [______________]       │
+│ Issued [____] Expires [____]  Credential ID [________]     │
+│ URL    [__________________________]                          │
+│ ⚑ A credential URL is optional; we never fetch it.         │
+│ [ Cancel ]  [ Save certification ]                          │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the dialog is a real `<dialog>` or `role="dialog"` with `aria-modal="true"`,
+focus moved in on open and **returned to the Add button on close**. `Expires` uses
+`<input type="date">`; optional fields are marked in the label, not only by leaving them
+blank. The removal control has a confirmation step because a credential ID cannot be
+recovered once deleted, and the empty state is a real heading so it is reachable by
+heading navigation rather than being skipped as decoration.
+
+---
+
+#### W06 · Candidate — Assessments list (page #23)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Skill assessments                                     │
+│ [ All ] [ In progress ] [ Completed ]   Skill ▾  ▾Level ▾   │
+├────────────────────────────────────────────────────────────┤
+│ ┌──────────────────────┐ ┌──────────────────────┐           │
+│ │ Django & DRF         │ │ PostgreSQL           │           │
+│ │ ● Intermediate        │ │ ● Intermediate        │           │
+│ │ 20 questions · 30 min│ │ 15 questions · 25 min│           │
+│ │ ▸ Not started        │ │ ✔ 82%  ·  passed     │           │
+│ └──────────────────────┘ └──────────────────────┘           │
+│ ────────────────────────────────────────────────────────── │
+│ ⚠️ Required by 2 jobs you applied to                        │
+│    Advanced Python  ·  assessment gate for "Backend Eng"   │
+│    [ Take it — 45 min ]                                    │
+├────────────────────────────────────────────────────────────┤
+│  EMPTY: You have not taken any assessments yet.            │
+│          [ Browse assessments ]                             │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** cards are a `<ul>` of `<li>`, not a bare grid of divs, so the count is announced.
+The filter group is labelled once (`<fieldset><legend>`). The **required-by** strip is
+`role="status"` and appears at the top because it changes whether the candidate can be
+shortlisted at all (REQ-FR-051) — burying it in a card would let someone sit an interview
+they were never eligible for. Time limit is stated before the click, not discovered inside.
+
+---
+
+#### W07 · Candidate — Assessment intro (page #24)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Advanced Python — before you start                    │
+├────────────────────────────────────────────────────────────┤
+│  20 questions · 35 minutes · no time limit shown mid-test   │
+│                                                             │
+│  ▸ Rules                                                    │
+│   • 20 questions. 1 point each.                             │
+│   • Your answers save automatically every 10 seconds.       │
+│   • You can leave and come back until the time is up.      │
+│   • Closing the tab does NOT pause the clock.               │
+│                                                             │
+│  ▸ Accessibility                                            │
+│   You can request extra time, a reader, or a different      │
+│   format. Email support@… and it is arranged for you.       │
+│   Asking does not affect your score.                        │
+│                                                             │
+│  ⚑ Leaving this page keeps the clock running.              │
+│                                                             │
+│  [ Start assessment ]                                       │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** every rule is a list item; the auto-save interval and the clock-continuity
+warning are stated **before** starting, not discovered on the way out. The accessibility
+paragraph is not buried in a footer — an unexamined assessment is worthless to the
+candidate it disqualifies. "Asking does not affect your score" is deliberate copy: an
+accommodation people are reluctant to request is an accommodation nobody requests. The
+start button is a single unambiguous target with no competing secondary action.
+
+---
+
+#### W08 · Candidate — Messages (page #31) and Employer — Messages (page #48)
+
+```
+CANDIDATE (#31)                            EMPLOYER (#48)
+┌────────┬──────────────────────┐         ┌────────┬──────────────────────┐
+│ 2 unread│ <h2> Acme Ltd ·     │         │ 4 unread│ <h2> Candidate #c_441 │
+│        │ Backend Engineer     │         │        │ Backend Engineer      │
+│ Acme ● │                      │         │ Acme ● │ Role: 88%            │
+│  ●12:04│ ● 12:04  Acme:       │         │  ●09:12│                       │
+│        │ "Your score was 88.  │         │        │ 09:12  You: can you    │
+│ Beta ● │  Two gaps: K8s and   │         │        │  share the K8s work?   │
+│  ●Tue  │  Terraform. Here's   │         │        │                       │
+│        │  the exact line in   │         │       │ ● 09:30  Acme: [Resume │
+│        │  your resume: ..."  │         │        │  excerpt]             │
+│        │                      │         │        │                       │
+│        │ [ Write a message ]  │         │        │ [ Write a message ]   │
+└────────┴──────────────────────┘         └────────┴──────────────────────┘
+```
+**A11y:** two panes, so the thread list is a `<nav>` of buttons whose `aria-current` marks
+the open thread; the thread itself is a `<ol>` of `<li>` in time order, oldest first. New
+messages use `aria-live="polite"` — **never `assertive`**, which would interrupt a screen
+reader mid-sentence for every background poll. Unread state is a count in the link text,
+not a colour dot alone. **On the employer side the candidate is still `Candidate #c_441`**
+until shortlist: the name stays hidden while ranking is being decided (REQ-FR-030), and a
+messages pane that showed names would quietly undo that.
+
+---
+
+#### W09 · Candidate — Settings (page #32)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Settings                                              │
+│ [ Account ] [ Security ] [ Notifications ] [ Privacy ]      │
+├────────────────────────────────────────────────────────────┤
+│ ACCOUNT                                                     │
+│ Name      [______________]  Email [____________] 🔒 verified │
+│ Phone     [______________]                                  │
+│ Password  ••••••••••••  Last changed 3 months ago  [Change] │
+│ ────────────────────────────────────────────────────────── │
+│ ⛔ Danger zone                                              │
+│  [ Download everything I have ]   gdpr/export/             │
+│  [ Ask to be deleted ]             gdpr/deletion/           │
+│    An admin reviews requests. Audit records of decisions   │
+│    are kept after deletion.                                 │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the danger zone is visually and semantically separated, and the deletion
+explanation — *audit records are kept* — sits next to the button rather than in a
+confirmation dialog the user may dismiss without reading. Tabs carry `aria-selected` and
+the active tab is in the URL. `🔒 verified` next to the email is text, not an icon: a lock
+glyph alone communicates nothing to a screen reader. Each tab is a separate view with its
+own `<h2>` so heading navigation lands somewhere meaningful.
+
+---
+
+#### W10 · Employer onboarding (page #33)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Set up your company            Step 2 of 3            │
+├────────────────────────────────────────────────────────────┤
+│ ● Details ─── ○ Team ─── ○ Preferences                     │
+│                                                             │
+│ Company name*  [____________________]                       │
+│ Industry ▾    [Technology      ▾]   Size ▾ [ 11–50 ▾]      │
+│ Logo          [ Choose file ] (square, 1 MB max)           │
+│               [ preview ]                                   │
+│ Website       [____________________]                       │
+│                                                             │
+│ ⚑ Until you finish, this profile is not visible on the    │
+│   public job board.                                         │
+│                                                             │
+│ [ Skip for now ]  [ Continue → ]                            │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the three-step indicator is an ordered list with `aria-current="step"`, not three
+dots — dots announce nothing. `Industry` and `Size` are native `<select>` elements so the
+mobile picker works without a custom implementation. The logo input has a visible label
+and an announced file-type restriction. **"Skip for now" is a real, equal-weight option**:
+an onboarding that can only be completed by a company with a logo and a website excludes
+exactly the SMEs this product is for, and a wall of required fields is the most reliable
+way to lose a signup.
+
+---
+
+#### W11 · Employer — Job overview (page #37)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Backend Engineer        [Edit] [Share] [Close]        │
+│ Remote · Dhaka · 11–50 people                               │
+├────────────────────────────────────────────────────────────┤
+│ APPLIED      SCREENED     SHORTLISTED   INTERVIEW   OFFER   │
+│   ▓▓▓▓▓▓ 42    ▓▓▓▓ 12       ● 3           ● 2        ○ 0  │
+├────────────────────────────────────────────────────────────┤
+│ Share link   [https://…/jobs/backend  ] [Copy]              │
+│ Embed code   <pre>&lt;iframe …&gt;</pre>  [Copy]            │
+│                                                             │
+│ ⚑ Screening rules v3 — 2 rules match 6 applicants           │
+│    These are excluded from ranking but stay listed.         │
+│    [ Review the 6 ]                                         │
+├────────────────────────────────────────────────────────────┤
+│  LAST SCREENED 2 h ago · 42 candidates · $0.00 AI cost      │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the pipeline is a `<table>` with `<th scope="col">`, because a funnel drawn with
+divs cannot be read in a sensible order by a screen reader. `●` and `○` are paired with
+text so state is never colour-or-shape alone. **The screening-rules banner is the most
+important element on this page**: 6 applicants were excluded by an automatic rule, and
+REQ-FR-029 requires them to stay visible and reviewable. It states the count and links to
+the list *before* anyone reads the ranked list, so a rule nobody knows about cannot
+quietly decide who was considered.
+
+---
+
+#### W12 · Employer — Interviews list / calendar (page #44)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Interviews        [ List ] [ Week ]   [+ Schedule ]    │
+├────────────────────────────────────────────────────────────┤
+│ LIST                          WEEK                          │
+│ ▸ Today                       Mon 2   Tue 3   Wed 4         │
+│  10:00 Candidate #c_441       ┌────┐  ┌────┐  ┌────┐          │
+│        Backend · Panel A      │c_88│  │    │  │c_91│          │
+│        ✔ Scorecard sent       │ 2h │  │    │  │ 1h │          │
+│  14:00 Candidate #c_509       └────┘  └────┘  └────┘          │
+│        Backend · Panel B     Thu 5   Fri 6                   │
+│  ⚑ 1 candidate has not       ┌────┐  ┌────┐                  │
+│     confirmed                │c_88│  │    │                  │
+│                               └────┘  └────┘                  │
+├────────────────────────────────────────────────────────────┤
+│ Candidate still shown as #c_441 until shortlisted.          │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the week view is a real `<table>` with `<time>` elements carrying `datetime`,
+so a screen reader announces "Tuesday 3 November, 2:00" rather than a grid position. Each
+block's accessible name is the full detail — *"Candidate #c_441, Backend Engineer, panel
+A, two hours"* — not "block". List and week are a **view switch, not two pages**, so the
+selection survives a refresh. Unconfirmed state is text. The naming reminder is repeated
+here because the calendar is a screenshot, and screenshots get pasted into tickets.
+
+---
+
+#### W13 · Employer — Offer letter editor (page #46)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Offer — Candidate #c_441        [Preview] [Send]       │
+├────────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────────────────────────────────┐ │
+│ │ ✦ AI draft — review before sending                      │ │
+│ │ [ Rich text editor: title, dates, salary, benefits ]    │ │
+│ └────────────────────────────────────────────────────────┘ │
+│ Merge fields                                                 │
+│  {company} [Acme Ltd]     {candidate_name} [Candidate #c_441]│
+│  {start_date} [2026-12-01] {salary} [BDT 45,000]            │
+│                                                             │
+│ ⚑ This is a draft. Nothing is sent until you press Send,    │
+│   and the candidate must accept before anything is final.   │
+│                                                             │
+│ [ Save draft ]  [ Send offer ]                              │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the editor is a real rich-text field with a toolbar whose buttons carry
+`aria-pressed` state and are reachable by keyboard — a `<div contenteditable>` with
+unlabelled buttons is unusable without a mouse. The AI draft sits in a labelled region
+(`aria-label="AI draft, editable"`) so it is not mistaken for system text. Merge fields
+are in a `<dl>`. **Every unresolved field stays visible as `{candidate_name}` rather than
+being silently filled** — a letter that says "Dear Candidate #c_441" is embarrassing; a
+letter that says "Dear {candidate_name}" is caught by the sender. The pre-send warning
+sits next to the button, not in a modal that gets dismissed without reading.
+
+---
+
+#### W14 · Employer — Team and roles (page #49)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Team                          [+ Invite a colleague] │
+├────────────────────────────────────────────────────────────┤
+│ Name            Role          MFA      Joined      Action  │
+│ Samira Haque   employer_admin ✔       12 Mar 2026  [Role ▾]│
+│ Rafi Islam     employer_hr    ✔       04 Apr 2026  [Role ▾]│
+│ Nabila Hasan   interviewer    ✖       02 Jun 2026  [Role ▾]│
+│ Toma Akter     employer_hr    ✖       pending      [Revoke] │
+│                                                             │
+│ ⚑ Nabila cannot act until she sets up MFA.                 │
+│ ⚑ You are the only employer_admin. Removing or demoting      │
+│    yourself would leave nobody able to post a job or invite  │
+│    a colleague, and only database access could undo it.     │
+├────────────────────────────────────────────────────────────┤
+│ INVITE  Email [________________]  Role ▾  [ Send invite ]   │
+│ ⚑ An invite expires in 7 days. MFA is required before the   │
+│   invitee can do anything.                                   │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the members table uses `<th scope="col">` and `<th scope="row">` for the name;
+role is a `<select>` per row with an accessible name that includes the member's name
+("Role for Samira Haque"), because a bare "Role" repeated down a column is unusable out
+of context. MFA status is text plus a mark, never the mark alone. The last-`employer_admin`
+warning appears **on the row itself** while it is true, not only after a failed request —
+the Complete Doc enforces it in the serializer inside the same transaction, and this makes
+the rule visible before anyone tries to break it.
+
+---
+
+#### W15 · Employer — Billing and plan (page #50)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Billing and plan                                       │
+│ Current: Starter · BDT 100/mo · renews 12 Mar 2026          │
+├────────────────────────────────────────────────────────────┤
+│ USAGE THIS MONTH                                            │
+│ Job postings   ▓▓▓░░░░░░░░░░░░  12 / 50                     │
+│ AI screenings  ▓▓▓▓▓▓▓▓▓▓░░░░░  214 / 500                   │
+│ ⚑ Over 500 screens this month, extra screens are billed at  │
+│   BDT 0.0001 each.                                          │
+│                                                             │
+│ Change plan  Free · Starter · Growth · Scale · Enterprise   │
+│ Payment method  •••• 4242   [Update]                         │
+│ Invoices                                                          │
+│  12 Mar 2026  BDT 100.00  Paid   [PDF]                     │
+│  12 Feb 2026  BDT 100.00  Paid   [PDF]                     │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** usage meters are `<progress>`-style bars with the **numbers in text beside them**
+— a bar conveys nothing on its own, and someone on a metered plan needs the count, not the
+proportion. The overage warning names the unit price, because a limit nobody can predict
+the cost of is a limit they avoid. The invoices table is a real table with a
+`<caption>`. Plan selection is radio buttons in a `fieldset`, so arrow keys work and the
+current plan is announced.
+
+---
+
+#### W16 · Employer — Company settings (page #51)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Company settings        [Company] [Security] [Privacy] │
+├────────────────────────────────────────────────────────────┤
+│ COMPANY                                                     │
+│ Name [________________]  Logo [ Choose file ]               │
+│                                                             │
+│ Show your company name on public job listings?              │
+│ ( ) No  — your name is hidden from candidates               │
+│ (•) Yes — shown on jobs you publish                         │
+│ ⚑ Candidates see the company name, never your contact       │
+│   details. This does not show who is hiring.               │
+│                                                             │
+│ SECURITY                                                    │
+│ MFA for HR admins: Required. 2 of 3 members set up.         │
+│ ⚑ Nabila Hasan must set up MFA before she can act.          │
+│ Single sign-on: Not configured            [Configure]       │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the disclosure choice is a `fieldset` + `legend` radio group, because the
+default is the privacy-preserving one and a reader must be able to see which is selected
+without colour. The consequence sentence sits **under** the control, not in a tooltip — a
+tooltip is invisible to a screen reader and to anyone on a phone. MFA status is stated as
+a count so the shortfall is actionable rather than a red dot.
+
+---
+
+#### W17 · Employer — MFA setup (page #52)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Set up two-factor authentication                       │
+├────────────────────────────────────────────────────────────┤
+│ Step 1 of 2 · Scan this code with your authenticator app   │
+│                                                             │
+│        ┌──────────────┐                                     │
+│        │  ▓▒░▓▒░  ░▒▓▓  │  ← QR code                       │
+│        │  ▒░▓▒░  ▓▒░▓  │                                    │
+│        └──────────────┘                                     │
+│                                                             │
+│ Can't scan? Enter this key manually:                        │
+│ JBSW Y3DP EHPK 3PXP   [Copy]                                │
+│                                                             │
+│ Step 2 of 2 · Enter the 6-digit code from your app          │
+│ [ _ ][ _ ][ _ ][ _ ][ _ ][ _ ]                              │
+│                                                             │
+│ ⚑ Save your recovery codes. Without them, losing your      │
+│   phone means an admin has to reset your access.            │
+│ [ Skip ] [ Verify and enable ]                              │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the QR code is `role="img"` with an accurate `aria-label` describing what it is
+*for*, and the manual key is always present as selectable text — a QR-only flow excludes
+anyone who cannot use a camera. Recovery codes are offered **before** verification
+completes, not after, because the moment of losing a phone is the worst time to discover
+there was a backup. The code entry is six separate inputs with
+`autocomplete="one-time-code"` on the first and `inputmode="numeric"`, labelled as one
+group. "Skip" is visible because MFA is enforced by role, not by wall — a forced
+half-finished setup gets abandoned.
+
+---
+
+#### W18 · Data retention settings (page #53)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Data retention                                         │
+├────────────────────────────────────────────────────────────┤
+│ Choose how long we keep records. Shorter is fine.           │
+│                                                             │
+│ Applications          ▾ 2 years   ▾ (6 months … 5 years)   │
+│ Rejected applications ▾ 1 year                                 │
+│ Hired employee records ▾ 5 years                             │
+│ Audit evidence        ▓ 2 years, 5 if hired                 │
+│   Fixed. This is the record of what we decided and why.    │
+│   Shorter retention would remove the evidence that a        │
+│   hiring decision was not biased.                            │
+│                                                             │
+│ ⚑ Records past their retention period are deleted            │
+│   automatically. Deletion cannot be undone.                 │
+│ [ Save retention settings ]                                  │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** each selector is a labelled native `<select>` with the unit in the label
+("years", "months") — a bare number with a unit implied by position is a common
+screen-reader failure. The audit-evidence row is visibly locked **and the reason is in
+prose**, because "fixed, no explanation" reads as an arbitrary restriction the employer
+cannot question. The irreversible warning sits next to the save button, not in a
+confirmation the user dismisses without reading. Shorter retention is permitted wherever
+it is safe to permit it; the one exception is explained rather than hidden.
+
+---
+
+#### W19 · Notifications centre (page #54)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Notifications              [Mark all as read]          │
+│ [ All ] [ Unread 3 ] [ Applications ] [ Messages ]          │
+├────────────────────────────────────────────────────────────┤
+│ ● 2 h ago   Your application was shortlisted  [Mark read]  │
+│            Acme Ltd · Backend Engineer                      │
+│ ● Tue      New message from Acme Ltd                        │
+│            "…the exact line in your resume: …"              │
+│      Mon  We received your certification                    │
+│            [Mark read]                                      │
+├────────────────────────────────────────────────────────────┤
+│  EMPTY: You're all caught up.                               │
+│          [ Notification settings ]                          │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the list is `<ol>` in reverse-chronological order, each item `role="article"`
+with a labelled heading. Unread is announced in the link text ("New message", "2 h ago")
+rather than by an unread dot, which carries no accessible state. "Mark all as read" is a
+button with a count in its label, and is only shown when something is unread. Previews
+are truncated in the markup — a full message body in a list is a screen-reader problem and
+a performance problem at 500 notifications.
+
+---
+
+#### W20 · Admin — Overview (page #55)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Platform overview                    [ 2026-10-03 ]    │
+├────────────────────────────────────────────────────────────┤
+│ Users 12,480 │ Active jobs 214 │ Screenings today 89       │
+│ ⚑ Error rate 1.2% (target <1%) · AI fallback level 1        │
+├────────────────────────────────────────────────────────────┤
+│ Screenings today   ▓▓▓▓▓▓▓▓░░░░░░░░░░░  89                  │
+│ Flags from bias audit   ⚑ 6 flagged, 4 unreviewed          │
+│ Compliance queue        ⚑ 3 deletion requests waiting      │
+│ Quota                    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░  42 / 50 (OpenRouter) │
+├────────────────────────────────────────────────────────────┤
+│ Recent errors   [Sentry]        Actions   [Review queue →]   │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** KPIs are a `<dl>` so "89 — screenings today" is read as a labelled pair rather
+than a bare number. Anything breaching a threshold is **marked in text**, not by a colour
+— an admin scanning this on a phone in bad light must not have to distinguish red from
+amber. The bias-flag count and the compliance queue count are on the overview because they
+are the two things that are somebody's legal obligation, and an obligation nobody is
+looking at is an obligation that gets missed.
+
+---
+
+#### W21 · Admin — User detail (page #57)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Candidate #c_441                    [Suspend] [Close]  │
+├────────────────────────────────────────────────────────────┤
+│ Summary                                                      │
+│  Role              candidate                                │
+│  Joined            2026-03-12                               │
+│  Status            ● Active · email verified · MFA off      │
+│  Applications      7 · 1 hired                              │
+│  Data on file      ▓ name · email · phone · 1 resume        │
+│                                                             │
+│ ⚑ Identity is withheld until you open a justified reason.  │
+│    Opening it is written to the audit log and shown to the  │
+│    candidate.                                                │
+│                                                             │
+│ [ Open identity ]   ← requires a reason, logged            │
+│ Recent actions   [audit log →]                              │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** identity is behind an explicit control with the consequence in prose **on the
+page**, not in a confirmation dialog. This is the single most sensitive interaction in the
+admin, and the reason field is what makes it accountable. "Data on file" lists categories
+rather than values, so a support agent cannot read a phone number by glancing at the
+overview. The audit-log link is on the page rather than behind a menu, because the moment
+an admin is asked "who looked at this" is the moment the answer needs to exist.
+
+---
+
+#### W22 · Admin — Compliance queue (page #59)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Compliance          [Export requests 2] [Deletions 3]  │
+├────────────────────────────────────────────────────────────┤
+│ DELETION REQUESTS                                           │
+│ Candidate #c_882   requested 2026-10-02 · pending           │
+│  Applications 3 · Resume 1 · Messages 5 · Attempts 1        │
+│  ⚑ Approving erases this permanently. Audit records of      │
+│    decisions are KEPT, with the user reference removed.      │
+│                                                             │
+│  Type the candidate's email to confirm:                     │
+│  [_____________________________]                            │
+│  [ Reject ]  [ Approve deletion ]  ← disabled until typed  │
+├────────────────────────────────────────────────────────────┤
+```
+**A11y:** the confirm field is a real text input with a visible label and the expected
+value echoed in the label text; the button stays `disabled` until it matches, and
+`aria-describedby` points at the explanation. Deletion is **admin-approved, not
+self-service** — the route exists, but the candidate requests and a human approves. The
+statement that audit records survive is on the page beside the button: erasure removes the
+personal data, not the evidence that a decision happened, and a candidate told otherwise
+has been promised something this system cannot deliver.
+
+---
+
+#### W23 · Admin — AI quota and usage (page #60)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> AI quota and usage                                    │
+├────────────────────────────────────────────────────────────┤
+│ OpenRouter free tier · resets daily                         │
+│  Requests today  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░  42 / 50     │
+│  Minute window  ▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░  11 / 20      │
+│                                                             │
+│ Fallback level  ● 1 — pgvector + spaCy only                 │
+│  • L0 quota >50%   full rationale                           │
+│  • L1 20–50%       rationale for top 5                      │
+│  • L2 <20%         offline: embeddings + spaCy only          │
+│  • L3 exhausted    offline, cost meter frozen              │
+│                                                             │
+│ Cost today BDT 0.00   [Verify tier limits ]                 │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** both meters carry their numbers as text beside the bar. **The fallback level is
+the important line**, so it is stated as a word, not a colour: an admin who thinks the
+model is running while it has silently fallen back to embeddings has been misled about the
+product's core feature. The level list is a `<dl>` showing what each level does, so the
+state is interpretable without documentation. "Verify tier limits" exists because the
+OpenRouter figures are quoted from a date and drift (recorded in `HISTORY.md` §4.8).
+
+---
+
+#### W24 · Admin — Assessment management (page #61)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> Assessments                        [+ New assessment] │
+├────────────────────────────────────────────────────────────┤
+│ Advanced Python      Intermediate · 20q · ● Active          │
+│   [Edit] [Add question] [Reorder] [Deactivate]              │
+│   ─────────────────────────────────────────                 │
+│   1. …                                    [Edit] [Remove]   │
+│   2. …                                    [Edit] [Remove]   │
+│                                                             │
+│ Django & DRF           Intermediate · 18q · ○ Inactive      │
+│   3 attempts completed, scores kept          [Activate]     │
+│                                                             │
+│ ⚑ Deactivating hides an assessment from new attempts.      │
+│   Existing attempts and scores are kept.                    │
+│   ⚠️ There is no delete. Removing it would erase candidates'│
+│      earned scores.                                         │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** reordering uses explicit ↑ ↓ buttons whose accessible names include the
+question's position and text, because drag-and-drop is unusable without a mouse and the
+Complete Doc requires an explicit `question_ids` order for the same reason — a positional
+patch lets two questions end up at the same index. Deactivate and Activate are distinct
+labelled buttons; there is **no delete control at any priority**, and the reason is stated
+on the page: an assessment with attempts cannot be removed without destroying candidates'
+earned scores and any gate that depended on them (REQ-FR-051).
+
+---
+
+#### W25 · Broadcast announcement (page #62)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ <h1> New announcement                      [Preview]       │
+├────────────────────────────────────────────────────────────┤
+│ Title*   [__________________________________]               │
+│ Body*    [____________________________________]             │
+│                                                             │
+│ Who should receive this?  ← shown BEFORE sending           │
+│ (•) All users   ( ) Candidates   ( ) Employers               │
+│     ( ) By plan ▾                                              │
+│                                                             │
+│ ⚑ Estimated recipients: 12,480 candidates, 214 employers   │
+│ ⚑ Skipped (deleted / bounced / unsubscribed): 87           │
+│                                                             │
+│ Channel   (•) Email  ( ) In-app          Send now          │
+│           [ Schedule for… ▾ 2026-10-05 09:00 ]              │
+│                                                             │
+│ ⚑ Email goes from announce@… — never the address that sends │
+│   password resets. A burst cannot lock anyone out of their  │
+│   own account.                                               │
+│                                                             │
+│ [ Save draft ]  [ Send now ]  ← disabled until recipient    │
+│                                     count is viewed         │
+└────────────────────────────────────────────────────────────┘
+```
+**A11y:** the recipient count is a `role="status"` region that updates live, because the
+two bad outcomes are **too few** and **too many** — an employers-only announcement
+reaching a candidate is a confidentiality incident, not a UI bug. Sending stays disabled
+until the count has been seen, which makes "I looked at who this goes to" a property of
+the system rather than a habit. The separate-sending-address note is on the page: this is
+the one feature in the product whose worst case is a platform-wide lockout caused by one
+click, and an operator who does not know that will happily set the throttle to zero.
 
 ---
 
@@ -1385,6 +2207,214 @@ Allow 30–40% text expansion; avoid fixed-width buttons; no text baked into ima
 
 ---
 
+#### W26 · Override Reason Dialog, both directions (component §7.11, on #40 and #41)
+
+Shown above the ranked-applications table. It is a dialog, not a page, so it is drawn once
+per direction — the two differ only in the verb and the sentiment of the explanation.
+
+```
+SHORTLIST DIRECTION — ranked BELOW the cut-off
+┌──────────────────────────────────────────────────────────┐
+│  RANKED APPLICATIONS · Senior Backend          (dimmed)  │
+│   #  Candidate        Score   Rank    State     Action   │
+│   8   Candidate #0031    0.81   #9   screened [Shortlist]│
+│   9   Candidate #0044    0.79  #10   screened [Shortlist]│
+│  10   Candidate #0057    0.78  #11   screened [Shortlist]│
+│ ═══════════════════════════════════════════════════════  │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ You are overriding the ranking                 [×] │  │
+│  │ ──────────────────────────────────────────────────  │  │
+│  │ This candidate is ranked #18 of 42. Your cut-off   │  │
+│  │ for this role is #10.                              │  │
+│  │                                                     │  │
+│  │ Shortlisting anyway is allowed. Your reason is      │  │
+│  │ required and is stored with this decision.         │  │
+│  │                                                     │  │
+│  │ Reason *                                            │  │
+│  │ ┌───────────────────────────────────────────────┐  │  │
+│  │ │ Portfolio shows production Kubernetes          │  │  │
+│  │ │ experience the rubric missed                   │  │  │
+│  │ └───────────────────────────────────────────────┘  │  │
+│  │ 104 / 500 characters                    ⚑ required  │  │
+│  │                                                     │  │
+│  │ [ Cancel ]              [ Shortlist anyway ]         │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
+
+REJECT DIRECTION — ranked ABOVE the cut-off
+┌────────────────────────────────────────────────────┐
+│ You are overriding the ranking                 [×] │
+│ ────────────────────────────────────────────────── │
+│ This candidate is ranked #4 of 42. Your cut-off   │
+│ for this role is #10.                             │
+│                                                     │
+│ Rejecting anyway is allowed. Your reason is        │
+│ required and is stored with this decision.         │
+│                                                     │
+│ Reason *                                            │
+│ ┌───────────────────────────────────────────────┐  │
+│ │                                               │  │
+│ └───────────────────────────────────────────────┘  │
+│ 0 / 500 characters                       ⚑ required│
+│                                                     │
+│ [ Cancel ]                  [ Reject anyway ]  ⚑ OFF│
+└────────────────────────────────────────────────────┘
+```
+
+**A11y:** the dialog is `role="dialog"` with `aria-modal="true"`, focus moved to the
+heading on open and returned to the triggering row's button on close. The confirm button is
+`aria-disabled="true"` — **not** `disabled` — so it stays focusable and a screen-reader user
+can reach it and hear why it is unavailable; the reason field is its `aria-describedby`
+target. Escape and backdrop click close **without** performing the action, because an
+accidental dismissal that recorded an override would be worse than no dialog. The reason is
+a `<textarea>` with `maxlength="500"` and a live `aria-live="polite"` character count.
+
+⚠️ **The dialog never blocks the decision.** That is the whole point of `REQ-FR-052`: the
+employer's judgement is legitimate and the ranking is a model output. Blocking would push
+employers toward overriding *silently* — through direct API calls, spreadsheets, or simply
+not shortlisting — which is the behaviour the requirement exists to prevent. The copy says
+"allowed" deliberately; a warning-styled dialog would read as a prohibition and would be
+one step from a hard block.
+
+---
+
+#### W27 · Assessment Gate Pill — four states (component §7.12, on #40 and #41)
+
+```
+ROW STATE MATRIX — same table row, four applications
+────────────────────────────────────────────────────────
+  #  Candidate        Score  Rank   State     Gate          Action
+  ─────────────────────────────────────────────────────────────────────
+   4  Candidate #0007  0.86  #4    screened  (no pill)     [Shortlist]
+       ▲ nothing to show: assessment not required for this role
+
+   9  Candidate #0031  0.81  #9    screened  (◷ Assessment pending)  [Shortlist]
+       ▲ pill neutral                            ⚑ Shortlist ⌀
+
+  11  Candidate #0057  0.78  #11   screened  (✓ Assessment passed)    [Shortlist]
+       ▲ pill success — action available
+
+  18  Candidate #0092  0.61  #18   screened  (⚠ Assessment not passed) [Shortlist]
+       ▲ pill warning                          ⚑ Shortlist ⌀
+```
+
+**HOVER / FOCUS TOOLTIP on the blocked action**
+```
+  ┌────────────────────────────────────────────────────┐
+  │ ⚑ Shortlisting is blocked until the required        │
+  │   assessment is passed.                             │
+  └────────────────────────────────────────────────────┘
+        anchored to [ Shortlist ] on row #18
+```
+**PENDING VARIANT:** "This role requires Python assessment before shortlisting."
+
+**CANDIDATE REVIEW PANEL (#41) — pill in context**
+```
+┌── CANDIDATE #0092 ────────────── ⚠ Assessment not passed ┐
+│                                                             │
+│  SKILLS        Python 4y · Docker 3y · AWS 2y               │
+│  MATCH REASON  Strong Python depth; the role's core stack.  │
+│               ⚠ Required assessment not yet passed.         │
+│                                                             │
+│  [ Shortlist ]  [ Reject ]   ← Shortlist focusable, ⌀      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**A11y:** the pill is text plus a mark, never the mark alone — `✓`, `⚠` and `◷` each carry a
+word. The blocked action uses `aria-disabled="true"`, so it remains in the tab order and its
+tooltip is wired with `aria-describedby`; a `disabled` button is skipped by the tab order and
+the user never learns the reason. The tooltip is also reachable on **focus**, not hover only,
+and is dismissible with Escape. Because the pill is inside the row and the reason must survive
+a screen-reader pass through it, the pill text is part of the row's accessible name rather
+than a `title` attribute, which most screen readers ignore.
+
+⚠️ **Blocked here means "not yet", not "never".** `pending` and `failed` are both temporary
+states; the copy says what unblocks it rather than just refusing. A button that says
+"Shortlist" and does nothing reads as a bug, and an employer who cannot shortlist someone
+whose assessment is pending will route around the product instead.
+
+---
+
+#### W28 · `not_matched` filter state (#40) — the state, not the table
+
+The ranked table has a filter that can return **nothing**. This is the case a wireframe for
+"table with rows" never draws, and it is where an employer concludes the product is broken.
+
+```
+┌─ RANKED APPLICATIONS · Senior Backend ────────────────────────┐
+│ [ All 42 ] [ Screened 12 ] [ Shortlisted 4 ] [ ⚠ Not matched 6 ]│
+│ ───────────────────────────────────────────────────────────────│
+│                                                               │
+│         ┌───────────────────────────────────────────┐         │
+│         │      No candidates were not matched       │         │
+│         │      ─────────────────────────────────    │         │
+│         │      All 42 candidates cleared your       │         │
+│         │      screening requirements and are shown  │         │
+│         │      above.                                │         │
+│         │                                            │         │
+│         │      "Not matched" means the AI ranked     │         │
+│         │      them out for this role. It is not a    │         │
+│         │      judgement about the candidate, and you │         │
+│         │      can still shortlist any of them.       │         │
+│         │                                            │         │
+│         │      [ View all 42 candidates ]             │         │
+│         └───────────────────────────────────────────┘         │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**A11y:** the empty state is inside the table's `aria-live="polite"` region so switching
+filters announces the change; the heading is the accessible name of the region. "Not matched"
+is expanded into the sentence above rather than left as a tab label — the tab means
+"candidates the model excluded", and a user who reads only the label cannot tell whether
+those candidates were *unfit* or merely *unranked*.
+
+⚠️ **The wording is a fairness requirement, not a nicety.** "Not matched" next to a rejection
+reads as "these people were not good enough", which is the inference this product exists to
+prevent. The state is reversible (`View all 42`), and the copy says so before the user asks.
+
+---
+
+#### W29 · Assessment Gate panel (#41) — why a candidate is stuck
+
+```
+┌── CANDIDATE #0092 · ranked #18 of 42 ─────────────────────────┐
+│                                                                 │
+│  ⚠ REQUIRED ASSESSMENT NOT PASSED                                │
+│  ──────────────────────────────────────────────                 │
+│  This role requires a Python assessment before a candidate can   │
+│  be shortlisted.                                                │
+│                                                                 │
+│    Status      Not passed · attempt 1 of 3 · 2 days ago          │
+│    Score       41 / 100 · pass mark 60                          │
+│    [ View candidate's answers ]   ← read-only, never the        │
+│                                     employer's edit             │
+│                                                                 │
+│  Your options                                                     │
+│    [ Ask candidate to retake ]   sends an invite; the           │
+│                                  candidate chooses when          │
+│    [ Shortlist anyway ]          ⚑ records an override reason   │
+│    [ Reject ]                                                       │
+│                                                                 │
+│  ▾ Why is shortlisting blocked?                                   │
+│    REQ-FR-051 makes the assessment a gate, and an override      │
+│    is recorded (REQ-FR-052) rather than prevented.              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**A11y:** the panel is `role="region"` with `aria-labelledby` pointing at its warning heading,
+announced when the candidate review loads, because it changes what the Shortlist button does
+and the user must not discover that by pressing it. The status line is text, not a progress
+bar — a bar communicates quantity, and "not passed" is not a quantity. The disclosure at the
+foot is a `<button aria-expanded>`.
+
+⚠️ **`View candidate's answers` is read-only and scoped.** `REQ-FR-051` exists because
+assessment answers are among the most proxy-laden text in the system; letting an employer
+edit them would be an integrity hole, and letting them read them casually would invite the
+exact judgement the gate is meant to sequence. The link says "answers", not "score", so the
+employer's attention goes to the evidence rather than the number.
+
+---
 ## 12. Design Deliverables Checklist
 
 **Status key:** *Not started* · *Drafted in design.md* (text or ASCII, usable as a brief) · *Done*. Nothing in this file replaces the Figma work; "drafted" means the content decisions are made and recorded.
@@ -1393,7 +2423,7 @@ Allow 30–40% text expansion; avoid fixed-width buttons; no text baked into ima
 |---|---|---|---|---|
 | 1 | Figma file with tokens (colour, type, spacing) matching Sections 3–5 | UI/UX | Before Phase 1 UI work | Drafted in design.md (tokens in §3–5 and §11.1); Figma file not started |
 | 2 | Component library (Sections 6–7) with all states | UI/UX | Phase 1 | Drafted in design.md (state sheet §6.6); Figma components not started |
-| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | Drafted in design.md (§10.5: 36 of 62 pages, all 22 core-flow pages and all 18 required screens); Figma versions not started |
+| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | **Complete for text wireframes** — §10.5: all 62 of62 pages, 48 wireframes (18 S + 5 X + 25 W), all 22 core-flow pages and all 18 required screens. Figma versions not started |
 | 4 | High-fidelity mobile (360px) and desktop (1280px) for core flow | UI/UX | Phase 1–2 | Not started |
 | 5 | Journey Map prototype incl. table alternative | UI/UX + Frontend | Phase 3 start | Wireframes drafted (S08: timeline, skills, story, table view); interactive prototype not started |
 | 6 | Accessibility annotations (heading levels, landmarks, focus order) on key pages | UI/UX | With hi-fi | Text annotations drafted per wireframe (§10.5); overlay annotations on hi-fi not started |
@@ -1401,9 +2431,15 @@ Allow 30–40% text expansion; avoid fixed-width buttons; no text baked into ima
 | 8 | Icon set and illustration style notes | UI/UX | Phase 1 | Not started (set recommended in §11.5) |
 | 9 | Content spec: microcopy for all emails and notifications | UI/UX + PM | Phase 2 | Partly drafted (in-app microcopy §2.3); emails and notifications not started |
 | 10 | Usability test plan (5 candidates, 5 recruiters; task: apply / screen and shortlist) | UI/UX | Phase 2 | Not started |
-| 11 | Wireframes for the screening-integrity components: Override Reason Dialog (7.11), Assessment Gate Pill (7.12), the `not_matched` filter state on #40 and the gate panel on #41 | UI/UX | Phase 2 | Drafted as component specs (§7.11, §7.12); not yet drawn as screens in §10.5 |
+| 11 | Wireframes for the screening-integrity components: Override Reason Dialog (7.11), Assessment Gate Pill (7.12), the `not_matched` filter state on #40 and the gate panel on #41 | UI/UX | Phase 2 | **Complete 2026-10-04** — §10.6 `W26`–`W29`, all four. `W26` both dialog directions, `W27` all four pill states plus the blocked tooltip, `W28` the empty state, `W29` the gate panel with the three employer options |
 
-**Outstanding after this revision:** the Figma file and components (1, 2), Figma wireframes (3), high-fidelity mockups (4), the interactive Journey Map prototype (5), annotated hi-fi (6), brand assets (7, 8), notification copy (9), the test plan (10), and screens for the new screening-integrity components (11).
+**Outstanding after this revision:** the Figma file and components (1, 2), Figma renderings of the wireframes (3), high-fidelity mockups (4), the interactive Journey Map prototype (5), annotated hi-fi (6), brand assets (7, 8), notification copy (9), and the usability test plan (10). Item 11 closed 2026-10-04 with `W26`–`W29`.
+
+⚠️ **Item 3 is complete in text and not complete as a design.** "Wireframes drafted" means
+ASCII boxes in this file. The deliverable a developer or Figma file consumes has not been
+produced for any page, and until it is, a wireframe proven only in a monospace grid can still
+turn out to be unbuildable. That is why §10.6's coverage claim is scoped to "has a wireframe"
+and not "is designed".
 
 ### Design Decisions Needing Confirmation
 

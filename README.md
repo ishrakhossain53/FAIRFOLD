@@ -38,8 +38,9 @@
 | [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 52 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
 | [prd.md](prd.md) | **Canonical** | Product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | [FAIRFOLD_Feasibility_and_Design.md](FAIRFOLD_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 12 product components, 62 page specs, 23 wireframes covering all 18 required screens, implementation notes |
+| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 12 product components, 62 page specs, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
 | [HISTORY.md](HISTORY.md) | Log | What has been done on this repo and what is still outstanding |
+| [`validation/`](validation/) | Instrument | Consent form, interview guide, survey and results log for the §1.3.4 user validation — **built, never run** |
 
 **Start here:** `prd.md` if you want the product, `FAIRFOLD_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.
 
@@ -84,7 +85,14 @@ auditable** — by employers *and* candidates:
 3. **Initialize database:**
    ```bash
    docker exec -it fairfold-django python manage.py migrate
+   docker exec -it fairfold-django python manage.py seed
    ```
+
+   `seed` loads the reference data a fresh database needs before serving a request: the
+   four Django role groups and the 68-skill taxonomy. It also validates the score bands,
+   countries and industries in `core/reference.py` and **warns that the bands are
+   uncalibrated** — `design.md` §3.4 calls them provisional pending a calibrated model, so
+   do not present them as measured.
 
 4. **Create superuser:**
    ```bash
@@ -92,14 +100,32 @@ auditable** — by employers *and* candidates:
    ```
 
 5. **Access the application:**
-   - Admin: http://localhost:8000/admin/
+   - Django admin: http://localhost:8000/django-admin/
    - API: http://localhost:8000/api/v1/
+   - Health check: http://localhost:8000/health/
 
 ## Project Structure
 
 ```
 fairfold/
-├── core/                    # Shared utilities, middleware, security
+├── manage.py                # Django entrypoint; defaults to config.settings.local
+├── config/                  # Django PROJECT package (not an app)
+│   ├── settings/
+│   │   ├── base.py          # Shared settings (security, apps, middleware, env helpers)
+│   │   ├── local.py         # Development (DEBUG=True, PostgreSQL 17 + pgvector via Docker)
+│   │   ├── ci.py            # CI — every test uses this. There is NO test.py; see below.
+│   │   └── production.py    # Production (DEBUG=False, Sentry, HTTPS, asserts everything)
+│   ├── urls.py              # mounts /api/v1/ and the app prefixes
+│   ├── celery.py
+│   └── wsgi.py
+├── core/                    # middleware, logging, exceptions, pagination, reference data
+│   ├── middleware.py        # RequestIDMiddleware — the correlation ID in every log line
+│   ├── logging.py           # RequestIDFilter — without it every log record fails to format
+│   ├── exceptions.py        # a 500 body never carries the exception text
+│   ├── pagination.py        # page_size ceiling of 100
+│   ├── reference.py         # score bands, countries, industries (constants, NOT tables)
+│   ├── fixtures/            # groups.json (4 roles), skills.json (68 skills)
+│   └── management/commands/seed.py
 ├── accounts/                # User model, auth, RBAC, profiles
 ├── candidates/              # Candidate dashboard, journey mapping, assessments
 ├── employers/               # Employer dashboard, job postings, screening
@@ -108,35 +134,39 @@ fairfold/
 ├── interviews/              # Interview scheduling, AI-generated Q packs
 ├── notifications/           # Email, in-app notifications
 ├── api/                     # DRF API root, versioning
-├── admin/                   # Custom admin for super-admin operations
 ├── journey/                 # AI-Powered Professional Journey Mapping
-└── ai/                      # AI provider abstraction (OpenRouter + fallback)
+└── ai/                      # provider abstraction + bias_pass.py / bias_audit.py
 
-config/
-├── settings/
-│   ├── base.py              # Shared settings (security, apps, middleware)
-│   ├── local.py             # Development (DEBUG=True, PostgreSQL 17 + pgvector via Docker)
-│   ├── test.py              # Testing (in-memory SQLite for pure unit tests ONLY — no pgvector)
-│   ├── ci.py                # CI/testing settings
-│   └── production.py        # Production (DEBUG=False, Sentry, HTTPS)
-├── urls.py
-└── wsgi.py
+templates/              # base.html + errors/{403,404,500}.html
+static/css/             # tokens.css (from design.md §3–§5), tailwind.src.css, tailwind.css (built)
+tests/
+├── conftest.py           # Django setup; degrades gracefully when Django is absent
+└── bias/                 # versioned bias test set — v1.0.0 (76) + v1.0.1 (103 cases); spec in Arch Doc §7.4
 
 docker-compose.yml
 Dockerfile
-requirements.txt
-.env.example        # template for all 25 env vars (never put secrets here)
+package.json            # Tailwind 3.4 · HTMX 1.18 · Chart.js 4.4 (build-time only)
+tailwind.config.js      # maps design tokens onto utility names
+pyproject.toml          # black · isort · mypy · pytest config
+bandit.yaml             # bandit skips, each with its reason
+requirements.txt / requirements-dev.txt
+.env.example        # template for every env var (never put secrets here)
 .gitignore          # keeps .env out of git; .env.example stays tracked
 scripts/
 ├── generate_secret_key.py   # generates DJANGO_SECRET_KEY + ENCRYPTION_KEY
 ├── verify_docs.py           # cross-document consistency check (also runs in CI)
 └── verify_bias_set.py       # validates the bias test set's internal consistency (CI)
-tests/bias/                 # versioned bias test set — v1.0.0 (76) + v1.0.1 (103 cases); spec in Arch Doc §7.4
-ai/                         # bias_pass.py — deterministic keyword pass (first source file)
 ```
 
-> **Settings modules:** The project uses split Django settings — `base.py` for shared config, `local.py` for development, `test.py` for fast unit tests, `ci.py` for CI, and `production.py` for production. Set `DJANGO_SETTINGS_MODULE` in `.env`.
-See `config/settings/` for the full settings hierarchy.
+> **There is no `config/settings/test.py`, and that is deliberate.** SQLite has no pgvector, so
+> a SQLite test module would let the embedding, ranking and screening tests pass on a database
+> that cannot represent a vector — and fail in production. **Every test uses
+> `config.settings.ci`** against real PostgreSQL. Set `DJANGO_SETTINGS_MODULE` in `.env`.
+
+> **`ai/bias_pass.py` and `ai/bias_audit.py` need none of this.** The pass is dependency-free
+> pure text matching, so `pytest tests/bias/` runs with or without Django, a database or a
+> settings module — which is deliberate, because it is the highest-risk logic in the product
+> and should not be gated on infrastructure being up.
 
 ## Build Order
 
@@ -204,14 +234,21 @@ See `config/settings/` for the full settings hierarchy.
 
 ### Running Tests
 ```bash
-# Local
-pip install pytest pytest-django
+# Local — needs PostgreSQL + pgvector (no SQLite fallback; see above)
+pip install -r requirements.txt -r requirements-dev.txt
 pytest tests/ -v
-pytest tests/bias/test_bias_pass.py -v   # bias pass vs the 76-case versioned set
+
+# The bias pass alone needs NO database and NO Django
+pytest tests/bias/ -v
 
 # Docker
 docker exec fairfold-django pytest tests/ -v
-pytest tests/bias/test_bias_pass.py -v   # bias pass vs the 76-case versioned set
+```
+
+### Verifying the documentation
+```bash
+python3 scripts/verify_docs.py       # counts, ids, links, line counts, wireframe coverage
+python3 scripts/verify_bias_set.py   # every bias fixture version's internal consistency
 ```
 
 ### Running Migrations

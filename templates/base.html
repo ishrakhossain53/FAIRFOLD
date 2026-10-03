@@ -1,0 +1,106 @@
+{% load static %}<!DOCTYPE html>
+<!-- FairFold base template.
+     - htmx.org is vendored from /static/js/, never a CDN: the CSP is
+       `default-src 'self'` (Complete Doc §C.9).
+     - Every page is designed at 360px first (design.md §5.3).
+     The `{% block %}` names below are the only extension points. A template that
+     overrides more than two of them has become a second base. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FairFold{% endblock %}</title>
+
+  {% block meta %}
+  <meta name="description" content="{% block description %}FairFold — AI-powered, explainable recruitment for candidates and employers.{% endblock %}">
+  {% endblock %}
+
+  {# Built by `npm run build` from static/css/tokens.css + tailwind.config.js.
+     Loaded from a static file rather than the CDN so the CSP needs no
+     'unsafe-inline' and no third-party script host. #}
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+
+  {# The CSRF token is read by HTMX on every unsafe request. This is why
+     CSRF_COOKIE_HTTPONLY is False in production settings. #}
+  <meta name="csrf-token" content="{{ csrf_token }}">
+
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+</head>
+<body class="min-h-screen bg-bg text-ink font-sans antialiased">
+
+  {# Skip link. The first focusable element on the page, hidden until focused.
+     Without it, keyboard and screen-reader users traverse the nav on every page
+     to reach content that is already known to be there. #}
+  <a href="#main"
+     class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3 focus:bg-primary focus:text-white">
+    Skip to main content
+  </a>
+
+  <header class="sticky top-0 z-40 border-b border-border bg-surface">
+    <div class="mx-auto flex h-14 max-w-content items-center gap-4 px-4">
+      {% block header %}
+      <a href="/" class="text-h4 font-bold text-ink">FairFold</a>
+      {% endblock %}
+      {% block header_actions %}{% endblock %}
+    </div>
+  </header>
+
+  <div class="mx-auto flex max-w-content gap-6 px-4">
+    {% block sidebar %}{% endblock %}
+
+    <main id="main" class="min-w-0 flex-1 py-6" tabindex="-1">
+      {% block page_header %}{% endblock %}
+
+      {# Flash messages are an aria-live region so a screen reader announces a
+         message that appears after a POST without the user having to go looking
+         for it. `role="status"` rather than "alert": an override recorded is
+         information, not an emergency, and "alert" interrupts whatever is being
+         read. #}
+      {% if messages %}
+      <div role="status" aria-live="polite" class="mb-4 space-y-2">
+        {% for message in messages %}
+        <div class="rounded-md border border-border bg-surface-muted px-4 py-3 text-body-sm">
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% block footer %}
+  <footer class="mt-12 border-t border-border bg-surface-muted">
+    <div class="mx-auto max-w-content px-4 py-8 text-body-sm text-ink-3">
+      <p>FairFold — AI-powered, explainable recruitment.</p>
+      <p class="mt-1">
+        <a href="/privacy/" class="underline">Privacy policy</a> ·
+        <a href="/terms/" class="underline">Terms</a>
+      </p>
+    </div>
+  </footer>
+  {% endblock %}
+
+  <script src="{% static 'js/htmx.min.js' %}" defer></script>
+
+  {# Chart.js is loaded ONLY on pages that draw a chart (design.md §11.4).
+     It is ~60 KB gzipped, which is the single largest asset in the product, and
+     the target market is on mid-range connections. #}
+  {% block scripts %}{% endblock %}
+
+  <script>
+    // htmx CSRF wiring. HTMX does not read Django's CSRF cookie on its own, so
+    // every POST from an hx-* element would fail with 403 -- a failure that looks
+    // like a broken endpoint rather than a missing header.
+    document.body.addEventListener('htmx:configRequest', function (event) {
+      const token = document.querySelector('meta[name="csrf-token"]');
+      if (token && !event.detail.verb.toUpperCase().match(/^(GET|HEAD|OPTIONS|TRACE)$/)) {
+        event.detail.headers['X-CSRFToken'] = token.content;
+      }
+    });
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

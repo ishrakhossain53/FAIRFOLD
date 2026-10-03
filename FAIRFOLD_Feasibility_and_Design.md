@@ -2794,7 +2794,7 @@ The second one is the more interesting: the ER diagram and the `CREATE TABLE` di
 and both were previously described as verified. A diagram is prose with boxes. The DDL is
 the artefact.
 
-### 5.8 Readiness status — re-checked 2026-10-03
+### 5.8 Readiness status — re-checked 2026-10-04
 
 **Question asked: can Phase 1 start today?** Answered against the tree as it stands, not
 from memory. Re-run `scripts/verify_docs.py`, `scripts/verify_bias_set.py`,
@@ -2804,20 +2804,29 @@ from memory. Re-run `scripts/verify_docs.py`, `scripts/verify_bias_set.py`,
 
 Both first-hour blockers are closed (§5.5). There is no orange item, no contradiction
 between documents, and no figure that fails to reconcile against the SQL. **Work can begin
-today.**
+today.** As of 2026-10-04 the scaffold the build needs also exists — `manage.py`, `config/`
+with four settings modules, eleven app packages, the seed command, and the frontend build
+files — so "start development" is no longer a documentation exercise.
 
 #### What remains, grouped by what it actually costs
 
 | Group | Items | Blocks the build? |
 |---|---|---|
-| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); 26 pages specified but not wireframed (`design.md` §10.6); dark mode, Bengali UI, score-band thresholds | No — these *are* Phases 2–3 |
+| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); the 24 tables are DDL but no Django model exists yet; dark mode, Bengali UI, score-band calibration | No — these *are* Phases 1–3 |
 | **Assumptions, with test dates** | `ASM-001` (scope, end of Phase 1), `ASM-002` (double shifts, end of Phase 2), `ASM-003` (AI capacity, end of Phase 1) | No — each has a stated test date and fallback |
 | **Decisions taken, not fixed** | `LIM-003` no Bengali term list · `GAP-001` no bare adjectives | No — recorded with residual risk |
 | **Needs a person** | `RSK-011` trademark search + class 42/35 filing · SCCs / cross-border transfer (`prd.md` §19.1 item 4) | No — legal, and both before launch |
-| **Needs a designer** | `design.md` §12 items 1–4 (Figma, components, hi-fi), 7–8 (logo, icons), 10 (usability test plan), 11 (screens for §7.11/§7.12) | No — content decisions are recorded as text |
+| **Needs a designer** | `design.md` §12 items 1–4 (Figma, components, hi-fi), 7–8 (logo, icons), 10 (usability test plan) | No — content decisions are recorded as text |
 | **Low-severity open** | `LIM-004` substring matching has no word boundaries | No |
 
-#### Three things this section deliberately does not claim
+> **The wireframes are no longer on this list.** `design.md` §10.6 previously listed "26 pages
+> specified but not wireframed"; all **62** pages now carry a wireframe (52 in total: 18 `S`,
+> 5 `X`, 29 `W`), including the four screening-integrity components that had only specs.
+> `scripts/verify_docs.py` §11 fails if any page row's wireframe cell is blank, so the claim
+> is checked rather than asserted. What is still outstanding is *Figma* and *hi-fi*, which
+> are `design.md` §12 items 1–4 — a different thing from having no wireframe.
+
+#### Four things this section deliberately does not claim
 
 1. **"Complete" means the documentation is internally consistent and executable** — not
    that the product is designed. Design judgement is `design.md`'s job and most of it is not
@@ -2830,6 +2839,12 @@ today.**
    questions *in advance* so nobody can later describe a result that was never collected.
    **No interview, survey or concept test has happened.** Every requirement traced to local
    evidence in §1.2.2 is tagged **[Illustrative]**, and that tag is still accurate.
+4. **The scaffold is not a running system.** No Django model exists, so `manage.py migrate`
+   creates zero tables and no endpoint responds. The scaffold's value is that a first
+   `manage.py check` is an import-and-config check rather than a from-scratch setup — it has
+   **not been executed**, because Django is not installed in this environment and installing
+   it is a side effect that was not authorised. **Treat "the scaffold is correct" as an
+   unverified claim until CI runs it.**
 
 #### The one number that would change the verdict
 

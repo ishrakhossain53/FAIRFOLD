@@ -18,18 +18,27 @@ Started from an initial documentation-only commit (`6c2632e Initial commit`, the
 **The repository held documentation only until commit `0711081` and its successors.** The
 first source file is `ai/bias_pass.py`, added 2026-10-03 (§2.28), with
 `ai/__init__.py` and `tests/bias/test_bias_pass.py`. It is deliberately dependency-free.
-Everything else in the tree is specifications, requirements, and supporting configuration.
+
+**As of 2026-10-04 the tree is a runnable scaffold** (§2.30): `manage.py`, `config/` with four
+settings modules, eleven app packages, `core/` helpers, the `seed` command, the frontend build
+files, `pyproject.toml`, `bandit.yaml` and a pytest `conftest.py`. **No Django model exists yet** —
+the 24 tables are still DDL in Arch Doc §5.1 — so `migrate` creates zero tables and no endpoint
+responds. The value of the scaffold is that a first `manage.py check` tests import and config
+rather than starting from nothing.
+
+⚠️ **It has not been executed.** Django is not installed in the environment where it was
+written, so "the scaffold is correct" is unverified until CI runs `manage.py check`.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `FAIRFOLD_Complete_Project_Document.md` | 2245 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2324 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `FAIRFOLD_Complete_Project_Document.md` | 2310 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2330 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
 | `prd.md` | 1240 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 1418 | Supplement — UI design system, 62 page specifications, 23 wireframes, frontend build tooling, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2850 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 246 | Project overview, documentation index, setup |
-| `.env.example` | 143 | 25 environment variables, all placeholders |
-| `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
+| `design.md` | 2454 | Supplement — UI design system, 62 page specifications, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
+| `FAIRFOLD_Feasibility_and_Design.md` | 2865 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+| `README.md` | 283 | Project overview, documentation index, setup |
+| `.env.example` | 158 | Environment variables, all placeholders |
+| `requirements.txt` / `requirements-dev.txt` | 64 / 25 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
 **Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24 and §2.25):
@@ -1046,6 +1055,108 @@ documents, and no figure that fails to reconcile against the SQL. Full breakdown
 deliberately does not claim — chiefly that **the validation plan has never been run**, so
 every requirement traced to local evidence stays tagged **[Illustrative]**.
 
+### 2.30 The scaffold, the last wireframes, and the validation instrument
+
+Four items closed. Three of them were documented as gaps; the fourth was not on any list,
+which is the interesting one.
+
+#### 1. The Django scaffold now exists
+
+Not a code sample in a document — actual files: `manage.py`, `config/` with four settings
+modules, eleven app packages, `core/` helpers, the seed command, the frontend build files,
+`pyproject.toml`, `bandit.yaml` and a pytest `conftest.py`.
+
+**Three decisions in it are worth more than the code:**
+
+- **No `config/settings/test.py`.** SQLite has no pgvector, so a SQLite test module would let
+  the embedding and screening tests pass on a database that cannot represent a vector, then
+  fail in production. Every test uses `config.settings.ci` against real PostgreSQL. The README
+  previously listed a `test.py` that did not exist and should not.
+- **`env_bool` raises on an unrecognised literal.** `bool("False")` is `True` in Python, so a
+  permissive parser switches a security flag *on* exactly when someone meant to switch it off.
+- **Production asserts instead of defaulting.** `production.py` is deliberately longer than
+  `local.py`: a setting absent from a production module silently keeps its base value, and
+  "I thought I turned that off" is a bug class a short file encourages.
+
+**`ai/` stays Django-free.** `bias_pass.py` and `bias_audit.py` need no settings module, which
+is what lets `pytest tests/bias/` run with infrastructure down. `config/__init__.py` importing
+Celery does *not* touch `ai/`.
+
+#### 2. Writing the settings exposed a contradiction in `.env.example`
+
+The upload path **fails closed** — a resume is rejected when ClamAV is unreachable, stated in
+five documents. `.env.example` marked `CLAMD_HOST`/`CLAMD_PORT` **OPTIONAL and commented out**.
+
+Those cannot both be true. With no host configured, **every resume upload would be rejected**
+and nothing in the logs would distinguish "the product is broken" from "the environment is
+not configured". The variables are now **required and uncommented**, and the note says there is
+deliberately no switch to disable the scan — a variable that turns the scanner off is one
+someone will set during an incident, and an unscanned upload is unrecoverable once parsed.
+
+#### 3. Three tables named in §C.8.3 do not exist
+
+§C.8.3 seeded a `score_bands` table and "reference tables" for countries and industries.
+**§5.1 has neither** — of the four seeds only `skills` and Django's own `auth_group` are real
+tables.
+
+**No tables were added.** Nothing joins to those values, no user edits them at runtime, and
+schema designed to match a fixture list rather than to a requirement is how a 24-table schema
+becomes a 27-table one nobody chose. They are constants in `core/reference.py`, validated from
+the seed command, with the trigger for revisiting recorded: **when the bands are calibrated,
+move them to a table.** A threshold change needs a deploy, which is right while the bands are
+provisional and wrong once they are not.
+
+Writing `validate()` then caught my own error: `strong_match` was on both the lowest and the
+highest band. A duplicate label means one score gets two names, which is the ambiguity
+`REQ-FR-031` exists to prevent.
+
+#### 4. All 62 pages have a wireframe, and the four integrity components do too
+
+**`W01`–`W25`** cover the 26 pages that previously had only a written spec. **`W26`–`W29`**
+cover what §12 item 11 still owed: the Override Reason Dialog in both directions, all four
+Assessment Gate Pill states with the blocked-action tooltip, the `not_matched` empty state, and
+the gate panel with the three employer options.
+
+Two things about the numbering, both deliberate. **`W` restarts rather than continuing from
+`S18`**, because renumbering the originals would break every existing reference across four
+documents in exchange for tidier identifiers. **`W08` serves two pages** (#31 and #48 messages)
+because they are one conversation surface from opposite sides of the match, and drawing it
+twice produces two layouts that drift apart.
+
+**I claimed two of the four components were covered by `S12`/`S13`. Grepping those blocks found
+no `not_matched` state and no gate panel** — `S12`/`S13` predate the components. I had inferred
+coverage from the requirement column rather than read the wireframe. The correction is kept in
+the record, and the four were drawn.
+
+#### 5. `verify_docs.py` §11 — and it was blind in the same way as before
+
+A new check asserts all 62 page rows name a wireframe and no reference dangles. Negative-tested:
+blanking a cell fails, referencing an undrawn id fails.
+
+**Extending it exposed that the line-count check had been quietly skipping short files.** Its
+regex demanded three or more digits, so a row claiming `.env.example` is 157 lines was never
+compared at all — `target not in actual_lengths` simply continued. Three stale counts had been
+sitting there the whole time. Fixed to `{1,5}` plus an explicit non-markdown file list; the
+moment it worked it found a fourth.
+
+That is the **fourth** checker in this project whose first version looked fine and was not.
+
+#### 6. The validation instrument is built; the results are not
+
+`validation/` holds the consent form, the interview guide, the survey and a results log. §1.3.4
+fixed the sample size and questions *in advance* so nobody can later describe a result that was
+never collected. **Nothing has been run. No interview, survey or concept test has happened.**
+
+#### ⚠️ What is not verified
+
+**The scaffold has never been executed.** Django is not installed in this environment and
+installing it is a side effect I did not have authorisation for. Every file parses, `node
+--check` passes on the Tailwind config, `package.json` and `pyproject.toml` all load, and
+`core.reference.validate()` executes — but **"the scaffold is correct" is an unverified claim
+until CI runs `manage.py check`.** Treating "it parses" as "it boots" is exactly the mistake
+this log keeps catching in other places.
+
+
 ---
 
 ## 3. Gap status
@@ -1054,7 +1165,7 @@ every requirement traced to local evidence stays tagged **[Illustrative]**.
 | --- | --- | --- |
 | **A** — Requirement collection method | ❌ blocking | ✅ **closed** — Feasibility §1.3, `prd.md` §3.4, tagged [Done]/[Illustrative]/[Planned] (§2.20). Validation plan stays **[Planned]** until actually run |
 | **B** — Real-world problem example | ❌ missing | ✅ **closed** — Amazon 2018 primary + iTutorGroup / HireVue / Mobley + 3 BD sources (§2.20). *Mobley* needs re-verification before public citation |
-| **C** — Wireframes | ❌ none at all | ✅ **complete for low fidelity** — 23 wireframes, all 18 screens, all 22 core-flow pages. Figma and hi-fi still open |
+| **C** — Wireframes | ❌ none at all | ✅ **complete for low fidelity** — 52 wireframes (18 `S` + 5 `X` + 29 `W`) covering **all 62 pages**, including the four screening-integrity components (§2.30). Figma and hi-fi still open |
 | **D** — GAP-1 / GAP-2 | ⚠️ documented, no FR | ✅ **closed** — `REQ-FR-042`/`043` in the Arch Doc |
 | **E** — Round-2 page gaps | *(not previously found)* | ✅ **closed** — `REQ-FR-044`–`050`, 7 stories added (§2.12, §2.13) |
 | **F** — Gantt dates | 🟡 ran backwards | ✅ **re-based** to kickoff 2026-10-05 (§2.16) |
@@ -1185,11 +1296,20 @@ rather than compress. Tracked as **gap S**.
 
 Content decisions are recorded as text, which briefs a build. Not started: the Figma file
 and components (items 1–2), high-fidelity mockups (4), the interactive Journey Map
-prototype (5), logo and icon sets (7–8), notification copy (9), usability test plan (10),
-and screens for the two new screening-integrity components (11).
+prototype (5), logo and icon sets (7–8), notification copy (9), usability test plan (10).
 
-26 pages have a spec but no wireframe (`design.md` §10.6) — including **#31 and #48, the
-two messaging pages**, so `REQ-FR-043` has no drawing even though the requirement exists.
+> **Item 11 closed 2026-10-04 (§2.30).** The two new screening-integrity components, the
+> `not_matched` filter state on #40 and the gate panel on #41 now have drawings (`W26`–`W29`).
+
+**This section previously said "26 pages have a spec but no wireframe", including #31 and #48,
+so `REQ-FR-043` had no drawing.** That is no longer true: all 62 pages carry a wireframe, and
+`verify_docs.py` §11 fails the build if any of the 62 page rows has a blank wireframe cell or
+references an id with no drawing. **What is still open is Figma and hi-fi — a different thing
+from having no wireframe**, and the distinction is worth keeping: an ASCII wireframe is a
+build brief, a hi-fi mockup is a design artefact.
+
+⚠️ And the honest limit: "has a wireframe" does not mean "is buildable". A layout proven only
+in a monospace grid can still fail at implementation, which is why §4.6 stays 🟡 and not ✅.
 
 ### 4.7 🟢 Remaining design decisions — `design.md` §12
 
@@ -1238,6 +1358,8 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
+(new)   feat: scaffold the Django project, close the last wireframe gap, and fix two contradictions
+2e855a8  feat: bias set v1.0.1 with the numeric rule layer; readiness re-check
 8e67148  feat: implement the deterministic bias pass, and decide LIM-003 and GAP-001
 0711081  test: author the v1.0.0 bias test set, 76 cases across all ten categories
 736ccd6  docs: specify the bias test set, decide REQ-FR-050, and add a docs checker

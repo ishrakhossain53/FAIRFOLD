@@ -456,25 +456,58 @@ def check_line_counts(r: Result, docs: dict[str, str]) -> None:
     # claim to the containing file's own length, and therefore passed while five
     # counts were stale.
     actual_lengths = {name: len(text.splitlines()) for name, text in docs.items()}
+    # Non-markdown files the docs also quote lengths for. `docs` only holds the
+    # seven .md files, so without this a row naming `requirements.txt` was
+    # skipped -- silently, because `target not in actual_lengths` simply
+    # `continue`s. The earlier version of this regex also required three or more
+    # digits, which skipped every short file for the same reason.
+    for extra in (".env.example", "requirements.txt", "requirements-dev.txt"):
+        path = ROOT / extra
+        if path.exists():
+            actual_lengths[extra] = len(path.read_text(encoding="utf-8").splitlines())
 
     stale = []
     checked = 0
+    # `{1,5}` not `{3,5}`: a two-digit count is a legitimate claim about a short
+    # file, and excluding them hid three stale rows at once.
+    pattern = re.compile(
+        r"^\|\s*`?([A-Za-z0-9_.\-]+\.(?:md|txt|example))`?\s*\|\s*(\d{1,5})\s*(?:/\s*(\d{1,5})\s*)?\|",
+        re.M,
+    )
     for holder, text in docs.items():
-        for m in re.finditer(r"^\|\s*`?([A-Za-z0-9_.\-]+\.md)`?\s*\|\s*(\d{3,5})\s*\|", text, re.M):
-            target, claimed_s = m.group(1), int(m.group(2))
+        for m in pattern.finditer(text):
+            target = m.group(1)
             if target not in actual_lengths:
                 continue
             checked += 1
+            line_no = text[: m.start()].count("\n") + 1
+
+            # A combined cell like "`requirements.txt` / `requirements-dev.txt`
+            # | 64 / 25" names two files in one row; check both halves against
+            # the right file rather than against whichever name matched first.
+            if target == "requirements.txt" and m.group(3):
+                for named, claimed_s in (
+                    ("requirements.txt", m.group(2)),
+                    ("requirements-dev.txt", m.group(3)),
+                ):
+                    actual = actual_lengths.get(named)
+                    if actual is not None and int(claimed_s) != actual:
+                        stale.append(
+                            f"{holder}:{line_no} says {named} is {claimed_s}, actually {actual}"
+                        )
+                continue
+
             actual = actual_lengths[target]
-            if claimed_s != actual:
-                line_no = text[: m.start()].count("\n") + 1
-                stale.append(f"{holder}:{line_no} says {target} is {claimed_s}, actually {actual}")
+            if int(m.group(2)) != actual:
+                stale.append(
+                    f"{holder}:{line_no} says {target} is {m.group(2)}, actually {actual}"
+                )
     r.check(not stale, f"line counts in file tables are current ({checked} claim(s) checked)",
             "; ".join(stale) or "all current")
 
 
 def check_diagrams(r: Result) -> None:
-    section("11. Mermaid")
+    section("12. Mermaid")
 
     harness = Path("/tmp/mmv2/check.mjs")
     feas = (ROOT / FEAS).read_text(encoding="utf-8")
@@ -484,6 +517,64 @@ def check_diagrams(r: Result) -> None:
         r.note(f"parse harness at {harness} -- run `cd /tmp/mmv2 && node check.mjs` for the real parse")
     else:
         r.note("mermaid parse harness not present in this environment; run it manually")
+
+
+def check_wireframes(r: Result) -> None:
+    section("11. Wireframe coverage (design.md)")
+
+    design = (ROOT / DESIGN).read_text(encoding="utf-8")
+
+    # Every page row in the §10.0 tables carries a wireframe reference in its last
+    # column. A blank there is a page specified in prose and never drawn, which is
+    # exactly the state §10.6 used to describe for 26 pages -- so the claim "all
+    # 62 pages have a wireframe" has to be checked rather than asserted.
+    pages: dict[int, str] = {}
+    in_table = False
+    for line in design.splitlines():
+        if line.startswith("| # | Page"):
+            in_table = True
+            continue
+        if not line.startswith("|"):
+            in_table = False
+            continue
+        if set(line.replace("|", "").strip()) <= set("-: "):
+            continue
+        if not in_table:
+            continue
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) < 8 or not cells[0].isdigit():
+            continue
+        pages[int(cells[0])] = cells[7]
+
+    r.check(
+        len(pages) == 62,
+        f"62 page rows in design.md §10.0 (found {len(pages)})",
+        f"{len(pages)} found",
+    )
+
+    blanks = [p for p, w in sorted(pages.items()) if w in ("", "-", "—")]
+    r.check(
+        not blanks,
+        "every page row names a wireframe",
+        f"no wireframe: pages {blanks}" if blanks else "all 62 named",
+    )
+
+    # Every id referenced in a page row must have a matching `#### <id> ·` heading.
+    # A dangling reference renders as a link to nothing and is invisible on the page.
+    referenced = {w for w in pages.values() if re.fullmatch(r"[SWX]\d{2}", w)}
+    defined = set(re.findall(r"^#### ([SWX]\d{2}) · ", design, re.M))
+    dangling = sorted(referenced - defined)
+    r.check(
+        not dangling,
+        f"every referenced wireframe has a drawing ({len(referenced)} referenced)",
+        f"dangling: {dangling}" if dangling else "none dangling",
+    )
+
+    orphans = sorted(defined - referenced)
+    r.note(
+        f"{len(defined)} wireframes defined, {len(referenced)} referenced by a page row"
+        + (f"; unreferenced: {orphans}" if orphans else "")
+    )
 
 
 def main() -> int:
@@ -503,6 +594,7 @@ def main() -> int:
     check_placeholders(r, docs)
     check_line_counts(r, docs)
     check_diagrams(r)
+    check_wireframes(r)
 
     print("\n" + "=" * 60)
     if r.failures:

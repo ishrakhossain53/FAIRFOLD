@@ -195,11 +195,21 @@ The original proposal included Rust/Actix for "high-performance components." Aft
 
 ```
 fairfold/                   # repository root
+├── manage.py               # Django entrypoint; defaults to config.settings.local
 ├── config/                 # Django PROJECT package (not an app)
-│   ├── settings/           # base, local, test, ci, production
-│   ├── urls.py
-│   └── wsgi.py
-├── core/                   # Shared utilities, middleware, security
+│   ├── settings/           # base, local, ci, production  (NO test module — see note)
+│   ├── urls.py             # root URLconf; mounts /api/v1/ and the app prefixes
+│   ├── wsgi.py
+│   ├── celery.py           # Celery app; imported by config/__init__.py
+│   └── asgi.py
+├── core/                   # Shared utilities, middleware, security, reference data
+│   ├── middleware.py       # RequestIDMiddleware — the correlation ID in every log line
+│   ├── logging.py          # RequestIDFilter — without it every record fails to format
+│   ├── exceptions.py       # DRF handler; a 500 body never carries the exception text
+│   ├── pagination.py       # page_size ceiling of 100 (a data-exfiltration path)
+│   ├── reference.py        # score bands, countries, industries (NO tables — see §C.8.3)
+│   ├── fixtures/           # groups.json, skills.json
+│   └── management/commands/seed.py
 ├── accounts/               # User model, auth, RBAC, profiles
 ├── candidates/             # Candidate dashboard, journey mapping, assessments
 ├── employers/              # Employer dashboard, job postings, screening
@@ -208,15 +218,30 @@ fairfold/                   # repository root
 ├── interviews/             # Interview scheduling, AI-generated Q packs
 ├── notifications/          # Email, in-app notifications
 ├── api/                    # DRF API root, versioning
-├── admin/                  # Custom admin for super-admin operations
 ├── journey/                # AI-Powered Professional Journey Mapping (MVP feature)
 ├── ai/                     # AI provider abstraction (OpenRouter + fallback)
 ├── templates/              # Django templates (base.html, components/, public/, candidate/, employer/, admin/)
 ├── static/                 # css/tokens.css, css/tailwind.src.css, css/tailwind.css (built), js/
+├── tests/                  # pytest root — NOT per-app tests.py (see pyproject.toml)
+├── scripts/                # verify_docs.py, verify_bias_set.py, verify_bias_pass coverage
+├── tests/bias/v1.0.0/      # versioned bias fixtures + manifest
 ├── package.json            # Frontend build tooling — build-time only (design.md §11.2)
 ├── tailwind.config.js      # Maps the design tokens onto Tailwind utility names
-└── postcss.config.js       # PostCSS plugins, if the Tailwind CLI is invoked through PostCSS
+├── pyproject.toml          # black, isort, mypy, pytest config (CI reads this)
+└── bandit.yaml             # bandit skips, each with its reason written out
 ```
+
+> **There is no `config.settings.test`, deliberately.** `.env.example` states that SQLite has
+> no pgvector, so a SQLite test module would let the embedding, ranking and screening tests
+> pass on a database that cannot represent a vector — and fail in production. **Every test
+> uses `config.settings.ci`** against real PostgreSQL. The CI `test` role likewise uses
+> `cached_db`, and `CELERY_TASK_ALWAYS_EAGER` is **off** there too: eager Celery hides exactly
+> the serialisation bugs the integration tests exist to catch.
+
+> **`admin` was dropped from the app list.** The earlier tree had a custom `admin/` app, but
+> Arch Doc §6.5 mounts Django's own admin at `/django-admin/`, and §10.0 pages #55–#62 are
+> custom screens, not Django admin pages. Two admins would mean two places to grant a
+> super-user role and no way to tell from a URL which one is in use.
 
 > **Naming resolved 2026-10-03.** This tree previously had no `config/` entry and
 > implied the Django project package was `fairfold/`, while `.env.example`, the CI
@@ -241,10 +266,25 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 ```
+
+> **`SECURE_BROWSER_XSS_FILTER` removed 2026-10-04.** Django 5 **deleted** this setting, so
+> the line above would raise `ImproperlyConfigured` on boot — the single most expensive way to
+> ship a settings block. It is also not worth reinstating: the header it set
+> (`X-XSS-Protection: 0`) is deprecated and ignored by every current browser, and its historical
+> failure mode was *introducing* vulnerabilities in older ones.
+>
+> **The real defence is the CSP**, which is `default-src 'self'` with no third-party script host
+> (§C.9) — and that only holds because the Tailwind CDN was dropped in favour of
+> `npm run build` (design.md §11.2). `script-src` without `unsafe-inline` is what makes an
+> injected `<script>` fail; the XSS filter header never did that reliably.
+
+`config/settings/base.py` implements this block through `env()` helpers rather than an
+`env()` function on a third-party library, for one reason: `env_bool` **raises** on an
+unrecognised literal. `bool("False")` is `True` in Python, so a permissive parser turns a
+disabled security flag on exactly when someone meant to turn it off.
 
 ---
 
@@ -1404,8 +1444,26 @@ idempotent on `loaddata`:
 |---|---|---|---|
 | Django auth groups | `auth_group` | `core/fixtures/groups.json` | Role checks (`employer_hr`, `employer_admin`, `interviewer`) run on every permission test. Hard-coded role strings in Python would be a second source of truth |
 | Skill taxonomy | `skills` | `core/fixtures/skills.json` | Stage-1 matching filters on `skills`; a candidate with no recognised skills cannot be scored, and the bias audit compares categories that come from this table |
-| Score bands | `score_bands` (or a config row) | `core/fixtures/score_bands.json` | `design.md` §3.4 bands are "proposed" and explicitly need a calibrated model, so they are **seeded as provisional and owned by one file** — changing a threshold is then a fixture edit, not a code hunt |
-| Countries / industries | reference tables | `core/fixtures/reference.json` | Job filters and forms fail on an empty select |
+| Score bands | **no table** — see note | `core/reference.py` (`SCORE_BANDS`) | `design.md` §3.4 bands are "proposed" and explicitly need a calibrated model, so they are **provisional and owned by one file** |
+| Countries / industries | **no table** — see note | `core/reference.py` (`COUNTRIES`, `INDUSTRIES`) | Job filters and forms fail on an empty select |
+
+> **Correction 2026-10-04.** This table previously named a `score_bands` table and
+> "reference tables" for countries and industries. **Neither exists in §5.1.** Only
+> `skills` and Django's own `auth_group` are tables. No tables were added to close the gap,
+> deliberately: nothing joins to these values, no user edits them at runtime, and schema
+> designed to match a fixture list rather than to a requirement is how a 24-table schema
+> becomes a 27-table one nobody chose.
+>
+> Score bands, countries and industries are therefore **constants in `core/reference.py`**,
+> checked by `reference.validate()` from the seed command — so an empty list or a gap
+> between two bands fails at `manage.py seed` rather than rendering an empty `<select>`.
+> The trade-off is stated in that module: a threshold change needs a deploy, which is right
+> while the bands are uncalibrated and wrong once they are. **If the bands are later
+> calibrated, move them to a table** — that is the trigger for revisiting this decision.
+>
+> `manage.py seed` also warns on every run that the bands are uncalibrated, because a
+> "Consider for interview" label above an unvalidated threshold is a claim the product
+> cannot back (`REQ-FR-031`).
 
 **What is deliberately not seeded.** Employers, candidates, jobs, applications and resumes
 come from `factory-boy` in tests and from real use in production. Seeding demo rows into a
@@ -1415,7 +1473,14 @@ production-shaped database is how a "test employer" ends up holding a real emplo
 (`python manage.py seed --demo=false`), wired into the compose entrypoint and run after
 `migrate` in CI, so a CI database and a developer's database have identical reference
 data. `--demo=true` adds clearly-fake sample rows for local UI work and **refuses to run
-when `DEBUG=False`**.
+when `DEBUG=False`** — a refusal, not a warning, because demo rows in a production-shaped
+database are how a "test employer" ends up holding a real employer's data.
+
+**What the seed command asserts.** A missing fixture file is a hard error (it means a bad
+checkout, not an empty database). After loading it asserts all four roles exist — a missing
+group surfaces as `PermissionDenied` in an unrelated test, which points at the test rather
+than at the seed. Extra groups are warned about, not refused: an admin may have added a
+role deliberately.
 
 **Data migrations:** Custom Django data migration scripts for:
 - PII re-encryption key rotation (every 90 days): Re-encrypt all `EncryptedCharField` values with new key via Celery background task; old keys retained for 30 days for recovery

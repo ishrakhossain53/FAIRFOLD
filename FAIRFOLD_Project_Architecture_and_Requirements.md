@@ -1518,6 +1518,12 @@ jobs:
         # and those figures had already drifted twice (34 -> 35 FKs, 212 -> 217 points)
         # plus a live team-size figure in an ADR that an earlier pass had missed. Reading
         # the docs does not catch that; running the checker does.
+        #
+        # Section 11 additionally asserts that every one of design.md's 62 page rows
+        # names a wireframe and that no reference dangles. That check exists because
+        # "26 pages are not wireframed" was true for months and only one reader
+        # noticed, which is the failure mode a status line in a document cannot
+        # prevent and a failing command can.
         run: python3 scripts/verify_docs.py
 
       - name: Bias test set consistency check
