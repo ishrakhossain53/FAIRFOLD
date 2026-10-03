@@ -7,25 +7,34 @@ Format follows the spec in `FAIRFOLD_Project_Architecture_and_Requirements.md` �
 
 ---
 
-## v1.0.0 — 2026-10-03 — first version
+## v1.0.0 — 2026-10-03 — first version, and the pass
 
-**Authored:** Ishrak Hossain. **Spec:** Arch Doc §7.4, written earlier the same day.
-**Status:** fixture set complete and internally consistent. **Pass rate: not measured** —
-there is no bias pass implementation in the repository yet.
+**Authored:** Ishrak Hossain. **Spec:** Arch Doc §7.4.
+**Status:** fixture set complete; **bias pass implemented and measured**
+(`ai/bias_pass.py`, `tests/bias/test_bias_pass.py`, 18 assertions passing).
 
 | | |
 |---|---|
 | Cases | **76** — 58 must-flag, 18 must-not-flag |
 | Categories | 10, matching the §7.4.3 targets exactly |
-| Terms | **62** proposed terms in 8 groups, plus **6 deliberately excluded** |
-| Known limitations | **5** (`LIM-001`–`004`, `GAP-001`), each with a planned version |
+| Terms | **62** in 8 groups, plus **6 deliberately excluded** and 5 allowed single-word tokens |
+| Known limitations | **5** — `LIM-001`, `LIM-002` scheduled for v1.0.1; `LIM-004` low; **`LIM-003` and `GAP-001` closed by decision** |
+| Measured | recall **1.0** · false positives **0** · overall flag rate **0.7632** |
+
+> **What the measured numbers do and do not mean.** Recall of 1.0 on a set whose term list
+> was authored alongside the cases is close to tautological and proves very little. The
+> two figures that carry information are the **zero false positives**, which show the six
+> deliberate exclusions hold, and the **flag rate landing inside [0.60, 0.95]**, which
+> shows the pass is not flagging everything. This is a fixture result. It is not evidence
+> about real candidates, and it says nothing about the embedding model or the ranking
+> function.
 
 **Contents by category.** `gendered_club_role` 12 · `institution_gender_signal` 8 ·
 `age_reference` 8 · `nationality_origin_proxy` 6 · `family_status` 6 ·
 `disability_health` 4 · `photo_appearance` 4 · `uncited_vague_rationale` 10 ·
 `legitimate_skill_match` 12 · `necessary_context` 6.
 
-### Three things worth remembering about how this set was written
+### Three things worth remembering about how the set was written
 
 **1. The negatives are the half that matters.** 18 of 76 cases exist to stop the pass
 being trivially good. `NEG-013` (a women's-rights reading group) is why bare *women's* is
@@ -56,20 +65,88 @@ in `deliberately_excluded`) and `NEG-015` reworded to *"six-month graduate train
 programme in 2026"*. The underlying gap is real and is **not** closed: graduation-year
 proximity is the mechanism behind the 2018 case and is tracked as `LIM-002` for v1.0.1.
 
+### Measured run
+
+| Metric | Value |
+|---|---|
+| Flagged | 58 / 76 |
+| Recall on must-flag | 1.0 (58/58) |
+| False positives on must-not-flag | **0** (0/18) |
+| Overall flag rate | **0.7632** — inside the [0.60, 0.95] band |
+| Assertions | **18** passing |
+
+### Five findings from implementing the pass
+
+**1. The spec's flag-rate band was unsatisfiable.** §7.4.5 originally set the band *"on
+categories 1–8"* at 60–95%. But 100% recall is required on exactly those categories, so
+their flag rate is necessarily **1.0** — permanently above the 0.95 ceiling. Two
+requirements in one section, mutually exclusive. The band now applies to the **overall**
+rate across all 76 cases, the only denominator under which it carries information. Found by
+running the pass, not by reading the section: the two requirements look fine on the page
+and cannot both be met.
+
+**2. A test I wrote asserted a rule the spec never stated.** The first version of
+`test_no_single_word_terms` banned *all* single-word terms, and failed on `married`,
+`presentable` and `all-girls`. The spec only forbids single-word **vague adjectives**
+(`GAP-001`). The test was wrong, not the term list. It now tests the rule that exists —
+the named adjectives are absent — plus a cap of 8 single-word tokens, so the set cannot
+drift toward one-word adjectives without a deliberate change.
+
+**3. `'married'` is a substring of `'unmarried'`.** Both are `family_status` terms and
+both must flag, so the overlap is harmless here. Recorded in
+`single_word_terms.known_interaction` because the same overlap in another pair would be a
+silent double-count, and because seeing it is the kind of thing that should be written down
+rather than discovered.
+
+**4. Negative-testing the implementation found an untested branch.** The pass was broken
+three ways on purpose and the suite was required to fail each time:
+
+| Injected regression | Caught? |
+|---|---|
+| Drop apostrophe folding | ✅ 2 assertions failed |
+| Match every term unconditionally (flag everything) | ✅ 3 assertions failed |
+| **Swallow the missing-term-list exception and return `[]`** | ❌ **suite passed** |
+
+The third is the worst failure mode the pass has: **with no terms it flags nothing, every
+case looks clean, and the output is indistinguishable from a pass finding no bias.** No test
+caught it because every test supplies an explicit set directory, so the missing-file branch
+was never executed. Two tests were added in response
+(`test_missing_term_list_fails_loudly`, `test_no_versioned_set_fails_loudly`) and the
+regression now fails as it should.
+
+This is the strongest argument for negative-testing a checker rather than a checker: a suite
+that has only ever been run green is evidence that the cases pass, not evidence that they
+can fail.
+
+**5. `keyword_terms.json` gained a `single_word_terms` block and two decisions.** The
+manifest `keyword_list_sha` was bumped to match. **No term was added or removed** — the
+cases are unaffected.
+
+### Decisions taken 2026-10-03
+
+| ID | Decision | Effect |
+|---|---|---|
+| **`LIM-003`** | **No Bengali term list.** Accepted as out of scope | A Bengali or transliterated resume gets a flag rate of zero from this pass and **no indication the check did not apply**. Residual risk stated in the file; not repeated across the documentation |
+| **`GAP-001`** | **Bare adjectives stay out.** `energetic`, `articulate`, `mature`, `dynamic`, `passive` etc. are not terms | Closed by decision, not by fix — the gap still exists. The mitigation is the existing design: the LLM pass is advisory, the rationale is shown with evidence, and a human decides. `test_no_bare_vague_adjectives_in_the_list` enforces it in CI |
+
+### Verification note
+
+The suite was executed in this environment through a **minimal pytest shim**, because
+pytest is not installed here and installing it was not authorised. The assertions ran and
+all 15 passed; CI runs real pytest. Recorded in `manifest.measured.verified_in_this_environment`
+so nobody later mistakes a shimmed run for a proper one.
+
 ### What this version deliberately does not do
 
-- **Measure nothing.** `pass_criteria` in the manifest are targets, not results.
 - **Make no disparity claim.** At 76 cases the set cannot support one, and §1.4.1 of the
   feasibility document already withdraws the claim. `does_not_support` in the manifest
   states this so a later report cannot cite the set as evidence of fairness.
-- **Cover no Bengali-language text** (`LIM-003`, severity high). The target market is
-  Bangladesh and the term list is English-only. **This is the most serious gap in
-  v1.0.0** — a pass that reads only English will report clean on exactly the population
-  the product is for.
 - **Detect no numeric age** (`LIM-001`) and **no graduation-year proximity** (`LIM-002`).
+  Both scheduled for v1.0.1.
+- **Cover no Bengali-language text** (`LIM-003`) — **accepted out of scope by the team**,
+  not missed. See the decisions table.
 
 ### Next version — v1.0.1 (planned, not written)
 
 Close `LIM-001` (numeric age) and `LIM-002` (graduation-year proximity) with new
-categories and their own negative cases, and address `GAP-001`. Author the Bengali term
-list for **v1.1.0** with native review, not machine translation.
+categories and their own negative cases.

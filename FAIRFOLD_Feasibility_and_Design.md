@@ -2747,7 +2747,7 @@ the canonical document's rule was applied and the stale one corrected.
 | # | Item | Owner |
 |---|---|---|
 | 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned, but a search is not a clearance | Legal / PM |
-| 4 | Phase 2 **versioned bias test set** — **✅ authored 2026-10-03**, `tests/bias/v1.0.0/`: 76 cases across all ten categories, validated in CI. ⬜ **The bias pass itself is still to be implemented and the pass rate is unmeasured.** ⚠️ `LIM-003`: the term list is **english-only** while the target market is Bangladesh — v1.1.0, needs native review | Ishrak |
+| 4 | ~~Phase 2 **versioned bias test set**~~ — ✅ **Authored, implemented and measured 2026-10-03.** 76 cases, `ai/bias_pass.py`, 15 CI assertions. Recall 1.0 · 0 false positives · flag rate 0.7632. Two decisions recorded: `LIM-003` no Bengali list (accepted out of scope), `GAP-001` bare adjectives stay out | Ishrak |
 | 5 | Cross-border data transfer (SCCs) and provider ToS — `prd.md` §19.1 item 4, still open | Legal / PM |
 | 6 | Figma file, components and hi-fi mockups (`design.md` §12 items 1–4) | UI/UX |
 | 7 | Screens for the two new components (§7.11, §7.12) — `design.md` §12 item 11 | UI/UX |

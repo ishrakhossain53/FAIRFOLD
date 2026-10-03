@@ -197,9 +197,26 @@ def main() -> int:
     r.check(all(e.get("caught_by") in {c["id"] for c in negative} for e in terms_doc.get("deliberately_excluded", [])),
             "every excluded term names a negative case that enforces the exclusion")
 
+    # Every known limitation must be ACCOUNTED FOR -- either scheduled for a
+    # version, or closed by an explicit decision. A limitation nobody has
+    # dispositioned is the failure this catches. It is not "every limitation
+    # needs a plan": a gap the team has consciously accepted has no plan, and
+    # demanding one would just invite a fake version number.
     lims = terms_doc.get("known_limitations", [])
-    r.check(all(l.get("planned") for l in lims),
-            f"all {len(lims)} known limitations have a planned version")
+    unaccounted = [
+        l.get("id", "?") for l in lims
+        if not (l.get("planned") or l.get("status"))
+    ]
+    r.check(not unaccounted,
+            f"all {len(lims)} known limitations are scheduled or closed by decision",
+            ", ".join(unaccounted) or "ok")
+
+    decided = [l for l in lims if l.get("status")]
+    if decided:
+        print(f"\n  NOTE  {len(decided)} of {len(lims)} limitations are closed by decision, "
+              f"not fixed: {', '.join(l['id'] for l in decided)}")
+        r.check(all(l.get("severity") for l in decided),
+                "every limitation closed by decision still records its severity")
 
     print("\n" + "=" * 60)
     if r.failures:
@@ -208,7 +225,17 @@ def main() -> int:
             print(f"  - {f}")
         return 1
     print("Bias test set is internally consistent.")
-    print("The pass rate remains UNMEASURED until a bias pass implementation exists.")
+    measured = manifest.get("measured")
+    if measured is False:
+        print("The pass rate remains UNMEASURED until a bias pass implementation exists.")
+    else:
+        print(
+            f"Manifest records a measured run of {measured['date']}: "
+            f"{measured['flagged']}/{measured['cases']} flagged, "
+            f"recall {measured['recall_must_flag']}, "
+            f"{measured['false_positives']} false positives."
+        )
+        print("Read measured.caveat before quoting those numbers.")
     return 0
 
 

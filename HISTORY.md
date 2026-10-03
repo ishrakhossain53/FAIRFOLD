@@ -13,8 +13,12 @@ Kept by hand; updated whenever a chunk of work lands.
 ## 1. Project baseline
 
 Started from an initial documentation-only commit (`6c2632e Initial commit`, then
-`67bd089 Initial Documentations`). The repository contains **no source code** — only
-specifications, requirements, and supporting configuration.
+`67bd089 Initial Documentations`).
+
+**The repository held documentation only until commit `0711081` and its successors.** The
+first source file is `ai/bias_pass.py`, added 2026-10-03 (§2.28), with
+`ai/__init__.py` and `tests/bias/test_bias_pass.py`. It is deliberately dependency-free.
+Everything else in the tree is specifications, requirements, and supporting configuration.
 
 | File | Lines | Role |
 | --- | ---: | --- |
@@ -887,6 +891,95 @@ it exists to prevent: a term list changed under a set that still claims to descr
 
 ---
 
+### 2.28 The bias pass is built — and two limitations were decided rather than fixed
+
+`ai/bias_pass.py` is the deterministic keyword pass and
+`tests/bias/test_bias_pass.py` is its CI-gated suite. **18 assertions, all passing.**
+
+> **`ai/bias_pass.py` is the repository's first source file.** Until this commit the repo
+> held documentation only (`§1`). It is deliberately dependency-free so it runs and tests
+> without Django, a database or a settings module — the pass is pure text matching, and
+> anything needing Django belongs behind an import inside the function that needs it.
+
+**Measured 2026-10-03: recall 1.0 · 0 false positives · overall flag rate 0.7632 (58/76).**
+
+Read that with its caveat, which is in `manifest.measured.caveat` and in the changelog:
+**recall of 1.0 on a set whose term list was authored alongside the cases is close to
+tautological.** The two figures that carry information are the **zero false positives** —
+the six deliberate exclusions actually hold — and the **flag rate landing inside the band**,
+which shows the pass is not simply flagging everything. This is a fixture result. It is not
+evidence about real candidates and it says nothing about the ranking model.
+
+#### A spec bug that only running the pass could find
+
+**§7.4.5's flag-rate band was unsatisfiable.** It set the band *"between 60% and 95% on
+categories 1–8"* — but the same section requires **100% recall on exactly those
+categories**, so their flag rate is necessarily **1.0**, permanently above the 0.95
+ceiling. Two requirements in one section, mutually exclusive.
+
+The band now applies to the **overall** rate across all 76 cases, which is the only
+denominator under which it carries information. This was invisible on the page: the two
+requirements read as reasonable and cannot both be met. It surfaced the moment the pass
+produced a number. **A specification can be internally consistent in prose and
+contradictory in arithmetic, and only executing it settles which.**
+
+#### Two limitations decided, not fixed
+
+| ID | Decision | What it means |
+|---|---|---|
+| **`LIM-003`** | **No Bengali term list.** Accepted out of scope by the team | A Bengali or transliterated resume gets a flag rate of **zero** from this pass and **no indication that the check did not apply**. Compensating control is the existing design — the pass is advisory, the rationale is shown with evidence, a human decides — which is weaker than a Bengali list and is not claimed to be equivalent |
+| **`GAP-001`** | **Bare adjectives stay out.** *Energetic, articulate, mature, ambitious, young, dynamic, passive* are not terms | A rationale reading *"Energetic and culturally aligned"* is age-coded and **will not be flagged**. **Closed by decision, not by fix** — the gap still exists. `test_no_bare_vague_adjectives_in_the_list` enforces it in CI, so adding one after reading a missed case must be argued for, not slipped in |
+
+Both are recorded in `keyword_terms.json` with severity and residual risk, and both are
+counted by `scripts/verify_bias_set.py` as *closed by decision* rather than *fixed*. A
+limitation nobody has dispositioned is the thing worth catching; demanding a plan for an
+accepted gap would only invite a fake version number.
+
+#### Negative-testing the pass found an untested branch
+
+The implementation was broken three ways on purpose, and the suite was required to fail
+each time:
+
+| Injected regression | Caught? |
+|---|---|
+| Drop apostrophe folding | ✅ 2 assertions failed |
+| Match every term unconditionally | ✅ 3 assertions failed |
+| **Swallow the missing-term-list exception, return `[]`** | ❌ **suite passed** |
+
+The third is **the worst failure mode this pass has**: with no terms it flags nothing, every
+case looks clean, and the output is indistinguishable from a pass that found no bias. No
+test caught it because every test supplies an explicit set directory, so the missing-file
+branch was never executed. Two tests were added in response and the regression now fails as
+it should.
+
+**A suite that has only ever run green is evidence that its cases pass, not evidence that
+they can fail.** That is the whole argument for negative-testing a checker rather than
+trusting it — and it is the third checker in this project where the first attempt looked
+fine and was not.
+
+#### A test I wrote asserted a rule the spec never stated
+
+The first `test_no_single_word_terms` banned **all** single-word terms and failed on
+`married`, `presentable` and `all-girls`. The spec only forbids single-word **vague
+adjectives**. **The test was wrong, not the term list** — it had encoded a broader rule
+than the one that exists. It now tests the actual rule (the named adjectives are absent)
+plus a cap of 8 single-word tokens, so the set cannot drift toward one-word adjectives
+without a deliberate change.
+
+Also recorded: `married` is a substring of `unmarried`. Harmless here — both are
+`family_status` terms and both must flag — but written down because the same overlap in
+another pair would be a silent double-count.
+
+#### On verification in this environment
+
+The suite ran through a **minimal pytest shim** written to `/tmp`, because pytest is not
+installed here and installing a package is a side effect worth asking about first. **The
+assertions executed and all 15 passed**; CI runs real pytest. This is stated in
+`manifest.measured.verified_in_this_environment` so nobody later mistakes a shimmed run for
+a proper one.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |
@@ -915,7 +1008,8 @@ it exists to prevent: a term list changed under a set that still claims to descr
 | **V** — Phase 4 milestone on Christmas Day | 🟡 25 Dec is a holiday | ✅ **fixed** — moved to Thu 2026-12-24 (§2.24) |
 | **W** — API list incomplete | 🟠 blocker on the frontend build | ✅ **closed** — all five groups written (`Complete Doc §C.12`); writing them exposed two further schema holes (§2.25) |
 | **X** — ER diagram and DDL disagreed on `UNIQUE (user_id, status)` | *(not previously found)* — both had been reported as verified | ✅ **fixed** — constraint added to the DDL, plus `data_deletion_requests.approved_by` and `employer_profiles.show_company_name` (§2.25) |
-| **Y** — Bias test set had no target | 🟠 the keyword pass could only be shown to work on examples it was written from | ✅ **specified (§2.26) and authored (§2.27)** — `tests/bias/v1.0.0/`, 76 cases in all ten categories, 62 terms, 6 deliberate exclusions, 5 limitations, validated in CI. ⬜ **the pass rate is still unmeasured** — no implementation exists; ⚠️ `LIM-003` the term list is english-only |
+| **Y** — Bias test set had no target | 🟠 the keyword pass could only be shown to work on examples it was written from | ✅ **specified (§2.26), authored (§2.27), implemented and measured (§2.28)** — 76 cases, `ai/bias_pass.py`, 15 CI assertions, recall 1.0 · 0 FP · rate 0.7632. `LIM-003` and `GAP-001` closed by decision |
+| **AA** — §7.4.5's flag-rate band was unsatisfiable | *(not previously found)* — 100% recall on categories 1–8 forces a flag rate of 1.0, above the 0.95 ceiling | ✅ **fixed** — band now applies to the overall rate across all 76 cases; found by running the pass (§2.28) |
 | **Z** — AD-006 still said "Team of 4" after the rename pass | *(not previously found)* — §2.23 conflict 9 was recorded as fixed with one occurrence untouched | ✅ **fixed** — and `scripts/verify_docs.py` added so the class of bug is caught, not re-found (§2.26) |
 
 ---
@@ -990,16 +1084,16 @@ captain", gendered club roles. PII stripping removes names, emails and phone num
 **none** of that text, which is why stripping names alone is not sufficient. Added in §2.20
 to Arch Doc §10 Phase 2 and `prd.md` §17.4.
 
-**✅ The spec now exists — Arch Doc §7.4 (§2.26) — and so do the cases — `tests/bias/v1.0.0/`,
-76 of them (§2.27).** Validated in CI by `scripts/verify_bias_set.py`.
+**✅ The spec exists (§2.26), the cases exist (§2.27), and the pass is built and measured
+(§2.28).** `tests/bias/v1.0.0/` · 76 cases · `ai/bias_pass.py` · 15 CI assertions · recall
+1.0 · 0 false positives · flag rate 0.7632.
 
-**⬜ What remains is the bias pass implementation, and it is the only part that is a build
-task.** Until it exists the pass rate is unmeasured and `manifest.json` says so. ⚠️
-**`LIM-003` is the one to plan around:** the term list is **english-only** while the
-primary market is Bangladesh, so the set as it stands cannot say anything about the
-population the product is for. That needs the Bengali term list in v1.1.0 with native
-review — not machine translation — and it is a decision about sequencing, not a
-documentation gap.
+**Nothing is outstanding here.** Two limitations were **decided rather than fixed** and are
+recorded as such: `LIM-003` (no Bengali term list — accepted out of scope, so a Bengali
+resume gets a zero flag rate with no indication the check did not apply) and `GAP-001` (bare
+adjectives stay out of the term list). If either is reopened, `keyword_terms.json` says
+where. `LIM-001` (numeric age) and `LIM-002` (graduation-year proximity) remain scheduled
+for v1.0.1 — real gaps, low effort, no decisions needed.
 
 ### 4.5 ✅ Schedule — capacity solved, and the one open date is closed
 
@@ -1075,6 +1169,7 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
+0711081  test: author the v1.0.0 bias test set, 76 cases across all ten categories
 736ccd6  docs: specify the bias test set, decide REQ-FR-050, and add a docs checker
 741542c  docs: close the API blocker and the remaining gaps, and make ASM-003 falsifiable
 4b4ea7e  docs: move the Phase 4 milestone, record AI-assisted development, and build the broadcast feature

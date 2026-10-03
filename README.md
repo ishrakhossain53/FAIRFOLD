@@ -132,6 +132,7 @@ scripts/
 ├── verify_docs.py           # cross-document consistency check (also runs in CI)
 └── verify_bias_set.py       # validates the bias test set's internal consistency (CI)
 tests/bias/v1.0.0/           # versioned bias test set — 76 cases, spec in Arch Doc §7.4
+ai/                         # bias_pass.py — deterministic keyword pass (first source file)
 ```
 
 > **Settings modules:** The project uses split Django settings — `base.py` for shared config, `local.py` for development, `test.py` for fast unit tests, `ci.py` for CI, and `production.py` for production. Set `DJANGO_SETTINGS_MODULE` in `.env`.
@@ -206,9 +207,11 @@ See `config/settings/` for the full settings hierarchy.
 # Local
 pip install pytest pytest-django
 pytest tests/ -v
+pytest tests/bias/test_bias_pass.py -v   # bias pass vs the 76-case versioned set
 
 # Docker
 docker exec fairfold-django pytest tests/ -v
+pytest tests/bias/test_bias_pass.py -v   # bias pass vs the 76-case versioned set
 ```
 
 ### Running Migrations
