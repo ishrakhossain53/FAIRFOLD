@@ -1,5 +1,5 @@
 # ==============================================================================
-# Match Minds — Git Ignore Rules
+# FairFold — Git Ignore Rules
 # ==============================================================================
 # Rationale: the Complete Project Document, §5.6 requires `.env` to be
 # gitignored while `.env.example` stays committed with placeholder values.

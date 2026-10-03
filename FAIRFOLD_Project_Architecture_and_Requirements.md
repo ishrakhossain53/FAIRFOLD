@@ -1,11 +1,11 @@
-# MATCH MINDS — Detailed Architecture & Requirements Specification
+# FAIRFOLD — Detailed Architecture & Requirements Specification
 
 **Version:** 4.1 (52 FRs · override visibility · employer-required assessments · versioned hard filters)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
 **Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque  
 
-> **Companion document to:** `MATCH_MINDS_Complete_Project_Document.md`  
+> **Companion document to:** `FAIRFOLD_Complete_Project_Document.md`  
 > This document provides the detailed, implementation-ready architecture and requirements that supplement the high-level project document. Where the project document describes *what* to build and *why*, this document specifies *how* — with concrete APIs, data models, acceptance criteria, and measurable quality attributes.
 
 ---
@@ -37,7 +37,7 @@
 
 ## 1. Purpose & Scope
 
-This document defines the complete technical architecture, functional requirements (FRs), and non-functional requirements (NFRs) for the **Match Minds** platform. It serves as the implementation contract between the design team and engineering.
+This document defines the complete technical architecture, functional requirements (FRs), and non-functional requirements (NFRs) for the **FairFold** platform. It serves as the implementation contract between the design team and engineering.
 
 ### 1.1 Out of Scope
 - Mobile app native development (Phase 5; PWA is the Phase 4 fallback)
@@ -337,7 +337,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | REQ-FR-026 | Job Editing | High | **Given** existing job (draft status); **When** employer edits; **Then** all fields updated; **And** audit log entry created |
 | REQ-FR-027 | Job Activation | High | **Given** draft job; **When** employer publishes; **Then** status changes to "active"; **And** job visible to candidates |
 | REQ-FR-028 | AI Screening Trigger | High | **Given** active job with applications; **When** employer clicks "Screen All"; **Then** cost estimate shown ($0.00 for free tier); **And** user confirms; **And** Celery batch task queued |
-| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030); **And** candidates the hard filter marked `not_matched` **remain listed and visible to the employer with the reason shown** — a rule-based rejection is never hidden and never final on its own; **And** the employer can pull any `not_matched` candidate into review, which sets `status` back to `screened` and writes an audit entry; **And** the version of the hard-filter rule set that produced each result is recorded on the application (`filter_rules_version`) and shown in the UI. *Amended 2026-10-03 from Gap G3 — see `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1. Motivated by EEOC v. iTutorGroup, where a hard-coded age filter was the entire discriminating mechanism (§1.2.1).* |
+| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030); **And** candidates the hard filter marked `not_matched` **remain listed and visible to the employer with the reason shown** — a rule-based rejection is never hidden and never final on its own; **And** the employer can pull any `not_matched` candidate into review, which sets `status` back to `screened` and writes an audit entry; **And** the version of the hard-filter rule set that produced each result is recorded on the application (`filter_rules_version`) and shown in the UI. *Amended 2026-10-03 from Gap G3 — see `FAIRFOLD_Feasibility_and_Design.md` §2.4.1. Motivated by EEOC v. iTutorGroup, where a hard-coded age filter was the entire discriminating mechanism (§1.2.1).* |
 | REQ-FR-030 | Evidence-Cited Rationale | High | **Given** AI-generated rationale; **When** employer views candidate; **Then** rationale shows specific resume text for each claim; **And** missing skills listed; **And** bias audit status shown; **And** the candidate's name, photo and contact details stay hidden until the employer shortlists them, at which point they are revealed to that employer only and the reveal writes an audit entry; **And** unrevealed PII is never sent to any external AI provider |
 | REQ-FR-031 | Interview Pack Generation | Medium | **Given** job with requirements; **When** employer generates interview pack; **Then** AI produces structured Qs + scoring rubric; **And** pack stored and linked to job |
 | REQ-FR-032 | Interview Scheduling | Medium | **Given** shortlisted candidate; **When** employer schedules; **Then** calendar invite sent; **And** video call URL generated; **And** candidate notified |
@@ -362,7 +362,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 > capabilities already existed as use cases (`UC16`, `UC31`), user stories
 > (`US-023`, `US-050`), a `Message` model (Complete Doc §C.11) and page
 > specifications (`design.md` pages #4, #5, #31, #48) — but had no requirement
-> anywhere. See `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1 for the analysis
+> anywhere. See `FAIRFOLD_Feasibility_and_Design.md` §2.4.1 for the analysis
 > and `prd.md` §7.2–7.3 for the original proposal.
 
 | ID | Requirement | Priority | Acceptance Criteria |
@@ -381,7 +381,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 > `design.md` §10 found seven pages building real features with no requirement
 > behind them — the same failure mode as GAP-1/GAP-2, missed by the use-case
 > pass because those pages are supporting features rather than core journeys.
-> See `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1 for the analysis.
+> See `FAIRFOLD_Feasibility_and_Design.md` §2.4.1 for the analysis.
 
 | ID | Requirement | Priority | Acceptance Criteria |
 |---|---|---|---|
@@ -389,7 +389,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 | REQ-FR-045 | Employer Company Profile | High | **Given** registered user with the employer role; **When** completing onboarding; **Then** `EmployerProfile` created with company name (encrypted), industry and company size; **And** an employer cannot hold both the candidate and employer roles; **And** a job cannot be activated until a company profile exists |
 | REQ-FR-046 | Employer Dashboard | Medium | **Given** authenticated employer; **When** opening the dashboard; **Then** open job count, new applications, applications awaiting screening and interviews this week are shown; **And** quota usage is displayed against the current subscription; **And** applications flagged by the bias check are surfaced for human review; **And** every KPI links to the underlying list |
 | REQ-FR-047 | Employer Team and Roles | Medium | **Given** an employer with `employer_hr` role; **When** inviting, re-roling or removing a team member; **Then** `employer_manager`, `employer_hr` or `interviewer` role assigned from the defined set; **And** the last `employer_hr` cannot be removed or demoted, which would orphan the account; **And** an `employer_team_members` row is created or updated (§5.1); **And** an audit entry is written for every role change; **And** MFA is required before an invited member can act |
-| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches MATCH MINDS; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
+| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches FAIRFOLD; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
 | REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
 | REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, message, audience and schedule captured with a preview; **And** the announcement is delivered to the selected audience on schedule; **And** an empty audience match sends nothing and is reported rather than silently succeeding. **This requirement is optional** — kept in scope by decision 2026-10-03 because it is 3 story points, Low priority and Phase 4, and removing it would touch four documents for no benefit. If the team later decides against it, remove REQ-FR-050, US-062 and `design.md` page #62 **together** |
 
@@ -397,7 +397,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 
 > Added 2026-10-03 to close **G1**, **G2** and **G3**, the three gaps exposed by writing
 > the experience-to-requirement traceability table
-> (`MATCH_MINDS_Feasibility_and_Design.md` §1.3.2, analysis in §2.4.1). All three
+> (`FAIRFOLD_Feasibility_and_Design.md` §1.3.2, analysis in §2.4.1). All three
 > trace back to the same root cause — the Product Owner's own hiring process — and
 > all three were approved by the team on 2026-10-03.
 >
@@ -1769,7 +1769,7 @@ local (dev laptop) → CI (test) → staging → production
 | RSK-008 | Bangladesh market doesn't convert | Business | Medium | High | MVP targets both BD market + global SMBs; self-hostable option for price-sensitive markets | Product Lead |
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
-| RSK-011 | **Name / trademark conflict.** "Match Minds" and "MatchMindAI" are both in use by other AI recruitment products; "MatchMinds" also names an unrelated Android app and a teammate-recommendation tool. Match Mind is descriptive of what every ATS does, so a word mark is hard to register or defend. | Legal / Brand | **High** | High | Decide the name **before** any branding spend; commission a proper trademark search in Bangladesh and target export markets; candidates screened on 2026-10-03 (fairfold.com/.ai, niyoti.app/.io, sightfold.com, evidencefold.com all had no DNS record) are recorded in `MATCH_MINDS_Feasibility_and_Design.md` §1.4.2. Renaming after launch would force a rebrand, a domain change and a support burden | Product Owner |
+| RSK-011 | **Trademark clearance for the chosen name.** The previous working name was abandoned because it was contested by three unrelated commercial users (see `FAIRFOLD_Feasibility_and_Design.md` §1.4.2). **FairFold was selected on 2026-10-03** after a search found no living commercial use, but a web search and a DNS lookup are **not** a clearance. If the name turns out to be unregistable in a target market, a rename would again force a rebrand, a domain change and a support burden. | Legal / Brand | Medium | Low | Commission a **formal trademark search** in Bangladesh and every target export market; register `fairfold.com` / `fairfold.ai` **before** any public announcement; file the word mark in classes 42 (software/SaaS) and 35 (recruitment services) per market. None of this has been done yet | Product Owner |
 
 ---
 
@@ -1793,7 +1793,7 @@ local (dev laptop) → CI (test) → staging → production
 - ✅ pgvector cosine similarity returns ranked results in < 2s for 100 candidates
 - ✅ LLM rationale generated for top 10 candidates per job (evidence-cited format)
 - ⬜ Deterministic keyword pass flags every seeded phrase in the versioned bias test set (set does not exist yet — Phase 2, owner Ishrak Hossain)
-- ⬜ The bias test set **includes Amazon-style proxy cases** — women's-college names, "women's society captain", gendered club roles. These survive PII stripping untouched, which is why stripping names is not sufficient. Source: `MATCH_MINDS_Feasibility_and_Design.md` §1.2.1
+- ⬜ The bias test set **includes Amazon-style proxy cases** — women's-college names, "women's society captain", gendered club roles. These survive PII stripping untouched, which is why stripping names is not sufficient. Source: `FAIRFOLD_Feasibility_and_Design.md` §1.2.1
 - ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
 - ⚠️ LLM bias pass is advisory only and may not block auto-shortlist
 - ✅ Employer sees ranked candidates with scores + evidence-cited rationales
@@ -1853,4 +1853,4 @@ local (dev laptop) → CI (test) → staging → production
 
 ---
 
-*End of document. This document supersedes all previous versions of `MATCH_MINDS_Project_Architecture_and_Requirements.md`.*
+*End of document. This document supersedes all previous versions of `FAIRFOLD_Project_Architecture_and_Requirements.md`.*

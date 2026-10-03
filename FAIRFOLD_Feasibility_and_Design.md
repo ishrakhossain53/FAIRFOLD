@@ -1,7 +1,7 @@
-# MATCH MINDS — Feasibility & Design Analysis
+# FAIRFOLD — Feasibility & Design Analysis
 
-**Project Title:** MATCH MINDS
-**Subtitle:** AI-Powered Bias-Free Recruitment Platform
+**Project Title:** FAIRFOLD
+**Subtitle:** AI-Powered, Explainable Recruitment Platform
 **Document Purpose:** Feasibility analysis, user stories, formal design diagrams, data dictionary and UI/UX specifications.
 
 ---
@@ -12,11 +12,11 @@ This file supplements — and does not replace — the specifications below:
 
 | Document | Role | Status |
 |---|---|---|
-| `MATCH_MINDS_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 52 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
+| `FAIRFOLD_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 52 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
 | `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
 | `design.md` | UI design system, 62 page specs, 23 wireframes, implementation notes | Supplement |
-| `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
+| `FAIRFOLD_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
 
 **Functional requirements live in the Arch Doc §4.1.** `prd.md` proposes them and this
 document traces them to stories and pages; neither is the origin. Where a section needs
@@ -37,8 +37,8 @@ Section numbers are **ambiguous across documents by nature** — this document h
 
 | Form | Means |
 |---|---|
-| `Arch Doc §N.M` | `MATCH_MINDS_Project_Architecture_and_Requirements.md` §N.M |
-| `Complete Doc §N.M` | `MATCH_MINDS_Complete_Project_Document.md` §N.M |
+| `Arch Doc §N.M` | `FAIRFOLD_Project_Architecture_and_Requirements.md` §N.M |
+| `Complete Doc §N.M` | `FAIRFOLD_Complete_Project_Document.md` §N.M |
 | `Arch §N.M` / `Complete §N.M` | short form of the above, in tables and bullet lists |
 | `PRD §N.M` | `prd.md` §N.M |
 | `design.md §N.M` | `design.md` §N.M |
@@ -50,11 +50,12 @@ Section numbers are **ambiguous across documents by nature** — this document h
 
 ### 1.1 Project summary
 
-**What the software does.** MATCH MINDS is a web-based recruitment platform with two
+**What the software does.** FAIRFOLD is a web-based recruitment platform with two
 portals. The **Candidate Portal** provides profile and resume management, AI skill
 assessments, interview coaching, and AI-powered Professional Journey Mapping. The
-**Employer Portal** provides job posting, AI-automated resume screening, bias-free
-candidate ranking, structured interview generation, and candidate messaging.
+**Employer Portal** provides job posting, AI-automated resume screening,
+evidence-cited candidate ranking, structured interview generation, and candidate
+messaging.
 
 **Who uses it.**
 
@@ -106,7 +107,7 @@ Technology Review and Fortune.*
 past hiring decisions copies the past. And removing a few obvious words does not
 fix proxy bias — that is the part most product teams get wrong.
 
-**Match Minds design response.**
+**FairFold design response.**
 
 1. The system is **not** trained on historical hire/reject outcomes. It compares a
    job description to anonymised resume content (REQ-FR-029, REQ-FR-030), so it
@@ -121,11 +122,11 @@ Amazon-style proxy cases — women's-college names, "women's society captain",
 gendered club roles. Stripping names, emails and phone numbers removes **none** of
 that text, so it is exactly the residue the PII filter leaves behind.
 
-| Supporting case | Facts | Lesson for Match Minds |
+| Supporting case | Facts | Lesson for FairFold |
 |---|---|---|
 | **EEOC v. iTutorGroup** (settled Aug 2023) | Application software was programmed to auto-reject women aged 55+ and men aged 60+, screening out more than 200 applicants. Settled for **$365,000** — the EEOC's first AI-hiring discrimination settlement. | A **hard filter** can discriminate as easily as a model. Years-of-experience and experience-level filters are age proxies. This is the origin of **Gap G3** (§2.4.1). |
 | **HireVue facial analysis** (removed Jan 2021) | HireVue removed facial-expression analysis after bias and disability criticism. | Supports the non-goal of no facial, voice or emotion analysis (`prd.md` §2.3). |
-| **Mobley v. Workday** (N.D. Cal., filed 2023) | A nationwide age-discrimination collective was conditionally certified in May 2025; notice authorised 17 Feb 2026 with an opt-in deadline of 7 Mar 2026. A related California-law motion to dismiss was denied 22 Jun 2026. The court has treated the vendor as potentially liable as an agent of the employers using its tools. | Vendors, not only employers, can be liable — so the audit trail protects MATCH MINDS too. **Re-verify the status before citing this publicly**; it was mid-litigation as of Jul 2026. |
+| **Mobley v. Workday** (N.D. Cal., filed 2023) | A nationwide age-discrimination collective was conditionally certified in May 2025; notice authorised 17 Feb 2026 with an opt-in deadline of 7 Mar 2026. A related California-law motion to dismiss was denied 22 Jun 2026. The court has treated the vendor as potentially liable as an agent of the employers using its tools. | Vendors, not only employers, can be liable — so the audit trail protects FAIRFOLD too. **Re-verify the status before citing this publicly**; it was mid-litigation as of Jul 2026. |
 
 #### 1.2.2 Local context — Bangladesh (supporting, not proof of the owner's case)
 
@@ -174,7 +175,7 @@ No employer and no individual is named anywhere in this document, by decision.
 
 **Statement for the PRD, used near-verbatim:**
 
-> Requirements for Match Minds originated from the Product Owner's first-hand
+> Requirements for FairFold originated from the Product Owner's first-hand
 > experience of a hiring process in which interview selection was influenced by
 > internal lobbying, and in which no skills check was applied before candidates
 > were shortlisted. The same experience was shared by friends who later formed the
@@ -224,7 +225,7 @@ in industry. A mid-size company posts an entry-level role.
 
 *Problems exposed: P1, P2, P3, P4, P5.*
 
-**Scenario S-2 — the same role on Match Minds (to-be).**
+**Scenario S-2 — the same role on FairFold (to-be).**
 
 1. Rafi uploads his resume. Name, photo, phone, address and university identifiers
    are stripped before any AI sees it (REQ-FR-011).
@@ -326,12 +327,12 @@ Complete and well in excess of a minimum competitor scan. Eleven systems analyse
    schema-as-code approach. *Not adopted:* 12-service PHP/Laravel microservice
    architecture is disproportionate operational complexity for this team.
 
-#### 1.4.1 Does something like Match Minds already exist?
+#### 1.4.1 Does something like FairFold already exist?
 
 **Answer: yes, in pieces. No single product found combines everything below.** The
 name and the broad idea are not unique.
 
-| Category | Examples | What they do | Gap vs. Match Minds |
+| Category | Examples | What they do | Gap vs. FairFold |
 |---|---|---|---|
 | Blind / anonymised hiring | Applied, Vervoe, MeVitae, Pinpoint, GapJumpers | Hide identity during review; Applied replaces the CV sift with job-relevant questions and work samples reviewed anonymously | Priced and designed for organisations, not job seekers. No candidate-side career tooling. Little emerging-market focus. |
 | Skills assessment | TestGorilla, HackerRank, Codility, CodeSignal, Vervoe | Test skills against large libraries; TestGorilla has a free plan and paid plans from about $135/month | They assess skills but do not rank anonymised resumes, and show no evidence-cited rationale to the candidate |
@@ -339,13 +340,13 @@ name and the broad idea are not unique.
 | Enterprise AI sourcing | Eightfold, SeekOut, Phenom | Talent intelligence and pipelines | Enterprise pricing; $200K+/year cited for Eightfold. Priced out of the SMB segment entirely |
 | Open-source ATS | CandiSift, OpenCATS | PII stripping, evidence-cited breakdowns (CandiSift) | No candidate portal; depends on a paid LLM |
 
-#### 1.4.2 Naming and trademark risk — 🔴 open, needs a decision
+#### 1.4.2 Naming — ✅ decided (FairFold), 🟡 trademark clearance outstanding
 
-**This is the most urgent item in the document.** It is a naming risk, not a feature
-comparison, and it is cheap to fix now and expensive to fix after branding spend.
+**Decided 2026-10-03: the product is FairFold.** The section is kept because the
+reasoning behind the decision is more useful than the decision itself.
 
-**Verified 2026-10-03 (web search + DNS resolution; a proper trademark search by a
-lawyer is still required):**
+**Why the previous name was abandoned.** Verified 2026-10-03 (web search + DNS
+resolution; neither is a trademark clearance):
 
 | Finding | Evidence |
 |---|---|
@@ -353,38 +354,44 @@ lawyer is still required):**
 | **"MatchMinds"** is also used by an AI-powered recruitment platform | Public post describing itself as "an AI-powered recruitment platform and the next frontier in hiring" |
 | **"MatchMinds"** is additionally used by an unrelated Android football-prediction app, and by an unrelated teammate-recommendation system | Two further commercial uses of the same string |
 
-The name is therefore contested in **three** unrelated commercial spaces, one of
-them recruitment. "Match Mind" is descriptive of what every ATS does, which makes it
-hard to register as a word mark in class 42 and hard to defend.
+Three unrelated commercial spaces, one of them recruitment. "Match Mind" is also
+descriptive of what every ATS does, which makes it hard to register as a word mark in
+class 42 and hard to defend even once registered.
 
-**Candidate replacements checked on 2026-10-03.** "Free" means the domain had no DNS
-record at the time of checking, which is *not* proof of availability — and *not* a
-trademark clearance:
+**Candidates screened on 2026-10-03.** "No DNS record" is *not* proof of availability:
 
-| Candidate | Meaning | Domain status | Concern |
+| Candidate | Meaning | Domain status | Outcome |
 |---|---|---|---|
-| **FairFold** | fair + a folded resume | fairfold.com, fairfold.ai — no DNS record | Clean on search; longest-standing risk is only the ordinary one |
-| **Niyoti** (নিয়তি) | Bengali for impartiality — matches the product thesis *and* the Bangladesh beachhead | niyoti.app / niyoti.io — no DNS record | It is a common Bengali given name, so a bare word mark is hard to own |
-| **SightFold** | you can *see* the reasoning | sightfold.com — no DNS record | Coined, so colder as a brand |
-| **Evidencefold** | evidence-cited rationale | evidencefold.com — no DNS record | Long and clunky in a logo |
+| **FairFold** | fair + a folded resume | fairfold.com, fairfold.ai — no DNS record | ✅ **Selected** |
+| Niyoti (নিয়তি) | Bengali for impartiality — matches the thesis *and* the Bangladesh beachhead | niyoti.app / niyoti.io — no DNS record | Not chosen: a common Bengali given name, so a bare word mark is hard to own |
+| SightFold | you can *see* the reasoning | sightfold.com — no DNS record | Not chosen: coined, so colder as a brand |
+| Evidencefold | evidence-cited rationale | evidencefold.com — no DNS record | Not chosen: long and clunky in a logo |
 
-Names rejected in the same sweep: **Meritfold** (already a UK public-sector bid
+Also rejected in the same sweep: **Meritfold** (already a UK public-sector bid
 product), Sightline, Clearscreen, Showwork, Foldwork, Talentfold, Skillfold,
 Plainfold, Proofhire, Openrank, Rankfold, Foldscore, Meritly, Fairhire — all taken.
 
-**Decision: not yet taken.** The name is unchanged across all documents until a
-replacement is chosen, and a formal trademark search in Bangladesh and the target
-export markets is commissioned. Recorded as **RSK-011** in the Arch Doc risk
-register. Changing the name afterwards is a mechanical find-and-replace across the
-seven documents plus the git history, so it is cheap *now* and only expensive after
-branding spend.
+**Why FairFold works.** "Fair" states the intent. "Fold" carries the résumé being
+opened and read — the moment the product intervenes on. It names the *artefact* rather
+than the feature, which is the thing competitors cannot copy by adding a checkbox.
+No living commercial use was found.
 
-#### 1.4.3 How Match Minds is different — and where "better" must be proven
+**What changed.** The three `MATCH_MINDS_*.md` files were renamed to `FAIRFOLD_*.md`
+and every internal link repaired.
+
+**🟡 Still open — legal, not creative.** `RSK-011` stays on the register, downgraded
+to **Medium probability / Low impact**: commission a formal trademark search in
+Bangladesh and each target export market, register `fairfold.com` / `fairfold.ai`
+before any public announcement, and file the word mark in classes 42 and 35 per market.
+None of that has been done. A parked or newly-registered domain may also show no A
+record, so the DNS check is a signal rather than a reservation.
+
+#### 1.4.3 How FairFold is different — and where "better" must be proven
 
 The status column is the important part. Three of these seven claims are designs we
 have made, not results we have produced.
 
-| Dimension | Typical competitor | Match Minds | Status of the claim |
+| Dimension | Typical competitor | FairFold | Status of the claim |
 |---|---|---|---|
 | **Who it serves** | Employer only | **Both sides** — the candidate sees their own score, rationale, journey map and coaching | **Designed** — §1.5 |
 | **Bias handling** | Marketed as "bias-free" | PII stripped before any AI call; bias audit on every rationale; a human always decides; immutable audit trail | **Designed — not yet measured** |
@@ -399,7 +406,7 @@ have made, not results we have produced.
 > has to be earned against measured disparity data. Until the bias audit and
 > disparity analysis in `prd.md` §8.7 have run, this is the wording to use:
 >
-> *Match Minds is designed to make screening explainable and auditable for both
+> *FairFold is designed to make screening explainable and auditable for both
 > employers and candidates, at a price small employers can afford. Whether it
 > reduces biased outcomes will be measured through the bias audit and disparity
 > analysis described in `prd.md` §8.7.*
@@ -448,7 +455,7 @@ there until it has actually been run.
 ### 2.2 Functional requirements
 
 **Complete.** 52 functional requirements with unique IDs, priorities, and Given/When/Then
-acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` §4.1.
+acceptance criteria — `FAIRFOLD_Project_Architecture_and_Requirements.md` §4.1.
 
 | Group | ID range | Count | Priority distribution |
 |---|---|---|---|
@@ -840,7 +847,7 @@ stretch beyond it.**
 **Assessment.** Phases 1–4 (12 weeks) form a coherent MVP with each phase ending in
 a demonstrable increment. Phase 5 is correctly identified as optional. The phased
 structure de-risks the schedule: if Phase 5 never happens, Phases 1–4 still deliver
-the core value proposition (bias-free, explainable screening).
+the core value proposition (explainable, auditable screening).
 
 **Risk:** Phase 3 is the most feature-dense (3 distinct AI features) for a
 3-week window. Mitigation: §9 defines the journey-mapping MVP as the must-have, with
@@ -866,7 +873,7 @@ skill evolution and dynamic storytelling as separable increments.
 
 **AI-specific regulation — EU AI Act** (REQ-COM-006): employment AI is classified
 **high-risk**, which obligates risk management, data governance, technical
-documentation, logging, transparency, and human oversight. MATCH MINDS addresses
+documentation, logging, transparency, and human oversight. FAIRFOLD addresses
 these directly:
 
 - *Logging* → immutable `AuditLogEntry` (REQ-COM-008)
@@ -936,7 +943,7 @@ each "week" below is five working days.
 
 ```mermaid
 gantt
-    title MATCH MINDS — 12-Week MVP Schedule (kickoff 2026-10-05)
+    title FAIRFOLD — 12-Week MVP Schedule (kickoff 2026-10-05)
     dateFormat  YYYY-MM-DD
     axisFormat  %b %d
     excludes weekends
@@ -1096,7 +1103,7 @@ flowchart LR
     end
 
     %% ---------- SYSTEM BOUNDARY ----------
-    subgraph MMS["MATCH MINDS SYSTEM"]
+    subgraph MMS["FAIRFOLD SYSTEM"]
         direction LR
         subgraph UC_AUTH["Authentication"]
             UC1([Register])
@@ -1208,7 +1215,7 @@ flowchart LR
     class MMS,UC_AUTH,UC_CAND,UC_EMP,UC_INT,UC_ADM boundary
 ```
 
-**System boundary:** everything inside the dashed box is MATCH MINDS. External systems
+**System boundary:** everything inside the dashed box is FAIRFOLD. External systems
 (S3, OpenRouter, Piston, email provider, Stripe) are *outside* the boundary and appear
 as integration points in Arch Doc §5.1 and §C.12 rather than as actors, because they
 have no goals of their own in this context.
@@ -2246,7 +2253,7 @@ separated — a candidate has no access to employer functions and vice versa,
 enforced by Django group permissions (Complete Doc §5.1).
 
 ```
-MATCH MINDS
+FAIRFOLD
 ├── Public (no auth)
 │   ├── Home / value proposition
 │   ├── Job search & public job board
@@ -2386,13 +2393,14 @@ Section coverage of this document against the project specification. ✅ = compl
    `REQ-FR-029`, so the new requirements do not recreate the gap they were written to
    close. **Still open:** public job browse/search endpoints for `REQ-FR-042` and the
    GDPR export/delete endpoints for `REQ-FR-040`/`041`.
-6. **§1.4.2 / `prd.md` §4.3 — 🔴 the product name.** "Match Minds" is contested by
-   other AI recruitment products and by two unrelated software products. Four
-   replacement candidates were screened on 2026-10-03 but **no choice has been made**,
-   and a formal trademark search in Bangladesh and the target export markets has not
-   been done. **This is the most urgent open item in the specification**, because it
-   is the cheapest to fix before branding spend and the most expensive afterwards.
-   Logged as **RSK-011**.
+6. **§1.4.2 / `prd.md` §4.3 — ✅ name decided (FairFold); 🟡 clearance outstanding.**
+   The old name was contested by three unrelated commercial users, so it was abandoned
+   on 2026-10-03. FairFold was chosen from four screened candidates; no living
+   commercial use was found. The four `MATCH_MINDS_*.md` files were renamed and all
+   internal links repaired. **Still to do, and it is legal work rather than a design
+   decision:** a formal trademark search in Bangladesh and each target export market,
+   registration of `fairfold.com` / `fairfold.ai`, and filing the word mark in classes
+   42 and 35 per market. Logged as **RSK-011**, downgraded to Medium/Low.
 7. **Unconfirmed design decisions** (`design.md` §12) — score band thresholds, dark
    mode, Bengali at launch, and brand styling. ~~When the candidate's name is revealed~~
    was **decided 2026-10-03: at shortlist**; branding is now blocked on item 6 above.

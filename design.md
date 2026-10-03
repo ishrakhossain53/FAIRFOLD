@@ -1,6 +1,6 @@
-# MATCH MINDS — UI Design Specification (design.md)
+# FAIRFOLD — UI Design Specification (design.md)
 
-**Product:** Match Minds — AI-Powered, Bias-Free Recruitment Platform
+**Product:** FairFold — AI-Powered, Explainable Recruitment Platform
 **Owner:** Mohammad Abdul Ahad (UI/UX) · **Co-owner:** Fahad Haque (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
 **Companion to:** `prd.md` (requirements) · **Version:** 1.3 (screening integrity: override dialog, assessment gate, reviewable filters) · **Date:** October 2026
 
@@ -30,7 +30,7 @@
 4. [Typography](#4-typography)
 5. [Spacing, Layout and Responsive Grid](#5-spacing-layout-and-responsive-grid)
 6. [Core Components](#6-core-components)
-7. [Match Minds–Specific Components](#7-match-minds-specific-components)
+7. [FairFold–Specific Components](#7-match-minds-specific-components)
 8. [Interaction, Motion and States](#8-interaction-motion-and-states)
 9. [Accessibility Rules](#9-accessibility-rules)
 10. [Page Specifications (62 pages)](#10-page-specifications-62-pages)
@@ -85,7 +85,7 @@ Fair, clear, supportive, precise. Not "disruptive" or hype-driven.
 | Delete account confirm | "This permanently deletes your data. This cannot be undone." |
 
 ### 2.4 Logo and Naming
-Wordmark "Match Minds". Icon: two overlapping circles (a match) with a small checkmark. Provide SVG in light, dark and single-colour versions. Minimum size 24px height.
+Wordmark "FairFold". Icon: two overlapping circles (a match) with a small checkmark. Provide SVG in light, dark and single-colour versions. Minimum size 24px height.
 
 ---
 
@@ -366,7 +366,7 @@ TAB
 
 ---
 
-## 7. Match Minds–Specific Components
+## 7. FairFold–Specific Components
 
 ### 7.1 AI Badges
 
@@ -569,7 +569,7 @@ Target **WCAG 2.1 AA** (REQ-COM-007). Tools in CI: axe-core, pa11y. Build fails 
 | Language | `lang` on `<html>`; `lang="bn"` on Bengali content |
 | Zoom / reflow | Works at 200% zoom and 320px width without horizontal scroll (tables scroll inside a labelled container) |
 | Touch | Targets ≥ 44px |
-| Screen reader | Meaningful page `<title>` ("Candidate review · Senior Backend Engineer · Match Minds"); one `<h1>` per page; heading levels not skipped |
+| Screen reader | Meaningful page `<title>` ("Candidate review · Senior Backend Engineer · FairFold"); one `<h1>` per page; heading levels not skipped |
 
 Manual test pass before each release: keyboard-only run of the MVP core flow, plus NVDA (Windows) and VoiceOver (iOS).
 
@@ -749,7 +749,7 @@ These wireframes show **structure, hierarchy and states**, not final styling. Th
 ```
 REGISTER (#6)                              LOGIN (#7)
 ┌─────────────────────────────┐           ┌─────────────────────────────┐
-│ Match Minds                 │           │ Match Minds                 │
+│ FairFold                 │           │ FairFold                 │
 │ <h1> Create your account    │           │ <h1> Log in                 │
 │                             │           │                             │
 │ I am…                       │           │ Email (required)            │
@@ -1371,7 +1371,7 @@ Allow 30–40% text expansion; avoid fixed-width buttons; no text baked into ima
 2. ~~When the candidate's name is revealed to the employer.~~ **Decided 2026-10-03: at shortlist.** Pages #40 and #41 reflect this and `REQ-FR-030` now requires it. Rationale: anonymised screening is the product's core claim, so the identity must stay hidden for exactly as long as the ranking decision is being made and no longer. Reveal is audited and scoped to the shortlisting employer only.
 3. Whether dark mode ships in the MVP (this file assumes no).
 4. Whether Bengali ships at launch for the Bangladesh market (the PRD defers it to Phase 5; the font choice and layout rules here are ready for it).
-5. ~~Final brand name styling, logo and accent colour.~~ **Now blocked on the name itself, not on styling.** `prd.md` §4.3 / RSK-011 records that "Match Minds" is contested by other AI recruitment products. No logo work should start until a name is chosen.
+5. ~~Final brand name styling, logo and accent colour.~~ **Unblocked 2026-10-03 — the name is FairFold.** The previous name was abandoned as contested (`prd.md` §4.3); FairFold had no living commercial use in the same sweep. Logo, favicon and accent-colour work can now start against FairFold. ⚠️ One caveat that has *not* changed: a search is not a trademark clearance, so **do not print the logo on packaging, a domain registration or public collateral until RSK-011's formal search is back**.
 
 ---
 

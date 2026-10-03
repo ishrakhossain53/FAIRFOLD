@@ -1,39 +1,49 @@
-# MATCH MINDS - AI-Powered Recruitment Platform
+# FAIRFOLD — AI-Powered, Explainable Recruitment Platform
 
-> **NOTE:** This is the development version. See [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) for detailed documentation.
+> **NOTE:** This is the development version. See [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) for detailed documentation.
 
-> ### 🟡 The product name is not settled
-> **"Match Minds" is contested and no replacement has been chosen.** At least two other
-> AI recruitment products use "Match Mind"/"MatchMinds", and two unrelated software
-> products use the same string; "Match Mind" is also descriptive of what every ATS does,
-> which makes it hard to trademark. **This is the cheapest thing to fix now and the most
-> expensive after branding spend.** Four screened alternatives, the evidence for each, and
-> the caveats are in [`prd.md` §4.3](prd.md) and
-> [Feasibility Doc §1.4.2](MATCH_MINDS_Feasibility_and_Design.md).
-> Logged as **RSK-011**. A formal trademark search in Bangladesh and the target export
-> markets has **not** been done.
+> ### ✅ Named: FairFold (decided 2026-10-03)
+> The working name "Match Minds" was abandoned — it was in commercial use by at least two
+> other AI recruitment products and two unrelated software products, and it is descriptive
+> enough of what every ATS does to be hard to trademark. **FairFold** was chosen from four
+> screened candidates; no living commercial use of the string was found. The
+> `MATCH_MINDS_*.md` files were renamed to `FAIRFOLD_*.md`. Reasoning:
+> [`prd.md` §4.3](prd.md) and [Feasibility Doc §1.4.2](FAIRFOLD_Feasibility_and_Design.md).
+>
+> **🟡 Still to do before any public launch:** commission a **formal trademark search** in
+> Bangladesh and each target export market, register `fairfold.com` / `fairfold.ai`, and
+> file the word mark in classes 42 and 35 per market. A web search is not a clearance.
+> Tracked as **RSK-011** (Medium/Low).
 
-> ### ⚠️ "Bias-free" is positioning, not a measured claim
-> No disparity measurement exists yet. The approved wording until it does is in
+> ### ⚠️ The product does not claim to be bias-free — yet
+> There is **no disparity measurement**, so "bias-free" was removed from every document on
+> 2026-10-03. The subtitle is now *"AI-Powered, **Explainable** Recruitment Platform"*,
+> which describes what the product does rather than what it achieves. FairFold makes every
+> score carry cited evidence and every action write an audit entry — that is a guarantee
+> about **process**. Whether it reduces biased **outcomes** is what `prd.md` §8.7 has to
+> measure, and it may not be advertised before it has. Approved wording:
 > [`prd.md` §4.2](prd.md).
 
 ## Documentation
 
 | Document | Role | Covers |
 |---|---|---|
-| [MATCH_MINDS_Complete_Project_Document.md](MATCH_MINDS_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
-| [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 52 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
+| [FAIRFOLD_Complete_Project_Document.md](FAIRFOLD_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
+| [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 52 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
 | [prd.md](prd.md) | **Canonical** | Product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| [MATCH_MINDS_Feasibility_and_Design.md](MATCH_MINDS_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 10 product components, 62 page specs, 23 wireframes covering all 18 required screens, implementation notes |
+| [FAIRFOLD_Feasibility_and_Design.md](FAIRFOLD_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
+| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 12 product components, 62 page specs, 23 wireframes covering all 18 required screens, implementation notes |
 | [HISTORY.md](HISTORY.md) | Log | What has been done on this repo and what is still outstanding |
 
-**Start here:** `prd.md` if you want the product, `MATCH_MINDS_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.
+**Start here:** `prd.md` if you want the product, `FAIRFOLD_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.
 
-## What is Match Minds?
+## What is FairFold?
 
-Match Minds is an AI-powered, bias-free recruitment platform that:
-- **Eliminates unconscious bias** in candidate screening
+FairFold is an AI-powered recruitment platform that makes screening **explainable and
+auditable** — by employers *and* candidates:
+
+- **Strips identity before any AI call** — names, photos, emails, locations and phone
+  numbers never reach a model provider
 - **Gives candidates control** over their professional narrative via AI-Powered Journey Mapping
 - **Enables explainable AI** - candidates and recruiters see why matches were scored
 - **Runs on free-tier AI** (OpenRouter's free models)
@@ -120,7 +130,7 @@ See `config/settings/` for the full settings hierarchy.
 
 ## Build Order
 
-**Start with these components (in order) — see [§9 Implementation Roadmap](MATCH_MINDS_Complete_Project_Document.md#9-implementation-roadmap) in the Complete Project Document for phase details:**
+**Start with these components (in order) — see [§9 Implementation Roadmap](FAIRFOLD_Complete_Project_Document.md#9-implementation-roadmap) in the Complete Project Document for phase details:**
 
 1. **Development Environment** *(Complete Project Doc: §10.1, §10.2 | Architecture Doc: §6.1)*
    - `docker-compose.yml` — starts PostgreSQL, Redis, Django, Celery

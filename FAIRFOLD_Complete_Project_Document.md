@@ -1,5 +1,5 @@
-# MATCH MINDS — Complete Project Document
-## AI-Powered Bias-Free Recruitment Platform
+# FAIRFOLD — Complete Project Document
+## AI-Powered, Explainable Recruitment Platform
 
 **Version:** 2.2 (JobAssessmentRequirement model · override recording · versioned hard filters · real-world evidence)
 **Date:** September 2026
@@ -11,7 +11,7 @@
 
 1. [Executive Summary](#1-executive-summary)
 2. [Market Analysis — Competitors & Gaps](#2-market-analysis--competitors--gaps)
-3. [Why We Can Surpass Existing Solutions](#3-why-we-can-surpass-existing-solutions)
+3. [Why We Are Different From Existing Solutions](#3-why-we-are-different-from-existing-solutions)
 4. [Technical Architecture (Full Python Stack)](#4-technical-architecture-full-python-stack)
 5. [Security Architecture — Highest Standards](#5-security-architecture--highest-standards)
 6. [AI Strategy — Free & Best-in-Class](#6-ai-strategy--free--best-in-class)
@@ -28,18 +28,18 @@
 
 ## 1. Executive Summary
 
-**Match Minds** is an all-in-one, AI-powered recruitment platform that eliminates the two fundamental problems in hiring today: (1) unconscious bias in candidate screening, and (2) the inability of job seekers to showcase their true potential beyond rigid resume templates.
+**FairFold** is an all-in-one, AI-powered recruitment platform built around two structural problems in hiring: (1) screening decisions that are hard to explain or audit, and (2) the inability of job seekers to showcase their true potential beyond rigid resume templates. FairFold is designed to make the first *explainable and auditable*; whether that measurably reduces biased outcomes is a question the product has to answer with data, not with a tagline (see §3 and `prd.md` §8.7).
 
 The platform has two distinct portals:
 - **Candidate Portal** — Dynamic skill dashboards, AI-powered skill assessments, interview coaching, and AI-Powered Professional Journey Mapping
-- **Employer Portal** — AI-automated resume screening, bias-free ranking, structured interview generation, and real-time candidate communication
+- **Employer Portal** — AI-automated resume screening, evidence-cited ranking, structured interview generation, and real-time candidate communication
 
 **Key Differentiators vs. Market Leaders:**
 - Built-in **bias audit trail** — every screening decision is logged with rationale, making audits possible (HireVue dropped facial analysis after bias backlash; we build transparency in from day one)
 - **Privacy-first architecture** — PII stripped before any AI model sees candidate data (unlike Eightfold/SeekOut which send full profiles to third-party clouds)
 - **Freemium + transparent pricing** — $5-50/mo for candidates, $100-5000/mo for employers (vs. Eightfold's $200K+/year enterprise-only model)
 - **Full Python stack** — Django + DRF + Celery + pgvector, simpler hiring/development than PHP-based OpenCATS or multi-service Laravel setups
-- **AI-Powered Professional Journey Mapping** — no existing competitor offers dynamic career storytelling; this is our unique feature
+- **AI-Powered Professional Journey Mapping** — none of the eleven systems analysed in §2 offers a candidate-side career timeline. Newer blind-hiring products (Applied, Vervoe, MeVitae) overlap partially, so this is **less unique than earlier drafts claimed**
 
 ---
 
@@ -81,7 +81,16 @@ The platform has two distinct portals:
 
 ---
 
-## 3. Why We Can Surpass Existing Solutions
+## 3. Why We Are Different From Existing Solutions
+
+> **Wording rule for this section.** The evidence supports *different*, not *better*.
+> Every claim below is a design choice or a price observation — a fact about what
+> FairFold is built to do. None of them is a measured outcome, and this document
+> contains no fairness or accuracy measurement of FairFold against any competitor.
+> `prd.md` §4.2 carries the approved external wording, and `prd.md` §8.7 defines the
+> disparity analysis that would be needed before any of this can be promoted to a claim
+> about results. (Revised 2026-10-03; the section was previously titled "Why We Can
+> Surpass Existing Solutions", which asserted a conclusion the evidence did not support.)
 
 ### 3.1 The core insight
 
@@ -92,28 +101,40 @@ Every incumbent solves one slice of the problem:
 - Paradox → high-volume conversational screening
 - OpenCATS → manual tracking (no AI)
 
-**Match Minds is the first to connect BOTH sides with AI while keeping power in the candidate's hands.**
+**FairFold is designed to connect BOTH sides with AI while keeping power in the
+candidate's hands.** That is a statement about scope, not about superiority — Applied,
+Vervoe and MeVitae all serve the employer side, and no surveyed competitor is claimed here
+to be objectively worse than FairFold at its own job.
 
-### 3.2 How we overcome each competitor's moat
+### 3.2 Where each incumbent's moat does not apply to us
 
-| Competitor Moat | Our Counter |
-|---|---|
-| Eightfold's proprietary talent graph (billions of profiles) | We don't need a pre-built graph — our AI-Powered Professional Journey Mapping builds a dynamic skills profile per candidate at ingest time using OpenRouter LLMs. We start with semantic matching on what candidates actually submit, not external profile scraping. |
-| HireVue's structured interview science | We generate structured interview packs per role using AI (like candidacy and SkillAI do), but add real-time coaching feedback for candidates before the interview — something HireVue doesn't offer candidates. |
-| SeekOut's 750M-profile index | We don't compete on profile volume. We compete on depth per candidate: journey mapping, skill evolution, impact visualization. A candidate with a rich Match Minds profile is more valuable than 10 LinkedIn profiles. |
-| Enterprise pricing lock-in ($200K+/year) | Our freemium model ($5-50/mo candidates, $100-5000/mo employers) makes us accessible to SMBs and startups — a segment Eightfold/HireVue/Phenom explicitly don't serve. |
-| Black-box AI (unexplainable scoring) | Every Match Minds ranking comes with an evidence-cited breakdown (CandiSift pattern): which skills matched, which were missing, what the AI reasoned. Candidates can see their own breakdown. |
-| Privacy concerns (sending PII to third-party AI) | PII stripping before AI processing (CandiSift pattern). OpenRouter free models don't log prompts for the free tier routers. Field-level encryption in DB for sensitive fields even at rest. |
+Not "how we beat them" — the honest framing is that **these are places where we chose not
+to compete**, because competing would require capital and time this project does not have.
 
-### 3.3 Our unfair advantage: Bangladesh + emerging markets
+| Competitor Moat | Why it does not apply to us | Status |
+|---|---|---|
+| Eightfold's proprietary talent graph (billions of profiles) | We don't need a pre-built graph — Journey Mapping builds a dynamic skills profile per candidate at ingest time. We match on what candidates actually submit, not external profile scraping | **Design choice** |
+| HireVue's structured interview science | We generate structured interview packs per role using AI, and add candidate-side coaching before the interview | **Design choice** |
+| SeekOut's 750M-profile index | We don't compete on profile volume, on depth per candidate instead | **Design choice** |
+| Enterprise pricing lock-in ($200K+/year) | Freemium ($5–50/mo candidates, $100–5000/mo employers) reaches the SMB segment incumbents do not serve | **Price fact** |
+| Black-box AI (unexplainable scoring) | Every ranking carries an evidence-cited breakdown, visible to employer *and* candidate (REQ-FR-030) | **Designed — not yet measured** |
+| Privacy concerns (PII to third-party AI) | PII stripped before any AI call; AES-256-GCM at rest; unrevealed PII never reaches an external provider | **Designed — verification in Phase 4** |
 
-Bangladesh and similar emerging markets represent our initial beachhead — where no established competitor has a solution. In these markets:
+### 3.3 Our structural advantage: Bangladesh + emerging markets
+
+Bangladesh and similar emerging markets are the initial beachhead — where the enterprise
+incumbents are least able to follow. In these markets:
 - Companies still use manual hiring (spreadsheets, email)
 - LinkedIn penetration is lower
-- Eightfold/HireVue are completely inaccessible (price + implementation)
-- A lightweight, self-hostable, free-tier-AI platform is a perfect wedge
+- Eightfold/HireVue are effectively inaccessible (price + implementation)
+- A lightweight, self-hostable, free-tier-AI platform is a plausible wedge
 
-We enter through Bangladesh/emerging markets where no one has a solution, then expand to SMBs in developed markets who can't afford Eightfold.
+⚠️ **This is an assumption, not a finding** — `RSK-008` records that the Bangladesh market
+may not convert, and nothing in the requirement-collection work (§1.3) has validated it
+with employers. The validation plan in `prd.md` §3.4 is the thing that would test it.
+
+We enter through Bangladesh/emerging markets, then expand to SMBs in developed markets who
+cannot afford Eightfold.
 
 ---
 
@@ -246,7 +267,7 @@ This section is the most critical addition to the original document. Recruitment
 | **AI API calls (OpenRouter)** | HTTPS to OpenRouter API. Request payloads contain NO raw PII — PII stripped before reaching AI layer. |
 | **File uploads** | Direct upload to S3 via presigned URLs (browser → S3, not browser → Django → S3). Django receives only the S3 key. This avoids buffering large files through Django. |
 
-### 5.4 AI Privacy Layer (Critical — Unique to Match Minds)
+### 5.4 AI Privacy Layer (Critical — Unique to FairFold)
 
 This is our key architectural differentiator vs. every competitor above.
 
@@ -955,7 +976,7 @@ The following projects informed this architecture. We studied their strengths an
 - **CandiSift** (confused-ai/candisift) — Hexagonal architecture, PII stripping before AI, cost-estimate-before-process, evidence-cited breakdowns, bias-audit endpoint. We adopted all of these patterns. We diverge by using Django instead of FastAPI (ecosystem, team skills) and adding the candidate journey mapping feature.
 - **candidacy** (steelburn/candidacy) — OpenRouter integration as AI provider (directly relevant), DBML schema-as-code approach, 12-service microservices (we chose monolith-to-start for simplicity, can split later if needed).
 - **Vekt** (Behnoudmst/vekt) — GDPR-compliant by default, protected file serving, configurable data retention, privacy policy included. We adopted the privacy-first mindset.
-- **SkillAI** (olafkfreund/SkillAI) — Row-level security in PostgreSQL, MCP server concept (interesting for future — expose Match Minds data to Claude Desktop for workflow automation).
+- **SkillAI** (olafkfreund/SkillAI) — Row-level security in PostgreSQL, MCP server concept (interesting for future — expose FairFold data to Claude Desktop for workflow automation).
 
 ### Things We Explicitly Don't Copy
 - **OpenCATS** (opencats/OpenCATS): No AI, PHP stack, dated UX — confirmed why we need to build new, not fork
@@ -1782,7 +1803,7 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 - [ ] WebSocket connection for live interview coaching session
 - [ ] WebSocket connection for real-time employer notifications
 
-### C.16 Operational Procedures Addendum (supplements §8.5–§8.9 of `MATCH_MINDS_Project_Architecture_and_Requirements.md`)
+### C.16 Operational Procedures Addendum (supplements §8.5–§8.9 of `FAIRFOLD_Project_Architecture_and_Requirements.md`)
 
 This addendum consolidates the five operational-procedure sections that were added to the Architecture document as part of the SDLC gap-fill initiative (Phases 6–8: Deployment, Maintenance, Evaluation). The content below is the canonical reference; the Architecture document contains the same material for in-document navigation.
 
@@ -2003,4 +2024,4 @@ A **Release Retrospective** is held after every production release:
 
 ---
 
-*End of document. This supersedes the original MATCH MINDS PDF proposal.*
+*End of document. This supersedes the original FAIRFOLD PDF proposal.*

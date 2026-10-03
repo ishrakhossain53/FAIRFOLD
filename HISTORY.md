@@ -1,9 +1,9 @@
-# MATCH_MINDS — Project History
+# FAIRFOLD — Project History
 
 A running log of what has been done on this repository and what is still outstanding.
 Kept by hand; updated whenever a chunk of work lands.
 
-- **Repository:** `github.com/ishrakhossain53/MATCH_MINDS` (private)
+- **Repository:** `github.com/ishrakhossain53/FAIRFOLD` (private)
 - **Last updated:** 2026-10-03
 - **Current branch:** `ishrakhossain53-patch-1`
 - **Project state:** documentation phase. No application code has been written yet.
@@ -18,15 +18,15 @@ specifications, requirements, and supporting configuration.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `MATCH_MINDS_Complete_Project_Document.md` | 2006 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | 1856 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 23-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1162 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `FAIRFOLD_Complete_Project_Document.md` | 2006 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 1856 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 23-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `prd.md` | 1189 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | `design.md` | 1378 | Supplement — UI design system, 62 page specifications, 23 wireframes, implementation notes |
-| `MATCH_MINDS_Feasibility_and_Design.md` | 2393 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| `README.md` | 220 | Project overview, documentation index, setup |
-| `.env.example` | 142 | 25 environment variables, all placeholders |
+| `FAIRFOLD_Feasibility_and_Design.md` | 2406 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
+| `README.md` | 230 | Project overview, documentation index, setup |
+| `.env.example` | 143 | 25 environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
-| `scripts/generate_secret_key.py` | 136 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
+| `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
 **Key numbers of record** (verified 2026-10-03, re-verified after §2.20):
 
@@ -71,7 +71,7 @@ specifications, requirements, and supporting configuration.
 Both original documents were read end to end and checked against a 20-item academic /
 engineering specification rubric. **8 content gaps** were identified; all but two are now closed.
 
-### 2.3 `MATCH_MINDS_Feasibility_and_Design.md` ✅
+### 2.3 `FAIRFOLD_Feasibility_and_Design.md` ✅
 
 A companion document covering the diagramming, planning and feasibility gaps. Added as a
 **standalone file** rather than as edits to the existing specs, because the canonical
@@ -86,8 +86,8 @@ Content from the canonical specs is **cited, not duplicated**, to prevent drift.
 
 | Commit | Change |
 | --- | --- |
-| `5e74189` | Added as `MATCH_MINDS_Academic_Submission.md` |
-| `0486ee1` | Renamed to `MATCH_MINDS_Feasibility_and_Design.md` (git recorded a 96% rename) |
+| `5e74189` | Added as `FAIRFOLD_Academic_Submission.md` |
+| `0486ee1` | Renamed to `FAIRFOLD_Feasibility_and_Design.md` (git recorded a 96% rename) |
 | `b16b7a6` | Fixed the wireframe FR citation for the job-browse screen |
 | `c7d8c00` | Added `HISTORY.md`; fixed a misaligned table row |
 | `96993d4` | FR count 41 → 43; GAP-1/GAP-2 closed; story-point split reconciled; `resource_id` → UUID |
@@ -399,17 +399,17 @@ so each increment is auditable and the next one has an obvious place to go. Logg
 **A "bias-free" claim that could not be supported was replaced, not repeated.** Part C.3's
 status column was adopted verbatim — three of seven differentiation claims are *Designed,
 not yet measured*. `prd.md` §4.2 now carries approved wording that claims *different*
-rather than *better*, and the README flags that "bias-free" in the product name is a
-positioning statement, not a measured claim.
+rather than *better*. The claim went further in §2.22: the word was removed from the
+product subtitle in every document rather than being kept and annotated.
 
 ---
 
-### 2.21 🔴 The product name is contested and no decision has been taken
+### 2.21 🔴 The working name was contested — ✅ resolved: the product is **FairFold**
 
-Not closed. Recorded here because it is now the most urgent open item in the repository
-and because it was found while applying Part C, not by the plan.
+Found while applying Part C, not by the plan. Recorded because the *reasoning* is worth
+more than the rename.
 
-**Verified 2026-10-03** (web search + DNS resolution):
+**Why the old name was abandoned.** Verified 2026-10-03 (web search + DNS resolution):
 
 | Finding | Evidence |
 |---|---|
@@ -419,30 +419,68 @@ and because it was found while applying Part C, not by the plan.
 
 Three unrelated commercial spaces, one of them recruitment. "Match Mind" is also
 descriptive of what every ATS does, which makes it hard to register as a word mark and hard
-to defend.
+to defend even once registered.
 
 **Replacement candidates screened the same day:**
 
-| Candidate | Meaning | Domains with no DNS record | Concern |
+| Candidate | Meaning | Domains with no DNS record | Outcome |
 |---|---|---|---|
-| **FairFold** | fair + a folded resume | fairfold.com, fairfold.ai | Clean on search — best of the shortlist |
-| **Niyoti** (নিয়তি) | Bengali for impartiality; matches both the thesis and the BD beachhead | niyoti.app, niyoti.io | A common Bengali given name, so a bare word mark is hard to own |
-| **SightFold** | you can *see* the reasoning | sightfold.com | Coined, so colder as a brand |
-| **Evidencefold** | evidence-cited rationale | evidencefold.com | Long and clunky in a logo |
+| **FairFold** | fair + a folded resume | fairfold.com, fairfold.ai | ✅ **Selected** |
+| **Niyoti** (নিয়তি) | Bengali for impartiality; matches both the thesis and the BD beachhead | niyoti.app, niyoti.io | Not chosen — a common Bengali given name, so a bare word mark is hard to own |
+| **SightFold** | you can *see* the reasoning | sightfold.com | Not chosen — coined, so colder as a brand |
+| **Evidencefold** | evidence-cited rationale | evidencefold.com | Not chosen — long and clunky in a logo |
 
 Rejected in the same sweep: Meritfold (already a UK public-sector bid product), Sightline,
 Clearscreen, Showwork, Foldwork, Talentfold, Skillfold, Plainfold, Proofhire, Openrank,
 Rankfold, Foldscore, Meritly, Fairhire — all taken.
 
-**Two honest caveats.** "No DNS record" is not proof a domain is available, and a web search
-is not a trademark clearance. **A formal trademark search in Bangladesh and the target
-export markets has not been done and still has to be.**
+**Why FairFold works.** "Fair" states the intent. "Fold" carries the résumé being opened
+and read — the moment the product intervenes on. It names the *artefact* rather than the
+feature, which is the thing a competitor cannot copy by adding a checkbox. No living
+commercial use of the string was found.
 
-**No rename has been made.** The name is unchanged across all seven documents pending the
-Product Owner's decision. Renaming is a mechanical find-and-replace, so it is cheap now and
-only expensive after branding spend — which is exactly why it should not be deferred.
-Logged as **RSK-011** (High/High), `prd.md` §4.3, `prd.md` §19.2 item 17, Feasibility
-§1.4.2, and flagged at the top of `README.md`. `design.md` §12 item 5 is now blocked on it.
+**What changed.** `MATCH MINDS` → `FAIRFOLD` and `Match Minds` → `FairFold` across all
+seven documents, `.env.example`, `.gitignore` and `scripts/generate_secret_key.py`; the
+three `MATCH_MINDS_*.md` files renamed via `git mv`; every internal link repaired. The
+three `MatchMinds` references left in place are in the risk sections and describe *other*
+people's products — renaming those would have made the risk register say FairFold
+conflicts with FairFold.
+
+**Two caveats that survive the decision.** "No DNS record" is not proof a domain is
+available — a parked or newly-registered domain may simply have no A record. And a web
+search is not a trademark clearance.
+
+**🟡 Residual, now legal rather than naming.** **RSK-011** stays on the register,
+downgraded from **High/High to Medium/Low**: commission a formal trademark search in
+Bangladesh and every target export market, register `fairfold.com` / `fairfold.ai` before
+any public announcement, and file the word mark in classes 42 and 35 per market. **None of
+that has been done.** `design.md` §12 item 5 is unblocked for logo work but carries the
+caveat that nothing should go on public collateral until the search returns.
+
+---
+
+### 2.22 "Bias-free" removed from the product subtitle
+
+The second flag. Every document described the product as an "AI-Powered, **Bias-Free**
+Recruitment Platform" and the README opened with "Eliminates unconscious bias". None of
+that is measured. The bias audit and disparity analysis that would support it
+(`prd.md` §8.7) have not run, and item 12 of §19.2 had already narrowed a related claim
+for exactly this reason.
+
+**Replaced with "AI-Powered, Explainable Recruitment Platform"** in all five places the
+subtitle appeared, plus two prose uses ("bias-free ranking" → "evidence-cited ranking").
+The difference matters: *explainable* is a claim about **process** — every score carries
+cited evidence, every action writes an audit entry, and it can be checked on any given
+decision today. *Bias-free* is a claim about **outcomes**, across a population, over time,
+which nothing in this repository can support yet.
+
+"bias-free" now survives only where it is attributed to a competitor's marketing or
+labelled explicitly as the aspiration §8.7 would have to earn. Both the README banner and
+`prd.md` §4.2 say so in writing, with a do-not-reintroduce instruction.
+
+This is the same discipline as §2.19 item 12: **narrow the claim until the evidence
+exists, rather than shipping a promise and hoping.** A tagline that has to be walked back
+after a discrimination complaint costs more than it ever won.
 
 ---
 
@@ -462,25 +500,33 @@ Logged as **RSK-011** (High/High), `prd.md` §4.3, `prd.md` §19.2 item 17, Feas
 | **J** — 14 open §19.2 items | 🟡 open | ✅ **all resolved** (§2.19) |
 | **K** — Requirements did not answer the original problem | *(not previously found)* | ✅ **closed** — G1 → `REQ-FR-051`, G2 → `REQ-FR-052`, G3 → `REQ-FR-029` amendment (§2.20) |
 | **L** — FR count contradicted itself | 🟡 header 50 / note 43 / §19.2 50 | ✅ **fixed** — three dated notes, all now agree on 52 (§2.20, `prd.md` §19.2 item 15) |
-| **M** — Product name contested | *(not previously found)* | ❌ **open and now the most urgent item** — three unrelated commercial uses of the string; 4 candidates screened, **no choice made**; trademark search outstanding (§2.21, RSK-011) |
+| **M** — Product name contested | *(not previously found)* | ✅ **closed** — the old name was abandoned and the product renamed to **FairFold**; files and all links updated (§2.21). Residual legal task on **RSK-011** at Medium/Low |
+| **N** — "Bias-free" subtitle unverifiable | 🟡 claimed everywhere, measured nowhere | ✅ **closed** — subtitle is now "AI-Powered, **Explainable** Recruitment Platform" (§2.22). The word survives only where attributed or labelled as an aspiration |
 
 ---
 
 ## 4. Outstanding work
 
-**Eleven of the nineteen gaps found across this work are now closed.** What remains is
-listed here. One item genuinely needs a decision from the team; the rest is build work.
+**Thirteen of the twenty-one gaps found across this work are now closed.** What remains is
+listed here. Two items genuinely need a decision from the team; the rest is build work.
 
-### 4.1 🔴 The product name — `prd.md` §4.3 · **the most urgent open item**
+### 4.1 🟡 Trademark clearance for FairFold — `prd.md` §4.3 · **RSK-011**
 
-Full detail in §2.21. "Match Minds" is used by at least two other AI recruitment products
-and two unrelated software products, and is descriptive enough of what every ATS does to be
-hard to trademark. Four replacements were screened on 2026-10-03 — **FairFold**,
-Niyoti, SightFold, Evidencefold — but **no choice has been made** and a formal trademark
-search has not been done.
+Full detail in §2.21. **The name is decided: FairFold.** The previous name was abandoned
+because three unrelated commercial users already had it. FairFold had no living
+commercial use in the same sweep, and `fairfold.com` / `fairfold.ai` returned no DNS record.
 
-**Needs from the team:** pick a name (or commission the search first), then a mechanical
-find-and-replace across all seven documents. Cheap now; a rebrand after launch is not.
+**What is left is legal work, not a creative decision — and none of it has been done:**
+
+1. **Formal trademark search** in Bangladesh and every target export market. A web search
+   and a DNS lookup are not a clearance.
+2. **Register the domain** before any public announcement — no A record is a signal, not
+   a reservation.
+3. **File the word mark** in class 42 (software/SaaS) and class 35 (recruitment services)
+   in each market.
+
+**Needs from the team:** commission items 1–3, or accept that risk knowingly. Logo work is
+unblocked, but nothing should appear on public collateral until the search returns.
 
 ### 4.2 🟡 Validation plan — `Feasibility §1.3.4` — **[Planned]**, not a blocker
 
@@ -584,6 +630,7 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
+2f7f01f  docs: trace requirements back to the problem, and flag a contested product name
 f342dd0  docs: re-base the Gantt, close two schema holes, and decide the open questions
 34fbe78  Create design.md
 6a50343  Create prd.md
