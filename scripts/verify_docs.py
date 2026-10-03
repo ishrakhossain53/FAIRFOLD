@@ -14,6 +14,7 @@ those numbers, and this is what keeps it meaning one thing.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from collections import Counter
@@ -621,6 +622,45 @@ def check_referenced_files(r: Result, docs: dict[str, str]) -> None:
         f"{len(required)} specified infrastructure files exist",
         f"missing: {missing}" if missing else "all present",
     )
+
+    # `npm ci` requires a committed package-lock.json and deletes node_modules
+    # first. It failed CI on 2026-10-04 with EUSAGE because no lockfile was ever
+    # committed. The workflow now falls back to `npm install`, but that fallback
+    # makes the build unreproducible, so the lockfile's absence is still reported.
+    lock = ROOT / "package-lock.json"
+    if (ROOT / "package.json").exists():
+        r.check(
+            lock.exists(),
+            "package-lock.json is committed",
+            "missing — CI falls back to npm install, which is not reproducible"
+            if not lock.exists()
+            else "present",
+        )
+
+    # A pinned dependency version that does not exist on the registry cannot be
+    # caught by reading a file: `htmx.org@1.18.0` reads as plausible and fails
+    # only on `npm install`. Nothing here queries npm, so what is checkable is
+    # that every pin is an exact version rather than a range -- a range defers
+    # the same failure to a later, less obvious build.
+    pkg = ROOT / "package.json"
+    if pkg.exists():
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            r.check(False, "package.json parses as JSON", "invalid JSON")
+        else:
+            ranged = [
+                f"{name}@{spec}"
+                for group in ("dependencies", "devDependencies")
+                for name, spec in (data.get(group) or {}).items()
+                if not re.fullmatch(r"\d+\.\d+\.\d+", str(spec))
+            ]
+            r.check(
+                not ranged,
+                f"every npm dependency is an exact version ({len(data.get('dependencies') or {})} deps, "
+                f"{len(data.get('devDependencies') or {})} dev)",
+                f"not exactly pinned: {ranged}" if ranged else "all pinned",
+            )
 
     # A variable a settings module reads with NO default must be in .env.example,
     # because a developer who copies the template and boots gets
