@@ -45,7 +45,7 @@ blocked.
 | `FAIRFOLD_Feasibility_and_Design.md` | 2880 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
 | `.env.example` | 158 | Environment variables, all placeholders |
-| `requirements.txt` / `requirements-dev.txt` | 64 / 25 | Pinned Python dependencies (planned stack) |
+| `requirements.txt` / `requirements-dev.txt` | 26 / 26 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
 **Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24 and §2.25):
@@ -1276,6 +1276,47 @@ scaffold. So `manage.py check`, `migrate` and anything importing a model will fa
 first `models.py` is written. That is expected: the models are day-one work and this pass was
 not to build them. The workflow now runs `manage.py check` **before** the tests so it fails
 with that message rather than as a traceback from whichever later step imported the file first.
+
+#### 10. CI failed again — SIX pins in `requirements.txt` did not exist
+
+The previous fix moved the failure from 49s to 53s, which meant the frontend was never the
+cause. **Six version pins I wrote do not exist on PyPI**, and `pip install` reports them **one
+at a time** — so each round of CI surfaced exactly one and I fixed it. All six were found in
+one pass by asking pip to resolve without installing.
+
+| Package | I wrote | Reality |
+|---|---|---|
+| `djangorestframework-simplejwt` | `5.3.3` | does not exist — 5.3.0, then 5.4.0 |
+| `django-otp` | `0.16.0` | does not exist — **the line is 1.x** |
+| `drf-spectacular` | `0.28.1` | does not exist — 0.28.0, then 0.29.0 |
+| `django-encrypted-model-fields` | `>=1.3.0` | does not exist — the line is 0.6.x |
+| `clamav-client` | `>=0.10.0` | does not exist — the line is 0.7.x |
+| `pip-audit` / `safety` | `2.8.1` / `2.5.1` | do not exist |
+
+**A seventh problem was worse than any of them, and no version error would have revealed it.**
+`django-celery-beat==2.7.0` **requires `Django<5.2`** — so it cannot install alongside the
+5.2 LTS that every document in this repository specifies. The pin exists, the package is real,
+and only a resolution pass finds the contradiction. Fixed to `2.9.0`, verified by reading
+`Requires-Dist` out of the wheel rather than trusting the release notes.
+
+**And an eighth: `Django>=5.2` had no upper bound**, so pip resolved to **Django 6.1.1** while
+the documents specify 5.2 LTS. An unbounded range means the version under test is whichever one
+released that morning, so **a green CI run would have said nothing about the deployed version.**
+Now `>=5.2,<6.0`, and resolution confirms it picks **5.2.17**.
+
+**Both files now resolve cleanly**, verified:
+`pip install --dry-run -r requirements.txt -r requirements-dev.txt` → `Would install …` with
+Django 5.2.17, no errors.
+
+**The lesson, and the fix.** Six invented version numbers in one file is not six independent
+typos — it is a habit. Nothing catches it: not review, not reading, not proofreading, and not
+`pip install` either, because pip stops at the first one. So the workflow now runs a
+**resolution-only pass** before installing, which finds all of them in ~20 seconds instead of
+one per CI run.
+
+The Arch Doc §3.4 stack table carried three of the same wrong versions and is corrected, with
+the correction inline so a reader comparing it to an old `requirements.txt` knows why they
+differ.
 
 ---
 
