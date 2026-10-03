@@ -194,8 +194,12 @@ The original proposal included Rust/Actix for "high-performance components." Aft
 ### 4.2 Django Application Structure
 
 ```
-matchminds/
-├── core/                    # Shared utilities, middleware, security
+fairfold/                   # repository root
+├── config/                 # Django PROJECT package (not an app)
+│   ├── settings/           # base, local, test, ci, production
+│   ├── urls.py
+│   └── wsgi.py
+├── core/                   # Shared utilities, middleware, security
 ├── accounts/               # User model, auth, RBAC, profiles
 ├── candidates/             # Candidate dashboard, journey mapping, assessments
 ├── employers/              # Employer dashboard, job postings, screening
@@ -208,6 +212,14 @@ matchminds/
 ├── journey/                # AI-Powered Professional Journey Mapping (MVP feature)
 └── ai/                     # AI provider abstraction (OpenRouter + fallback)
 ```
+
+> **Naming resolved 2026-10-03.** This tree previously had no `config/` entry and
+> implied the Django project package was `fairfold/`, while `.env.example`, the CI
+> workflow and the README all set `DJANGO_SETTINGS_MODULE=config.settings.*`. The
+> **Django project package is `config/`** and the **Django apps are top-level packages
+> at the repository root**. Every lint, coverage and test command in this document and
+> in the CI workflow was corrected to match. This was a real ambiguity that would have
+> broken `pytest`, `flake8` and `manage.py` on day one.
 
 ### 4.3 Core Django Settings for Security (see Section 5 for full detail)
 
@@ -868,7 +880,7 @@ class AuditLogEntry(models.Model):
 | **Database** | PostgreSQL 17 with pgvector extension (self-hosted on VPS, or managed like Supabase/Neon if preferred) | $0 (self-hosted) or $0-25/mo (managed) |
 | **Object storage** | MinIO (self-hosted, S3-compatible) or Cloudflare R2 (10GB free, then $0.015/GB) | $0 |
 | **Redis** | Redis 7 (self-hosted via Docker) | $0 |
-| **Domain name** | matchminds.io or similar | ~$10/year |
+| **Domain name** | fairfold.io or similar | ~$10/year |
 | **SSL certificates** | Let's Encrypt (free, auto-renewed via certbot) | $0 |
 
 ### 10.2 Software Dependencies
@@ -964,7 +976,7 @@ sphinx >= 8.2  # documentation generation
 - **Week 10-12:** Phase 4 — security hardening, production deployment
 - **Week 13+:** Phase 5 — advanced features, billing, mobile
 
-**MVP definition:** Employer can post a job, candidates can apply with a resume, AI screens and ranks applicants with explainable scores using free-tier AI, candidates see their match scores and get interview coaching. That's Phase 1-3, ~9 weeks with a focused team of 4.
+**MVP definition:** Employer can post a job, candidates can apply with a resume, AI screens and ranks applicants with explainable scores using free-tier AI, candidates see their match scores and get interview coaching. That's Phase 1-3, ~9 weeks. (The team is **5 people**, not 4 — corrected 2026-10-03; §10.4 and `FAIRFOLD_Feasibility_and_Design.md` §2.7.3 both list five. Phase durations assume a focused team and are unaffected.)
 
 ---
 
@@ -1155,7 +1167,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: matchminds_test
+          POSTGRES_DB: fairfold_test
         options: >-
           --health-cmd "pg_isready"
           --health-interval 5s
@@ -1186,31 +1198,31 @@ jobs:
           pip install drf-spectacular
 
       - name: Lint — flake8
-        run: flake8 matchminds/ --max-line-length=120
+        run: flake8 config/ core/ accounts/ candidates/ employers/ matching/ interviews/ ai/ --max-line-length=120
 
       - name: Lint — black (check)
-        run: black --check matchminds/
+        run: black --check config/ core/ accounts/ candidates/ employers/ matching/ interviews/ ai/
 
       - name: Lint — isort (check)
-        run: isort --check matchminds/
+        run: isort --check config/ core/ accounts/ candidates/ employers/ matching/ interviews/ ai/
 
       - name: Type check — mypy
-        run: mypy matchminds/ --ignore-missing-imports
+        run: mypy config/ --ignore-missing-imports
 
       - name: Security scan — bandit
-        run: bandit -r matchminds/ -c bandit.yaml
+        run: bandit -r config/ -c bandit.yaml
 
       - name: Dependency audit — pip-audit
         run: pip-audit -r requirements.txt
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/matchminds_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SETTINGS_MODULE: config.settings.ci
         run: |
           python manage.py migrate
-          pytest tests/ -v --cov=matchminds --cov-fail-under=80
+          pytest tests/ -v --cov=config --cov-fail-under=80
 
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
@@ -1234,7 +1246,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: matchminds/app:${{ github.sha }},matchminds/app:latest
+          tags: fairfold/app:${{ github.sha }},fairfold/app:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -1250,8 +1262,8 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Smoke test
         run: |
-          curl -f https://staging.matchminds.com/health/
-          curl -f https://staging.matchminds.com/api/v1/jobs/
+          curl -f https://staging.fairfold.com/health/
+          curl -f https://staging.fairfold.com/api/v1/jobs/
 
   deploy-production:
     needs: deploy-staging
@@ -1265,7 +1277,7 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Health check
         run: |
-          curl -f https://app.matchminds.com/health/
+          curl -f https://app.fairfold.com/health/
 
   rollback-staging:
     runs-on: ubuntu-24.04
@@ -1277,14 +1289,14 @@ jobs:
       - name: Rollback to previous release image
         run: |
           ssh ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-            "docker image tag matchminds/app:v$(cat .version-tag-staging | rev | cut -d. -f2- | rev) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:v$(cat .version-tag-staging | rev | cut -d. -f2- | rev) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
         run: |
-          curl -f https://staging.matchminds.com/health/
-          curl -f https://staging.matchminds.com/api/v1/jobs/
+          curl -f https://staging.fairfold.com/health/
+          curl -f https://staging.fairfold.com/api/v1/jobs/
       - name: Comment on PR / Notify Slack
         run: |
-          echo "Rollback to previous release completed for staging." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Staging rollback completed — matchminds/staging"} ' $SLACK_WEBHOOK_URL
+          echo "Rollback to previous release completed for staging." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Staging rollback completed — fairfold/staging"} ' $SLACK_WEBHOOK_URL
 
   rollback-production:
     runs-on: ubuntu-24.04
@@ -1296,13 +1308,13 @@ jobs:
       - name: Rollback to previous release image
         run: |
           ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
-            "docker image tag matchminds/app:v$(cat .version-tag-prod | rev | cut -d. -f2- | rev) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:v$(cat .version-tag-prod | rev | cut -d. -f2- | rev) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
         run: |
-          curl -f https://app.matchminds.com/health/
+          curl -f https://app.fairfold.com/health/
       - name: Comment on PR / Notify Slack
         run: |
-          echo "Rollback to previous release completed for production." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Production rollback completed — matchminds/production"} ' $SLACK_WEBHOOK_URL
+          echo "Rollback to previous release completed for production." | curl -X POST -H 'Content-type: application/json' --data '{"text": "Production rollback completed — fairfold/production"} ' $SLACK_WEBHOOK_URL
 
 > **Rollback strategy:** Each successful production deploy records the current version tag to `.version-tag-prod` (and `.version-tag-staging` for staging). The rollback job reads this file, extracts the previous version tag, retags the previous image as `:latest`, and redeploys via `docker-compose`. Manual trigger via GitHub Actions "Run workflow" button with `workflow_dispatch`. Target rollback time: < 5 minutes.
 
@@ -1720,13 +1732,30 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 | Module | Purpose |
 |---|---|
 | `base.py` | Shared settings — installed apps, middleware, security, DRF/Celery config |
-| `local.py` | Development (`DEBUG=True`, SQLite fallback if Postgres unavailable) |
-| `test.py` | Testing (in-memory SQLite, fast unit tests) |
-| `ci.py` | CI (in-memory SQLite for unit tests, Postgres for integration tests) |
+| `local.py` | Development (`DEBUG=True`, **PostgreSQL 17 + pgvector** via Docker — no SQLite fallback) |
+| `test.py` | Pure unit tests on in-memory SQLite — **anything touching a `VectorField` must use `ci.py`** |
+| `ci.py` | CI (**PostgreSQL + pgvector** for unit and integration tests alike) |
+
+> ⚠️ **SQLite is not a substitute for PostgreSQL — resolved 2026-10-03.**
+> `pgvector` does not exist in SQLite, so any model with a `VectorField` cannot be
+> created or queried there. Screening, ranking, rationale and bias audit all depend on
+> vector search (REQ-FR-028/029/030), so a SQLite-backed `local` or `test` settings
+> module **cannot run the application** — it would fail at the first migration.
+>
+> The corrected rule, applied to every reference below:
+> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d db`.
+> - **`test.py`** → in-memory SQLite is acceptable **only** for pure unit tests that
+>   touch no `VectorField`. Anything touching `matching/`, `candidates/` embeddings or
+>   `employers/` screening needs the Postgres test database.
+> - **`ci.py`** → Postgres service container, for both unit and integration jobs.
+>
+> This was a genuine contradiction: the dependency list, the schema and the settings
+> hierarchy all assumed PostgreSQL, while the settings comments invited a SQLite
+> fallback that could never work.
 | `production.py` | Production (`DEBUG=False`, Sentry, HTTPS enforcement) |
 
 **Test environment:**
-- `.github/workflows/ci-cd.yml` — runs `pytest tests/ --cov=matchminds --cov-fail-under=80` with `DJANGO_SETTINGS_MODULE=config.settings.ci`
+- `.github/workflows/ci-cd.yml` — runs `pytest tests/ --cov=config --cov-fail-under=80` with `DJANGO_SETTINGS_MODULE=config.settings.ci`
 - Local: `pytest tests/ -v --ds=config.settings.test`
 
 ### C.14 Complete Freemium Pricing Tiers (supplements §1, §9 Phase 5)
@@ -1744,6 +1773,7 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 
 | Tier | Price | Features | Limits |
 |---|---|---|---|
+| **Free** | $0/mo | 3 active job postings, 50 AI screens/mo, candidate pipeline list | Not time-limited |
 | **Starter** | $100/mo | 50 job postings, 500 AI screens/mo, basic analytics, email support | Up to 25 employees |
 | **Growth** | $500/mo | 500 job postings, 5,000 AI screens/mo, advanced analytics, interview packs, priority support | Up to 250 employees |
 | **Scale** | $1,500/mo | Unlimited jobs, 15,000 AI screens/mo, custom AI model selection, API access, dedicated support | Up to 1,000 employees |
@@ -1751,6 +1781,19 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 | **Self-Hosted** | $0 (open source) / Custom support | Everything in Enterprise, deployed on your infrastructure | Requires ops team |
 
 **Overage pricing:** $0.0001 per additional AI call beyond quota (negligible — OpenRouter free tier covers most usage).
+
+> **Conflict resolved 2026-10-03.** This table previously had **no Free employer tier**,
+> while `prd.md` §15.2 listed one ($0 · 3 jobs · 50 screens/mo) and the
+> `subscriptions` table in Arch Doc §5.1 already implements it —
+> `plan VARCHAR(20) DEFAULT 'free'`, `max_jobs INTEGER DEFAULT 3`,
+> `ai_quota_remaining INTEGER DEFAULT 50`. The schema was the tiebreaker: a default row
+> that no pricing table described is a plan nobody can explain to a customer. The Free
+> row is added here to match.
+>
+> Note also that `prd.md` §15.2 described the free plan's limit as "**Trial**", but the
+> `subscriptions` table has **no expiry column**, so the schema does not support a trial
+> period. Changed to "Not time-limited". If a trial is actually wanted, it needs a
+> `trial_ends_at` column and a decision on what happens at expiry.
 
 ### C.15 Feature Backlog Per Phase (supplements §9)
 
@@ -1824,8 +1867,8 @@ This addendum consolidates the five operational-procedure sections that were add
 **Rollback steps (production):**
 1. **Decide** — Incident Commander declares a rollback; on-call engineer acknowledges in #incidents Slack.
 2. **Trigger** — Navigate to GitHub Actions → CI/CD Pipeline → "Run workflow" → select `rollback-production` job.
-3. **Wait** — The job reads `.version-tag-prod` to identify the previous version tag, retags the previous `matchminds/app:vX.Y.Z` image as `:latest`, and redeploys via `docker-compose up -d --wait`.
-4. **Verify** — `curl -f https://app.matchminds.com/health/` must return 200. Check Sentry for new error spikes.
+3. **Wait** — The job reads `.version-tag-prod` to identify the previous version tag, retags the previous `fairfold/app:vX.Y.Z` image as `:latest`, and redeploys via `docker-compose up -d --wait`.
+4. **Verify** — `curl -f https://app.fairfold.com/health/` must return 200. Check Sentry for new error spikes.
 5. **Communicate** — Post update in #incidents with rollback time and version. Notify product and support leads.
 6. **Investigate** — Schedule post-mortem within 48 hours (see post-mortem template below).
 
@@ -1938,7 +1981,7 @@ This addendum consolidates the five operational-procedure sections that were add
 #### C.16.4 Post-Deployment Evaluation & Retrospective Process
 
 **Phase 1: Release Verification (within 1 hour of deploy)**
-- [ ] Health endpoint returns 200 (`curl -f https://app.matchminds.com/health/`)
+- [ ] Health endpoint returns 200 (`curl -f https://app.fairfold.com/health/`)
 - [ ] Key API endpoints respond (jobs list, auth login, health check)
 - [ ] Sentry shows no new error spikes
 - [ ] Prometheus shows no metric anomalies (request rate, error rate, latency)
@@ -2000,7 +2043,7 @@ A **Release Retrospective** is held after every production release:
 
 **Tagging convention:**
 - `git tag -a v{MAJOR}.{MINOR}.{PATCH} -m "Release v{MAJOR}.{MINOR}.{PATCH}"`
-- Tags pushed to GitHub trigger Docker image tagging: `matchminds/app:v{MAJOR}.{MINOR}.{PATCH}`
+- Tags pushed to GitHub trigger Docker image tagging: `fairfold/app:v{MAJOR}.{MINOR}.{PATCH}`
 - The `latest` tag always points to the most recent stable release on `main`
 
 **Pre-release process:**

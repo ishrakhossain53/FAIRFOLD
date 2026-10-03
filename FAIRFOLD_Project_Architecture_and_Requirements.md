@@ -232,17 +232,17 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 
 | Layer | Technology | Version | Rationale |
 |---|---|---|---|
-| **Frontend** | Django Templates | 5.x | Single framework, faster MVP |
+| **Frontend** | Django Templates | ships with Django 5.2 | Single framework, faster MVP |
 | | HTMX | 1.18+ | SPA-like interactivity without separate frontend |
 | | TailwindCSS | 3.4 | Rapid UI development |
 | | Django-HTMX | 1.0+ | HTMX ↔ Django integration |
 | | Chart.js | 4.4 | Journey mapping visualization |
 | **Backend** | Django | 5.2+ | LTS — production-proven (Instagram, Pinterest) |
-| | Django REST Framework | 3.14 | API layer for future SPA |
+| | Django REST Framework | 3.15.1 | API layer for the DRF endpoints; pinned in `requirements.txt` |
 | | DRF Spectacular | 0.28 | OpenAPI 3.0 auto-generation |
 | **Database** | PostgreSQL | 17 | JSON support, row-level security |
 | | psycopg2-binary | 2.9.9+ | PostgreSQL driver |
-| | pgvector | 0.2.4 | Semantic similarity search |
+| | pgvector (Python) | 0.2.0+ | Semantic similarity search; the PostgreSQL extension is a separate version — see below |
 | | pgcrypto | built-in | Additional field encryption |
 | **AI/ML** | sentence-transformers | 3.0+ | Offline embeddings ($0 cost) |
 | | spaCy | 3.8+ | PII detection NER (offline) |
@@ -253,7 +253,8 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | | Celery Beat | built-in | Scheduled tasks |
 | | Celery Results (django-celery-results) | 2.5+ | Task result backend |
 | | Celery Beat UI (django-celery-beat) | 2.7+ | Periodic task scheduler |
-| | Redis | 5.0+ | Broker + cache |
+| | Redis | 5.0+ | Celery broker + result backend |
+| | django-redis | 5.4 | **Redis cache backend.** Added 2026-10-03: §5.4 specifies Redis-backed caching and Redis rate-limit counters, but no Django Redis cache backend was in the dependency list, so the cache strategy was unimplementable and rate limits would have been per-process |
 | | Flower | 2.0+ | Celery monitoring UI |
 | **Infrastructure** | Docker | 24.x | Containerization |
 | | Docker Compose | v2 | Local dev orchestration |
@@ -269,7 +270,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | **Security** | Argon2id | via argon2-cffi | Password hashing |
 | | cryptography | 43.0+ | AES-256-GCM field encryption |
 | | django-encrypted-model-fields | 1.3.0 | EncryptedCharField |
-| | django-ratelimit | 4.1.0 | Rate limiting |
+| | django-ratelimit | 4.1.0 | Rate limiting. **Must be configured against the Redis cache**, not the default local-memory cache, or limits are enforced per gunicorn worker and are therefore not limits |
 | | django-otp | 0.16.0 | TOTP MFA |
 | | djangorestframework-simplejwt | 5.3.3 | JWT authentication |
 | **Email** | django-anymail | 10.0+ | Unified email backend |
@@ -501,7 +502,7 @@ a person can reject a candidate.
 
 | ID | Requirement | Target | Measurement |
 |---|---|---|---|
-| REQ-NFR-019 | Test coverage | ≥ 80% | `pytest --cov=matchminds --cov-fail-under=80` in CI |
+| REQ-NFR-019 | Test coverage | ≥ 80% | `pytest --cov=fairfold --cov-fail-under=80` in CI |
 | REQ-NFR-020 | Code formatting | 100% compliant | `black --check` and `flake8` in CI |
 | REQ-NFR-021 | Type safety | 100% of new code | `mypy --strict` passes |
 | REQ-NFR-022 | Import ordering | 100% compliant | `isort --check` in CI |
@@ -975,24 +976,24 @@ version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg17
-    container_name: matchminds-postgres
+    container_name: fairfold-postgres
     environment:
-      POSTGRES_DB: matchminds_dev
-      POSTGRES_USER: matchminds
+      POSTGRES_DB: fairfold_dev
+      POSTGRES_USER: fairfold
       POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U matchminds"]
+      test: ["CMD-SHELL", "pg_isready -U fairfold"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: matchminds-redis
+    container_name: fairfold-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -1003,7 +1004,7 @@ services:
 
   django:
     build: .
-    container_name: matchminds-django
+    container_name: fairfold-django
     depends_on:
       postgres:
         condition: service_healthy
@@ -1011,7 +1012,7 @@ services:
         condition: service_healthy
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://matchminds:${DB_PASSWORD:-devpassword}@postgres:5432/matchminds_dev
+      DATABASE_URL: postgresql://fairfold:${DB_PASSWORD:-devpassword}@postgres:5432/fairfold_dev
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -1028,13 +1029,13 @@ services:
 
   celery:
     build: .
-    container_name: matchminds-celery
+    container_name: fairfold-celery
     depends_on:
       - redis
       - postgres
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://matchminds:${DB_PASSWORD:-devpassword}@postgres:5432/matchminds_dev
+      DATABASE_URL: postgresql://fairfold:${DB_PASSWORD:-devpassword}@postgres:5432/fairfold_dev
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -1044,12 +1045,12 @@ services:
 
   celery-beat:
     build: .
-    container_name: matchminds-celery-beat
+    container_name: fairfold-celery-beat
     depends_on:
       - celery
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://matchminds:${DB_PASSWORD:-devpassword}@postgres:5432/matchminds_dev
+      DATABASE_URL: postgresql://fairfold:${DB_PASSWORD:-devpassword}@postgres:5432/fairfold_dev
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -1059,7 +1060,7 @@ services:
 
   nginx:
     image: nginx:1.25-alpine
-    container_name: matchminds-nginx
+    container_name: fairfold-nginx
     depends_on:
       - django
     ports:
@@ -1079,16 +1080,16 @@ volumes:
   media_data:
 ```
 
-> **Container names:** every service sets an explicit `container_name`, so the containers can be addressed by a stable name regardless of the Compose project directory. This is what the README's `docker exec -it matchminds-django ...` commands rely on.
+> **Container names:** every service sets an explicit `container_name`, so the containers can be addressed by a stable name regardless of the Compose project directory. This is what the README's `docker exec -it fairfold-django ...` commands rely on.
 
 | Service | Container name | Port |
 |---|---|---|
-| `postgres` | `matchminds-postgres` | 5432 |
-| `redis` | `matchminds-redis` | 6379 |
-| `django` | `matchminds-django` | 8000 |
-| `celery` | `matchminds-celery` | — |
-| `celery-beat` | `matchminds-celery-beat` | — |
-| `nginx` | `matchminds-nginx` | 8080 |
+| `postgres` | `fairfold-postgres` | 5432 |
+| `redis` | `fairfold-redis` | 6379 |
+| `django` | `fairfold-django` | 8000 |
+| `celery` | `fairfold-celery` | — |
+| `celery-beat` | `fairfold-celery-beat` | — |
+| `nginx` | `fairfold-nginx` | 8080 |
 
 ### 6.2 Production Dockerfile
 
@@ -1104,21 +1105,21 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN groupadd -r matchminds && useradd -r -g matchminds matchminds
+RUN groupadd -r fairfold && useradd -r -g fairfold fairfold
 
 # Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
-COPY --chown=matchminds:matchminds . /app
+COPY --chown=fairfold:fairfold . /app
 WORKDIR /app
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
 # Switch to non-root user
-USER matchminds
+USER fairfold
 
 # Gunicorn
 EXPOSE 8000
@@ -1135,17 +1136,17 @@ upstream django {
 
 server {
     listen 80;
-    server_name matchminds.com www.matchminds.com;
+    server_name fairfold.com www.fairfold.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name matchminds.com www.matchminds.com;
+    server_name fairfold.com www.fairfold.com;
 
     # SSL (Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/matchminds.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/matchminds.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/fairfold.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/fairfold.com/privkey.pem;
     ssl_protocols TLSv1.3 TLSv1.2;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
     ssl_prefer_server_ciphers off;
@@ -1206,7 +1207,7 @@ server {
 replicaCount: 3
 
 image:
-  repository: matchminds/app
+  repository: fairfold/app
   tag: latest
   pullPolicy: Always
 
@@ -1244,7 +1245,7 @@ postgresql:
 
 s3:
   endpointUrl: https://s3.amazonaws.com  # or MinIO
-  bucketName: matchminds-production
+  bucketName: fairfold-production
   region: us-east-1
 
 resources:
@@ -1287,7 +1288,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: matchminds_test
+          POSTGRES_DB: fairfold_test
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s
@@ -1320,31 +1321,31 @@ jobs:
         run: python -m spacy download en_core_web_sm
 
       - name: Lint — flake8
-        run: flake8 matchminds/ --max-line-length=120
+        run: flake8 fairfold/ --max-line-length=120
 
       - name: Lint — black (check)
-        run: black --check matchminds/
+        run: black --check fairfold/
 
       - name: Lint — isort (check)
-        run: isort --check matchminds/
+        run: isort --check fairfold/
 
       - name: Type check — mypy
-        run: mypy matchminds/ --ignore-missing-imports
+        run: mypy fairfold/ --ignore-missing-imports
 
       - name: Security scan — bandit
-        run: bandit -r matchminds/ -c bandit.yaml
+        run: bandit -r fairfold/ -c bandit.yaml
 
       - name: Dependency audit — pip-audit
         run: pip-audit -r requirements.txt
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/matchminds_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SETTINGS_MODULE: config.settings.ci
         run: |
           python manage.py migrate
-          pytest tests/ -v --cov=matchminds --cov-fail-under=80
+          pytest tests/ -v --cov=fairfold --cov-fail-under=80
 
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
@@ -1368,7 +1369,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: matchminds/app:${{ github.sha }},matchminds/app:latest
+          tags: fairfold/app:${{ github.sha }},fairfold/app:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -1384,8 +1385,8 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Smoke test
         run: |
-          curl -f https://staging.matchminds.com/health/
-          curl -f https://staging.matchminds.com/api/v1/jobs/
+          curl -f https://staging.fairfold.com/health/
+          curl -f https://staging.fairfold.com/api/v1/jobs/
 
   deploy-production:
     needs: deploy-staging
@@ -1399,7 +1400,7 @@ jobs:
             "docker-compose pull && docker-compose up -d --wait"
       - name: Health check
         run: |
-          curl -f https://app.matchminds.com/health/
+          curl -f https://app.fairfold.com/health/
 
   rollback-staging:
     runs-on: ubuntu-24.04
@@ -1410,9 +1411,9 @@ jobs:
       - name: Rollback to previous image
         run: |
           ssh "${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}" \
-            "docker image tag matchminds/app:$(git rev-parse --short HEAD~1) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:$(git rev-parse --short HEAD~1) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
-        run: curl -f https://staging.matchminds.com/health/
+        run: curl -f https://staging.fairfold.com/health/
 
   rollback-production:
     runs-on: ubuntu-24.04
@@ -1423,9 +1424,9 @@ jobs:
       - name: Rollback to previous image
         run: |
           ssh "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
-            "docker image tag matchminds/app:$(git rev-parse --short HEAD~1) matchminds/app:latest && docker-compose up -d --wait"
+            "docker image tag fairfold/app:$(git rev-parse --short HEAD~1) fairfold/app:latest && docker-compose up -d --wait"
       - name: Post-rollback health check
-        run: curl -f https://app.matchminds.com/health/
+        run: curl -f https://app.fairfold.com/health/
 ```
 
 > **Rollback strategy:** Each successful production deploy tags the current image with `github.sha`. The rollback job retags the *previous* commit's image as `:latest` and redeploys via `docker-compose`. Manual trigger via GitHub Actions "Run workflow" button. Target rollback time: < 5 minutes.
@@ -1519,7 +1520,7 @@ All application logs use structured JSON format:
 {
   "timestamp": "2026-09-24T14:30:00.123Z",
   "level": "INFO",
-  "service": "matchminds-django",
+  "service": "fairfold-django",
   "trace_id": "a1b2c3d4-e5f6-7890-g123-h456i789j012",
   "user_id": "uuid-or-null",
   "action": "ai.screening_completed",
@@ -1541,9 +1542,26 @@ All application logs use structured JSON format:
 
 The document references settings separation into:
 - `config/settings/base.py` — shared settings (security, installed apps, middleware)
-- `config/settings/local.py` — development (`DEBUG=True`, SQLite fallback)
-- `config/settings/test.py` — testing (in-memory SQLite, fast unit tests; referenced via `pytest --ds=config.settings.test`)
-- `config/settings/ci.py` — CI/testing (in-memory SQLite for unit, Postgres for integration)
+- `config/settings/local.py` — development (`DEBUG=True`, **PostgreSQL 17 + pgvector** via Docker; no SQLite fallback)
+- `config/settings/test.py` — **pure unit tests only** (in-memory SQLite; referenced via `pytest --ds=config.settings.test`). Any test touching a `VectorField` must use `ci.py`, because pgvector does not exist in SQLite
+- `config/settings/ci.py` — CI/testing (**PostgreSQL + pgvector** for unit and integration tests alike)
+
+> ⚠️ **SQLite is not a substitute for PostgreSQL — resolved 2026-10-03.**
+> `pgvector` does not exist in SQLite, so any model with a `VectorField` cannot be
+> created or queried there. Screening, ranking, rationale and bias audit all depend on
+> vector search (REQ-FR-028/029/030), so a SQLite-backed `local` or `test` settings
+> module **cannot run the application** — it would fail at the first migration.
+>
+> The corrected rule, applied to every reference below:
+> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d db`.
+> - **`test.py`** → in-memory SQLite is acceptable **only** for pure unit tests that
+>   touch no `VectorField`. Anything touching `matching/`, `candidates/` embeddings or
+>   `employers/` screening needs the Postgres test database.
+> - **`ci.py`** → Postgres service container, for both unit and integration jobs.
+>
+> This was a genuine contradiction: the dependency list, the schema and the settings
+> hierarchy all assumed PostgreSQL, while the settings comments invited a SQLite
+> fallback that could never work.
 - `config/settings/production.py` — production (`DEBUG=False`, Sentry, HTTPS)
 
 The full variable reference (including `DB_PASSWORD`, `CELERY_BROKER_URL`, and `CELERY_RESULT_BACKEND`, which are consumed directly by the Compose file above) lives in the Complete Project Document, §C.7.
@@ -1645,7 +1663,7 @@ n  - HH:MM — Acknowledgment
 ### 8.7 Post-Deployment Evaluation & Retrospective Process
 
 **Phase 1: Release Verification (within 1 hour of deploy)**
-- [ ] Health endpoint returns 200 (`curl -f https://app.matchminds.com/health/`)
+- [ ] Health endpoint returns 200 (`curl -f https://app.fairfold.com/health/`)
 - [ ] Key API endpoints respond (jobs list, auth login, health check)
 - [ ] Sentry shows no new error spikes
 - [ ] Prometheus shows no metric anomalies (request rate, error rate, latency)
@@ -1695,7 +1713,7 @@ local (dev laptop) → CI (test) → staging → production
 **Configuration parity:**
 - Same Docker images promoted across environments (no rebuild)
 - Environment-specific settings via env vars only (never baked into images)
-- `docker tag matchminds/app:%SHA% matchminds/app:latest` then promote same image
+- `docker tag fairfold/app:%SHA% fairfold/app:latest` then promote same image
 
 **Configuration drift detection:**
 - [ ] `env0` or `terraform` state diff before deployment (compares env configs)
@@ -1723,7 +1741,7 @@ local (dev laptop) → CI (test) → staging → production
 
 **Tagging convention:**
 - `git tag -a v{MAJOR}.{MINOR}.{PATCH} -m "Release v{MAJOR}.{MINOR}.{PATCH}"`
-- Tags pushed to GitHub trigger Docker image tagging: `matchminds/app:v{MAJOR}.{MINOR}.{PATCH}`
+- Tags pushed to GitHub trigger Docker image tagging: `fairfold/app:v{MAJOR}.{MINOR}.{PATCH}`
 - The `latest` tag always points to the most recent stable release on `main`
 
 **Pre-release process:**
@@ -1747,7 +1765,7 @@ local (dev laptop) → CI (test) → staging → production
 1. Trigger `rollback-production` GitHub Actions workflow manually
 2. The job retags the previous release image (`v{MAJOR}.{MINOR}.{PATCH-1}`) as `:latest`
 3. `docker-compose` on the production server pulls the previous image and restarts
-4. Health check runs (`curl -f https://app.matchminds.com/health/`)
+4. Health check runs (`curl -f https://app.fairfold.com/health/`)
 5. Incident commander notified via Slack #incidents channel
 6. Post-rollback: capture forensic data and schedule post-mortem
 
@@ -1769,7 +1787,22 @@ local (dev laptop) → CI (test) → staging → production
 | RSK-008 | Bangladesh market doesn't convert | Business | Medium | High | MVP targets both BD market + global SMBs; self-hostable option for price-sensitive markets | Product Lead |
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
-| RSK-011 | **Trademark clearance for the chosen name.** The previous working name was abandoned because it was contested by three unrelated commercial users (see `FAIRFOLD_Feasibility_and_Design.md` §1.4.2). **FairFold was selected on 2026-10-03** after a search found no living commercial use, but a web search and a DNS lookup are **not** a clearance. If the name turns out to be unregistable in a target market, a rename would again force a rebrand, a domain change and a support burden. | Legal / Brand | Medium | Low | Commission a **formal trademark search** in Bangladesh and every target export market; register `fairfold.com` / `fairfold.ai` **before** any public announcement; file the word mark in classes 42 (software/SaaS) and 35 (recruitment services) per market. None of this has been done yet | Product Owner |
+| RSK-011 | **Trademark clearance for the chosen name.** The previous working name was abandoned because it was contested by three unrelated commercial users (see `FAIRFOLD_Feasibility_and_Design.md` §1.4.2). **FairFold was selected on 2026-10-03** after a search found no living commercial use, but a web search and a DNS lookup are **not** a clearance. If the name turns out to be unregistable in a target market, a rename would again force a rebrand, a domain change and a support burden. | Legal / Brand | Medium | Low | **Domain: ✅ owned** (temporary first, primary at launch). **Still to do:** commission a **formal trademark search** in Bangladesh and every target export market, and file the word mark in classes 42 (software/SaaS) and 35 (recruitment services) per market. A domain registration is **not** a trademark filing — it does not confer the right to use the name in commerce. None of this has been done yet | Product Owner |
+**Domain — ✅ owned, recorded 2026-10-03.** The team already holds a domain and intends
+to **run on a temporary domain first and move to the primary domain at launch**. That
+closes the registration half of this risk. Two consequences worth writing down:
+
+- **Every environment variable and CI secret must be able to change host without a code
+  change.** `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `SITE_ID`'s absolute URLs, the
+  Stripe webhook URL and the Sentry DSN are all host-bound. The temporary → primary
+  switch is a deployment-config change, not a code change. If any of those values is
+  hard-coded, the migration will be a debugging session rather than an edit.
+- **Do not build SEO, email reputation or social handles against the temporary domain.**
+  Verification emails sent from it establish SPF/DKIM for *that* host, and candidate
+  links containing it will not survive the move. This is a real cost of starting on a
+  temporary domain, and it is why the move should happen before any public launch
+  rather than after traction exists.
+
 
 ---
 

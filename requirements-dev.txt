@@ -19,7 +19,8 @@ safety==2.5.1
 
 # Documentation
 sphinx==8.2.2
-drf-spectacular==0.28.1
+# NOTE: drf-spectacular moved to requirements.txt on 2026-10-03 — it is a
+# runtime dependency because prd.md §13 serves the OpenAPI schema.
 
 # Background task monitoring
 flower==2.0.1

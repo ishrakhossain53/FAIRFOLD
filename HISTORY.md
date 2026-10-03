@@ -484,6 +484,58 @@ after a discrimination complaint costs more than it ever won.
 
 ---
 
+### 2.23 Pre-development readiness review — 9 conflicts fixed, 5 new gaps opened
+
+The question asked was *is the documentation complete enough to start building?* The
+answer is a new section — `FAIRFOLD_Feasibility_and_Design.md` **§5, Pre-Development
+Readiness Review** — which consolidates the file inventory, the verification run, every
+conflict, and the open list in one place.
+
+**Nine conflicts were found and settled.** All nine were contradictions between two
+documents, or between a document and the code. None was a missing idea.
+
+| # | Conflict | Settled as |
+|---|---|---|
+| 1 | Django project package: Complete Doc implied `fairfold/`, everything else assumed `config/` | **`config/`**; all lint/test/coverage commands corrected |
+| 2 | SQLite fallback offered in settings comments, but pgvector does not exist in SQLite | **No SQLite fallback.** Postgres + pgvector for local and CI; SQLite only for tests touching no `VectorField` |
+| 3 | A 7-key Redis cache strategy was specified in two documents with **no Redis cache backend in `requirements.txt`** | **`django-redis` added** |
+| 4 | `django-ratelimit` defaults to local-memory cache, so under gunicorn every worker enforced its own limit — not a limit | Documented as **must** use the Redis cache |
+| 5 | `drf-spectacular` sat in dev deps while `prd.md` §13 serves the schema in production | **Moved to `requirements.txt`** |
+| 6 | Stack-matrix version drift (DRF 3.14 vs 3.15.1; "Django Templates 5.x" in a version column) | Corrected to match `requirements.txt` |
+| 7 | Free employer tier missing from the pricing table | **Added** — the `subscriptions` table already implemented it |
+| 8 | Free plan described as a "Trial" | **"Not time-limited"** — the schema has no expiry column |
+| 9 | "a focused team of 4" | Corrected to **5** |
+
+**The rule used to settle them: the executable artefact wins.** The SQL schema,
+`requirements.txt` and `.env.example` can be checked; prose cannot. Where two documents
+merely disagreed and neither was executable, the canonical document's version was applied
+and the stale one corrected.
+
+**Two of these would have failed on day one of a build.** Conflict 1 breaks
+`manage.py`, `pytest` and `flake8` immediately. Conflict 2 fails at the first migration,
+because a `VECTOR(384)` column cannot be created in SQLite. Conflict 3 means the
+documented cache strategy simply cannot be implemented.
+
+**The rename had missed the infrastructure.** The previous commit replaced
+`Match Minds` and `MATCH MINDS` case-sensitively but **missed every lowercase
+`matchminds`** — 26 occurrences, and they were the ones that mattered: Docker service
+names, `POSTGRES_DB` and `POSTGRES_USER`, the CI database `matchminds_test`, container
+names used in every README command, image tags `matchminds/app`, staging and production
+hostnames, the pytest coverage target, and the email sender domain. A repo-wide,
+case-insensitive sweep is now recorded as the rule in §5.2.
+
+**Five new gaps opened** by this review — **O** frontend build tooling unspecified, **P**
+`libmagic`/`ClamAV` are OS packages never checked in the Dockerfile, **Q** `torch>=2.3.0`
+pulls the multi-gigabyte CUDA wheel by default and contradicts the 2–4 vCPU assumption,
+**R** no migration/seed-fixture strategy, **S** the double-shift assumption is unvalidated
+(`ASM-002`).
+
+**Verdict: complete enough to start Phase 1.** Two blockers remain, both cheap: the
+incomplete API list in `Complete Doc §C.12`, and the Phase 4 milestone falling on
+25 December.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |
@@ -500,15 +552,22 @@ after a discrimination complaint costs more than it ever won.
 | **J** — 14 open §19.2 items | 🟡 open | ✅ **all resolved** (§2.19) |
 | **K** — Requirements did not answer the original problem | *(not previously found)* | ✅ **closed** — G1 → `REQ-FR-051`, G2 → `REQ-FR-052`, G3 → `REQ-FR-029` amendment (§2.20) |
 | **L** — FR count contradicted itself | 🟡 header 50 / note 43 / §19.2 50 | ✅ **fixed** — three dated notes, all now agree on 52 (§2.20, `prd.md` §19.2 item 15) |
-| **M** — Product name contested | *(not previously found)* | ✅ **closed** — the old name was abandoned and the product renamed to **FairFold**; files and all links updated (§2.21). Residual legal task on **RSK-011** at Medium/Low |
-| **N** — "Bias-free" subtitle unverifiable | 🟡 claimed everywhere, measured nowhere | ✅ **closed** — subtitle is now "AI-Powered, **Explainable** Recruitment Platform" (§2.22). The word survives only where attributed or labelled as an aspiration |
+| **M** — Product name contested | *(not previously found)* | ✅ **closed** — the old name was abandoned and the product renamed to **FairFold** (§2.21). **Domain owned**; residual trademark clearance on **RSK-011** at Medium/Low |
+| **N** — "Bias-free" subtitle unverifiable | 🟡 claimed everywhere, measured nowhere | ✅ **closed** — subtitle is now "AI-Powered, **Explainable** Recruitment Platform" (§2.22) |
+| **O** — Frontend build tooling unspecified | 🟡 stack names Tailwind/HTMX/Chart.js, no `package.json` or Tailwind config | ❌ **open** — Phase 1 build work (§5.4) |
+| **P** — `libmagic` / ClamAV OS packages unchecked | 🟡 pip packages pinned, OS deps never verified in Dockerfile/CI | ❌ **open** — Phase 1 build work (§5.4) |
+| **Q** — `torch` pulls the CUDA wheel by default | 🟡 multi-gigabyte, contradicts the 2–4 vCPU assumption | ❌ **open** — pin the CPU build (§5.4) |
+| **R** — No migration/seed strategy | 🟢 `C.8` has a plan, not a decision | ❌ **open** — low priority |
+| **S** — Double-shift capacity unvalidated | 🟡 new assumption `ASM-002` | ❌ **open** — re-scope if it fails, do not compress (§2.6.4.1) |
 
 ---
 
 ## 4. Outstanding work
 
-**Thirteen of the twenty-one gaps found across this work are now closed.** What remains is
+**Fourteen of the twenty-six gaps found across this work are now closed.** What remains is
 listed here. Two items genuinely need a decision from the team; the rest is build work.
+The full picture, including the conflicts settled in §2.23, is in
+`FAIRFOLD_Feasibility_and_Design.md` **§5 Pre-Development Readiness Review**.
 
 ### 4.1 🟡 Trademark clearance for FairFold — `prd.md` §4.3 · **RSK-011**
 
@@ -516,17 +575,24 @@ Full detail in §2.21. **The name is decided: FairFold.** The previous name was 
 because three unrelated commercial users already had it. FairFold had no living
 commercial use in the same sweep, and `fairfold.com` / `fairfold.ai` returned no DNS record.
 
+**✅ Domain — owned.** The team holds a domain and will run on a **temporary** one
+first, moving to the primary at launch. That closes the registration half of this risk.
+
 **What is left is legal work, not a creative decision — and none of it has been done:**
 
-1. **Formal trademark search** in Bangladesh and every target export market. A web search
-   and a DNS lookup are not a clearance.
-2. **Register the domain** before any public announcement — no A record is a signal, not
-   a reservation.
-3. **File the word mark** in class 42 (software/SaaS) and class 35 (recruitment services)
+1. **Formal trademark search** in Bangladesh and every target export market. A web search,
+   a DNS lookup and a domain registration are **not** a clearance — buying a domain does
+   not confer the right to use a name in commerce.
+2. **File the word mark** in class 42 (software/SaaS) and class 35 (recruitment services)
    in each market.
 
-**Needs from the team:** commission items 1–3, or accept that risk knowingly. Logo work is
+**Needs from the team:** commission items 1–2, or accept that risk knowingly. Logo work is
 unblocked, but nothing should appear on public collateral until the search returns.
+
+**Because the host will change,** keep `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe
+webhook URL and the Sentry DSN in environment variables so the switch is a config edit.
+Do not build SEO or email-sender reputation against the temporary domain — verification
+emails establish SPF/DKIM for *that* host.
 
 ### 4.2 🟡 Validation plan — `Feasibility §1.3.4` — **[Planned]**, not a blocker
 
@@ -540,6 +606,10 @@ stated for Bangladesh** — the local sources establish that network access and 
 mismatch are recognised problems, not how often internal lobbying decides an interview.
 
 ### 4.3 🟡 API list is behind — `Complete Doc §C.12`
+
+**This is now a 🟠 blocker on the start of development** (§5.5): the frontend cannot be
+built against an incomplete API list. It took roughly two hours to fix when the
+requirement was written and still has not been done, which is the lesson.
 
 The screening-integrity endpoints for `REQ-FR-051`/`052` and the `not_matched` review
 endpoint for `REQ-FR-029` were added in §2.20, so the new requirements do not recreate the
@@ -564,14 +634,23 @@ captain", gendered club roles. PII stripping removes names, emails and phone num
 **none** of that text, which is why stripping names alone is not sufficient. Added in §2.20
 to Arch Doc §10 Phase 2 and `prd.md` §17.4.
 
-### 4.5 🟡 Schedule — the plan will not fit as drawn
+### 4.5 🟠 Schedule — capacity solved, one date still open
 
-Kickoff 2026-10-05 puts the Phase 4 milestone on **Christmas Day**, and a 5-person student
-team loses roughly two weeks a year to holidays. **§2.20 made this worse:** the three
-requirements from round 3 add **13 points** to Phases 2 and 3 (199 → 212). Realistic options
-are in `Feasibility §2.7.2`: start earlier, cut scope, or demo at the end of Phase 3 (early
-December) and continue the hardened build in January. **This is a planning decision, not a
+**Updated 2026-10-03:** the team is working **double shifts**, so the plan is no longer
+capacity-constrained (§2.6.4.1). The 212 points over 12 weeks that made this tight is
+now comfortable.
+
+**But 25 December is still a holiday, and that is a calendar fact rather than a capacity
+problem.** Phase 4 ends Fri 2026-12-25. Three options in `Feasibility §2.7.2` — move the
+milestone to Thu 24 Dec (**recommended**), demo at the end of Phase 3 and continue
+hardening in January, or re-base to a September kickoff. **One decision, not a
 documentation fix.**
+
+**New in the other direction:** double shifts for twelve weeks is a burnout and quality
+risk, and the failure mode is *silent* — deferred testing (which threatens REQ-NFR-019's
+80% coverage gate) and undocumented scope cuts that leave the spec describing something
+nobody built. The team commits to updating this document, `prd.md` §5.1 and the acceptance
+criteria in the same commit as any scope reduction. Tracked as **gap S / `ASM-002`**.
 
 ### 4.6 🟡 Design tooling — `design.md` §12
 

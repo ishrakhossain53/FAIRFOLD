@@ -8,6 +8,10 @@ django-otp==0.16.0
 celery==5.4.0
 redis==5.0.3
 django-celery-beat==2.7.0  # periodic task scheduling (Celery Beat)
+django-redis==5.4.0    # Redis cache backend — REQUIRED: Arch Doc §5.4 / Complete Doc §C.2
+                        # specify Redis-backed caching, and rate-limit counters live in
+                        # Redis so they are shared across gunicorn workers. Without
+                        # this the documented cache strategy is unimplementable.
 
 psycopg2-binary>=2.9.9
 pgvector>=0.2.0  # pgvector.django VectorField
@@ -34,6 +38,10 @@ pdfplumber>=0.11.0  # PDF text extraction for resume parsing
 
 # Frontend
 django-htmx>=1.0.0  # HTMX integration
+
+# API schema — runtime, not dev: prd.md §13 serves /api/schema/ and the OpenAPI
+# document is consumed by the frontend team, so it must be installed in production.
+drf-spectacular==0.28.1
 
 # Production
 gunicorn>=22.0.0

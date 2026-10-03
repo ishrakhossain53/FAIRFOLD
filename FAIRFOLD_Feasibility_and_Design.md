@@ -379,12 +379,27 @@ No living commercial use was found.
 **What changed.** The three `MATCH_MINDS_*.md` files were renamed to `FAIRFOLD_*.md`
 and every internal link repaired.
 
-**🟡 Still open — legal, not creative.** `RSK-011` stays on the register, downgraded
-to **Medium probability / Low impact**: commission a formal trademark search in
-Bangladesh and each target export market, register `fairfold.com` / `fairfold.ai`
-before any public announcement, and file the word mark in classes 42 and 35 per market.
-None of that has been done. A parked or newly-registered domain may also show no A
-record, so the DNS check is a signal rather than a reservation.
+**✅ Domain owned.** The team already holds a domain and intends to **run on a
+temporary domain first, moving to the primary at launch**. That closes the registration
+half of `RSK-011`.
+
+**🟡 Still open — legal, not creative.** `RSK-011` stays on the register at **Medium
+probability / Low impact**: commission a formal trademark search in Bangladesh and each
+target export market, and file the word mark in classes 42 and 35 per market. Neither
+has been done. **A domain registration is not a trademark filing** — it does not confer
+the right to use a name in commerce, and it will not stop a trademark office from
+refusing the mark.
+
+**Two consequences of the temporary-domain plan**, recorded so they are not discovered
+the hard way:
+
+- Every host-dependent value — `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe
+  webhook URL, the Sentry DSN, absolute URLs in emails — must live in environment
+  variables so the switch is a config change, not a debugging session.
+- **No SEO, email-sender reputation or social handles should be built against the
+  temporary host.** Verification emails establish SPF/DKIM for *that* domain, and
+  candidate links containing it will not survive the move. Migrate before public launch,
+  not after traction exists.
 
 #### 1.4.3 How FairFold is different — and where "better" must be proven
 
@@ -853,6 +868,41 @@ the core value proposition (explainable, auditable screening).
 3-week window. Mitigation: §9 defines the journey-mapping MVP as the must-have, with
 skill evolution and dynamic storytelling as separable increments.
 
+#### 2.6.4.1 Capacity update — double shifts, recorded 2026-10-03
+
+**The team has stated it is working double shifts.** That is recorded here as a
+planning input, and it changes one thing: the *hours available per week*.
+
+| | Before | After |
+|---|---|---|
+| Capacity assumption | Single shift, 5 students, part-time around coursework | **Double shift** |
+| 212 points over 12 weeks | ~17.7 points/week, tight | More comfortable |
+| Schedule verdict | At risk | **No longer capacity-constrained** |
+
+**What this does *not* fix.** The 12-week plan starting 2026-10-05 ends **Fri 2026-12-25,
+which is Christmas Day**. That is a calendar fact, not a capacity problem — more hours in
+a week do not create a day that is not there. Two things are therefore still true:
+
+1. **The Phase 4 milestone must move.** Either start earlier, or move the Phase 4
+   milestone to **Thu 2026-12-24** with the team off on the 25th, or plan the demo at
+   the end of Phase 3 (early December). This is a one-line change to the milestone table
+   in §2.7.2 and needs the team's choice — **it is the only scheduling decision left**.
+2. **Double shifts raise a different risk, and it is recorded rather than dismissed.**
+   Five students on double shifts for twelve weeks is a burnout and quality risk, not a
+   free 2× multiplier. Sustained overtime reliably produces: slower code review, deferred
+   testing (which directly threatens REQ-NFR-019's 80% coverage gate), and silent scope
+   cuts that leave the documentation lying about what was built.
+
+   **Mitigation, and it is a documentation control rather than a scheduling one:** the
+   team commits to *not* cutting scope silently. Any reduction in a phase's deliverables
+   updates this document, `prd.md` §5.1 and the acceptance criteria in the same commit.
+   A documented scope cut is recoverable; an undocumented one is how a spec becomes
+   fiction.
+
+**New assumption recorded:** `ASM-002` — the team sustains double shifts for the full 12
+weeks without attrition or quality degradation. **Unvalidated.** If it turns out to be
+false at the end of Phase 2, the honest response is to re-scope, not to compress.
+
 **Gantt chart:** see §2.7.
 
 #### 2.6.5 Legal feasibility
@@ -939,6 +989,18 @@ each "week" below is five working days.
 > start earlier, or plan a **demo at the end of Phase 3 (early December)** and treat the
 > hardened build as a January continuation. The phase *durations* are the commitment;
 > **the dates are a plan.**
+>
+> **Update 2026-10-03 — capacity solved, calendar not.** The team is now working
+> **double shifts**, so the plan is no longer *capacity*-constrained (§2.6.4.1). But
+> 25 December is a holiday regardless of staffing: **this milestone date is the single
+> remaining scheduling decision the team has to make**, and it needs an explicit answer.
+> Three options, all cheap:
+>
+> | Option | Change | Cost |
+> |---|---|---|
+> | **A — Move the milestone one day** (recommended) | Phase 4 ends **Thu 2026-12-24**; team off on the 25th | One day of Phase 4 work moved into the Phase 3 buffer |
+> | **B — Demo at end of Phase 3** | Public demo Fri 2026-12-04; hardening continues into January | Phase 4 becomes a January continuation rather than a December one |
+> | **C — Start earlier** | Re-base the whole Gantt to a late-September kickoff | Every date in this table moves; the spec was written in October |
 
 
 ```mermaid
@@ -2404,3 +2466,106 @@ Section coverage of this document against the project specification. ✅ = compl
 7. **Unconfirmed design decisions** (`design.md` §12) — score band thresholds, dark
    mode, Bengali at launch, and brand styling. ~~When the candidate's name is revealed~~
    was **decided 2026-10-03: at shortlist**; branding is now blocked on item 6 above.
+
+---
+
+## 5. PRE-DEVELOPMENT READINESS REVIEW
+
+**Compiled 2026-10-03.** One place to answer: *is the documentation complete enough to
+start building?* Nothing here repeats §2.4.1 or §1.3; it is the consolidated verdict.
+
+### 5.1 The files, and what each one owns
+
+| File | Role | Canonical for | Lines |
+|---|---|---|---|
+| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), team (§10.4) | 2070 |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 1889 |
+| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1196 |
+| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML, Gantt, data dictionary, this readiness review | 2571 |
+| `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 23 wireframes, deliverables checklist | 1378 |
+| `HISTORY.md` | Log | What was done, what is still open, and why | 654 |
+| `README.md` | Entry point | Setup, project structure, the two standing warnings | 236 |
+
+**⚠️ Ownership rule that must survive the rename.** *Functional requirements live in
+the Arch Doc §4.1, not the PRD.* The PRD proposes and summarises them. Any new FR starts
+in the Arch Doc; the PRD table is a pointer, never the definition.
+
+### 5.2 Verification run on 2026-10-03
+
+| Check | Result |
+|---|---|
+| Internal markdown links resolve | ✅ all, 0 dangling |
+| `REQ-FR-###` references point at a real requirement | ✅ 0 dangling across all 7 documents |
+| Every FR has at least one user story | ✅ 52/52 |
+| Story rows parse and sum | ✅ 52 stories, 212 points, 30 Must / 17 Should / 5 Could |
+| Duplicate FR rows | ✅ none — 52 rows, 52 unique IDs |
+| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 23 / 33 / 11 |
+| Mermaid diagrams parse | ✅ 5 of 5 |
+| `[PLACEHOLDER]` / `?` cells / `TBD` remaining | ✅ none |
+| Secrets in committed files | ✅ none; `.env` is gitignored, `.env.example` is placeholders |
+| Old product name anywhere | ✅ none except where it describes *other* companies' products |
+
+### 5.3 Conflicts found in this review, and how each was settled
+
+Nine. Every one was a contradiction between two documents or between a document and the
+code, not a missing idea.
+
+| # | Conflict | Resolution | Evidence used |
+|---|---|---|---|
+| 1 | **Django project package** — Complete Doc §4.2 implied `fairfold/`; `.env.example`, the CI workflow and the README all set `DJANGO_SETTINGS_MODULE=config.settings.*` | Project package is **`config/`**; apps are top-level packages at the repo root. All lint/test/coverage commands corrected | `.env.example` and `config.settings.ci` both assume `config` |
+| 2 | **SQLite fallback** — settings comments offered a SQLite fallback, but pgvector does not exist in SQLite and screening depends on vector search | **No SQLite fallback.** Local dev uses PostgreSQL + pgvector via Docker. `test.py` is SQLite **only** for tests touching no `VectorField`; `ci.py` is Postgres for everything | The schema — `VECTOR(384)` columns cannot be created in SQLite |
+| 3 | **No Django Redis cache backend** — §5.4 and §C.2 specify a 7-key Redis cache strategy with TTLs and invalidation, and rate-limit counters in Redis, but no Redis cache library was in `requirements.txt` | **`django-redis==5.4.0` added** | The cache strategy was unimplementable as written |
+| 4 | **Rate limiting would not have limited** — `django-ratelimit` defaults to the local-memory cache, so under gunicorn each worker would enforce its own limit | Documented that it **must** be pointed at the Redis cache | The stack matrix listed `django-ratelimit`; §5.4 puts its counters in Redis |
+| 5 | **`drf-spectacular` in dev dependencies** — `prd.md` §13 serves the OpenAPI schema, so it is a runtime dependency | **Moved to `requirements.txt`** | A missing package in production breaks `/api/schema/` |
+| 6 | **Version drift in the stack matrix** — DRF listed as 3.14, pinned 3.15.1; pgvector 0.2.4 vs 0.2.0+; "Django Templates 5.x" in a version column | Corrected to match `requirements.txt` | `requirements.txt` is executable; the matrix is prose |
+| 7 | **No Free employer tier in the pricing table** — `prd.md` §15.2 listed one; Complete Doc §C.14 did not | **Free row added to §C.14** | The `subscriptions` table already implements it: `plan DEFAULT 'free'`, `max_jobs 3`, `ai_quota_remaining 50` |
+| 8 | **"Trial" on the free plan** — unsupported by the schema | Changed to **"Not time-limited"**; flagged that a real trial needs a `trial_ends_at` column | `subscriptions` has no expiry column |
+| 9 | **"a focused team of 4"** vs a five-person team | Corrected to 5 | §10.4 and §2.7.3 both list five |
+
+**How these were settled.** In every case the **executable artefact won** — the SQL
+schema, `requirements.txt`, `.env.example`. Those can be checked; prose cannot. Where
+two documents merely disagreed and neither was executable (§7, candidate pricing),
+the canonical document's rule was applied and the stale one corrected.
+
+### 5.4 New gaps opened by this review
+
+| Gap | What it is | Severity | Where it is tracked |
+|---|---|---|---|
+| **O** | **Prebuilt frontend tooling is unspecified.** TailwindCSS 3.4, HTMX 1.18 and Chart.js 4.4 are in the stack matrix, but there is no `package.json`, no Tailwind config file and no build step in CI. `design.md` §11 has the *content* of a Tailwind config but no file | 🟡 | `design.md` §12, `README.md` §Build Order |
+| **P** | **`libmagic` and `ClamAV` are OS packages, not pip packages.** `python-magic` and `clamav-client` are pinned, and `.env.example` documents `CLAMD_HOST`/`CLAMD_PORT`, but the Dockerfile and CI service definitions have not been checked to install `libmagic1` and a ClamAV daemon | 🟡 | Arch Doc §6.1/§6.2 |
+| **Q** | **`torch` is not pinned to a CPU build.** `requirements.txt` has `torch>=2.3.0`, which by default pulls the full CUDA wheel — multi-gigabyte, and it does not fit the "2–4 vCPU VPS" assumption in §18.2 | 🟡 | `requirements.txt`, Arch Doc §3.4 |
+| **R** | **No migration/seed strategy for existing data.** `C.8` has a migration *plan*, but there is no decision on `makemigrations` vs hand-written migrations, and no seed fixtures for roles, skills or the taxonomy | 🟢 | Complete Doc §C.8, Arch Doc §5 |
+| **S** | **Double-shift assumption is unvalidated.** Now recorded as `ASM-002`. If it fails at the end of Phase 2 the answer is to re-scope, not compress | 🟡 | §2.6.4.1 |
+
+### 5.5 Everything still open, in one list
+
+**🟠 Blocks the start of development** — the specification contradicts itself or cannot be executed:
+
+| # | Blocker | Owner | Effort |
+|---|---|---|---|
+| 1 | **API list is incomplete.** `Complete Doc §C.12` has no endpoints for `REQ-FR-042` (public job browse/search), `REQ-FR-040/041` (GDPR export/delete), `REQ-FR-047` (team management), `REQ-FR-049` (assessment authoring) or `REQ-FR-050` (broadcast). The frontend cannot be built against it | Backend (Ishrak) | ~2 h |
+| 2 | **Phase 4 milestone is 25 December.** A holiday, not a capacity problem. Options A/B/C in §2.7.2 | Team | 1 decision |
+
+**🟡 Blocks the public launch, not the build:**
+
+| # | Item | Owner |
+|---|---|---|
+| 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned | Legal / PM |
+| 4 | Phase 2 **versioned bias test set**, now required to include Amazon-style proxy cases | Ishrak |
+| 5 | Cross-border data transfer (SCCs) and provider ToS — `prd.md` §19.1 item 4, still open | Legal / PM |
+| 6 | Figma file, components and hi-fi mockups (`design.md` §12 items 1–4) | UI/UX |
+| 7 | Screens for the two new components (§7.11, §7.12) — `design.md` §12 item 11 | UI/UX |
+| 8 | `REQ-FR-050` (broadcast, page #62) — keep or cut, and cut all three artefacts together | Team |
+
+**🟢 Build work, no decision needed:** dark mode, Bengali at launch, score-band
+thresholds (they need a calibrated model, not a meeting), and gaps O–R above.
+
+### 5.6 Verdict
+
+**The specification is complete enough to start Phase 1.** Requirements, schema, stack,
+acceptance criteria and user stories are consistent and machine-verifiable.
+
+Two things should be settled in the first hour of Phase 1, because they cost almost
+nothing now and are expensive later: **the API list** (blocker 1) and **the Phase 4
+milestone date** (blocker 2). Everything else can be resolved during the phase it
+affects, and nothing else prevents work starting today.

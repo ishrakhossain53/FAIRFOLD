@@ -362,14 +362,21 @@ about this project.
 **🟡 What is still open.** **RSK-011** remains on the register, downgraded from
 High/High to **Medium/Low**, and it is now a legal task rather than a naming one:
 
-1. **Commission a formal trademark search** in Bangladesh and every target export
-   market. This has **not** been done. A web search and a DNS lookup are *not* a
-   clearance.
-2. **Register the domain** — `fairfold.com` / `fairfold.ai` were unresolvable at the
-   time of checking, which is a signal, not a reservation. Register before any public
-   announcement.
-3. **File the word mark** in the relevant classes (42 for software/SaaS, 35 for
+1. ✅ **Domain — owned.** The team holds a domain and will run on a **temporary** one
+   first, moving to the primary at launch.
+2. ⬜ **Commission a formal trademark search** in Bangladesh and every target export
+   market. This has **not** been done. A web search, a DNS lookup and a domain
+   registration are **not** a clearance — buying a domain does not confer the right to
+   use the name in commerce.
+3. ⬜ **File the word mark** in the relevant classes (42 for software/SaaS, 35 for
    recruitment services) in each market.
+
+**Two things the temporary-domain plan implies.** Every host-dependent value —
+`ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe webhook URL, the Sentry DSN,
+absolute URLs in emails — must live in environment variables so the switch is a config
+change and not a debugging session. And no SEO, email-sender reputation or social handle
+should be built against the temporary host: verification emails establish SPF/DKIM for
+*that* domain, and candidate links containing it will not survive the move.
 
 **Two caveats that survive the decision.** "No DNS record" is not proof of
 availability — a parked or newly-registered domain may simply have no A record yet.
@@ -956,7 +963,7 @@ Canonical source: Complete Doc §C.14 (see Section 19 for the conflicting versio
 
 | Tier | Price | Highlights | Limits |
 |---|---|---|---|
-| Free | $0 | 3 jobs, 50 AI screens/mo | Trial |
+| Free | $0 | 3 jobs, 50 AI screens/mo, candidate pipeline list | Not time-limited (no expiry column exists in `subscriptions`) |
 | Starter | $100/mo | 50 jobs, 500 AI screens/mo, basic analytics | ≤ 25 employees |
 | Growth | $500/mo | 500 jobs, 5,000 screens/mo, advanced analytics, interview packs | ≤ 250 employees |
 | Scale | $1,500/mo | Unlimited jobs, 15,000 screens/mo, custom model selection, API access | ≤ 1,000 employees |
@@ -1074,7 +1081,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 | RSK-010 | Python/Django talent | Med | Med | Hire Python-experienced; train; use open-source community |
 | R4 | Phase 3 too dense for 3 weeks | High | Med | Journey-mapping MVP isolated as must-have; skill evolution and storytelling separable |
 | R7 | PII leakage to AI provider | Low | **High** | Two-layer stripping; treated as a **release blocker**, since leaked PII cannot be recalled |
-| **RSK-011** | **Trademark clearance outstanding** for the chosen name. "FairFold" was selected on 2026-10-03 after the previous name was found to be contested by three unrelated commercial users, but no formal clearance has been done. See §4.3. | Med | Low | Commission a formal trademark search in Bangladesh and every target export market; register `fairfold.com` / `fairfold.ai` before any public announcement; file the word mark in classes 42 and 35 per market | Product Owner |
+| **RSK-011** | **Trademark clearance outstanding.** "FairFold" was selected on 2026-10-03 after the previous name was found to be contested by three unrelated commercial users. **The domain is owned** (temporary first, primary at launch), but a domain registration is not a trademark filing. See §4.3. | Med | Low | Commission a formal trademark search in Bangladesh and every target export market; file the word mark in classes 42 and 35 per market; keep all host-dependent config in environment variables so the domain switch needs no code change | Product Owner |
 
 ### 18.2 Assumptions
 
@@ -1107,8 +1114,8 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 
 | # | Topic | Conflict | Treatment in this PRD |
 |---|---|---|---|
-| 1 | **Candidate pricing** | Complete Doc: Professional $20 and Premium $50. Feasibility Doc: "Pro" $50 only. | Complete Doc used (Section 15). Confirm. |
-| 2 | **Employer pricing** | Feasibility Doc omits the Scale ($1,500) tier and lists a "Free" employer tier; Complete Doc §C.14 table has no free employer row, but the `Subscription` model defines a Free plan (3 jobs, 50 screens). | Free tier retained; Scale included. Confirm. |
+| 1 | **Candidate pricing** | Complete Doc: Professional $20 and Premium $50. Feasibility Doc: "Pro" $50 only. | **Resolved 2026-10-03 — Complete Doc is canonical** (§15.1): Free $0, Essential $5, Professional $20, Premium $50. The Feasibility Doc's "Pro" tier was the stale one and no longer appears. |
+| 2 | **Employer pricing** | Feasibility Doc omitted the Scale ($1,500) tier and listed a "Free" employer tier; Complete Doc §C.14 had no free employer row, but the `subscriptions` model defines one (`plan DEFAULT 'free'`, `max_jobs 3`, `ai_quota_remaining 50`). | **Resolved 2026-10-03 — Complete Doc is canonical** (§15.2), and §C.14 now carries the Free row to match the schema. Free is $0 / 3 jobs / 50 screens and is **not time-limited**: the schema has no trial-expiry column, so "Trial" was unsupported and was removed. |
 | 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | **Closed 2026-10-03** — promoted into the Arch Doc §4.1 as REQ-FR-042 and REQ-FR-043 (new *Job Discovery & Messaging* group). See also §19.1 item 5, closed the same day with REQ-FR-044–050, and §19.2 item 16 below. **Arch Doc now holds 52 FRs.** |
 | 4 | **PII retention** | Complete Doc §5.2 says PII is encrypted at rest; Arch Doc Flow 3 says original PII "stays in EncryptedCharField" while anonymized text is stored. Where the original resume file and un-stripped text live, and who can see them, is not specified. | **Resolved 2026-10-03 — reveal at shortlist.** Employers see **anonymised text only** while screening. On shortlist the name and contact details become visible **to that employer only**, and the reveal writes an audit entry. The original resume file and un-stripped text stay encrypted at rest and are **never** sent to an external AI provider. Written into `REQ-FR-029` and `REQ-FR-030`. |
 | 5 | **Audit log retention vs. GDPR retention** | Audit logs rotate at 90 days (REQ-COM-008) while candidate data is retained 2 years and hired-employee data 5 years; AI-decision evidence may be needed longer than 90 days for AI Act accountability. | **Resolved 2026-10-03 — two retention classes.** `resource_type = 'access'` entries (who looked at what) rotate at 90 days and are operational only. Entries with `resource_type = 'ai_decision'` (every screening, rationale and bias check, per REQ-FR-030) are **retained with the application record** — 2 years, 5 years if hired. 90 days would have destroyed the only evidence that a hiring decision was unbiased. |

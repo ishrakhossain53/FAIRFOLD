@@ -10,10 +10,16 @@
 > `MATCH_MINDS_*.md` files were renamed to `FAIRFOLD_*.md`. Reasoning:
 > [`prd.md` §4.3](prd.md) and [Feasibility Doc §1.4.2](FAIRFOLD_Feasibility_and_Design.md).
 >
+> **✅ Domain owned** — a temporary domain first, moving to the primary at launch.
 > **🟡 Still to do before any public launch:** commission a **formal trademark search** in
-> Bangladesh and each target export market, register `fairfold.com` / `fairfold.ai`, and
-> file the word mark in classes 42 and 35 per market. A web search is not a clearance.
-> Tracked as **RSK-011** (Medium/Low).
+> Bangladesh and each target export market, and file the word mark in classes 42 and 35
+> per market. A web search, a DNS lookup and a domain registration are **not** a
+> trademark clearance. Tracked as **RSK-011** (Medium/Low).
+>
+> Because the host will change, keep `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe
+> webhook URL and the Sentry DSN in environment variables — the switch should be a config
+> edit, not a debugging session — and do not build SEO or email reputation against the
+> temporary host.
 
 > ### ⚠️ The product does not claim to be bias-free — yet
 > There is **no disparity measurement**, so "bias-free" was removed from every document on
@@ -77,12 +83,12 @@ auditable** — by employers *and* candidates:
 
 3. **Initialize database:**
    ```bash
-   docker exec -it matchminds-django python manage.py migrate
+   docker exec -it fairfold-django python manage.py migrate
    ```
 
 4. **Create superuser:**
    ```bash
-   docker exec -it matchminds-django python manage.py createsuperuser
+   docker exec -it fairfold-django python manage.py createsuperuser
    ```
 
 5. **Access the application:**
@@ -92,7 +98,7 @@ auditable** — by employers *and* candidates:
 ## Project Structure
 
 ```
-matchminds/
+fairfold/
 ├── core/                    # Shared utilities, middleware, security
 ├── accounts/                # User model, auth, RBAC, profiles
 ├── candidates/              # Candidate dashboard, journey mapping, assessments
@@ -109,8 +115,8 @@ matchminds/
 config/
 ├── settings/
 │   ├── base.py              # Shared settings (security, apps, middleware)
-│   ├── local.py             # Development (DEBUG=True, SQLite fallback)
-│   ├── test.py              # Testing (in-memory SQLite, fast)
+│   ├── local.py             # Development (DEBUG=True, PostgreSQL 17 + pgvector via Docker)
+│   ├── test.py              # Testing (in-memory SQLite for pure unit tests ONLY — no pgvector)
 │   ├── ci.py                # CI/testing settings
 │   └── production.py        # Production (DEBUG=False, Sentry, HTTPS)
 ├── urls.py
@@ -195,18 +201,18 @@ pip install pytest pytest-django
 pytest tests/ -v
 
 # Docker
-docker exec matchminds-django pytest tests/ -v
+docker exec fairfold-django pytest tests/ -v
 ```
 
 ### Running Migrations
 ```bash
-docker exec matchminds-django python manage.py makemigrations
-docker exec matchminds-django python manage.py migrate
+docker exec fairfold-django python manage.py makemigrations
+docker exec fairfold-django python manage.py migrate
 ```
 
 ### Opening Django Shell
 ```bash
-docker exec -it matchminds-django python manage.py shell
+docker exec -it fairfold-django python manage.py shell
 ```
 
 ## Production Deployment

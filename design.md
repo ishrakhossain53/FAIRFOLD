@@ -30,7 +30,7 @@
 4. [Typography](#4-typography)
 5. [Spacing, Layout and Responsive Grid](#5-spacing-layout-and-responsive-grid)
 6. [Core Components](#6-core-components)
-7. [FairFold–Specific Components](#7-match-minds-specific-components)
+7. [FairFold–Specific Components](#7-fairfoldspecific-components)
 8. [Interaction, Motion and States](#8-interaction-motion-and-states)
 9. [Accessibility Rules](#9-accessibility-rules)
 10. [Page Specifications (62 pages)](#10-page-specifications-62-pages)
