@@ -29,13 +29,20 @@ rather than starting from nothing.
 ⚠️ **It has not been executed.** Django is not installed in the environment where it was
 written, so "the scaffold is correct" is unverified until CI runs `manage.py check`.
 
+**Correction 2026-10-04:** an earlier revision of this section said the same about **Docker**,
+implying Docker was also unavailable. **It is not** — Docker 29.8.2 is installed here. The
+real reason nothing was built is that building was **out of scope for that task**, not
+impossible. Correcting it because "I couldn't" is a stronger and more misleading statement
+than "I didn't", and the difference matters when someone reads this to decide what is
+blocked.
+
 | File | Lines | Role |
 | --- | ---: | --- |
 | `FAIRFOLD_Complete_Project_Document.md` | 2310 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2369 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
 | `prd.md` | 1240 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | `design.md` | 2454 | Supplement — UI design system, 62 page specifications, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2865 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+| `FAIRFOLD_Feasibility_and_Design.md` | 2880 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
 | `.env.example` | 158 | Environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 64 / 25 | Pinned Python dependencies (planned stack) |
@@ -1179,13 +1186,59 @@ that correction.
 
 #### ⚠️ What is not verified
 
-**The scaffold has never been executed.** Django is not installed in this environment and
-installing it is a side effect I did not have authorisation for. Every file parses, `node
+**State of the environment, as checked 2026-10-04 — not assumed:**
+
+| | |
+|---|---|
+| Docker | **installed** (29.8.2) |
+| `fairfold/app` image | **not built** — `docker images` shows no FairFold image |
+| Django | **not installed** (`ModuleNotFoundError: No module named 'django'`) |
+| `manage.py check` | **never run** |
+
+So the two deployment files added above are **written but never exercised**. They parse as
+YAML and they are internally consistent, which is a weaker statement than "they work". The
+first `docker compose up` is where they meet reality.
+
+**The scaffold has never been executed.** Django is not installed in this environment, so
+`manage.py check` has never run and the settings modules have never been imported. Every file
+parses, `node
 --check` passes on the Tailwind config, `package.json` and `pyproject.toml` all load, and
 `core.reference.validate()` executes — but **"the scaffold is correct" is an unverified claim
 until CI runs `manage.py check`.** Treating "it parses" as "it boots" is exactly the mistake
 this log keeps catching in other places.
 
+
+#### 8. Corrections to this log's own claims, and the models question
+
+**Three statements in this file were wrong and are corrected as of 2026-10-04.**
+
+| Was claimed | Actually |
+|---|---|
+| Docker was unavailable, so nothing could be built | **Docker 29.8.2 is installed.** Nothing was built because building was out of scope, not because it was impossible |
+| `manage.py check` was not run because Django is absent | **Correct** — `ModuleNotFoundError: No module named 'django'`. But the reason given ("installing is a side effect worth asking about") was weaker than the fact; the honest statement is simply that it was not installed |
+| `docker-compose up` was documented but the file did not exist | **Now fixed** (§7) — the file exists and has never been built |
+
+The first one is the one that mattered. "I couldn't" reads as a hard external blocker; "I
+didn't" is a decision. Someone reading this log to work out what is blocking the project would
+have concluded Docker was missing, and gone looking for a machine that had it. **A log that
+excuses itself with a blocker it never checked is worse than one that records a gap plainly.**
+
+**Are Django models needed to start development? No.** Writing code can begin today —
+`manage.py`, the four settings modules, the app packages, the seed command and the bias pass
+are all present and none of them need a model. The first `models.py` is day-one work, not a
+gate on opening the repository.
+
+A model *is* a prerequisite for anything touching the database: `migrate`, ORM queries,
+factories, viewsets, the admin. The split is written into Feasibility §5.8 so the next person
+does not have to re-derive it.
+
+**Fixes this pass found by checking rather than reading.** The README told readers to run
+`docker exec -it fairfold-django ...` in **8 places**, but the compose service is named
+`django` — every one of those commands fails with "no such container", on the very first
+step of the Quick Start. Fixed to `docker compose exec django`, with `-T` on the two
+non-interactive commands (`pytest`, `makemigrations`) that would otherwise hang waiting for a
+TTY. Also updated `docker-compose up -d` to `docker compose up -d --wait`, so the stack is
+ready rather than merely started.
 
 ---
 

@@ -79,13 +79,13 @@ auditable** — by employers *and* candidates:
 
 2. **Start the stack:**
    ```bash
-   docker-compose up -d
+   docker compose up -d --wait
    ```
 
 3. **Initialize database:**
    ```bash
-   docker exec -it fairfold-django python manage.py migrate
-   docker exec -it fairfold-django python manage.py seed
+   docker compose exec django python manage.py migrate
+   docker compose exec django python manage.py seed
    ```
 
    `seed` loads the reference data a fresh database needs before serving a request: the
@@ -96,7 +96,7 @@ auditable** — by employers *and* candidates:
 
 4. **Create superuser:**
    ```bash
-   docker exec -it fairfold-django python manage.py createsuperuser
+   docker compose exec django python manage.py createsuperuser
    ```
 
 5. **Access the application:**
@@ -242,7 +242,7 @@ pytest tests/ -v
 pytest tests/bias/ -v
 
 # Docker
-docker exec fairfold-django pytest tests/ -v
+docker compose exec -T django pytest tests/ -v
 ```
 
 ### Verifying the documentation
@@ -253,13 +253,13 @@ python3 scripts/verify_bias_set.py   # every bias fixture version's internal con
 
 ### Running Migrations
 ```bash
-docker exec fairfold-django python manage.py makemigrations
-docker exec fairfold-django python manage.py migrate
+docker compose exec -T django python manage.py makemigrations
+docker compose exec django python manage.py migrate
 ```
 
 ### Opening Django Shell
 ```bash
-docker exec -it fairfold-django python manage.py shell
+docker compose exec django python manage.py shell
 ```
 
 ## Production Deployment
