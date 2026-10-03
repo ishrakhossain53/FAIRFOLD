@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "directory": "tests/bias/v1.0.0",
+  "created": "2026-10-03",
+  "owner": "Ishrak Hossain",
+  "status": "AUTHORED. Specified in Arch Doc 7.4 on 2026-10-03; cases written the same day.",
+
+  "keyword_list_sha": "bc8b3f72f0b7cd0cb262d56c26fdd1a3b61558d6e122cdeac97612212b493e2e",
+  "keyword_list_sha_note": "SHA-256 of keyword_terms.json as committed. If the term list changes and this does not, the set is stale and the checker fails. Regenerate with scripts/verify_bias_set.py.",
+
+  "case_count": 76,
+  "must_flag_count": 58,
+  "must_not_flag_count": 18,
+
+  "files": {
+    "keyword_terms.json": "62 proposed terms in 8 groups, plus 6 deliberately-excluded terms and 5 known limitations",
+    "proxy_cases.jsonl": "48 must-flag cases, categories 1-7",
+    "negative_cases.jsonl": "18 must-not-flag cases, categories 9-10",
+    "rationale_cases.jsonl": "10 must-flag cases, category 8 (LLM pass only, not CI-gated)"
+  },
+
+  "category_counts": {
+    "gendered_club_role": 12,
+    "institution_gender_signal": 8,
+    "age_reference": 8,
+    "nationality_origin_proxy": 6,
+    "family_status": 6,
+    "disability_health": 4,
+    "photo_appearance": 4,
+    "uncited_vague_rationale": 10,
+    "legitimate_skill_match": 12,
+    "necessary_context": 6
+  },
+
+  "synthetic": true,
+  "synthetic_note": "Every case is invented. Institution and role names are real organisations; no individual, employer or real resume is represented. Amazon-style cases reproduce the SHAPE of the 2018 proxy pattern with invented wording, recording the derivation in each case's source_pattern. No third-party text is reproduced here.",
+
+  "pass_criteria": {
+    "recall_must_flag": 1.0,
+    "false_positives_must_not_flag": 0,
+    "flag_rate_band_categories_1_to_8": [0.60, 0.95],
+    "llm_pass_gated": false,
+    "llm_pass_note": "The LLM bias pass is advisory and is not asserted in CI. An advisory signal is allowed to be wrong; gating CI on it makes the suite flaky and invites disabling it."
+  },
+
+  "measured": false,
+  "measured_note": "NO PASS RATE HAS BEEN MEASURED. There is no bias pass implementation in the repository yet. Every number in pass_criteria is a target. scripts/verify_bias_set.py proves the fixture set is internally consistent; it does not prove the pass works.",
+
+  "does_not_support": [
+    "any disparity statistic",
+    "any claim that the product is bias-free or unbiased",
+    "any conclusion about the embedding model or the ranking function",
+    "any conclusion about Bengali-language resumes -- see LIM-003, there are no Bengali terms at all"
+  ]
+}

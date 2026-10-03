@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "authored": "2026-10-03",
+  "owner": "Ishrak Hossain",
+  "status": "PROPOSED. Authored alongside the v1.0.0 cases, not yet implemented. The implementation must READ this file rather than hard-coding terms in Python, or the keyword_list_sha in manifest.json is meaningless.",
+
+  "matching": {
+    "case_sensitive": false,
+    "apostrophe_normalisation": "U+2019 and U+02BC are folded to ASCII apostrophe before matching, because Bangladeshi resumes mix both and 'women's' must not match 'women’s' by accident of typography.",
+    "note": "Plain substring matching. No word-boundary logic in v1.0.0 -- the excluded list below explains why most broad words are out, and why the narrow phrases in this file do not need boundaries."
+  },
+
+  "terms": {
+    "gendered_org": [
+      "women's society",
+      "women's club",
+      "women's association",
+      "women's sports",
+      "women's cricket",
+      "women's volleyball",
+      "ladies' committee",
+      "women's cell",
+      "girls' guide battalion",
+      "beauty pageant",
+      "queen of the campus",
+      "head girl"
+    ],
+    "institution_gender_signal": [
+      "girls' college",
+      "girls' school",
+      "girls' high school",
+      "women's college",
+      "women's university",
+      "girls' university",
+      "female hostel",
+      "all-girls"
+    ],
+    "age_reference": [
+      "young and energetic",
+      "young and dynamic",
+      "young energetic",
+      "young age preferred",
+      "under 30",
+      "under the age of 30",
+      "digital native"
+    ],
+    "nationality_origin_proxy": [
+      "must be bangladeshi",
+      "bangladeshi male",
+      "native speaker",
+      "native bengali speaker",
+      "local candidate only",
+      "must be from dhaka",
+      "expatriate preferred"
+    ],
+    "family_status": [
+      "married",
+      "unmarried",
+      "single male",
+      "no children",
+      "not planning to marry",
+      "young male preferred",
+      "family responsibilities"
+    ],
+    "disability_health": [
+      "must be physically fit",
+      "no glasses",
+      "healthy and fit",
+      "no physical disability"
+    ],
+    "photo_appearance": [
+      "attach a photo",
+      "formal appearance",
+      "well-presented",
+      "presentable",
+      "smart appearance"
+    ],
+    "vague_rationale": [
+      "cultural fit",
+      "does not fit our culture",
+      "not a team player",
+      "seems junior",
+      "appears junior",
+      "appears inexperienced",
+      "lacks confidence",
+      "passive personality",
+      "needs maturity",
+      "hard to work with",
+      "not the right fit"
+    ]
+  },
+
+  "deliberately_excluded": [
+    {
+      "term": "women's",
+      "reason": "Bare 'women's' flags a candidate who co-founded a women's rights reading group or worked at an NGO. That is advocacy experience, not a credential signalling gender. The gendered-organisation PHRASES are listed individually instead.",
+      "caught_by": "NEG-013"
+    },
+    {
+      "term": "women-only",
+      "reason": "A legitimate job requirement, not a signal about a candidate. This pass scans candidate-derived text; the job's own requirements live in the job, not the resume.",
+      "caught_by": "NEG-014"
+    },
+    {
+      "term": "recent graduate",
+      "reason": "Collides with 'recent graduate programme', an ordinary job and course description. The real age proxy here is graduation YEAR, not the phrase. Deferred to v1.0.1 as a date-proximity rule rather than kept as a substring.",
+      "caught_by": "NEG-015"
+    },
+    {
+      "term": "male",
+      "reason": "Bare 'male' appears in 'male-dominated field', which is a candidate describing a problem, not a credential. The credential case ('young male preferred') is listed as a phrase.",
+      "caught_by": "NEG-017"
+    },
+    {
+      "term": "female",
+      "reason": "Same reasoning as 'male', and it collides with 'female candidates preferred', which is job text.",
+      "caught_by": "NEG-014"
+    },
+    {
+      "term": "graduate",
+      "reason": "Far too broad to be a useful proxy; would flag most of the corpus.",
+      "caught_by": "NEG-015"
+    }
+  ],
+
+  "known_limitations": [
+    {
+      "id": "LIM-001",
+      "limitation": "There is NO numeric age detection. A line reading '22 years old' is not caught by any term in this list.",
+      "why_it_matters": "A stated age is a stronger proxy than 'young and energetic', and it is the more common form in the resumes this product will ingest.",
+      "planned": "v1.0.1 — a regex rule over explicit age and date-of-birth phrasings, with its own category (11) and its own false-positive cases.",
+      "severity": "high"
+    },
+    {
+      "id": "LIM-002",
+      "limitation": "There is NO graduation-year proximity rule, so a 1994 graduate and a 2026 graduate score identically.",
+      "why_it_matters": "This is the mechanism behind the 2018 proxy case. 'Recent graduate' was removed from the term list because of a false-positive collision, and nothing replaced it yet.",
+      "planned": "v1.0.1 — compare graduation year against a role's stated window, applied at ranking time rather than as a keyword.",
+      "severity": "high"
+    },
+    {
+      "id": "LIM-003",
+      "limitation": "The list holds English phrases only. A Bengali-language resume can carry every one of these signals in transliterated or Bengali script and none will be caught.",
+      "why_it_matters": "The primary market is Bangladesh. A pass that only reads English will report clean on exactly the population the product is for.",
+      "planned": "v1.1.0 — Bengali term list, authored with native review rather than machine translation.",
+      "severity": "high"
+    },
+    {
+      "id": "LIM-004",
+      "limitation": "Substring matching has no word boundaries, so a term can match inside a longer word.",
+      "why_it_matters": "Low today, because the terms are multi-word, but it becomes a real risk if a single short term is ever added.",
+      "planned": "Revisit if any single-word term is added.",
+      "severity": "low"
+    },
+    {
+      "id": "GAP-001",
+      "limitation": "Single-word vague and age-coded words are absent by choice. 'Energetic', 'articulate', 'mature', 'ambitious', 'young', 'dynamic' and 'passive' are NOT terms.",
+      "why_it_matters": "A rationale reading 'Energetic and culturally aligned' is age-coded and would NOT be flagged by v1.0.0. This was found while authoring RAT-010, which originally carried that exact wording.",
+      "why_not_just_added": "Each of these is a common positive word in ordinary professional text. Adding them bare would flag ordinary CVs and rationales, and the 0-false-positive criterion in Arch Doc 7.4.5 is not negotiable. 'Energetic' is the sharpest example: on its own it is an adjective, not a proxy.",
+      "how_it_is_handled": "The gap is recorded rather than papered over. The case was reworded to carry a term that IS in the list, so v1.0.0 measures what it claims to measure, and this limitation stays visible for v1.0.1 to solve properly -- plausibly by scoring vague adjectives in the rationale GENERATION step, where the full sentence is available, rather than by substring-matching single words in a free-text pass.",
+      "planned": "v1.0.1",
+      "severity": "medium"
+    }
+  ]
+}

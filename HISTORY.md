@@ -801,6 +801,92 @@ and an ignored checker is worse than none.
 
 ---
 
+### 2.27 The bias test set is written — and three of my own errors came out of writing it
+
+`tests/bias/v1.0.0/` now holds **76 cases across all ten categories**: 48 proxy
+(must-flag, categories 1–7), 10 rationale (category 8, LLM pass only), 18 negative
+(must-not-flag, categories 9–10). Plus a **62-term proposal** in `keyword_terms.json`,
+**6 deliberately-excluded terms**, **5 known limitations**, a manifest, a changelog, and
+`scripts/verify_bias_set.py` in CI.
+
+**What this does not establish: that the bias pass works.** There is no implementation in
+the repository, so the pass rate is **unmeasured** and `manifest.json` carries
+`"measured": false`. The manifest's `pass_criteria` are targets. Saying the set is
+complete and saying the pass is good are different claims, and only the first is true.
+
+#### The three errors worth recording
+
+**1. The validator caught three cases whose `expected_terms` their own text did not
+contain.** `PROXY-040` declared *not planning to marry* over text reading "no plans to
+marry"; `RAT-007` and `RAT-010` were the same class of drift. All three *looked* caught
+and were not.
+
+This is the whole argument for `expected_terms` existing. A keyword pass whose fixtures
+were written alongside its term list agrees with itself by construction and reports a
+clean result forever. The per-case declaration is what makes the two independent.
+
+**2. §7.4.3 — my own spec from hours earlier — contained a contradiction.** It listed
+*"recent graduate programme 2026"* as a **must-NOT-flag** example while *recent graduate*
+belongs in `age_reference` as a proxy. The same phrase cannot both flag and not flag.
+
+Resolved by removing *recent graduate* from the term list (recorded in
+`deliberately_excluded`) and rewording `NEG-015`. **The underlying gap is not closed** —
+graduation-year proximity is the mechanism behind the 2018 case, and it is tracked as
+`LIM-002` for v1.0.1. A spec written in the abstract can hold two incompatible examples;
+only writing the concrete cases surfaces it.
+
+**3. `GAP-001` is a deliberate non-fix, and it is the one to argue about.** Single-word
+vague and age-coded adjectives — *energetic, articulate, mature, ambitious, young,
+dynamic, passive* — are **not** in the term list. So a rationale reading *"Energetic and
+culturally aligned"* is age-coded and **will not be flagged** by v1.0.0.
+
+I found this by writing `RAT-010` with that exact wording and watching it fail. There were
+two ways to make it pass: widen the list to include bare *energetic*, or reword the case.
+I did neither silently — I reworded the case and recorded the gap, because adding bare
+*energetic* would flag ordinary professional text and the zero-false-positive criterion in
+§7.4.5 is not negotiable. **An unwritten term is a known gap; a quietly widened list is an
+unnoticed one.** If the team thinks the gap outweighs the false positives, that is a
+defensible disagreement and `GAP-001` is where to have it.
+
+#### The negatives are half the value
+
+18 of 76 cases exist to stop the pass being trivially good, and they are what justify the
+six exclusions. `NEG-013` (a candidate who co-founded a **women's rights** reading group)
+is why bare *women's* is not a term — that is advocacy, and a pass that flags it trains
+employers to ignore the badge. `NEG-017` (a candidate describing a **male-dominated**
+field) is why bare *male* is not a term. Each exclusion names the case that enforces it,
+and the validator checks that link — so an exclusion cannot be quietly deleted along with
+the case that justified it.
+
+#### Known limitations, worst first
+
+| ID | Limitation | Severity | Planned |
+|---|---|---|---|
+| `LIM-003` | **Term list is english-only.** The target market is Bangladesh, so a pass reading only english reports clean on exactly the population the product is for | **high** | v1.1.0, native review — **not** machine translation |
+| `LIM-002` | No graduation-year proximity rule. A 1994 graduate and a 2026 graduate score identically, and that *is* the 2018 mechanism | **high** | v1.0.1 |
+| `LIM-001` | No numeric age detection. "22 years old" is caught by nothing | **high** | v1.0.1 |
+| `GAP-001` | Single-word vague adjectives absent by choice (§ above) | medium | v1.0.1 |
+| `LIM-004` | Substring matching has no word boundaries | low | on adding any single-word term |
+
+`LIM-003` is the one that matters most and it is not a near-term fix. A fairness claim
+about a Bangladeshi product, measured with an english-only list, is worse than no claim
+because it looks like evidence.
+
+#### On the validator
+
+`scripts/verify_bias_set.py` proves the fixture set is **internally coherent** — every
+declared term exists, no must-not-flag case contains a term, category counts match the
+§7.4.3 targets, the manifest's `keyword_list_sha` matches the file it hashes. It does
+**not** and cannot prove the pass works. It was negative-tested the same way
+`verify_docs.py` was: contaminating a negative case, deleting a case to break a count, and
+leaving the manifest SHA stale after editing the term list were all caught.
+
+The SHA guard earned its place within one commit — `GAP-001` was added to
+`keyword_terms.json` and the manifest check failed immediately. That is the exact failure
+it exists to prevent: a term list changed under a set that still claims to describe it.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |
@@ -829,7 +915,7 @@ and an ignored checker is worse than none.
 | **V** — Phase 4 milestone on Christmas Day | 🟡 25 Dec is a holiday | ✅ **fixed** — moved to Thu 2026-12-24 (§2.24) |
 | **W** — API list incomplete | 🟠 blocker on the frontend build | ✅ **closed** — all five groups written (`Complete Doc §C.12`); writing them exposed two further schema holes (§2.25) |
 | **X** — ER diagram and DDL disagreed on `UNIQUE (user_id, status)` | *(not previously found)* — both had been reported as verified | ✅ **fixed** — constraint added to the DDL, plus `data_deletion_requests.approved_by` and `employer_profiles.show_company_name` (§2.25) |
-| **Y** — Bias test set had no target | 🟠 the keyword pass could only be shown to work on examples it was written from | ✅ **specified** — Arch Doc §7.4: ten categories, `expected_terms`, immutable versions, `keyword_list_sha`, pass band 100%/0/60–95% in CI. ⬜ **the set itself is still to be authored** (Ishrak, Phase 2) (§2.26) |
+| **Y** — Bias test set had no target | 🟠 the keyword pass could only be shown to work on examples it was written from | ✅ **specified (§2.26) and authored (§2.27)** — `tests/bias/v1.0.0/`, 76 cases in all ten categories, 62 terms, 6 deliberate exclusions, 5 limitations, validated in CI. ⬜ **the pass rate is still unmeasured** — no implementation exists; ⚠️ `LIM-003` the term list is english-only |
 | **Z** — AD-006 still said "Team of 4" after the rename pass | *(not previously found)* — §2.23 conflict 9 was recorded as fixed with one occurrence untouched | ✅ **fixed** — and `scripts/verify_docs.py` added so the class of bug is caught, not re-found (§2.26) |
 
 ---
@@ -904,12 +990,16 @@ captain", gendered club roles. PII stripping removes names, emails and phone num
 **none** of that text, which is why stripping names alone is not sufficient. Added in §2.20
 to Arch Doc §10 Phase 2 and `prd.md` §17.4.
 
-**✅ The spec now exists — Arch Doc §7.4, written 2026-10-03** (§2.26). Ten categories,
-`expected_terms` per case so flagging everything cannot pass, a 100% / 0 / 60–95% pass
-band checked in CI, immutable versions with a `keyword_list_sha`, and an explicit statement
-of what the set cannot support. **⬜ What remains is authoring the cases themselves** —
-Ishrak, Phase 2. That is build work, not a decision, and it does not block anything else
-in the phase.
+**✅ The spec now exists — Arch Doc §7.4 (§2.26) — and so do the cases — `tests/bias/v1.0.0/`,
+76 of them (§2.27).** Validated in CI by `scripts/verify_bias_set.py`.
+
+**⬜ What remains is the bias pass implementation, and it is the only part that is a build
+task.** Until it exists the pass rate is unmeasured and `manifest.json` says so. ⚠️
+**`LIM-003` is the one to plan around:** the term list is **english-only** while the
+primary market is Bangladesh, so the set as it stands cannot say anything about the
+population the product is for. That needs the Bengali term list in v1.1.0 with native
+review — not machine translation — and it is a decision about sequencing, not a
+documentation gap.
 
 ### 4.5 ✅ Schedule — capacity solved, and the one open date is closed
 
@@ -985,6 +1075,7 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
+736ccd6  docs: specify the bias test set, decide REQ-FR-050, and add a docs checker
 741542c  docs: close the API blocker and the remaining gaps, and make ASM-003 falsifiable
 4b4ea7e  docs: move the Phase 4 milestone, record AI-assisted development, and build the broadcast feature
 ca4061f  docs: readiness review before development — nine conflicts settled, five gaps opened

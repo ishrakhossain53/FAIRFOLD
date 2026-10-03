@@ -2747,7 +2747,7 @@ the canonical document's rule was applied and the stale one corrected.
 | # | Item | Owner |
 |---|---|---|
 | 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned, but a search is not a clearance | Legal / PM |
-| 4 | Phase 2 **versioned bias test set** — **✅ spec written 2026-10-03** (Arch Doc §7.4: ten categories, immutable versions, `keyword_list_sha`, pass band 100% / 0 / 60–95% in CI). ⬜ **The set itself is still to be authored** — Ishrak, Phase 2 | Ishrak |
+| 4 | Phase 2 **versioned bias test set** — **✅ authored 2026-10-03**, `tests/bias/v1.0.0/`: 76 cases across all ten categories, validated in CI. ⬜ **The bias pass itself is still to be implemented and the pass rate is unmeasured.** ⚠️ `LIM-003`: the term list is **english-only** while the target market is Bangladesh — v1.1.0, needs native review | Ishrak |
 | 5 | Cross-border data transfer (SCCs) and provider ToS — `prd.md` §19.1 item 4, still open | Legal / PM |
 | 6 | Figma file, components and hi-fi mockups (`design.md` §12 items 1–4) | UI/UX |
 | 7 | Screens for the two new components (§7.11, §7.12) — `design.md` §12 item 11 | UI/UX |

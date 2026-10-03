@@ -1109,13 +1109,15 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
   or quality degradation. If it fails, **re-scope; do not compress.**
 - **`ASM-001`** — the 52 requirements are the right scope for an MVP. If it fails, cut
   `REQ-FR-050` first; it is the only requirement the team itself called optional.
-- **Phase 2 bias test set** — **✅ spec written 2026-10-03**, Arch Doc §7.4. Ten case
-  categories, immutable versions, a `keyword_list_sha` in the manifest, and a pass band
-  (100% recall, 0 false positives, 60–95% flag rate) checked in CI. **The set itself is
-  still to be authored** — Ishrak Hossain, Phase 2. Specifying the target before writing
-  the keywords is the point: otherwise the pass rate is only ever measured on examples the
-  keyword list was written from. Note also what the set cannot do — at 40–80 cases it
-  supports no disparity claim, and §1.4.1 already withdraws that claim.
+- **Phase 2 bias test set** — **✅ authored 2026-10-03**: `tests/bias/v1.0.0/`, **76 cases**
+  (58 must-flag, 18 must-not-flag) across all ten categories, a 62-term proposal, 6
+  deliberate exclusions each naming the case that enforces it, and 5 recorded limitations.
+  `scripts/verify_bias_set.py` validates it in CI. **⬜ The pass rate is still unmeasured** —
+  no bias pass implementation exists, and `manifest.json` carries `"measured": false`.
+  **Most serious known gap: `LIM-003`, the term list is english-only** while the target
+  market is Bangladesh — a pass reading only english reports clean on exactly the
+  population the product is for. The set supports no disparity claim (§1.4.1 already
+  withdraws that), and `manifest.json` says so in `does_not_support`.
 - **`ASM-003`** — AI assistance raises delivery capacity for the 217 points. *Plausible
   for boilerplate; unmeasured.* **Tested at the end of Phase 1** by points actually
   delivered against the 41-point, 3-week phase. If it fails, drop the capacity assumption

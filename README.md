@@ -129,7 +129,9 @@ requirements.txt
 .gitignore          # keeps .env out of git; .env.example stays tracked
 scripts/
 ├── generate_secret_key.py   # generates DJANGO_SECRET_KEY + ENCRYPTION_KEY
-└── verify_docs.py           # cross-document consistency check (also runs in CI)
+├── verify_docs.py           # cross-document consistency check (also runs in CI)
+└── verify_bias_set.py       # validates the bias test set's internal consistency (CI)
+tests/bias/v1.0.0/           # versioned bias test set — 76 cases, spec in Arch Doc §7.4
 ```
 
 > **Settings modules:** The project uses split Django settings — `base.py` for shared config, `local.py` for development, `test.py` for fast unit tests, `ci.py` for CI, and `production.py` for production. Set `DJANGO_SETTINGS_MODULE` in `.env`.

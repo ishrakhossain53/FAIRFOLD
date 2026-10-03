@@ -1520,6 +1520,14 @@ jobs:
         # the docs does not catch that; running the checker does.
         run: python3 scripts/verify_docs.py
 
+      - name: Bias test set consistency check
+        # Validates the fixture set, NOT the bias pass -- there is no implementation to
+        # validate yet, so this asserts nothing about accuracy. It proves the cases are
+        # internally coherent: every declared term exists, no must-not-flag case contains
+        # a term, category counts match §7.4.3, and the manifest's keyword_list_sha matches
+        # the term list it hashes.
+        run: python3 scripts/verify_bias_set.py
+
       - name: Upload schema artifact
         uses: actions/upload-artifact@v4
         with:
@@ -1622,14 +1630,15 @@ jobs:
 tests/
 ├── __init__.py
 ├── conftest.py                    # Pytest fixtures (DB, Redis, test users)
-├── bias/                          # versioned bias test set — spec in §7.4
-│   ├── CHANGELOG.md
+├── bias/                          # versioned bias test set — spec in §7.4, authored v1.0.0
+│   ├── CHANGELOG.md               # what changed per version and why
 │   ├── v1.0.0/
-│   │   ├── manifest.json          # version + keyword_list_sha + case count
-│   │   ├── proxy_cases.jsonl      # must_flag
-│   │   ├── negative_cases.jsonl   # must_not_flag
-│   │   └── rationale_cases.jsonl  # LLM pass only, not CI-gated
-│   └── test_bias_pass.py          # 100% recall, 0 false positives, 60–95% flag rate
+│   │   ├── manifest.json          # version + keyword_list_sha + case count + "measured": false
+│   │   ├── keyword_terms.json     # 62 terms, 6 deliberate exclusions, 5 known limitations
+│   │   ├── proxy_cases.jsonl      # 48 must_flag, categories 1-7
+│   │   ├── negative_cases.jsonl   # 18 must_not_flag, categories 9-10
+│   │   └── rationale_cases.jsonl  # 10 must_flag, category 8 (LLM pass only, not CI-gated)
+│   └── test_bias_pass.py          # WRITTEN IN PHASE 2 — 100% recall, 0 FP, 60-95% flag rate
 ├── unit/
 │   ├── test_pii_stripping.py     # PII detection regex + NER accuracy tests
 │   ├── test_matching.py           # pgvector cosine similarity correctness
@@ -1674,6 +1683,47 @@ target: §7.3 says *"100% of LLM rationales pass bias keyword check"*, and the P
 acceptance criterion says *"flags every seeded phrase in the versioned bias test set"* —
 and there was no test set to seed. **A keyword list with no fixture set is a list that
 can only be shown to work on the examples it was written from.**
+
+#### 7.4.0 Status — **v1.0.0 authored 2026-10-03**
+
+The cases are **written**. `tests/bias/v1.0.0/` holds **76 cases** — 58 must-flag, 18
+must-not-flag — across all ten categories, with a 62-term proposal in
+`keyword_terms.json`. `scripts/verify_bias_set.py` proves the set is internally
+consistent and runs in CI.
+
+> **The pass rate is still unmeasured, and the manifest says so.** There is no bias pass
+> implementation in this repository. `pass_criteria` in the manifest are **targets**, not
+> results, and `manifest.json` carries `"measured": false` for exactly that reason. The
+> set being coherent says nothing about the pass being good.
+
+| | |
+|---|---|
+| Cases | 76 (48 proxy · 18 negative · 10 rationale) |
+| Terms | 62 across 8 groups, plus **6 deliberately excluded**, each naming the negative case that enforces it |
+| Known limitations | **5** — `LIM-001`–`004` and `GAP-001`, each with a planned version |
+| Most serious gap | **`LIM-003`: the term list is English-only.** The target market is Bangladesh, so a pass reading only English reports clean on exactly the population the product is for. v1.1.0, with native review rather than machine translation |
+| Pass rate | **Not measured.** No implementation exists |
+
+**Three findings from writing the cases.** Each is in `tests/bias/CHANGELOG.md` in full:
+
+1. **The validator caught three authoring errors in the first draft** — cases whose
+   `expected_terms` their own text did not contain (`PROXY-040` declared *not planning to
+   marry* over text reading "no plans to marry"; `RAT-007` and `RAT-010` likewise). All
+   three looked caught and were not. This is precisely the failure mode `expected_terms`
+   exists to prevent: a keyword pass whose fixtures agree with it by construction reports
+   a clean result forever.
+2. **§7.4.3 itself contained a collision.** It listed *"recent graduate programme 2026"*
+   as a must-NOT-flag example while *recent graduate* belongs in `age_reference`. The same
+   phrase cannot both flag and not flag. Resolved by removing *recent graduate* from the
+   term list and rewording `NEG-015` — and the underlying gap is **not** closed:
+   graduation-year proximity is the mechanism behind the 2018 case, tracked as `LIM-002`.
+3. **`GAP-001` is a deliberate non-fix.** Single-word vague and age-coded adjectives —
+   *energetic, articulate, mature, ambitious, young, dynamic, passive* — are **not** terms.
+   A rationale reading "Energetic and culturally aligned" is age-coded and **will not be
+   flagged** by v1.0.0. Adding those words bare would flag ordinary professional text, and
+   the zero-false-positive criterion is not negotiable. The gap is recorded rather than
+   papered over, because an unwritten term is a known gap and a quietly widened list is an
+   unnoticed one.
 
 #### 7.4.1 What the set is for, and what it is not for
 
@@ -1737,11 +1787,13 @@ meaningless.
 | 7 | `photo_appearance` | "attach a photo", "formal appearance", "well-presented" | ✅ true | 4 |
 | 8 | `uncited_vague_rationale` | "cultural fit", "not a team player", "seems junior", no resume text cited | ✅ true | 10 |
 | 9 | `legitimate_skill_match` | A real skills match with no proxy language — must **not** flag | ❌ false | 12 |
-| 10 | `necessary_context` | "Women-only safety officer role", "must hold a valid visa", "recent graduate programme 2026" | ❌ false | 6 |
+| 10 | `necessary_context` | "Eligible for a women-only safety officer role", "must hold a valid visa", "co-founded a women's rights reading group" | ❌ false | 6 |
 
 Categories 9 and 10 matter more than their size suggests. **A keyword pass that flags
 everything reports a clean result by flagging the whole file**, and category 10 exists
-specifically to stop someone "fixing" a false positive by deleting the case.
+specifically to stop someone "fixing" a false positive by deleting the case. In v1.0.0
+these 18 cases also justify the **six deliberately-excluded terms**: each exclusion names
+the case that enforces it, and the validator checks that link still holds.
 
 #### 7.4.4 The Amazon-style proxy cases, and why PII stripping is not enough
 
@@ -2141,7 +2193,8 @@ closes the registration half of this risk. Two consequences worth writing down:
 - ✅ Resume embeddings generated via sentence-transformers (384-dim vectors)
 - ✅ pgvector cosine similarity returns ranked results in < 2s for 100 candidates
 - ✅ LLM rationale generated for top 10 candidates per job (evidence-cited format)
-- ✅ Deterministic keyword pass flags **100%** of the `must_flag` cases in the versioned bias test set, with **0** false positives on categories 9–10, and a flag rate on categories 1–8 between 60% and 95% (**specified 2026-10-03** in §7.4 — the set itself is still to be authored, owner Ishrak Hossain)
+- ✅ The versioned bias test set **exists**: `tests/bias/v1.0.0/`, **76 cases** across all ten categories, with a 62-term proposal, 6 deliberate exclusions and 5 recorded limitations. `scripts/verify_bias_set.py` validates it in CI
+- ⬜ Deterministic keyword pass flags **100%** of the `must_flag` cases, with **0** false positives on categories 9–10, and a flag rate on categories 1–8 between 60% and 95% (**set authored 2026-10-03**; the pass itself is still to be implemented and the rate is **unmeasured** — §7.4.0)
 - ✅ The bias test set **includes Amazon-style proxy cases** as mandatory categories 1 and 2 — synthetic, in the same shape, source pattern recorded in each case's `source_pattern` field (§7.4.4). These survive PII stripping untouched, which is why stripping names is not sufficient. Pattern source: `FAIRFOLD_Feasibility_and_Design.md` §1.2.1
 - ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
 - ⚠️ LLM bias pass is advisory only and may not block auto-shortlist
