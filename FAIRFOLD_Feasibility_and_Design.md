@@ -594,7 +594,7 @@ Derived one-to-one from the 52 FRs in Arch Doc §4.1. Written in standard
 | US-059 | As an **employer admin**, I want to invite colleagues and set their roles, so that the right people can act on my behalf. | FR-047 | 5 | Should |
 | US-060 | As an **employer**, I want to see my plan, usage and invoices, so that I can manage cost without contacting support. | FR-048 | 5 | Could |
 | US-061 | As an **admin**, I want to create and edit assessments, so that candidates can be tested on skills. | FR-049 | 5 | Should |
-| US-062 | As an **admin**, I want to send a scheduled announcement to a chosen audience, so that I can communicate service changes. | FR-050 | 3 | Could |
+| US-062 | As an **admin**, I want to send a scheduled announcement to a chosen audience, so that I can communicate service changes. | FR-050 | **8** | Could |
 
 #### Screening integrity — actor: Employer / Recruiter
 
@@ -613,7 +613,7 @@ Derived one-to-one from the 52 FRs in Arch Doc §4.1. Written in standard
 deliberate exclusions are listed in Arch Doc §1.2 Out of Scope.
 
 **Coverage:** all 52 functional requirements map to at least one user story.
-**Total effort:** 52 stories, 212 story points.
+**Total effort:** 52 stories, 217 story points.
 **MoSCoW:** 30 Must · 17 Should · 5 Could.
 
 #### 2.4.1 Traceability gaps
@@ -723,7 +723,49 @@ New in this round: **2 requirements** (`REQ-FR-051`, `REQ-FR-052`), **1 amendmen
 **1 `CHECK` constraint**, **2 new indexes**.
 
 The Arch Doc now holds **52 functional requirements** and the feasibility document
-**52 user stories / 212 points**.
+**52 user stories / 217 points**.
+
+##### Round 4 — the only approved requirement with no data model, now fixed ✅
+
+Rounds 1–3 looked for capabilities and pain points. This one looks for **approved
+requirements that cannot be built**, and there was exactly one.
+
+**`REQ-FR-050` (Broadcast Announcement) had no table.** It was approved in scope, given a
+page (`design.md` #62) and an endpoint — and nowhere to store the announcement, its
+audience, its schedule, or who it reached. `notifications` cannot substitute: it has a
+single `recipient_id`, so it can record that a user *was notified* but never *what was
+announced, to whom, or whether it was sent*. **The requirement was unimplementable as
+written**, and it had been sitting in the approved set since 2026-10-03 without anyone
+checking whether the schema supported it.
+
+**Added:** the `announcements` table (Arch Doc §5.1), the ER diagram entry, the data
+dictionary section, and the five-endpoint API.
+
+##### What goes wrong if `REQ-FR-050` is kept — asked and answered 2026-10-03
+
+The honest answer is that it is **the highest blast-radius feature per story point in the
+whole specification**, and the original 3-point estimate was wrong by more than half.
+
+| # | What goes wrong | Severity | Now handled? |
+|---|---|---|---|
+| 1 | **No data model.** Nowhere to store the announcement, audience, schedule or delivery record. The feature cannot be built at all | 🔴 Blocks the feature | ✅ Table added |
+| 2 | **A wrong audience is a confidentiality incident, not a UI bug.** The criteria only caught an *empty* audience. An employers-only announcement reaching candidates leaks employer-side information | 🔴 High | ✅ Role re-checked at send + `resolve-audience` preflight |
+| 3 | **Email sender reputation.** Bulk sends share a provider and domain with verification and password-reset mail. A burst can get the domain rate-limited or blocked — which then **breaks account access for every user on the platform** | 🔴 High | ✅ Separate sending subaddress + hourly cap |
+| 4 | **GDPR contradiction.** `REQ-FR-041` hard-deletes user data. A scheduled announcement with a snapshot audience will happily email a since-deleted account | 🟡 Medium | ✅ Audience resolved at **send** time; suppression list; `skipped_count` |
+| 5 | **Celery retry double-sends.** Beat retries on timeout, and a broadcast is the one action here that cannot be recalled | 🟡 Medium | ✅ `idempotency_key` unique, set before the task runs |
+| 6 | **Zero differentiation.** Every enterprise ATS has admin announcements. It competes on nothing and is not in `prd.md` §4.1's differentiation table | 🟢 Minor | Accepted |
+
+**Re-estimated from 3 to 8 points**, because a table, a Celery Beat scheduler, an audience
+matcher, a suppression list, a rate cap and an idempotency key are not three points of
+work. Phase 4 moves 39 → 44; total 212 → **217**.
+
+**Recommendation: keep it, but only as a Phase 4 item and never as a launch dependency.**
+It is cheap enough now that it is fixed, and an operator genuinely needs to tell users
+about a pricing or maintenance change. But it is also the one feature in the build whose
+worst case is a platform-wide incident caused by an admin clicking Send. If the team wants
+it gone, cut **`REQ-FR-050` + `US-062` + page #62 + the `announcements` table**
+together — the coupling is written into the requirement itself so a partial cut cannot
+leave a phantom table behind.
 
 ### 2.5 Product backlog and priority
 
@@ -735,10 +777,10 @@ criteria in Arch Doc §10. The phase breakdown aligns with the backlog:
 | 1 — Foundation | 1–3 | ~41 | Auth, profiles, jobs, job search (FR-042), applications, employer onboarding (no AI) |
 | 2 — AI Integration | 4–6 | ~49 | PII stripping, screening, rationale, bias audit, **override recording (FR-052)**, **reviewable hard filters (FR-029)** |
 | 3 — Candidate AI | 7–9 | ~50 | Assessments, **employer-required assessments (FR-051)**, coaching, journey mapping, messaging (FR-043), certifications |
-| 4 — Hardening | 10–12 | ~39 | Security, GDPR, monitoring, CI/CD, announcements |
+| 4 — Hardening | 10–12 | ~44 | Security, GDPR, monitoring, CI/CD, announcements |
 | 5 — Advanced | 13+ | ~33 | i18n, billing (FR-048), WebSockets, skill ontology |
 
-**Total: ~212 story points**, matching the 52 stories in §2.4.
+**Total: ~217 story points**, matching the 52 stories in §2.4.
 
 *(Point figures are a planning estimate for the Gantt in §2.7, not an independent
 measurement — re-estimate at sprint planning. The authoritative task lists are
@@ -876,18 +918,16 @@ planning input, and it changes one thing: the *hours available per week*.
 | | Before | After |
 |---|---|---|
 | Capacity assumption | Single shift, 5 students, part-time around coursework | **Double shift** |
-| 212 points over 12 weeks | ~17.7 points/week, tight | More comfortable |
+| 217 points over 12 weeks | ~18 points/week, tight | More comfortable |
 | Schedule verdict | At risk | **No longer capacity-constrained** |
 
-**What this does *not* fix.** The 12-week plan starting 2026-10-05 ends **Fri 2026-12-25,
-which is Christmas Day**. That is a calendar fact, not a capacity problem — more hours in
-a week do not create a day that is not there. Two things are therefore still true:
+**What this does *not* fix.** The 12-week plan starting 2026-10-05 originally ended
+**Fri 2026-12-25, which is Christmas Day**. That was a calendar fact, not a capacity
+problem — more hours in a week do not create a day that is not there. ✅ **Resolved
+2026-10-03: the Phase 4 milestone moved to Thu 2026-12-24** and the team is off on the
+25th. The date was the thing that needed to change, and it did.
 
-1. **The Phase 4 milestone must move.** Either start earlier, or move the Phase 4
-   milestone to **Thu 2026-12-24** with the team off on the 25th, or plan the demo at
-   the end of Phase 3 (early December). This is a one-line change to the milestone table
-   in §2.7.2 and needs the team's choice — **it is the only scheduling decision left**.
-2. **Double shifts raise a different risk, and it is recorded rather than dismissed.**
+**Double shifts raise a different risk, and it is recorded rather than dismissed.**
    Five students on double shifts for twelve weeks is a burnout and quality risk, not a
    free 2× multiplier. Sustained overtime reliably produces: slower code review, deferred
    testing (which directly threatens REQ-NFR-019's 80% coverage gate), and silent scope
@@ -903,7 +943,50 @@ a week do not create a day that is not there. Two things are therefore still tru
 weeks without attrition or quality degradation. **Unvalidated.** If it turns out to be
 false at the end of Phase 2, the honest response is to re-scope, not to compress.
 
+#### 2.6.4.2 AI-assisted development — recorded 2026-10-03, with controls
+
+**The team has stated it is using AI to produce the code**, and that this is the reason
+the 212-point scope is expected to fit. That is a legitimate reason and it is recorded
+here so the plan rests on a stated assumption rather than an unexamined hope.
+
+**What it genuinely buys:** boilerplate volume. Django models, serializers, migrations,
+admin registrations, test scaffolding and Docker config are the parts of this stack that
+take the most typing and the least judgement. That is real, and it is exactly where the
+schedule pressure was.
+
+**What it does not buy, and this is the part that matters.** The specification has been
+built around one repeated rule — *never state anything that was not verified* — and AI
+assistance attacks that rule from two directions:
+
+| Failure mode | Why it happens | Control |
+|---|---|---|
+| **Confident, plausible, wrong code** | An LLM produces a migration or a serializer that looks right and fails on an edge case nobody asked about | **No generated code merges without a human reading it.** `REQ-NFR-019`'s 80% coverage gate is the backstop, not the plan |
+| **Tests written to match the code, not the spec** | Generating a test after generating the implementation makes the test agree by construction | **Acceptance criteria in Arch Doc §4.1 are written before the test.** If a test is derived from the implementation rather than the Given/When/Then, it proves nothing |
+| **Provenance and licensing** | Generated code may reproduce a known implementation or a non-OSI-licensed snippet | **`pip-audit` and `safety` already run in CI** (`REQ-COM` supply-chain checks). Add a licence scan and record any third-party code copied in |
+| **Security review debt** | Generated auth, crypto or query code looks plausible and is wrong in ways that are exploitable | **`bandit` is already in CI.** Auth, encryption, PII stripping and the override-reason constraint (`chk_override_has_reason`) are **no-AI-review-list** — a named human must read these |
+| **Security-relevant falsehoods in the docs** | This repository's own discipline is the thing at risk | **§2.19 item 12 is the precedent.** When an unverifiable claim was found, it was narrowed rather than shipped. The same rule applies to generated documentation |
+
+**The honest statement of the risk.** AI raises *throughput*, not *correctness*. The
+product's entire differentiator is that it makes decisions explainable and auditable — a
+codebase that is confidently wrong is a far worse outcome for this product than a
+codebase that is visibly incomplete, because the whole pitch is that FairFold does not
+make claims it cannot evidence.
+
+**Recorded as assumption `ASM-003`** (see §2.6.4.3) and risk **RSK-012**. Neither is a
+reason to slow down; both are reasons to keep the merge discipline that is already in
+the requirements.
+
 **Gantt chart:** see §2.7.
+
+#### 2.6.4.3 Assumptions added 2026-10-03
+
+| ID | Assumption | Basis | If it fails |
+|---|---|---|---|
+| **`ASM-002`** | The team sustains **double shifts** for the full 12 weeks without attrition or quality degradation | Stated by the team | **Re-scope, do not compress.** A cut scope updates `prd.md` §5.1 and the acceptance criteria in the same commit |
+| **`ASM-003`** | AI-assisted development materially increases delivery capacity for the 217 points, **without reducing review capacity** | Stated by the team; the throughput half is well founded, the review half is the risk | Drop the throughput assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
+
+`ASM-003` has two halves and only one of them is an optimisation. Treating them as a
+single assumption is the mistake; they are tracked separately in §2.6.4.2.
 
 #### 2.6.5 Legal feasibility
 
@@ -981,26 +1064,23 @@ each "week" below is five working days.
 | Phase 1 — Foundation | 1–3 | Fri 2026-10-23 |
 | Phase 2 — AI Integration | 4–6 | Fri 2026-11-13 |
 | Phase 3 — Candidate AI | 7–9 | Fri 2026-12-04 |
-| Phase 4 — Hardening | 10–12 | Fri 2026-12-25 |
+| Phase 4 — Hardening | 10–12 | **Thu 2026-12-24** *(moved from Fri 2026-12-25 — decision 2026-10-03, option A)* |
 
-> ⚠️ **The Phase 4 milestone lands on Christmas Day.** This is a real scheduling problem,
-> not a formality: a 5-person student team losing ~2 weeks a year to holidays will not
-> finish a 12-week plan that starts in October without slipping. Two ways out — either
-> start earlier, or plan a **demo at the end of Phase 3 (early December)** and treat the
-> hardened build as a January continuation. The phase *durations* are the commitment;
-> **the dates are a plan.**
+> ✅ **Resolved 2026-10-03 — Option A. Phase 4 ends Thu 2026-12-24**, one day early,
+> and the team is off on 25 December. The one day of Phase 4 work moves into the Phase 3
+> buffer, which exists for exactly this.
 >
-> **Update 2026-10-03 — capacity solved, calendar not.** The team is now working
-> **double shifts**, so the plan is no longer *capacity*-constrained (§2.6.4.1). But
-> 25 December is a holiday regardless of staffing: **this milestone date is the single
-> remaining scheduling decision the team has to make**, and it needs an explicit answer.
-> Three options, all cheap:
+> The background, kept because the reasoning is reusable: the plan originally ended
+> Fri 2026-12-25, which is Christmas Day. That was never a capacity problem — 25 December
+> is a holiday regardless of how many hours the team works — so the fix had to move a
+> date, not add effort. Double shifts (§2.6.4.1) removed the capacity constraint
+> separately and did not touch the calendar.
 >
-> | Option | Change | Cost |
-> |---|---|---|
-> | **A — Move the milestone one day** (recommended) | Phase 4 ends **Thu 2026-12-24**; team off on the 25th | One day of Phase 4 work moved into the Phase 3 buffer |
-> | **B — Demo at end of Phase 3** | Public demo Fri 2026-12-04; hardening continues into January | Phase 4 becomes a January continuation rather than a December one |
-> | **C — Start earlier** | Re-base the whole Gantt to a late-September kickoff | Every date in this table moves; the spec was written in October |
+> | Option | Outcome |
+> |---|---|
+> | **A — Move the milestone one day** | ✅ **Chosen.** Phase 4 ends **Thu 2026-12-24** |
+> | B — Demo at end of Phase 3 | Not needed. Public demo is Fri 2026-12-04, still Phase 3 |
+> | C — Start earlier | Not needed. Re-basing would move every date for no gain |
 
 
 ```mermaid
@@ -1667,7 +1747,7 @@ classDiagram
 
 ### 3.7 ER diagram
 
-Derived from the SQL schema in Arch Doc §5.1 (23 tables) and the Django models in
+Derived from the SQL schema in Arch Doc §5.1 (24 tables) and the Django models in
 Complete Doc §8.2 / §C.11.
 
 ```mermaid
@@ -1685,6 +1765,8 @@ erDiagram
     CANDIDATE_PROFILES ||--o{ CANDIDATE_SKILLS : "declares"
     CANDIDATE_PROFILES ||--o{ CERTIFICATIONS : "holds"
     CANDIDATE_PROFILES ||--o{ ASSESSMENT_ATTEMPTS : "attempts"
+    USERS ||--o{ ANNOUNCEMENTS : "authors"
+
     CANDIDATE_PROFILES ||--o{ APPLICATIONS : "submits"
 
     SKILLS ||--o{ CANDIDATE_SKILLS : "canonicalises"
@@ -1963,6 +2045,24 @@ erDiagram
         timestamptz created_at "indexed"
     }
 
+    ANNOUNCEMENTS {
+        uuid id PK
+        varchar title
+        text body
+        varchar audience "all-candidates-employers-employers_by_plan-custom"
+        jsonb audience_filter "the resolved predicate"
+        varchar channel "in_app-email-both"
+        varchar status "draft-scheduled-sending-sent-failed-cancelled"
+        timestamptz scheduled_at
+        timestamptz sent_at
+        integer recipient_count "resolved at SEND time"
+        integer skipped_count "suppressed: deleted, bounced, unsubscribed"
+        uuid created_by FK "nullable, SET NULL"
+        uuid idempotency_key UK "Celery retry must not double-send"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     DATA_EXPORT_REQUESTS {
         uuid id PK
         uuid user_id FK
@@ -1984,8 +2084,8 @@ erDiagram
 ```
 
 **Cardinality reading:** `||` = exactly one, `o|` = zero or one, `o{` = zero or many.
-All 23 tables and 30 relationships shown. The canonical SQL (Arch Doc §5.1) declares
-**33** foreign keys; the three not drawn are redundant self-references on `users` that
+All 24 tables and 31 relationships shown. The canonical SQL (Arch Doc §5.1) declares
+**34** foreign keys; the three not drawn are redundant self-references on `users` that
 would clutter the diagram without adding information — `USERS → CANDIDATE_PROFILES`,
 `USERS → EMPLOYER_PROFILES` and `USERS → APPLICATIONS.decided_by` are all already
 implied by a drawn relationship. PK/FK detail is carried in the attribute blocks.
@@ -2023,10 +2123,10 @@ with no separable half, so deleting a user's interview history is correct.
 
 ### 3.8 Data dictionary
 
-Field-level definitions for the 9 entities that carry the interesting behaviour: the four
+Field-level definitions for the 10 entities that carry the interesting behaviour: the four
 lifecycle tables plus the five with non-obvious constraints or erasure semantics
 (`EMPLOYER_TEAM_MEMBERS`, `MESSAGES`, `JOB_ASSESSMENT_REQUIREMENTS`). Full SQL DDL:
-Arch Doc §5.1 (23 tables).
+Arch Doc §5.1 (24 tables).
 
 #### USERS
 
@@ -2165,6 +2265,39 @@ Arch Doc §5.1 (23 tables).
 > **Why this table exists:** `EmployerProfile.user` is `OneToOneField`, so before this
 > table an employer company could have exactly **one** person. `REQ-FR-047` requires
 > inviting, re-roling and removing colleagues, which a 1-to-1 relation cannot express.
+
+#### ANNOUNCEMENTS
+
+| Field | Type | Key | Null | Default | Description |
+|---|---|---|---|---|---|
+| id | UUID | **PK** | NO | `gen_random_uuid()` | — |
+| title | VARCHAR(200) | | NO | — | — |
+| body | TEXT | | NO | — | The message |
+| audience | VARCHAR(30) | | NO | `'all'` | `all`, `candidates`, `employers`, `employers_by_plan`, `custom` |
+| audience_filter | JSONB | | NO | `'{}'` | The resolved predicate, e.g. `{"plan": ["growth"]}` |
+| channel | VARCHAR(20) | | NO | `'in_app'` | `in_app`, `email`, `both` |
+| status | VARCHAR(20) | | NO | `'draft'` | `draft`, `scheduled`, `sending`, `sent`, `failed`, `cancelled` |
+| scheduled_at | TIMESTAMPTZ | | YES | — | Null = send now |
+| sent_at | TIMESTAMPTZ | | YES | — | — |
+| recipient_count | INTEGER | | NO | `0` | **Resolved at send time, not at create time** |
+| skipped_count | INTEGER | | NO | `0` | Suppressed: deleted, bounced, unsubscribed |
+| failure_detail | TEXT | | YES | — | Why a send failed |
+| created_by | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` — the record survives the admin account |
+| idempotency_key | UUID | **UK** | YES | — | Set before the task runs, so a Celery retry cannot double-send |
+| created_at | TIMESTAMPTZ | | NO | `NOW()` | — |
+| updated_at | TIMESTAMPTZ | | NO | `NOW()` | — |
+
+> **Why this table exists.** `REQ-FR-050` was approved in scope and given a page
+> (`design.md` #62) and an endpoint, but had **no table at all**. `notifications` cannot
+> substitute: it carries a single `recipient_id`, so it can record that a user was
+> notified but never what was announced, to whom, or whether it was sent. The requirement
+> was unimplementable as written.
+>
+> **Two fields carry the weight.** `recipient_count` is resolved at **send** time, not at
+> create time — an audience stored as a snapshot goes stale, and a scheduled announcement
+> whose audience includes a since-deleted account would email a user that `REQ-FR-041`
+> has hard-deleted. `idempotency_key` is unique and set *before* the task runs, because
+> Celery retries on timeout and a broadcast is the one action here that cannot be undone.
 
 #### MESSAGES (soft-delete)
 
@@ -2497,9 +2630,9 @@ in the Arch Doc; the PRD table is a pointer, never the definition.
 | Internal markdown links resolve | ✅ all, 0 dangling |
 | `REQ-FR-###` references point at a real requirement | ✅ 0 dangling across all 7 documents |
 | Every FR has at least one user story | ✅ 52/52 |
-| Story rows parse and sum | ✅ 52 stories, 212 points, 30 Must / 17 Should / 5 Could |
+| Story rows parse and sum | ✅ 52 stories, 217 points, 30 Must / 17 Should / 5 Could |
 | Duplicate FR rows | ✅ none — 52 rows, 52 unique IDs |
-| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 23 / 33 / 11 |
+| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 24 / 34 / 13 |
 | Mermaid diagrams parse | ✅ 5 of 5 |
 | `[PLACEHOLDER]` / `?` cells / `TBD` remaining | ✅ none |
 | Secrets in committed files | ✅ none; `.env` is gitignored, `.env.example` is placeholders |
@@ -2543,8 +2676,8 @@ the canonical document's rule was applied and the stale one corrected.
 
 | # | Blocker | Owner | Effort |
 |---|---|---|---|
-| 1 | **API list is incomplete.** `Complete Doc §C.12` has no endpoints for `REQ-FR-042` (public job browse/search), `REQ-FR-040/041` (GDPR export/delete), `REQ-FR-047` (team management), `REQ-FR-049` (assessment authoring) or `REQ-FR-050` (broadcast). The frontend cannot be built against it | Backend (Ishrak) | ~2 h |
-| 2 | **Phase 4 milestone is 25 December.** A holiday, not a capacity problem. Options A/B/C in §2.7.2 | Team | 1 decision |
+| 1 | **API list is still incomplete.** ✅ `REQ-FR-050` (broadcast) was written on 2026-10-03 as part of the `REQ-FR-050` analysis, along with the missing `announcements` table. ⬜ **Still missing:** `REQ-FR-042` (public job browse/search), `REQ-FR-040/041` (GDPR export/delete), `REQ-FR-047` (team management), `REQ-FR-049` (assessment authoring) | Backend (Ishrak) | ~1.5 h |
+| — | ~~**Phase 4 milestone is 25 December.**~~ ✅ **Resolved 2026-10-03** — moved to **Thu 2026-12-24**, team off on the 25th (§2.7.2 option A) | — | Done |
 
 **🟡 Blocks the public launch, not the build:**
 

@@ -28,7 +28,7 @@ specifications, requirements, and supporting configuration.
 | `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
-**Key numbers of record** (verified 2026-10-03, re-verified after §2.20):
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23 and §2.24):
 
 - **52 functional requirements**, `REQ-FR-001` … `REQ-FR-052` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
@@ -37,11 +37,11 @@ specifications, requirements, and supporting configuration.
   `REQ-SEC-001`–`014` (14), `REQ-COM-001`–`009` (9), `REQ-NFR-001`–`018` (18),
   `REQ-NFR-019`–`023` (5, code quality), and four operational `REQ-NFOR-001`, `-002`, `-024`, `-025`.
   ⚠️ `REQ-NFR` and `REQ-NFOR` interleave — a naive `REQ-NF` regex conflates them. Use `REQ-NFR-[0-9]+`.
-- **23 database tables** in Arch Doc §5.1, with 33 foreign keys declared (30 drawn in the ER
+- **24 database tables** in Arch Doc §5.1, with 34 foreign keys declared (31 drawn in the ER
   diagram; 3 redundant `users` self-references intentionally omitted). `MESSAGES` is the one
   table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
 - **10 AES-256-GCM encrypted fields** (PII at rest)
-- **52 user stories / 212 story points**, MoSCoW **30 Must / 17 Should / 5 Could** —
+- **52 user stories / 217 story points**, MoSCoW **30 Must / 17 Should / 5 Could** —
   every one of the 52 FRs maps to at least one story (verified programmatically)
 - **62 pages specified** in `design.md` §10; **36 have wireframes** (23 drawings), covering
   all 18 required screens and all 22 core-flow pages; 53 of 62 pages carry a requirement ID
@@ -536,6 +536,78 @@ incomplete API list in `Complete Doc §C.12`, and the Phase 4 milestone falling 
 
 ---
 
+### 2.24 Three answers and a fourth question — milestone moved, AI recorded, `REQ-FR-050` fixed
+
+**1. Phase 4 milestone → Thu 2026-12-24.** ✅ Option A chosen. The one day of Phase 4
+work moves into the Phase 3 buffer and the team is off on 25 December. Kept: the original
+reasoning, because "25 December is a holiday regardless of staffing" is the reusable part.
+Double shifts never touched the calendar — they fixed capacity, which was a different
+problem.
+
+**2. The team is using AI to produce code, and that is why 217 points fits 12 weeks.**
+Recorded as §2.6.4.2 with assumption `ASM-003` and risk **RSK-012** (High/High).
+
+The throughput claim is well founded — Django models, serializers, migrations and admin
+registrations are where the typing was, not the judgement. The claim that also needs
+saying out loud is that **AI raises throughput, not correctness**, and for *this*
+product the distinction is the whole business. The differentiator is that FairFold does
+not assert anything it cannot evidence, so a confidently-wrong codebase is a worse
+outcome here than a visibly incomplete one.
+
+Four controls are now written down rather than assumed:
+
+- Acceptance criteria in Arch Doc §4.1 are written **before** the test. A test derived
+  from the implementation agrees by construction and proves nothing.
+- No generated code merges without a human reading it. The 80% coverage gate is a
+  backstop, not a plan.
+- Auth, encryption, PII stripping and the `chk_override_has_reason` constraint are a
+  **no-AI-review-list** — a named human reads those.
+- Add a licence scan to CI; `bandit`, `pip-audit` and `safety` are already there.
+
+`ASM-003` is deliberately split in two, because only one half is an optimisation: the
+throughput half and the review-capacity half. If the second fails, the answer is to drop
+the throughput assumption — **never** to reduce review.
+
+**3. What goes wrong if `REQ-FR-050` is kept?** The question found the most serious defect
+in the specification. **`REQ-FR-050` had no database table at all.** It was approved in
+scope, given page #62 and an endpoint, and had nowhere to store the announcement, its
+audience, its schedule or who it received it. `notifications` cannot substitute — it has
+one `recipient_id`, so it records that someone *was notified* but never *what was
+announced, to whom, or whether it was sent*.
+
+Fixed, plus four problems the original criteria never covered:
+
+| What goes wrong | Severity | Fix |
+|---|---|---|
+| No data model | 🔴 Blocks the feature | `announcements` table added |
+| A **wrong** audience is a confidentiality incident, not a UI bug — the criteria only caught the *empty* case | 🔴 High | Role re-checked at send + `resolve-audience` preflight |
+| A bulk send shares a provider and domain with verification and password-reset mail, so a burst can rate-limit the domain **and break account access for everyone** | 🔴 High | Separate sending subaddress + hourly cap |
+| `REQ-FR-041` hard-deletes user data, but a snapshot audience will email a since-deleted account | 🟡 | Audience resolved at **send** time, suppression list, `skipped_count` |
+| A Celery retry double-sends, and a broadcast cannot be recalled | 🟡 | `idempotency_key` unique, set before the task runs |
+
+**Re-estimated 3 → 8 points.** The original estimate was for the *page*, not the feature.
+Phase 4 moves 39 → 44; total 212 → **217**. Recommendation: keep, as a Phase 4 item and
+never as a launch dependency. If cut, `REQ-FR-050` + `US-062` + page #62 + the
+`announcements` table go together, and that coupling is written into the requirement so a
+partial cut cannot leave a phantom table.
+
+**4. What is wrong overall, and what can be fixed without writing code** — the standing
+answer is §5 of the feasibility document. As of this commit:
+
+- **🔴 24 tables, 34 FKs, 13 indexes, 52 FRs, 52 stories / 217 points** — all
+  machine-verified, 5/5 Mermaid diagrams parse, 0 dangling references.
+- **One blocker left: the API list.** `REQ-FR-050`'s five endpoints were written today;
+  `REQ-FR-042` (public browse/search), `REQ-FR-040/041` (GDPR export/delete), `REQ-FR-047`
+  (teams) and `REQ-FR-049` (assessment authoring) are still unwritten. **That is ~90
+  minutes of documentation work and nothing else is blocking a build.**
+- **Six gaps open that need no decision** (O–R, plus the two new component screens) —
+  frontend build tooling, `libmagic`/ClamAV OS packages, the `torch` CUDA wheel, and the
+  migration/seed strategy. All are documentation or first-hour-of-Phase-1 work.
+- **Five items need a person, not a document:** trademark filing, the Phase 2 bias test
+  set, SCCs / cross-border transfer, Figma work, and the `REQ-FR-050` keep-or-cut call.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |
@@ -559,12 +631,15 @@ incomplete API list in `Complete Doc §C.12`, and the Phase 4 milestone falling 
 | **Q** — `torch` pulls the CUDA wheel by default | 🟡 multi-gigabyte, contradicts the 2–4 vCPU assumption | ❌ **open** — pin the CPU build (§5.4) |
 | **R** — No migration/seed strategy | 🟢 `C.8` has a plan, not a decision | ❌ **open** — low priority |
 | **S** — Double-shift capacity unvalidated | 🟡 new assumption `ASM-002` | ❌ **open** — re-scope if it fails, do not compress (§2.6.4.1) |
+| **T** — AI-assisted development degrades review | *(not previously found)* | ⚠️ **recorded, controlled** — `ASM-003` + `RSK-012`, four controls written into the process (§2.6.4.2, §2.24) |
+| **U** — `REQ-FR-050` had no data model | 🔴 approved requirement, unimplementable | ✅ **fixed** — `announcements` table, 5 endpoints, five constraints, re-estimated 3 → 8 pts (§2.24) |
+| **V** — Phase 4 milestone on Christmas Day | 🟡 25 Dec is a holiday | ✅ **fixed** — moved to Thu 2026-12-24 (§2.24) |
 
 ---
 
 ## 4. Outstanding work
 
-**Fourteen of the twenty-six gaps found across this work are now closed.** What remains is
+**Seventeen of the thirty-two gaps found across this work are now closed.** What remains is
 listed here. Two items genuinely need a decision from the team; the rest is build work.
 The full picture, including the conflicts settled in §2.23, is in
 `FAIRFOLD_Feasibility_and_Design.md` **§5 Pre-Development Readiness Review**.

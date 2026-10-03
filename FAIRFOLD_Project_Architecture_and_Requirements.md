@@ -392,7 +392,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 | REQ-FR-047 | Employer Team and Roles | Medium | **Given** an employer with `employer_hr` role; **When** inviting, re-roling or removing a team member; **Then** `employer_manager`, `employer_hr` or `interviewer` role assigned from the defined set; **And** the last `employer_hr` cannot be removed or demoted, which would orphan the account; **And** an `employer_team_members` row is created or updated (§5.1); **And** an audit entry is written for every role change; **And** MFA is required before an invited member can act |
 | REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches FAIRFOLD; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
 | REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
-| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, message, audience and schedule captured with a preview; **And** the announcement is delivered to the selected audience on schedule; **And** an empty audience match sends nothing and is reported rather than silently succeeding. **This requirement is optional** — kept in scope by decision 2026-10-03 because it is 3 story points, Low priority and Phase 4, and removing it would touch four documents for no benefit. If the team later decides against it, remove REQ-FR-050, US-062 and `design.md` page #62 **together** |
+| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, body, audience, channel and schedule are captured in an `Announcement` row with a preview; **And** the announcement is delivered to the selected audience on schedule via Celery Beat; **And** an empty audience match sends nothing and is reported rather than silently succeeding; **And** the resolved audience size is shown **before** sending, because "empty" is only one of the two bad outcomes — see the five constraints below. **HARDENED 2026-10-03.** This is the highest blast-radius feature per story point in the specification, and the original criteria covered only the *empty*-audience case. Five conditions are now written into the requirement itself rather than left to implementation: **(1) Suppression list** — the audience is resolved at send time, not create time, and deleted, bounced and unsubscribed users are skipped and counted in `skipped_count`. Otherwise a scheduled announcement emails a hard-deleted account, contradicting `REQ-FR-041`. **(2) Audience-type confinement** — an `employers`-only announcement must never be readable by a candidate, and vice versa. A wrong audience is a confidentiality incident, not a UI bug, so the send task re-checks the recipient's role rather than trusting the stored filter. **(3) Transactional-email protection** — bulk sends are capped per hour and go through a **separate** sending domain/subaddress from verification and password-reset mail. A burst from the transactional path can get the sending domain rate-limited or blocked, which would break account access for every user; a marketing feature must not be able to do that. **(4) Idempotency** — `idempotency_key` is unique and set before the task runs, so a Celery retry cannot send the same announcement twice. **(5) Audit entry** on create, send and cancel. **This requirement remains optional.** The original estimate was 3 points, which was wrong: it was re-estimated at **8** on 2026-10-03 once the missing table and these five constraints were priced. If the team decides against it, remove `REQ-FR-050`, `US-062`, `design.md` page #62 **and** the `announcements` table together |
 
 #### Screening Integrity — Employer-Required Assessments, Override Visibility, Reviewable Filters
 
@@ -815,6 +815,34 @@ CREATE TABLE notifications (
     url             VARCHAR(500),
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- === BROADCAST ANNOUNCEMENTS (REQ-FR-050) ===
+-- Added 2026-10-03. REQ-FR-050 was approved in scope, given a page (#62) and an endpoint,
+-- but had **no table**: nothing could store the announcement, its audience, its schedule,
+-- or which users it reached. `notifications` cannot substitute — it is per-recipient with
+-- a single `recipient_id`, so it can record a delivery but never the broadcast itself.
+-- The requirement was unimplementable as written.
+CREATE TABLE announcements (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           VARCHAR(200) NOT NULL,
+    body            TEXT NOT NULL,
+    audience        VARCHAR(30) NOT NULL DEFAULT 'all',  -- all, candidates, employers, employers_by_plan, custom
+    audience_filter JSONB DEFAULT '{}',                -- the resolved predicate, e.g. {"plan": ["growth"]}
+    channel         VARCHAR(20) NOT NULL DEFAULT 'in_app',  -- in_app, email, both
+    status          VARCHAR(20) NOT NULL DEFAULT 'draft',   -- draft, scheduled, sending, sent, failed, cancelled
+    scheduled_at    TIMESTAMPTZ,
+    sent_at         TIMESTAMPTZ,
+    recipient_count INTEGER DEFAULT 0,                -- resolved at send time, not at create time
+    skipped_count   INTEGER DEFAULT 0,                -- suppressed: deleted, bounced or unsubscribed
+    failure_detail  TEXT,
+    created_by      UUID REFERENCES users(id) ON DELETE SET NULL,  -- SET NULL: the record survives the admin account
+    idempotency_key UUID UNIQUE,                      -- Celery Beat retry must not double-send
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_announcements_status ON announcements(status, scheduled_at);
+CREATE INDEX idx_announcements_sent ON announcements(sent_at);
 
 -- === COMPLIANCE ===
 CREATE TABLE data_export_requests (
@@ -1788,6 +1816,7 @@ local (dev laptop) → CI (test) → staging → production
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
 | RSK-011 | **Trademark clearance for the chosen name.** The previous working name was abandoned because it was contested by three unrelated commercial users (see `FAIRFOLD_Feasibility_and_Design.md` §1.4.2). **FairFold was selected on 2026-10-03** after a search found no living commercial use, but a web search and a DNS lookup are **not** a clearance. If the name turns out to be unregistable in a target market, a rename would again force a rebrand, a domain change and a support burden. | Legal / Brand | Medium | Low | **Domain: ✅ owned** (temporary first, primary at launch). **Still to do:** commission a **formal trademark search** in Bangladesh and every target export market, and file the word mark in classes 42 (software/SaaS) and 35 (recruitment services) per market. A domain registration is **not** a trademark filing — it does not confer the right to use the name in commerce. None of this has been done yet | Product Owner |
+| RSK-012 | **AI-assisted development degrades review quality.** The team is using AI to produce code to fit 217 points into 12 weeks. AI raises throughput, not correctness: it produces confident, plausible, wrong code, and — worse for this product — tests derived from the implementation rather than the acceptance criteria, which agree by construction. The product's whole claim is that it does not assert anything it cannot evidence, so a confidently-wrong codebase is the worst outcome available to it. | Technical / Process | **High** | High | Acceptance criteria in §4.1 are written before the test. No generated code merges unread. `bandit` + `pip-audit` + `safety` already in CI. Auth, encryption, PII stripping and the `chk_override_has_reason` constraint are a **no-AI-review-list** — a named human reads those. Add a licence scan to CI. See `FAIRFOLD_Feasibility_and_Design.md` §2.6.4.2, assumption `ASM-003` | Backend Engineer |
 **Domain — ✅ owned, recorded 2026-10-03.** The team already holds a domain and intends
 to **run on a temporary domain first and move to the primary domain at launch**. That
 closes the registration half of this risk. Two consequences worth writing down:

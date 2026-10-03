@@ -1706,13 +1706,32 @@ GET    /api/v1/messages/?application={id}/         # Get messages for applicatio
 POST   /api/v1/messages/                         # Send message
 ```
 
+#### Broadcast Endpoints (REQ-FR-050)
+
+```http
+GET    /api/v1/admin/announcements/                  # List broadcasts with status + counts
+POST   /api/v1/admin/announcements/                  # Create (draft). {title, body, audience, audience_filter, channel, scheduled_at}
+POST   /api/v1/admin/announcements/resolve-audience/  # {audience, audience_filter} -> {recipient_count, skipped_count}
+                                                       # Called BEFORE sending. Shows the real audience size.
+POST   /api/v1/admin/announcements/{id}/send/         # Send now, or arm the scheduled send. Idempotent on idempotency_key.
+POST   /api/v1/admin/announcements/{id}/cancel/       # Cancel a scheduled/draft broadcast
+```
+
+> `resolve-audience` exists because the original criteria only caught the *empty* case.
+> The two bad outcomes are **too few recipients** and **too many** — an employer-only
+> announcement that reaches candidates is a confidentiality incident. The count is
+> resolved at send time against a suppression list of deleted, bounced and unsubscribed
+> users, and the send task re-checks each recipient's role rather than trusting the stored
+> filter. `channel=email` is capped per hour and sent from a **separate** sending
+> subaddress from verification and password-reset mail, so a burst cannot rate-limit the
+> domain that account access depends on.
+
 #### Administrative Endpoints
 ```http
 GET    /api/v1/admin/dashboard/                  # Admin dashboard stats
 GET    /api/v1/admin/users/                      # List all users
 GET    /api/v1/admin/audit-log/                  # Query audit logs
 GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
-POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 ```
 
 ### C.13 Testing Strategy (supplements §5.6, §10.2)

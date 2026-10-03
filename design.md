@@ -644,7 +644,7 @@ Notation: **Phase** P1–P5 · ★ = one of the PRD's 18 required screens (map i
 | #49 Team and roles | RBAC roles were defined (Complete Doc §5.1); nothing covered inviting or managing employer team members | **REQ-FR-047** Employer Team and Roles |
 | #50 Billing and plan | Pricing is in Complete Doc §C.14 (Phase 5); no FR | **REQ-FR-048** Billing and Plan Management |
 | #61 Assessment management | Admin API existed (Complete Doc §C.12); nothing covered creating assessments | **REQ-FR-049** Assessment Management |
-| #62 Broadcast announcement | Admin API existed (`admin/broadcast/`); no FR | **REQ-FR-050** Broadcast Announcement — optional, kept in scope 2026-10-03 (3 pts, Phase 4). If cut later, remove the FR, `US-062` and this page together |
+| #62 Broadcast announcement | Admin API existed (`admin/broadcast/`); no FR | **REQ-FR-050** Broadcast Announcement — optional, kept in scope 2026-10-03. **Re-estimated 3 → 8 pts** and given an `announcements` table that it never had (§2.4.1 round 4). Highest blast radius per point in the spec: a wrong audience is a confidentiality incident and a bulk send can rate-limit the transactional email domain. If cut later, remove the FR, `US-062`, this page **and the `announcements` table** together |
 
 Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functional requirement.
 They are the only two pages in the 62 that legitimately carry no requirement ID.
@@ -730,7 +730,7 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 59 | **Compliance queue** | Tabs: Export requests / Deletion requests; approve/reject with confirm; status timeline; deletion shows irreversible warning | Table, confirm dialog | REQ-FR-040/041 | P4 |  | — |
 | 60 | **AI quota and usage** | Daily quota meter, fallback level indicator (0–3), cost per day, error rate, provider status | Meters, chart + table | REQ-FR-037 | P4 |  | — |
 | 61 | **Assessment management** | List; create/edit assessment and questions; activate/deactivate | Form, table | REQ-FR-049 | P3 |  | — |
-| 62 | **Broadcast announcement** | Title, message, audience, schedule; preview | Form, preview | REQ-FR-050 | P4 (optional) |  | — |
+| 62 | **Broadcast announcement** | Title, body, audience (all / candidates / employers / by plan / custom), channel (in-app / email / both), schedule; preview **with the resolved recipient count shown before send** and a confirm on any audience over 1,000; send history table with `sent` / `skipped` counts | Form, preview, table | REQ-FR-050 | P4 (optional) |  | — |
 
 ### 10.5 Low-Fidelity Wireframes
 

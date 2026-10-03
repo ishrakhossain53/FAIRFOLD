@@ -408,7 +408,7 @@ say whether FairFold is registrable and enforceable there.
 
 ### 5.3 MoSCoW Summary (from user stories)
 
-52 user stories, 212 story points: **30 Must, 17 Should, 5 Could**. See [Section 7](#7-functional-requirements) for the requirement-level priorities.
+52 user stories, 217 story points: **30 Must, 17 Should, 5 Could**. See [Section 7](#7-functional-requirements) for the requirement-level priorities.
 
 ---
 
@@ -553,7 +553,7 @@ Priority: **H** = High, **M** = Medium, **L** = Low. Phase = first phase in whic
 | REQ-FR-040 | GDPR data export as JSON; download link expires in 7 days | H | 4 |
 | REQ-FR-041 | GDPR account deletion: admin-approved hard delete with audit entry and notification | H | 4 |
 | REQ-FR-049 | Assessment management: create/edit assessments and questions, activate/deactivate without deleting existing attempts | M | 3 |
-| REQ-FR-050 | Broadcast announcement: title, message, audience, schedule; empty audience must report, not silently succeed. **Optional** | L | 4 |
+| REQ-FR-050 | Broadcast announcement: title, body, audience, channel, schedule, stored in an `Announcement` row; **recipient count resolved and shown before send**; suppression list excludes deleted/bounced users; role re-checked at send; bulk email capped per hour and sent from a subaddress separate from transactional mail; idempotent on retry. **Optional — highest blast radius per point in the spec.** See Feasibility §2.4.1 | L | 4 |
 
 ### 7.4b Employer Organisation and Billing
 
@@ -792,8 +792,9 @@ UNIQUE(job_id, candidate_id) on Application
 CHECK chk_override_has_reason on Application              (REQ-FR-052)
 ```
 
-**23 tables, 33 foreign keys.** Added 2026-10-03: `job_assessment_requirements`
-(2 FKs) and `applications.decided_by` (1 FK).
+**24 tables, 34 foreign keys.** Added 2026-10-03: `job_assessment_requirements`
+(2 FKs), `applications.decided_by` (1 FK) and `announcements` (1 FK, for `REQ-FR-050`,
+which had no table at all — see Feasibility §2.4.1 round 4).
 
 ### 11.3 Application Status Lifecycle
 
@@ -1082,6 +1083,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 | R4 | Phase 3 too dense for 3 weeks | High | Med | Journey-mapping MVP isolated as must-have; skill evolution and storytelling separable |
 | R7 | PII leakage to AI provider | Low | **High** | Two-layer stripping; treated as a **release blocker**, since leaked PII cannot be recalled |
 | **RSK-011** | **Trademark clearance outstanding.** "FairFold" was selected on 2026-10-03 after the previous name was found to be contested by three unrelated commercial users. **The domain is owned** (temporary first, primary at launch), but a domain registration is not a trademark filing. See §4.3. | Med | Low | Commission a formal trademark search in Bangladesh and every target export market; file the word mark in classes 42 and 35 per market; keep all host-dependent config in environment variables so the domain switch needs no code change | Product Owner |
+| **RSK-012** | **AI-assisted development degrades review quality.** AI raises throughput, not correctness — it yields confident, plausible, wrong code and tests written to match the implementation instead of the spec. For a product whose entire claim is that it asserts nothing it cannot evidence, a confidently-wrong codebase is the worst outcome available. | High | High | Acceptance criteria before tests; no generated code merges unread; `bandit`/`pip-audit`/`safety` in CI; auth, encryption, PII stripping and `chk_override_has_reason` on a no-AI-review-list; add a licence scan. `ASM-003` |
 
 ### 18.2 Assumptions
 
@@ -1089,6 +1091,15 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 - CPU-only inference for sentence-transformers is adequate on a 2–4 vCPU VPS.
 - Recruiters accept a human-in-the-loop model and will use the cost-estimate confirmation step.
 - Team has working Django experience.
+
+**Added 2026-10-03**, from inputs the team gave on capacity and tooling:
+
+- **`ASM-002`** — the team sustains double shifts for the full 12 weeks without attrition
+  or quality degradation. If it fails, **re-scope; do not compress.**
+- **`ASM-003`** — AI-assisted development materially increases delivery capacity for the
+  217 points **without reducing review capacity.** These are two separate claims and only
+  the first is an optimisation. If the second fails, drop the throughput assumption —
+  **never** answer a schedule problem by reducing review. See **RSK-012**.
 
 ### 18.3 External Dependencies
 
@@ -1108,7 +1119,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 | 2 | ~~**Real-world problem example.**~~ **Closed 2026-10-03** — §1.2 and Feasibility Doc §1.2.1. Amazon's recruiting engine (Reuters, 10 Oct 2018) as the primary case, with *EEOC v. iTutorGroup* (Aug 2023, $365,000), HireVue (Jan 2021) and *Mobley v. Workday* as supporting cases, plus three Bangladesh sources. The iTutorGroup case directly produced **Gap G3**. **Note:** `Mobley v. Workday` was mid-litigation as of Jul 2026 and must be re-verified before public citation. | — |
 | 3 | ~~**Wireframes** for the 18 screens.~~ **Resolved 2026-10-03** — delivered as low-fidelity text wireframes in `design.md` §10.5 (S01–S18). Still open: the Figma file, Figma components and high-fidelity mockups. | UI/UX designer |
 | 4 | Legal position on cross-border data transfer (Standard Contractual Clauses) and on provider terms of service. | Legal / PM |
-| 5 | ~~**Seven pages build features with no functional requirement.**~~ **Closed 2026-10-03** — added to the Arch Doc §4.1 as `REQ-FR-044`–`REQ-FR-050` (§7.4, §7.4b). All seven kept in scope; `REQ-FR-050` remains optional. **Resolved 2026-10-03 — kept.** 3 story points, Low priority, Phase 4. Removing it would touch four documents for no benefit. If it is ever cut, `REQ-FR-050`, `US-062` and `design.md` page #62 must go together. | Team |
+| 5 | ~~**Seven pages build features with no functional requirement.**~~ **Closed 2026-10-03** — added to the Arch Doc §4.1 as `REQ-FR-044`–`REQ-FR-050` (§7.4, §7.4b). All seven kept in scope; `REQ-FR-050` remains optional. **Resolved 2026-10-03 — kept**, then **re-examined the same day** at the team's request and the estimate was wrong: **3 → 8 story points**, because the feature had **no database table at all** and needed a suppression list, an audience matcher, an idempotency key and a separate sending subaddress. Now **8 points, Low priority, Phase 4**, with the `announcements` table added. Analysis and the full list of what goes wrong: Feasibility Doc §2.4.1. If it is ever cut, `REQ-FR-050`, `US-062`, `design.md` page #62 **and the `announcements` table** must go together. | Team |
 
 ### 19.2 Inconsistencies Between Sources
 
@@ -1124,7 +1135,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 | 8 | **OpenRouter free-tier limits** | Quoted as "20 req/min, 50 req/day" and also "per IP"; free model IDs listed are as of September 2026. | **Resolved 2026-10-03 — configuration, not a design assumption.** Free model IDs and rate limits are settings, read from `.env`, not hard-coded; the offline fallback (REQ-FR-028) is what keeps $0-cost operation true if the free tier changes. Re-verify the numbers at implementation. |
 | 9 | **Django version** | One line of the Complete Doc says ≥ 5.2 LTS with a note that 5.0 is EOL; others say "Django 5". | 5.2+ LTS used. |
 | 10 | **Gantt dates** | The Gantt in the Feasibility Doc started 2026-01-05, nine months before the documents were dated. | **Resolved 2026-10-03** — re-based to a kickoff of Mon 2026-10-05, the first working day after the specs were completed. Feasibility Doc §2.7.2 now carries a milestone table and a warning that the Phase 4 milestone lands on Christmas Day. |
-| 11 | **Phase story points** | Per-phase estimates (~21/34/31/30/25) did not sum to the stated 170 total. | **Resolved 2026-10-03** — re-split to 41/41/45/39/33 = 199, matching the 49 stories at their actual point values. Then re-split again on 2026-10-03 (c) to **41/49/50/39/33 = 212** for the 52 stories, adding the screening-integrity work to Phases 2 and 3. Still a planning estimate; re-estimate at sprint planning. |
+| 11 | **Phase story points** | Per-phase estimates (~21/34/31/30/25) did not sum to the stated 170 total. | **Resolved 2026-10-03** — re-split to 41/41/45/39/33 = 199, matching the 49 stories at their actual point values. Then re-split again on 2026-10-03 (c) to 41/49/50/39/33 = 212, then re-split once more the same day to **41/49/50/44/33 = 217** after `REQ-FR-050` was re-estimated from 3 to 8 points, adding the screening-integrity work to Phases 2 and 3. Still a planning estimate; re-estimate at sprint planning. |
 | 12 | **Bias audit definition** | The bias audit is both a deterministic keyword check and an LLM check, and "100% flagged on test dataset" needs a defined, versioned test set. | **Resolved 2026-10-03 — the claim is narrowed until the set exists.** The deterministic keyword pass (gendered terms, "cultural fit" without evidence, age proxies) ships in Phase 2 and is the only thing that may be described as testable. The LLM pass is **advisory** and may not block auto-shortlist. "100% flagged on test dataset" is removed from acceptance criteria until a versioned set exists; building it is a Phase 2 task with Ishrak Hossain as owner. |
 | 13 | **Interview coaching vs. "interview recording & analysis"** | The Professional tier listed recording and analysis, but video recording is out of scope (`prd.md` §2.3). | **Resolved 2026-10-03 — removed from the tier, in both documents.** Advertising a feature that is out of scope is worse than having a thinner tier. Complete Doc §C.14 and `prd.md` §15.2 now list interview coaching (REQ-FR-021) and interview pack builder (REQ-FR-031) instead. |
 | 14 | **Offer letter priority** | REQ-FR-034 is Low priority, but the Complete Doc places offer generation in the core employer flow. | **Resolved 2026-10-03 — kept Low, Phase 5.** Generating and storing an offer letter is the highest-consequence AI output in the product and the one most likely to be misused. It does not belong in an MVP that cannot yet verify bias in its own output. |
