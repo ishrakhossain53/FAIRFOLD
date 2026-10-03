@@ -93,6 +93,7 @@ Content from the canonical specs is **cited, not duplicated**, to prevent drift.
 | `36ccdb6` | Synced to the expanded `design.md`; wireframes 3 → 23; recorded round-2 gaps |
 | *(uncommitted)* | Round-2 gaps closed: FR count 43 → 50, stories 42 → 49, points 170 → 199 |
 | *(uncommitted)* | Team roster replaced with the current five members across all six documents |
+| *(uncommitted)* | Feasibility doc now lists prd.md and design.md in its document table and reference convention |
 | *(uncommitted)* | FR count 43 → 50; stories 42 → 49; §2.4.1 round 2 closed; §3.9.1 rewritten; checklist rows 7, 9, 17 updated |
 
 ### 2.4 Corrections made during a self-audit ✅
@@ -336,6 +337,27 @@ pages**, so the `REQ-FR-043` UI has no drawing even though the requirement now e
 3. Whether dark mode ships in the MVP
 4. Whether Bengali ships at launch (the PRD defers it to Phase 5)
 5. Final brand name styling, logo and accent colour
+
+### 4.6 🟡 Schema and API gaps created by the new requirements
+
+Three gaps opened when `REQ-FR-042`–`050` were added. All are implementation-facing, not
+documentation, so none has been silently patched.
+
+1. **No table exists for employer team members.** `REQ-FR-047` requires inviting,
+   re-roling and removing them, and Django groups are defined (Complete Doc §5.1), but
+   there is **no `team_members` join table** anywhere in Arch Doc §5.1 or Complete Doc
+   §C.11. `EmployerProfile` is one-to-one with `User`, so an employer organisation with
+   several people cannot be represented. Needs a model + migration.
+2. **`messages` still cascades.** Arch Doc §5.1 lines 702–706 declare
+   `application_id`, `sender_id` and `recipient_id` all `ON DELETE CASCADE`. `REQ-FR-043`
+   mandates soft-delete so one party's erasure does not delete the counterparty's copy,
+   and there is no `deleted_at` column. The requirement and the DDL currently contradict
+   each other.
+3. **API list is behind by nine requirements.** `Complete Doc §C.12` has
+   `GET /api/v1/assessments/` (admin list) but no create/edit endpoints for `REQ-FR-049`,
+   no endpoints at all for `REQ-FR-050` broadcast (despite `design.md` citing
+   `admin/broadcast/`), none for `REQ-FR-047` team invites, and none for `REQ-FR-042`
+   public job browse/search or `REQ-FR-040`/`041` GDPR export/delete.
 
 ### 4.6 🟡 Missing API endpoints — `Complete Doc §C.12`
 

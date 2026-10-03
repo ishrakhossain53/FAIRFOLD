@@ -911,7 +911,7 @@ The product can go to public launch when all of the following hold:
 | User stories (US-001 to US-062) | Feasibility Doc §2.4 |
 | Wireframes (all 18 required screens) | `design.md` §10.5 — map in §10.0, spec-only pages in §10.6 |
 | Colour tokens, contrast ratios, components, a11y rules | `design.md` §3, §6, §7, §9 |
-| Pages with no functional requirement | `design.md` §10.0 and Feasibility Doc §2.4.1 |
+| Traceability audit: FR↔story↔page gaps, found and closed | Feasibility Doc §2.4.1 and `design.md` §10.0 |
 | Full API list, env var table, pricing detail | Complete Doc §C.12, §C.7, §C.14 |
 | Maintenance, incident, release procedures | Arch Doc §8.5–8.9 |
 

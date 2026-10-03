@@ -8,17 +8,20 @@
 
 ## How to read this document
 
-This file supplements — and does not replace — the two engineering specifications:
+This file supplements — and does not replace — the specifications below:
 
 | Document | Role | Status |
 |---|---|---|
 | `MATCH_MINDS_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
 | `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 50 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
-| `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | **Supplement** |
+| `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
+| `design.md` | UI design system, 62 page specs, 23 wireframes, implementation notes | Supplement |
+| `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
 
-**No content is duplicated here.** Where a section needs detail that already exists
-(compliance checklist, pricing tiers, ADRs), this document *cites* the canonical
-section rather than restating it, so the two cannot drift apart.
+**Functional requirements live in the Arch Doc §4.1.** `prd.md` proposes them and this
+document traces them to stories and pages; neither is the origin. Where a section needs
+detail that already exists (compliance checklist, pricing tiers, ADRs), this document
+*cites* the canonical section rather than restating it, so the documents cannot drift apart.
 
 ### Source-of-truth rule for this document
 
@@ -37,6 +40,8 @@ Section numbers are **ambiguous across documents by nature** — this document h
 | `Arch Doc §N.M` | `MATCH_MINDS_Project_Architecture_and_Requirements.md` §N.M |
 | `Complete Doc §N.M` | `MATCH_MINDS_Complete_Project_Document.md` §N.M |
 | `Arch §N.M` / `Complete §N.M` | short form of the above, in tables and bullet lists |
+| `PRD §N.M` | `prd.md` §N.M |
+| `design.md §N.M` | `design.md` §N.M |
 | Bare `§N.M` | **this document**, unless the surrounding sentence names the other file |
 
 ---
