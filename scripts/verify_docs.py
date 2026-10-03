@@ -577,6 +577,81 @@ def check_wireframes(r: Result) -> None:
     )
 
 
+def check_referenced_files(r: Result, docs: dict[str, str]) -> None:
+    """Every infrastructure file the documents *specify* must exist.
+
+    Added 2026-10-04. Arch Doc §6.1, §6.2 and §6.5 specified a compose file, a
+    Dockerfile and a CI workflow — as YAML and shell blocks inside a markdown
+    file. None of them existed. Every check in those sections, including the two
+    documentation checkers, was therefore a step nothing executed.
+
+    This asserts the *file* exists, not that it matches the specification: a
+    document can drift from its implementation in either direction, and a missing
+    file is the one case where the drift is invisible — nothing reports a
+    missing thing.
+
+    The list is explicit rather than scraped from prose. Scraping would match
+    every `docker run` example and every illustrative filename, and a check that
+    cries wolf gets ignored.
+    """
+    section("6b. Specified infrastructure files exist")
+
+    required = [
+        (".github/workflows/ci-cd.yml", "CI workflow (Arch Doc §6.5)"),
+        ("docker-compose.yml", "local/single-host stack (Arch Doc §6.1)"),
+        ("Dockerfile", "production image (Arch Doc §6.2)"),
+        ("manage.py", "Django entrypoint"),
+        ("package.json", "frontend build tooling (design.md §11.2)"),
+        ("tailwind.config.js", "design-token mapping (design.md §11.2)"),
+        ("pyproject.toml", "black/isort/mypy/pytest config, read by CI"),
+        ("bandit.yaml", "bandit skips, read by CI"),
+        ("config/settings/base.py", "shared settings"),
+        ("config/settings/ci.py", "the settings module every test uses"),
+        ("config/settings/local.py", "development settings"),
+        ("config/settings/production.py", "production settings"),
+        ("core/management/commands/seed.py", "reference-data loader (Complete Doc §C.8.3)"),
+        ("core/reference.py", "score bands / countries / industries constants"),
+        ("static/css/tokens.css", "design tokens (design.md §3–§5)"),
+        ("templates/base.html", "base template"),
+    ]
+
+    missing = [f"{path} ({why})" for path, why in required if not (ROOT / path).exists()]
+    r.check(
+        not missing,
+        f"{len(required)} specified infrastructure files exist",
+        f"missing: {missing}" if missing else "all present",
+    )
+
+    # A variable a settings module reads with NO default must be in .env.example,
+    # because a developer who copies the template and boots gets
+    # ImproperlyConfigured naming a file they were never told about.
+    #
+    # Variables read WITH a default are deliberately not required to appear. The
+    # first version of this check demanded all 26 of them and failed; every one had
+    # a working default, so not one of them blocked a boot. A check that reports 26
+    # non-problems is a check whose next real failure gets ignored -- the same
+    # failure mode as the bias pass with no terms, and the reason this is scoped
+    # to `env_required`.
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    declared = set(re.findall(r"^#?\s*([A-Z][A-Z0-9_]{3,})=", env_example, re.M))
+
+    settings_dir = ROOT / "config" / "settings"
+    required_vars: set[str] = set()
+    if settings_dir.exists():
+        for f in sorted(settings_dir.glob("*.py")):
+            body = f.read_text(encoding="utf-8")
+            # env_required("NAME") only. env("NAME", default) has a default and is
+            # therefore not required to be documented to boot.
+            required_vars |= set(re.findall(r"env_required\(\s*\"([A-Z0-9_]+)\"", body))
+
+    undocumented = sorted(required_vars - declared)
+    r.check(
+        not undocumented,
+        f"every required env var is in .env.example ({len(required_vars)} required)",
+        f"undocumented: {undocumented}" if undocumented else "all documented",
+    )
+
+
 def main() -> int:
     print("FairFold documentation consistency check")
     print("=" * 60)
@@ -589,6 +664,7 @@ def main() -> int:
     check_stories(r, docs)
     check_er(r, docs)
     check_links(r, docs)
+    check_referenced_files(r, docs)
     check_naming(r, docs)
     check_prose_counts(r, docs)
     check_placeholders(r, docs)

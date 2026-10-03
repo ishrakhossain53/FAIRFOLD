@@ -1,0 +1,215 @@
+# ==============================================================================
+# FairFold — local and single-host deployment
+# ==============================================================================
+# Specified in FAIRFOLD_Project_Architecture_and_Requirements.md §6.1. Added
+# 2026-10-04.
+#
+# Differences from §6.1, each with a reason:
+#   * `clamav` is present as a real service. The upload path rejects a file when
+#     ClamAV is unreachable, so without it every resume upload fails.
+#   * `healthcheck` on every service that has one to check. `postgres`, `redis` and
+#     `clamav` are genuinely probed; `django` inherits the Dockerfile's HTTP probe;
+#     `celery` and `celery-beat` **disable** it (see below).
+#   * `restart: unless-stopped`, so a host reboot does not leave the stack down.
+# ==============================================================================
+
+name: fairfold
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 17 + pgvector
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fairfold}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required — see .env.example}
+      POSTGRES_DB: ${POSTGRES_DB:-fairfold_dev}
+      # Checksums catch a silent corruption from a bad shutdown. Costs ~10% write
+      # throughput, which is irrelevant at this project's scale.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fairfold} -d ${POSTGRES_DB:-fairfold_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Redis — cache and Celery broker
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # appendonly persists the task queue. Without it, a restart discards queued
+    # screening and email jobs silently — they were accepted, and nobody is told.
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # ClamAV
+  # ---------------------------------------------------------------------------
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    ports:
+      - "${CLAMD_PORT:-3310}:3310"
+    # Generous start_period: freshclam downloads its signature definitions on
+    # first boot, which can take several minutes. A short period marks the
+    # container unhealthy and the first resume upload is rejected.
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # ---------------------------------------------------------------------------
+  # Django
+  # ---------------------------------------------------------------------------
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate --noinput
+             && python manage.py seed
+             && gunicorn config.wsgi:application
+                --bind 0.0.0.0:8000 --workers 3 --timeout 120
+                --access-logfile - --error-logfile -
+                --forwarded-allow-ips '*'"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fairfold}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-fairfold_dev}
+      DB_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      # A SEPARATE Redis database from the broker. A FLUSHDB on one must never
+      # discard queued tasks in the other.
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CLAMD_HOST: clamav
+      CLAMD_PORT: 3310
+      # Read from the host .env rather than re-declared here, so there is one
+      # place a secret is written.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:8000}
+      EMAIL_BACKEND_URL: ${EMAIL_BACKEND_URL:?EMAIL_BACKEND_URL is required}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?DEFAULT_FROM_EMAIL is required}
+      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN is required}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    ports:
+      - "${DJANGO_PORT:-8000}:8000"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    # Inherits the Dockerfile HEALTHCHECK, which curls /health/. That endpoint
+    # checks no dependency on purpose: making the liveness probe verify PostgreSQL
+    # means a brief database blip restarts every container in the stack.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # service_healthy, not just service_started: migrations run in this
+      # container's command, and a migration touching a VectorField fails against
+      # a Postgres that has not finished loading pgvector.
+      clamav:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Celery worker
+  # ---------------------------------------------------------------------------
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    # --concurrency=2: the queue is AI calls and email, both network-bound, so
+    # more workers buy latency rather than throughput while each holds a database
+    # connection open.
+    command: celery -A config worker --loglevel=INFO --concurrency=2
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fairfold}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-fairfold_dev}
+      DB_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CLAMD_HOST: clamav
+      CLAMD_PORT: 3310
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN is required}
+    volumes:
+      - media_data:/app/media
+    # The image's HEALTHCHECK curls http://localhost:8000/health/. This container
+    # runs no HTTP server, so that probe can only ever fail — and a permanently
+    # unhealthy container is worse than an unchecked one: `docker compose ps`
+    # reports a problem that does not exist, and anything gated on worker health
+    # never starts. Disabled explicitly rather than inherited.
+    healthcheck:
+      disable: true
+    depends_on:
+      django:
+        # service_started, not healthy: the worker can start while migrations are
+        # still running, and a worker that starts first simply retries.
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Celery beat — scheduled tasks (digest emails, quota resets, retention sweeps)
+  # ---------------------------------------------------------------------------
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    # Exactly ONE beat container. Two schedulers fire every scheduled task twice,
+    # which for a retention sweep means deleting twice and for an email means
+    # sending twice.
+    command: celery -A config beat --loglevel=INFO
+    # No HTTP server here either — see the `celery` service above.
+    healthcheck:
+      disable: true
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fairfold}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-fairfold_dev}
+      DB_HOST: postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+  static_data:

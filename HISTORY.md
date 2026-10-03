@@ -32,7 +32,7 @@ written, so "the scaffold is correct" is unverified until CI runs `manage.py che
 | File | Lines | Role |
 | --- | ---: | --- |
 | `FAIRFOLD_Complete_Project_Document.md` | 2310 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2330 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2369 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
 | `prd.md` | 1240 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | `design.md` | 2454 | Supplement — UI design system, 62 page specifications, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
 | `FAIRFOLD_Feasibility_and_Design.md` | 2865 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
@@ -1146,6 +1146,36 @@ That is the **fourth** checker in this project whose first version looked fine a
 `validation/` holds the consent form, the interview guide, the survey and a results log. §1.3.4
 fixed the sample size and questions *in advance* so nobody can later describe a result that was
 never collected. **Nothing has been run. No interview, survey or concept test has happened.**
+
+#### 7. The three files §6.1/§6.2/§6.5 specified, and did not have
+
+Arch Doc §6.1, §6.2 and §6.5 contained YAML and shell blocks for a compose file, a Dockerfile
+and a CI workflow. **None of the three existed as a file.** Every step in those sections —
+including both documentation checkers — was a snippet nothing executed, which is the same
+failure mode as a check that passes vacuously.
+
+That is not a cosmetic gap: `docker-compose.yml` is what the README's Quick Start runs, so a
+new developer following the README hit a file that was not there. The three are now real, and
+each section records where the file and the specification differ, with the file winning.
+
+Three fixes came out of writing them rather than reading them:
+
+- **The Dockerfile `HEALTHCHECK` probes HTTP, and `celery` / `celery-beat` run no HTTP
+  server.** Both containers would have been permanently unhealthy — a false alarm that looks
+  like a deployment problem and gates anything waiting on worker health. Now explicitly
+  disabled, with the reason written down.
+- **`redis` needed `--appendonly yes`.** Without persistence a restart silently discards
+  queued screening and email jobs that were already accepted, and nobody is told.
+- **`node:20-slim`, not `-alpine`** — the Tailwind CLI's glibc/musl difference builds fine
+  locally and fails in CI.
+
+`verify_docs.py` §6b now asserts all 16 specified infrastructure files exist. **Its first
+version also demanded that every env var read by the settings modules appear in
+`.env.example`, and failed on 26 of them — every one of which had a working default and
+blocked nothing.** Narrowed to `env_required` only: three variables, all documented. A check
+that reports 26 non-problems is a check whose next real failure gets ignored, which is the
+same failure mode as the bias pass with no terms, and the third time this log has had to make
+that correction.
 
 #### ⚠️ What is not verified
 

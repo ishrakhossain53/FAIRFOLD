@@ -1015,6 +1015,15 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 
 ### 6.1 Docker Compose (Development)
 
+> **The real file is [`docker-compose.yml`](docker-compose.yml), added 2026-10-04.**
+> The block below is the specification and the reasoning; where the two differ, the file wins
+> and the difference is recorded here. Differences as built: `clamav` has a real 120s
+> `start_period` (freshclam downloads definitions on first boot); `redis` uses
+> `--appendonly yes`, because without persistence a restart silently discards queued screening
+> and email jobs that were already accepted; and `celery` / `celery-beat` **disable** the image
+> healthcheck, which otherwise probes an HTTP endpoint neither container serves and reports a
+> permanently unhealthy worker.
+
 ```yaml
 # docker-compose.yml
 version: "3.9"
@@ -1159,6 +1168,16 @@ volumes:
 | `clamav` | `fairfold-clamav` | 3310 |
 
 ### 6.2 Production Dockerfile
+
+> **The real file is [`Dockerfile`](Dockerfile), added 2026-10-04.** Three stages rather
+> than two: the split adds a Python dependency layer that is cached independently of application
+> source, so editing a view no longer reinstalls PyTorch. Differences from the block below:
+> `node:20-slim` not `-alpine` (the Tailwind CLI's glibc/musl difference produces a build that
+> works locally and fails in CI); `libmagic1` and `clamav-daemon` installed **before** the app
+> code, because python-magic wraps a system library and the image otherwise starts and then
+> fails on the first resume upload; and the app runs as a non-root user with `media/` and
+> `staticfiles/` pre-chowned, so a deploy does not fail on a root-owned file left by the last
+> one.
 
 ```dockerfile
 # ---- Stage 1: frontend build (ADDED 2026-10-03, gap O) ----
@@ -1362,6 +1381,26 @@ autoscaling:
 ```
 
 ### 6.5 CI/CD Pipeline (GitHub Actions)
+
+> **The real file is [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml), added
+> 2026-10-04.** Until it existed, every step in this section — including the two documentation
+> checkers — was a snippet in a document that nothing executed, which is the same failure mode
+> as a check that passes vacuously. Differences from the block below:
+>
+> - **The documentation checkers run before the Django steps**, not after. They need no
+>   database, no Node build and no image, so a stale count now fails in about two seconds
+>   instead of after a full pip and npm install.
+> - **`manage.py check --deploy` runs before the tests**, so an import error or a missing
+>   module in an `include()` surfaces as itself rather than as a traceback from whichever later
+>   step imported the file first.
+> - **The schema generation failure is not silent.** The original uploaded `schema.yml` as an
+>   artifact and stopped; a view whose serializer changed still responded, and no frontend knew
+>   the contract had moved.
+> - **`permissions: contents: read`** at the workflow level, with `on:` widened to the working
+>   branch so this repo's own pushes are checked rather than only pull requests.
+> - **The licence scan is `continue-on-error`.** It is informational: the right response to a
+>   flagged licence is often to record it, not to delete the dependency, so it must not block a
+>   build that is otherwise correct.
 
 ```yaml
 # .github/workflows/ci-cd.yml
