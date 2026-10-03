@@ -793,6 +793,145 @@ def check_referenced_files(r: Result, docs: dict[str, str]) -> None:
     )
 
 
+def _step_env_blocks(workflow: str) -> list[tuple[str, str]]:
+    """(step name, env text) for every step that declares an `env:` block."""
+    blocks: list[tuple[str, str]] = []
+    lines = workflow.splitlines()
+    for i, line in enumerate(lines):
+        m = re.match(r"^      - name: (.+)$", line)
+        if not m:
+            continue
+        name = m.group(1).strip()
+        # Collect the step body until the next step at the same indent.
+        body: list[str] = []
+        for nxt in lines[i + 1 :]:
+            if re.match(r"^      - (name|uses):", nxt):
+                break
+            body.append(nxt)
+        text = "\n".join(body)
+        if re.search(r"^\s*env:", text, re.MULTILINE):
+            blocks.append((name, text))
+    return blocks
+
+
+def _declared_env_keys(text: str) -> set[str]:
+    """Env keys set in a YAML block. Parsed line-wise to avoid a PyYAML dependency."""
+    keys: set[str] = set()
+    in_env = False
+    for line in text.splitlines():
+        if re.match(r"^\s*env:\s*$", line):
+            in_env = True
+            continue
+        if in_env:
+            m = re.match(r"^\s+([A-Z][A-Z0-9_]*):", line)
+            if m:
+                keys.add(m.group(1))
+            elif line.strip() and not line.startswith((" ", "\t", "#")):
+                in_env = False
+    return keys
+
+
+def check_step_env(r: Result) -> None:
+    """Every step that boots Django must set the env its settings module requires.
+
+    Third recurrence of one bug: the command was verified, but not the
+    environment the step actually runs in. Each workflow step declares its *own*
+    `env:` block, and they differ. "Django system check" set `DATABASE_URL` -- a
+    variable no settings module reads -- and omitted `CLAMD_HOST`, which
+    `env_required`. It failed at settings import with:
+
+        ImproperlyConfigured: CLAMD_HOST is required but not set
+
+    A local run of the same command passes, because the developer's shell or a
+    `.env` supplies it. Only CI has the true environment, and CI is the only place
+    this shows up -- as a failure on every push.
+
+    So the rule is asserted rather than remembered: for each step that runs a
+    Django entrypoint, every `env_required` variable in the settings chain must
+    appear in that step's env or in the job-level env.
+    """
+    section("14. Workflow steps carry the env their settings require")
+
+    workflow_path = ROOT / ".github/workflows/ci-cd.yml"
+    if not workflow_path.exists():
+        r.check(False, "workflow exists", ".github/workflows/ci-cd.yml is missing")
+        return
+    workflow = workflow_path.read_text()
+
+    base = (ROOT / "config/settings/base.py").read_text()
+    required = set(re.findall(r'env_required\(\s*"([A-Z0-9_]+)"', base))
+
+    # Job-level env applies to every step in the job. Only the block under
+    # `^    env:` counts -- reading the whole file here would harvest every key
+    # from every step's own env block, making every required variable look
+    # present and the check unable to fail.
+    job_env: set[str] = set()
+    lines = workflow.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(r"^    env:\s*$", line):
+            block: list[str] = []
+            for nxt in lines[i + 1 :]:
+                # The block ends at `steps:` or the next job, both at shallower
+                # indentation than the keys inside it.
+                if re.match(r"^    \S", nxt) or re.match(r"^  [a-z-]+:$", nxt):
+                    break
+                block.append(nxt)
+            # The header line is included because `_declared_env_keys` keys off `env:` to
+            # know when the block starts; passing only the body yields no keys.
+            job_env = _declared_env_keys(line + "\n" + "\n".join(block))
+            break
+
+    django_steps = [
+        (name, text)
+        for name, text in _step_env_blocks(workflow)
+        if re.search(r"manage\.py|pytest", text)
+    ]
+    if not django_steps:
+        r.check(
+            False, "found Django steps to check", "no step runs manage.py or pytest"
+        )
+        return
+
+    bad: list[str] = []
+    for name, text in django_steps:
+        declared = _declared_env_keys(text) | job_env
+        missing = sorted(required - declared)
+        if missing:
+            bad.append(f"'{name}' is missing {missing}")
+
+    if bad:
+        for b in bad:
+            r.check(False, "step env covers every env_required setting", b)
+    else:
+        r.check(
+            True,
+            "every Django step sets all env_required settings",
+            f"{len(django_steps)} step(s), {len(required)} required: {sorted(required)}",
+        )
+
+    # A step setting DATABASE_URL, which no settings module reads, is worse than
+    # setting nothing: it reads as "the database is configured here".
+    if re.search(r"^\s*DATABASE_URL:", workflow, re.MULTILINE):
+        readers = [
+            f
+            for f in ("config/settings/base.py", "config/settings/ci.py")
+            if "DATABASE_URL" in (ROOT / f).read_text()
+        ]
+        if not readers:
+            r.check(
+                False,
+                "no step sets an unread DATABASE_URL",
+                "DATABASE_URL is set in the workflow but read by no settings module; "
+                "base.py builds DATABASES from POSTGRES_DB/DB_HOST/DB_PASSWORD",
+            )
+        else:
+            r.check(
+                True, "DATABASE_URL is read by a settings module", ", ".join(readers)
+            )
+    else:
+        r.check(True, "no step sets an unread DATABASE_URL", "not set anywhere")
+
+
 def _structurally_excluded(bandit_cfg: str) -> set[str]:
     """IDs excluded by `exclude_dirs` rather than by a `-s` flag.
 
@@ -962,6 +1101,7 @@ def main() -> int:
     check_diagrams(r)
     check_wireframes(r)
     check_tool_config(r)
+    check_step_env(r)
 
     print("\n" + "=" * 60)
     if r.failures:
