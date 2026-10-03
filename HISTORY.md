@@ -1391,6 +1391,45 @@ the command CI actually uses.
 
 ---
 
+### 2.32 A security step that had never been run
+
+The job now runs **3–4 minutes** instead of failing at 53 seconds, which is the
+good news: pip install completes, so the failure moved much later in the job.
+
+The cause is one line of `requirements.txt`:
+
+```
+djangorestframework  3.15.1  PYSEC-2026-1304  fix 3.15.2
+djangorestframework  3.15.1  PYSEC-2026-3827  fix 3.17.2
+djangorestframework  3.15.1  PYSEC-2026-3828  fix 3.17.2
+```
+
+`pip-audit` exits non-zero on any advisory, so a two-minor-version-old pin with
+three known CVEs was a hard build failure. Raised to **3.17.2**; the audit now
+reports *No known vulnerabilities found*. Verified against the installed package
+rather than assumed: `manage.py check`, `spectacular`, and all 115 tests still
+pass on 3.17.2.
+
+**Why this survived four rounds of CI fixes.** In the previous round I reported
+"all 8 stages green." That was true — and covered 8 of roughly twenty steps.
+I never ran `pip-audit`, `check-budget`, `collectstatic`, the spaCy model load,
+or `migrate`+`seed` against a clean database. Every stage I *did* run passed, and
+I wrote the sentence as though the job would now pass. Sampling the checks and
+describing the result as the whole is the error, and it is the same shape as the
+earlier ones: a narrower claim stated as a wider one.
+
+All five untested steps have now been run. The other four passed first time.
+
+**One consequence worth recording.** `bandit` was skipped by four `skip:` entries
+that were never active (§2.31). `pip-audit` was not skipped — it was simply
+never run. A scanner nobody has executed is not a control, it is a line in a
+YAML file, and it reports "0 issues" either way.
+
+**Final state:** all 13 executable CI steps plus `migrate`/`seed` and pytest pass
+locally, each run with the command the workflow uses.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |

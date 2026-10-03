@@ -248,7 +248,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | | HTMX (npm) | 1.18 | Vendored to `static/js/htmx.min.js` so the CSP does not need a third-party script host |
 | | Chart.js (npm) | 4.4 | Vendored the same way; loaded only on Journey Map and Analytics pages (`design.md` §11.4) |
 | **Backend** | Django | 5.2+ | LTS — production-proven (Instagram, Pinterest) |
-| | Django REST Framework | 3.15.1 | API layer for the DRF endpoints; pinned in `requirements.txt` |
+| | Django REST Framework | 3.17.2 | API layer for the DRF endpoints; pinned in `requirements.txt`. Raised from 3.15.1 to clear PYSEC-2026-1304/-3827/-3828 |
 | | DRF Spectacular | 0.28 | OpenAPI 3.0 auto-generation |
 | **Database** | PostgreSQL | 17 | JSON support, row-level security |
 | | psycopg2-binary | 2.9.9+ | PostgreSQL driver |
