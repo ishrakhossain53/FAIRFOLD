@@ -309,7 +309,9 @@ Arch Doc §1.2 Out of Scope.
 **Coverage:** all 43 functional requirements map to at least one user story.
 **Total effort:** 42 stories, 170 story points.
 
-#### 2.4.1 Traceability gaps — found, and now closed
+#### 2.4.1 Traceability gaps
+
+##### Round 1 — found and closed ✅
 
 Two capabilities appeared in the user journeys (Complete Doc §7.1, §7.2) and had
 database models and use cases, but **had no functional requirement** in Arch Doc §4.1:
@@ -333,8 +335,35 @@ implementation guesswork:
   reach an external provider, and that deleting one party soft-deletes rather than
   removes the counterparty's copy (the cascade problem noted in §3.7).
 
-One follow-up remains: `Complete Doc §C.12` does not yet list public job
-browse/search endpoints for REQ-FR-042, nor the GDPR export/delete endpoints for
+##### Round 2 — found by the page-level design audit, still open ❌
+
+The first pass worked from use cases and journeys. The second pass worked from
+`design.md` §10, which specifies all 62 pages and names the requirement behind each one.
+That surfaced **7 further pages that build a real feature with no functional requirement
+behind them** — the same class of problem as GAP-1/GAP-2, but smaller and found later:
+
+| Page | Feature with no FR | Why it exists | Suggested FR |
+|---|---|---|---|
+| #19 | Certifications | `Certification` model exists (Complete Doc §C.11) | FR-044 · Employer-side… candidate certification list, add form, credential ID, verification URL |
+| #33 | Employer onboarding | `EmployerProfile` model exists; REQ-FR-009 is candidate-side only | FR-045 · Employer company profile creation |
+| #34 | Employer dashboard | Aggregates FR-028, FR-029, FR-035 but has no FR of its own | Cite the three, or FR-046 |
+| #49 | Team and roles | RBAC roles defined (Complete Doc §5.1); nothing covers inviting or managing employer team members | FR-046 · Invite, change role, remove team members |
+| #50 | Billing and plan | Pricing in Complete Doc §C.14 (Phase 5); no FR | FR-047 · when Phase 5 is scoped |
+| #61 | Assessment management | Admin API exists (Complete Doc §C.12); nothing covers creating assessments | FR-048 · Create/edit/deactivate assessments and questions |
+| #62 | Broadcast announcement | Admin API exists (`admin/broadcast/`); no FR | FR-049 · or drop the page |
+
+Pages #1 and #2 (landing, pricing) also carry no requirement ID, but those are marketing
+pages and correctly do not need one.
+
+**Status: open.** These are smaller than GAP-1/2 — each is a single page rather than a
+missing core journey — but they are the same failure mode: a feature reaches the build
+with nothing to test it against. The next free IDs are `REQ-FR-044` onward. **They have
+not been written into the Arch Doc**, because unlike GAP-1/2 no one has confirmed they are
+wanted rather than aspirational, and #62 in particular may just be a page that should be cut.
+`design.md` §10.0 carries the same table as the source of this finding.
+
+One further follow-up from round 1 remains: `Complete Doc §C.12` does not yet list public
+job browse/search endpoints for REQ-FR-042, nor the GDPR export/delete endpoints for
 REQ-FR-040/041.
 
 ### 2.5 Product backlog and priority
@@ -1618,35 +1647,40 @@ denormalised copies exist where search performance matters (e.g.
 
 #### 3.9.1 Wireframes
 
-> **Status: partially delivered.** A written page specification now exists for **all 18**
-> required screens in `design.md` §10, but only **3 of 18** have a wireframe visual.
-> See the coverage table below for exactly which are missing.
+> **Status: complete for low fidelity.** `design.md` §10 specifies all 62 pages and
+> draws **23 wireframes** covering **36 of those 62 pages** — which includes **all 18**
+> required screens and **all 22** core-flow pages. This section no longer needs any
+> visual assets to be complete.
 
 **Screens required (per §3.2 workflows and §3.3 use cases):**
 
-| # | Screen | Primary actor | Source FRs | Page spec | Wireframe |
+| # | Screen | Primary actor | Source FRs | Pages | Wireframe |
 |---|---|---|---|---|---|
-| 1 | Registration / login (incl. MFA) | Guest, all | FR-001 – FR-008 | `design.md` #6–11 | ❌ |
-| 2 | Candidate onboarding + profile | Candidate | FR-009, FR-014 | #14, #16 | ❌ |
-| 3 | Resume upload + upload progress | Candidate | FR-010 | #17 | ❌ |
-| 4 | Job browse / search results | Candidate | FR-042 | #4, #5 | ❌ |
-| 5 | Job detail + apply | Candidate | FR-022 | #5, #30 | ❌ |
-| 6 | Application tracker (status timeline) | Candidate | FR-023 | #28 | ❌ |
-| 7 | Match score + rationale view | Candidate | FR-024 | #29 | ✅ `design.md` §10.5 |
-| 8 | Journey map (interactive timeline + skill evolution) | Candidate | FR-016, FR-017 | #20–22 | ❌ |
-| 9 | Assessment taking (timed) | Candidate | FR-019 | #23–25 | ❌ |
-| 10 | Interview coaching feedback | Candidate | FR-021 | #27 | ❌ |
-| 11 | Employer job list + create/edit job | Employer | FR-025 – FR-027 | #35, #36 | ❌ |
-| 12 | Application list (ranked) | Employer | FR-029 | #40 | ✅ `design.md` §10.5 |
-| 13 | Candidate review (rationale + bias audit) | Employer | FR-030 | #41 | ✅ `design.md` §10.5 |
-| 14 | AI screening confirm + cost estimate | Employer | FR-028 | #38, #39 | ❌ |
-| 15 | Interview pack builder | Employer | FR-031 | #42 | ❌ |
-| 16 | Scheduling + feedback form | Employer, Interviewer | FR-032, FR-033 | #43–45 | ❌ |
-| 17 | Analytics dashboard | Employer | FR-035 | #47 | ❌ |
-| 18 | Admin: users, audit log search | Admin | FR-038, FR-039 | #56–58 | ❌ |
+| 1 | Registration / login (incl. MFA) | Guest, all | FR-001 – FR-008 | #6–8 | ✅ S01 |
+| 2 | Candidate onboarding + profile | Candidate | FR-009 | #14, #16 | ✅ S02 |
+| 3 | Resume upload + upload progress | Candidate | FR-010 – FR-013 | #17 | ✅ S03 |
+| 4 | Job browse / search results | Candidate | FR-042 | #4 | ✅ S04 |
+| 5 | Job detail + apply | Candidate | FR-022, FR-042 | #5, #30 | ✅ S05 |
+| 6 | Application tracker (status timeline) | Candidate | FR-023 | #28 | ✅ S06 |
+| 7 | Match score + rationale view | Candidate | FR-024 | #29 | ✅ S07 |
+| 8 | Journey map (timeline + skill evolution) | Candidate | FR-016, FR-017 | #20, #21 | ✅ S08 |
+| 9 | Assessment taking (timed) | Candidate | FR-019 | #25, #26 | ✅ S09 |
+| 10 | Interview coaching feedback | Candidate | FR-021 | #27 | ✅ S10 |
+| 11 | Employer job list + create/edit job | Employer | FR-025 – FR-027 | #35, #36 | ✅ S11 |
+| 12 | Application list (ranked) | Employer | FR-029 | #40 | ✅ S12 |
+| 13 | Candidate review (rationale + bias audit) | Employer | FR-030 | #41 | ✅ S13 |
+| 14 | AI screening confirm + cost estimate | Employer | FR-028 | #38, #39 | ✅ S14 |
+| 15 | Interview pack builder | Employer | FR-031 | #42 | ✅ S15 |
+| 16 | Scheduling + feedback form | Employer, Interviewer | FR-032, FR-033 | #43, #45 | ✅ S16 |
+| 17 | Analytics dashboard | Employer | FR-035 | #47 | ✅ S17 |
+| 18 | Admin: users, audit log search | Admin | FR-038, FR-039 | #56, #58 | ✅ S18 |
 
-**What `design.md` delivers beyond wireframes** — all owned by Asif Salman Zarar,
-UI/UX Designer (Complete Doc §10.4):
+Wireframes `X01`–`X05` add the remaining core-flow pages: landing (#1), password
+recovery and verification (#9–11), candidate dashboard (#15), skills manager (#18),
+and employer dashboard (#34).
+
+**What `design.md` delivers** — all owned by Asif Salman Zarar, UI/UX Designer
+(Complete Doc §10.4):
 
 | Deliverable | Where | State |
 |---|---|---|
@@ -1654,24 +1688,36 @@ UI/UX Designer (Complete Doc §10.4):
 | Colour tokens + 16 verified contrast ratios | §3.1–3.2 | ✅ complete |
 | Typography, spacing, breakpoints, app shell | §4–5 | ✅ complete |
 | 19 generic + 10 product-specific components | §6–7 | Specified, not drawn |
+| Component state sheet (all states, text rendering) | §6.6 | ✅ complete |
 | State matrix, HTMX interaction patterns, error copy | §8 | ✅ complete |
 | 13 accessibility rules, WCAG 2.1 AA | §9 | ✅ complete |
-| 62 page specifications with FR and phase | §10.1–10.4 | ✅ complete |
-| 3 low-fi wireframes | §10.5 | ⚠️ 3 of 18 |
+| 62 page specifications with FR, phase and core-flow flag | §10.0–10.4 | ✅ complete |
+| Marker legend and page-to-wireframe map | §10.0 | ✅ complete |
+| 23 low-fi wireframes (36 of 62 pages) | §10.5 | ✅ complete |
+| Per-screen `A11y:` annotations inside each wireframe | §10.5 | ✅ complete |
 | CSS variables, Tailwind config, template tree, perf budget | §11 | ✅ complete |
-| Deliverables checklist with owners and dates | §12 | 10 items open |
+| Deliverables checklist with owners and status | §12 | 10 items, 7 drafted |
 
-**What is still missing** — tracked as open deliverables in `design.md` §12:
+**What is still missing** — tracked in `design.md` §12, all low-risk:
 
-- **15 wireframes** for the screens marked ❌ above
-- High-fidelity mockups (mobile 360px, desktop 1280px) for the core flow
-- The Figma file, component library with all states, logo and icon sets
-- Journey Map prototype including its table alternative
-- Accessibility annotations (heading levels, landmarks, focus order) on key pages
+- **Figma file and Figma components.** The tokens and state decisions are recorded as
+  text, which is enough to brief a build, but the design tool itself has not been started.
+- **High-fidelity mockups** (mobile 360px, desktop 1280px) for the core flow
+- **Interactive Journey Map prototype** — `S08` draws timeline, skills, story and the
+  table alternative, but nothing is clickable yet
+- Logo set, favicon, social image, icon set, illustration notes
+- Microcopy for emails and notifications (in-app copy is drafted in §2.3)
+- Usability test plan (5 candidates, 5 recruiters)
+
+**26 pages have a written spec but no wireframe** (`design.md` §10.6): #2, #3, #12, #13,
+#19, #23, #24, #31, #32, #33, #37, #44, #46, #48, #49, #50, #51, #52, #53, #54, #55,
+#57, #59, #60, #61, #62. These reuse components already drawn in `S01`–`S18`, so they
+are lower risk — but note that **#31 and #48 are the two messaging pages**, so the
+`REQ-FR-043` UI has no drawing even though the requirement now exists.
 
 **Design decisions still unconfirmed** (`design.md` §12): score-band thresholds once
 the scoring model is calibrated; **when the candidate's name is revealed to the
-employer** (also open in `prd.md` §19 item 4 — this one changes screens #40 and #41);
+employer** (also open in `prd.md` §19.2 item 4 — this one changes screens #40 and #41);
 whether dark mode ships in the MVP; whether Bengali ships at launch; final brand
 styling and accent colour.
 
@@ -1755,6 +1801,11 @@ Two rules are load-bearing for the charts called out above: `design.md` §9 requ
 provides a reusable `chart_with_table.html` component so it is defined once rather
 than re-implemented per page.
 
+`design.md` §10.5 goes further and carries a per-screen **`A11y:` annotation line inside
+each of the 23 wireframes**, so accessibility is specified at the level of the individual
+screen rather than only as a general rule set. `S08` (Journey Map) and `S17` (Analytics)
+are the two charts to check those annotations against.
+
 **A note on charts:** the Journey Mapping timeline (FR-016) and the employer analytics
 dashboard (FR-035) are both chart-heavy. Canvas-based charting libraries are
 inaccessible by default. These two screens need an explicit accessible alternative —
@@ -1789,7 +1840,7 @@ Section coverage of this document against the project specification. ✅ = compl
 | 14 | Activity + sequence diagrams | ✅ | §3.4 + Arch §5.3 |
 | 15 | Class diagram | ✅ | §3.6 |
 | 16 | ER diagram, keys, data dictionary | ✅ | §3.7, §3.8 |
-| 17 | Wireframes, UI, navigation, a11y | ⚠️ | §3.9.2, §3.9.3 done; `design.md` has 18/18 page specs + design system, but only 3/18 wireframes — §3.9.1 |
+| 17 | Wireframes, UI, navigation, a11y | ✅ | §3.9.1 (18/18 screens, 23 wireframes), §3.9.2, §3.9.3 — `design.md` |
 
 ### Outstanding items requiring team input
 
@@ -1797,12 +1848,19 @@ Section coverage of this document against the project specification. ✅ = compl
    sample size. Do not claim research that was not conducted.
 2. **§1.2 — Real-world problem example.** Supply one concrete case (the 2018 Amazon
    CV-screening case is directly relevant and well documented).
-3. **§3.9.1 — Wireframes.** `design.md` covers all 18 screens as written page specs
-   and delivers the full design system, but only 3 wireframe visuals exist (#40, #41,
-   #29). The other 15 are listed per-screen in §3.9.1 and tracked in `design.md` §12.
-4. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` does not list public job
+3. **§3.9.1 — design tooling.** Wireframes are now complete for low fidelity (23 of them,
+   covering all 18 required screens and all 22 core-flow pages), but the **Figma file,
+   Figma components and high-fidelity mockups have not been started**. The decisions they
+   would encode are recorded as text in `design.md` §3–§7, §6.6 and §11, which is enough to
+   brief a build. Tracked as `design.md` §12 items 1–4.
+4. **§2.4.1 round 2 — 7 pages with no FR.** The page-level design audit found pages
+   #19, #33, #34, #49, #50, #61, #62 building features with no functional requirement.
+   Same failure mode as GAP-1/GAP-2, smaller scale. Next free IDs are REQ-FR-044 onward.
+   **Deliberately not written into the Arch Doc** until the team confirms each is wanted
+   rather than aspirational — #62 (broadcast announcement) may just be a page to cut.
+5. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` does not list public job
    browse/search endpoints for the new REQ-FR-042, nor the GDPR export/delete
    endpoints for REQ-FR-040/041.
-5. **Unconfirmed design decisions** (`design.md` §12) — most importantly, **when the
+6. **Unconfirmed design decisions** (`design.md` §12) — most importantly, **when the
    candidate's name is revealed to the employer**, which changes screens #40 and #41
    and is also open in `prd.md` §19 item 4.

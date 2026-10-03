@@ -286,7 +286,7 @@ Priority: **H** = High, **M** = Medium, **L** = Low. Phase = first phase in whic
 | REQ-FR-022 | Apply to an active job; status `applied`; candidate and employer notified; one application per job per candidate | H | 1 |
 | REQ-FR-023 | Track application status; notify on change | H | 1 |
 | REQ-FR-024 | View match score (0–100) with evidence-cited rationale | H | 2–3 |
-| **REQ-FR-042 (proposed)** | **Job browse and search**: keyword search, filters (location, remote, experience level), public job board, job detail page. *Closes GAP-1: the capability appears in user stories, use cases and wireframes but has no FR in the Arch Doc.* | H | 1 |
+| **REQ-FR-042** | **Job browse and search**: keyword search, filters (location, remote, experience level), public job board, job detail page. *Was proposed here to close GAP-1 (the capability appeared in user stories, use cases and wireframes but had no FR); promoted into the Arch Doc §4.1 on 2026-10-03.* | H | 1 |
 
 ### 7.3 Employer Portal
 
@@ -304,7 +304,7 @@ Priority: **H** = High, **M** = Medium, **L** = Low. Phase = first phase in whic
 | REQ-FR-034 | AI-drafted, editable offer letter | L | 5 |
 | REQ-FR-035 | Analytics: time-to-hire, source of hire, drop-off, AI accuracy | M | 4 |
 | REQ-FR-036 | Shareable job link and career-page embed code | M | 3 |
-| **REQ-FR-043 (proposed)** | **Candidate–employer messaging**: send/receive messages scoped to an application, read state, in-app notification. *Closes GAP-2: the `Message` model and use case exist, and the Complete Doc lists real-time candidate communication as a feature, but no FR exists.* | M | 3 |
+| **REQ-FR-043** | **Candidate–employer messaging**: send/receive messages scoped to an application, read state, in-app notification. *Was proposed here to close GAP-2 (the `Message` model and use case existed, and the Complete Doc lists real-time candidate communication as a feature, but no FR did); promoted into the Arch Doc §4.1 on 2026-10-03.* | M | 3 |
 
 ### 7.4 Administration and Compliance
 
@@ -640,7 +640,7 @@ Portals are strictly separated by Django group permissions.
 
 1 Register/login (incl. MFA) · 2 Candidate onboarding/profile · 3 Resume upload with progress · 4 Job browse/search · 5 Job detail + apply · 6 Application tracker · 7 Match score + rationale · 8 Journey map · 9 Timed assessment · 10 Coaching feedback · 11 Employer job list/create/edit · 12 Ranked application list · 13 Candidate review (rationale + bias audit) · 14 Screening confirm + cost estimate · 15 Interview pack builder · 16 Scheduling + feedback form · 17 Analytics dashboard · 18 Admin users + audit log.
 
-**Wireframes are not yet delivered** (assigned to the UI/UX designer; see Section 19).
+**Low-fidelity wireframes are now delivered** for all 18 screens: `design.md` §10.5 draws 23 wireframes covering 36 of 62 pages, including every required screen and every core-flow page. High-fidelity mockups and the Figma file are still outstanding (`design.md` §12 items 1–4).
 
 ### 14.3 UX Rules
 
@@ -810,8 +810,9 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 |---|---|---|
 | 1 | **Requirement collection method.** The specs record no interviews, surveys or observation. State what was actually done; do not claim research that was not conducted. | Team |
 | 2 | **Real-world problem example** (the 2018 Amazon CV-screening case is well documented and relevant, or a local Bangladesh case). | Team |
-| 3 | **Wireframes** for the 18 screens. | UI/UX designer |
+| 3 | ~~**Wireframes** for the 18 screens.~~ **Resolved 2026-10-03** — delivered as low-fidelity text wireframes in `design.md` §10.5 (S01–S18). Still open: the Figma file, Figma components and high-fidelity mockups. | UI/UX designer |
 | 4 | Legal position on cross-border data transfer (Standard Contractual Clauses) and on provider terms of service. | Legal / PM |
+| 5 | **Seven pages build features with no functional requirement** (found by the page-level design audit, `design.md` §10.0): #19 certifications, #33 employer onboarding, #34 employer dashboard, #49 team and roles, #50 billing and plan, #61 assessment management, #62 broadcast announcement. Confirm each is wanted rather than aspirational, then add FRs to the **Arch Doc §4.1** (next free IDs REQ-FR-044 onward). #62 may just be a page to cut. | Team |
 
 ### 19.2 Inconsistencies Between Sources
 
@@ -819,7 +820,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 |---|---|---|---|
 | 1 | **Candidate pricing** | Complete Doc: Professional $20 and Premium $50. Feasibility Doc: "Pro" $50 only. | Complete Doc used (Section 15). Confirm. |
 | 2 | **Employer pricing** | Feasibility Doc omits the Scale ($1,500) tier and lists a "Free" employer tier; Complete Doc §C.14 table has no free employer row, but the `Subscription` model defines a Free plan (3 jobs, 50 screens). | Free tier retained; Scale included. Confirm. |
-| 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | Added as proposed REQ-FR-042 and REQ-FR-043. Needs Arch Doc update. |
+| 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | **Closed 2026-10-03** — promoted into the Arch Doc §4.1 as REQ-FR-042 and REQ-FR-043 (new *Job Discovery & Messaging* group). Arch Doc now holds 43 FRs. See also §19.1 item 5 for seven further gaps found later. |
 | 4 | **PII retention** | Complete Doc §5.2 says PII is encrypted at rest; Arch Doc Flow 3 says original PII "stays in EncryptedCharField" while anonymized text is stored. Where the original resume file and un-stripped text live, and who can see them, is not specified. | Open: define exactly what employers can see (anonymized text only, or original file after shortlist). |
 | 5 | **Audit log retention vs. GDPR retention** | Audit logs rotate at 90 days (REQ-COM-008) while candidate data is retained 2 years and hired-employee data 5 years; AI-decision evidence may be needed longer than 90 days for AI Act accountability. | Open: decide whether the 90-day figure applies to access logs only. |
 | 6 | **Audit log key type** | `AuditLogEntry.resource_id` is `INTEGER` but core entities use `UUID` primary keys (Feasibility Doc data dictionary). | Open: change `resource_id` to UUID/text. |
@@ -885,6 +886,9 @@ The product can go to public launch when all of the following hold:
 | Docker Compose, Dockerfile, Nginx, Helm, CI YAML | Arch Doc §6 |
 | Use case, activity, class and ER diagrams | Feasibility Doc §3.3–3.7 |
 | User stories (US-001 to US-055) | Feasibility Doc §2.4 |
+| Wireframes (all 18 required screens) | `design.md` §10.5 — map in §10.0, spec-only pages in §10.6 |
+| Colour tokens, contrast ratios, components, a11y rules | `design.md` §3, §6, §7, §9 |
+| Pages with no functional requirement | `design.md` §10.0 and Feasibility Doc §2.4.1 |
 | Full API list, env var table, pricing detail | Complete Doc §C.12, §C.7, §C.14 |
 | Maintenance, incident, release procedures | Arch Doc §8.5–8.9 |
 
