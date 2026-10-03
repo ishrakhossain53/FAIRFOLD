@@ -11,10 +11,12 @@
 > | Short name | File | Contributes |
 > |---|---|---|
 > | Complete Doc | `MATCH_MINDS_Complete_Project_Document.md` | Product vision, market, AI strategy, security, roadmap, pricing |
-> | Arch Doc | `MATCH_MINDS_Project_Architecture_and_Requirements.md` | ADRs, 41 FRs, 50 NFRs, schema, ops, risk register |
+> | Arch Doc | `MATCH_MINDS_Project_Architecture_and_Requirements.md` | ADRs, 43 FRs, 50 NFRs, schema, ops, risk register |
 > | Feasibility Doc | `MATCH_MINDS_Feasibility_and_Design.md` | Feasibility, user stories, diagrams, data dictionary, nav, a11y |
 >
-> Requirement IDs (`REQ-FR-###`, `REQ-NFR-###`, `REQ-SEC-###`, `REQ-COM-###`) are taken verbatim from the Arch Doc. IDs marked **(proposed)** are new and exist only in this PRD. Conflicts between source documents are listed in [Section 19](#19-open-questions-and-source-document-inconsistencies) rather than silently resolved.
+> Requirement IDs (`REQ-FR-###`, `REQ-NFR-###`, `REQ-SEC-###`, `REQ-COM-###`) are taken verbatim from the Arch Doc. Conflicts between source documents are listed in [Section 19](#19-open-questions-and-source-document-inconsistencies) rather than silently resolved.
+>
+> **Update 2026-10-03:** `REQ-FR-042` and `REQ-FR-043`, marked **(proposed)** below, have been approved by the team and promoted into the Arch Doc §4.1 as a new *Job Discovery & Messaging* group. The Arch Doc now holds **43** FRs, not 41. The acceptance criteria in this PRD remain the source of intent; the Arch Doc wording is authoritative.
 
 ---
 

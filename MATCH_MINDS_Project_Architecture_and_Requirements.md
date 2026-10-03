@@ -356,6 +356,24 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | REQ-FR-040 | Data Export (GDPR) | High | **Given** any user; **When** requests data export; **Then** all personal data compiled as JSON; **And** download link provided; **And** expires in 7 days |
 | REQ-FR-041 | Account Deletion (GDPR) | High | **Given** user requests deletion; **When** admin approves; **Then** hard delete all user data; **And** audit log entry created; **And** notification sent |
 
+#### Job Discovery & Messaging
+
+> Added to close two traceability gaps found during the feasibility review. Both
+> capabilities already existed as use cases (`UC16`, `UC31`), user stories
+> (`US-023`, `US-050`), a `Message` model (Complete Doc §C.11) and page
+> specifications (`design.md` pages #4, #5, #31, #48) — but had no requirement
+> anywhere. See `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1 for the analysis
+> and `prd.md` §7.2–7.3 for the original proposal.
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|---|---|---|---|
+| REQ-FR-042 | Job Browse and Search | High | **Given** a job with status `active`; **When** any user (including an unauthenticated guest) visits the job board; **Then** active jobs listed, newest first; **And** keyword search over title, description and skills; **And** filters for location, remote flag and experience level combine with search; **And** results paginated; **And** an employer name is not shown until the employer has opted into candidate-facing disclosure |
+| REQ-FR-043 | Candidate–Employer Messaging | Medium | **Given** an application exists; **When** either party opens the message thread for that application; **Then** thread is scoped to that application only; **And** the other party can send and read messages; **And** read state is stored and shown as an unread marker; **And** the recipient is notified in-app; **And** messages are excluded from AI processing and never sent to any external AI provider; **And** deleting one party to a thread soft-deletes rather than removes the counterparty's copy (see §3.7 cascade note) |
+
+**Related API gap:** `Complete Doc §C.12` does not list public job browse/search
+endpoints for REQ-FR-042, nor GDPR export/delete endpoints for REQ-FR-040/041.
+Those must be added to the API list before the build starts.
+
 ### 4.2 Non-Functional Requirements
 
 #### Performance

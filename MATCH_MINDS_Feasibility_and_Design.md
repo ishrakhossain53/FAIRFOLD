@@ -13,7 +13,7 @@ This file supplements — and does not replace — the two engineering specifica
 | Document | Role | Status |
 |---|---|---|
 | `MATCH_MINDS_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 41 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
+| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 43 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
 | `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | **Supplement** |
 
 **No content is duplicated here.** Where a section needs detail that already exists
@@ -81,8 +81,10 @@ These are not isolated product defects. They indicate a category-wide absence of
 that excludes the SMB segment entirely.
 
 > **`[PLACEHOLDER]` — Real-world example (team input required)**
+>
 > A concrete incident is far more persuasive than a market table, and none is
-> currently recorded. Supply one of:
+> currently recorded. **Still open** — `prd.md` §19.1 item 2 lists it as team-supplied.
+> Supply one of:
 > - a published discrimination lawsuit or EEOC/tribunal ruling involving an
 >   automated screening tool (the 2018 Amazon CV-screening tool case is the
 >   best-documented public example and directly relevant — a model trained on
@@ -99,7 +101,12 @@ that excludes the SMB segment entirely.
 > The engineering specs contain **no record of how requirements were gathered.**
 > Requirements should be *elicited* from users, not inferred from a competitor's
 > feature list — without a stated method there is no way to tell which parts of this
-> 41-requirement set came from real user need and which from assumption.
+> 43-requirement set came from real user need and which from assumption.
+>
+> **Confirmed still open.** The PRD was built without filling this in, and says so
+> explicitly: `prd.md` §19.1 item 1 — *"The specs record no interviews, surveys or
+> observation. State what was actually done; do not claim research that was not
+> conducted."*
 >
 > Replace the table below with what actually happened. If a method was not used, say
 > so and remove that row — **do not claim research that was not conducted.**
@@ -185,7 +192,7 @@ See §1.3. **`[PLACEHOLDER]`**
 
 ### 2.2 Functional requirements
 
-**Complete.** 41 functional requirements with unique IDs, priorities, and Given/When/Then
+**Complete.** 43 functional requirements with unique IDs, priorities, and Given/When/Then
 acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` §4.1.
 
 | Group | ID range | Count | Priority distribution |
@@ -194,6 +201,7 @@ acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` �
 | Candidate portal | REQ-FR-009 – FR-024 | 16 | 9 High, 7 Medium |
 | Employer portal | REQ-FR-025 – FR-036 | 12 | 6 High, 6 Medium, 1 Low |
 | Administrative / GDPR | REQ-FR-037 – FR-041 | 5 | 3 High, 2 Medium |
+| Job discovery & messaging | REQ-FR-042 – FR-043 | 2 | 1 High, 1 Medium |
 
 Representative example:
 
@@ -229,7 +237,7 @@ by axe-core/pa11y in CI (REQ-COM-007).
 
 ### 2.4 User stories
 
-Derived one-to-one from the 41 FRs in Arch Doc §4.1. Written in standard
+Derived one-to-one from the 43 FRs in Arch Doc §4.1. Written in standard
 *As a / I want / so that* form with story points and MoSCoW priority.
 
 #### Authentication — actor: Registered User
@@ -261,7 +269,7 @@ Derived one-to-one from the 41 FRs in Arch Doc §4.1. Written in standard
 | US-020 | As a **candidate**, I want to take a skill assessment, so that I can prove ability that a resume cannot show. | FR-019 | 5 | Should |
 | US-021 | As a **candidate**, I want my assessment auto-scored, so that I get an objective result. | FR-020 | 3 | Should |
 | US-022 | As a **candidate**, I want AI feedback on my practice answer, so that I improve before the real interview. | FR-021 | 5 | Should |
-| US-023 | As a **candidate**, I want to browse and search jobs, so that I can find relevant openings. | **GAP-1** ⚠️ | 3 | Must |
+| US-023 | As a **candidate**, I want to browse and search jobs, so that I can find relevant openings. | FR-042 | 3 | Must |
 | US-024 | As a **candidate**, I want to apply to a job, so that I can be considered for it. | FR-022 | 3 | Must |
 | US-025 | As a **candidate**, I want to track my application status, so that I know where I stand. | FR-023 | 3 | Must |
 | US-026 | As a **candidate**, I want to see *why* I scored as I did, so that I learn and can improve. | FR-024 | 3 | Must |
@@ -287,7 +295,7 @@ Derived one-to-one from the 41 FRs in Arch Doc §4.1. Written in standard
 
 | Story ID | User story | FR | Pts | Priority |
 |---|---|---|---|---|
-| US-050 | As a **candidate**, I want to message an employer, so that I can ask questions about a role. | **GAP-2** ⚠️ | 3 | Should |
+| US-050 | As a **candidate**, I want to message an employer, so that I can ask questions about a role. | FR-043 | 3 | Should |
 | US-051 | As an **admin**, I want system metrics and AI usage at a glance, so that I can monitor platform health. | FR-037 | 5 | Should |
 | US-052 | As an **admin**, I want to manage users and unlock accounts, so that legitimate users are not blocked. | FR-038 | 5 | Must |
 | US-053 | As an **admin**, I want to search and export audit logs, so that I can investigate an incident. | FR-039 | 5 | Must |
@@ -298,28 +306,36 @@ Derived one-to-one from the 41 FRs in Arch Doc §4.1. Written in standard
 **Should** = 13, **Could** = 3. No "Won't" items; deliberate exclusions are listed in
 Arch Doc §1.2 Out of Scope.
 
-**Coverage:** all 41 functional requirements map to at least one user story.
+**Coverage:** all 43 functional requirements map to at least one user story.
 **Total effort:** 42 stories, 170 story points.
 
-#### 2.4.1 Traceability gaps found
+#### 2.4.1 Traceability gaps — found, and now closed
 
-Two capabilities appear in the user journeys (Complete Doc §7.1, §7.2) and have
-database models and use cases, but **have no functional requirement** in Arch Doc §4.1:
+Two capabilities appeared in the user journeys (Complete Doc §7.1, §7.2) and had
+database models and use cases, but **had no functional requirement** in Arch Doc §4.1:
 
-| Gap | Capability | Evidence it is intended | Missing |
+| Gap | Capability | Evidence it was intended | Resolution |
 |---|---|---|---|
-| **GAP-1** | Candidate job search / browse | Use case UC16; §7.1 candidate journey step 5 | No FR covering search, filtering, or job listing |
-| **GAP-2** | Candidate–employer messaging | `Message` model (Complete Doc §C.11); use case UC31; §1 "real-time candidate communication"; §7.2 | No FR covering sending, receiving, or read state |
+| **GAP-1** | Candidate job search / browse | Use case UC16; §7.1 candidate journey step 5; `design.md` pages #4, #5 | Now **REQ-FR-042** in Arch Doc §4.1 |
+| **GAP-2** | Candidate–employer messaging | `Message` model (Complete Doc §C.11); use case UC31; §1 "real-time candidate communication"; §7.2; `design.md` pages #31, #48 | Now **REQ-FR-043** in Arch Doc §4.1 |
 
-**Recommendation.** Both are real product features, not scope creep — GAP-2 in
-particular is named as a differentiator in the executive summary. They should be added
-to Arch Doc §4.1 as new FRs (the next free IDs are REQ-FR-042 and REQ-FR-043) and this
-table updated. As it stands, a requirements-coverage cross-check shows two features
-shipping with no stated requirement, which breaks FR↔story↔test traceability for anyone
-auditing the build later.
+**Status: closed.** Both requirements were drafted in `prd.md` §7.2–7.3 and have been
+promoted into the canonical Arch Doc §4.1 as a new *Job Discovery & Messaging* group,
+with Given/When/Then acceptance criteria. `US-023` and `US-050` now carry the real
+requirement IDs instead of ⚠️ gap markers, and FR↔story↔test traceability is unbroken.
 
-Until then, the two stories above are marked ⚠️ with the gap reference rather than
-given an FR number, because **assigning them a fabricated ID would hide the problem.**
+Two conditions were written into the requirements themselves rather than left to
+implementation guesswork:
+
+- **REQ-FR-042** states that an employer name is not disclosed until the employer
+  opts in, since a public job board otherwise leaks company identity by default.
+- **REQ-FR-043** states that messages are excluded from all AI processing and never
+  reach an external provider, and that deleting one party soft-deletes rather than
+  removes the counterparty's copy (the cascade problem noted in §3.7).
+
+One follow-up remains: `Complete Doc §C.12` does not yet list public job
+browse/search endpoints for REQ-FR-042, nor the GDPR export/delete endpoints for
+REQ-FR-040/041.
 
 ### 2.5 Product backlog and priority
 
@@ -328,14 +344,18 @@ criteria in Arch Doc §10. The phase breakdown aligns with the backlog:
 
 | Phase | Weeks | Story points | Theme |
 |---|---|---|---|
-| 1 — Foundation | 1–3 | ~21 | Auth, profiles, jobs, applications (no AI) |
-| 2 — AI Integration | 4–6 | ~34 | PII stripping, screening, rationale, bias audit |
-| 3 — Candidate AI | 7–9 | ~31 | Assessments, coaching, journey mapping |
-| 4 — Hardening | 10–12 | ~30 | Security, GDPR, monitoring, CI/CD |
-| 5 — Advanced | 13+ | ~25 | i18n, billing, WebSockets, skill ontology |
+| 1 — Foundation | 1–3 | ~28 | Auth, profiles, jobs, job search (FR-042), applications (no AI) |
+| 2 — AI Integration | 4–6 | ~41 | PII stripping, screening, rationale, bias audit |
+| 3 — Candidate AI | 7–9 | ~37 | Assessments, coaching, journey mapping, messaging (FR-043) |
+| 4 — Hardening | 10–12 | ~36 | Security, GDPR, monitoring, CI/CD |
+| 5 — Advanced | 13+ | ~28 | i18n, billing, WebSockets, skill ontology |
 
-*(Point figures are a planning estimate for the Gantt in §2.7; the authoritative task
-lists are Complete Doc §9.)*
+**Total: ~170 story points**, matching the 42 stories in §2.4.
+
+*(Point figures are a planning estimate for the Gantt in §2.7, not an independent
+measurement — re-estimate at sprint planning. The authoritative task lists are
+Complete Doc §9. The earlier split of 21/34/31/30/25 summed to 141 and did not
+reconcile with the 170-point total; the figures above now do.)*
 
 ### 2.6 Feasibility study
 
@@ -1092,7 +1112,7 @@ classDiagram
         +UUID actor_id
         +str action
         +str resource_type
-        +int resource_id
+        +UUID resource_id
         +dict details
         +str ip_address
         +str user_agent
@@ -1423,7 +1443,7 @@ erDiagram
         uuid actor_id FK "nullable, SET NULL"
         varchar action
         varchar resource_type
-        integer resource_id
+        uuid resource_id "matches Arch Doc §5.1"
         jsonb details "no raw PII"
         varchar ip_address
         varchar user_agent
@@ -1563,7 +1583,7 @@ Field-level definitions for the core entities. Full SQL DDL: Arch Doc §5.1.
 | actor_id | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` — log survives actor deletion |
 | action | VARCHAR(100) | | NO | — | e.g. `application.screened` |
 | resource_type | VARCHAR(50) | | NO | — | `application`, `job`, `candidate`, `user` |
-| resource_id | INTEGER | | NO | — | Target entity id |
+| resource_id | UUID | | NO | — | Target entity id — UUID, because core entities use UUID PKs (Arch Doc §5.1) |
 | details | JSONB | | NO | `'{}'` | Action context — **no raw PII** |
 | ip_address | INET | | NO | — | Request origin |
 | user_agent | VARCHAR(500) | | YES | — | Client identification |
@@ -1598,34 +1618,62 @@ denormalised copies exist where search performance matters (e.g.
 
 #### 3.9.1 Wireframes
 
-> **`[PLACEHOLDER]` — Requires the UI/UX designer's assets.**
->
-> Wireframes are assigned to Asif Salman Zarar, UI/UX Designer (Complete Doc §10.4), but
-> are not present in this repository. Either export them from the design tool and add
-> them to `docs/wireframes/`, or paste low-fidelity versions below.
->
-> **Screens required (per §3.2 workflows and §3.3 use cases):**
->
-> | # | Screen | Primary actor | Source FRs |
-> |---|---|---|---|
-> | 1 | Registration / login (incl. MFA) | Guest, all | FR-001 – FR-008 |
-> | 2 | Candidate onboarding + profile | Candidate | FR-009, FR-014 |
-> | 3 | Resume upload + upload progress | Candidate | FR-010 |
->| 4 | Job browse / search results | Candidate | **GAP-1** ⚠️ (no FR exists) |
-> | 5 | Job detail + apply | Candidate | FR-022 |
-> | 6 | Application tracker (status timeline) | Candidate | FR-023 |
-> | 7 | Match score + rationale view | Candidate | FR-024 |
-> | 8 | Journey map (interactive timeline + skill evolution) | Candidate | FR-016, FR-017 |
-> | 9 | Assessment taking (timed) | Candidate | FR-019 |
-> | 10 | Interview coaching feedback | Candidate | FR-021 |
-> | 11 | Employer job list + create/edit job | Employer | FR-025 – FR-027 |
-> | 12 | Application list (ranked) | Employer | FR-029 |
-> | 13 | Candidate review (rationale + bias audit) | Employer | FR-030 |
-> | 14 | AI screening confirm + cost estimate | Employer | FR-028 |
-> | 15 | Interview pack builder | Employer | FR-031 |
-> | 16 | Scheduling + feedback form | Employer, Interviewer | FR-032, FR-033 |
-> | 17 | Analytics dashboard | Employer | FR-035 |
-> | 18 | Admin: users, audit log search | Admin | FR-038, FR-039 |
+> **Status: partially delivered.** A written page specification now exists for **all 18**
+> required screens in `design.md` §10, but only **3 of 18** have a wireframe visual.
+> See the coverage table below for exactly which are missing.
+
+**Screens required (per §3.2 workflows and §3.3 use cases):**
+
+| # | Screen | Primary actor | Source FRs | Page spec | Wireframe |
+|---|---|---|---|---|---|
+| 1 | Registration / login (incl. MFA) | Guest, all | FR-001 – FR-008 | `design.md` #6–11 | ❌ |
+| 2 | Candidate onboarding + profile | Candidate | FR-009, FR-014 | #14, #16 | ❌ |
+| 3 | Resume upload + upload progress | Candidate | FR-010 | #17 | ❌ |
+| 4 | Job browse / search results | Candidate | FR-042 | #4, #5 | ❌ |
+| 5 | Job detail + apply | Candidate | FR-022 | #5, #30 | ❌ |
+| 6 | Application tracker (status timeline) | Candidate | FR-023 | #28 | ❌ |
+| 7 | Match score + rationale view | Candidate | FR-024 | #29 | ✅ `design.md` §10.5 |
+| 8 | Journey map (interactive timeline + skill evolution) | Candidate | FR-016, FR-017 | #20–22 | ❌ |
+| 9 | Assessment taking (timed) | Candidate | FR-019 | #23–25 | ❌ |
+| 10 | Interview coaching feedback | Candidate | FR-021 | #27 | ❌ |
+| 11 | Employer job list + create/edit job | Employer | FR-025 – FR-027 | #35, #36 | ❌ |
+| 12 | Application list (ranked) | Employer | FR-029 | #40 | ✅ `design.md` §10.5 |
+| 13 | Candidate review (rationale + bias audit) | Employer | FR-030 | #41 | ✅ `design.md` §10.5 |
+| 14 | AI screening confirm + cost estimate | Employer | FR-028 | #38, #39 | ❌ |
+| 15 | Interview pack builder | Employer | FR-031 | #42 | ❌ |
+| 16 | Scheduling + feedback form | Employer, Interviewer | FR-032, FR-033 | #43–45 | ❌ |
+| 17 | Analytics dashboard | Employer | FR-035 | #47 | ❌ |
+| 18 | Admin: users, audit log search | Admin | FR-038, FR-039 | #56–58 | ❌ |
+
+**What `design.md` delivers beyond wireframes** — all owned by Asif Salman Zarar,
+UI/UX Designer (Complete Doc §10.4):
+
+| Deliverable | Where | State |
+|---|---|---|
+| Brand, voice, verbatim microcopy library | §1–2 | ✅ complete |
+| Colour tokens + 16 verified contrast ratios | §3.1–3.2 | ✅ complete |
+| Typography, spacing, breakpoints, app shell | §4–5 | ✅ complete |
+| 19 generic + 10 product-specific components | §6–7 | Specified, not drawn |
+| State matrix, HTMX interaction patterns, error copy | §8 | ✅ complete |
+| 13 accessibility rules, WCAG 2.1 AA | §9 | ✅ complete |
+| 62 page specifications with FR and phase | §10.1–10.4 | ✅ complete |
+| 3 low-fi wireframes | §10.5 | ⚠️ 3 of 18 |
+| CSS variables, Tailwind config, template tree, perf budget | §11 | ✅ complete |
+| Deliverables checklist with owners and dates | §12 | 10 items open |
+
+**What is still missing** — tracked as open deliverables in `design.md` §12:
+
+- **15 wireframes** for the screens marked ❌ above
+- High-fidelity mockups (mobile 360px, desktop 1280px) for the core flow
+- The Figma file, component library with all states, logo and icon sets
+- Journey Map prototype including its table alternative
+- Accessibility annotations (heading levels, landmarks, focus order) on key pages
+
+**Design decisions still unconfirmed** (`design.md` §12): score-band thresholds once
+the scoring model is calibrated; **when the candidate's name is revealed to the
+employer** (also open in `prd.md` §19 item 4 — this one changes screens #40 and #41);
+whether dark mode ships in the MVP; whether Bengali ships at launch; final brand
+styling and accent colour.
 
 #### 3.9.2 Navigation structure
 
@@ -1694,8 +1742,18 @@ MATCH MINDS
 pages, form fields and keyboard navigation paths.
 
 **Design-system responsibility:** Asif Salman Zarar owns the design system
-(Complete Doc §10.4); accessible colour tokens and focus styles should be defined
-there once rather than per-component, so the AA target is systematic by construction.
+(Complete Doc §10.4). **This is now delivered** — `design.md` §3.1 defines the token
+set, §3.2 records 16 measured contrast ratios (lowest passing pair is
+`--ink-4` on `--surface` at 4.76 : 1), §3.1 states that `--border` at 1.48 : 1 is
+decorative only and interactive control edges must use `--border-input`, and §9 sets
+13 accessibility rules including focus-visible rings, `aria-describedby` error
+linking, and a table alternative for every chart. §11.1 provides the CSS variables
+ready to drop into `static/css/tokens.css`.
+
+Two rules are load-bearing for the charts called out above: `design.md` §9 requires
+**every** chart to ship a table alternative and a one-sentence summary, and §11.3
+provides a reusable `chart_with_table.html` component so it is defined once rather
+than re-implemented per page.
 
 **A note on charts:** the Journey Mapping timeline (FR-016) and the employer analytics
 dashboard (FR-035) are both chart-heavy. Canvas-based charting libraries are
@@ -1720,7 +1778,7 @@ Section coverage of this document against the project specification. ✅ = compl
 | 5 | Solution, objectives, scope, users | ✅ | §1.5 |
 | **REQUIREMENTS & PLANNING** ||||
 | 6 | Requirement collection method | ❌ | §1.3 — **team must complete** |
-| 7 | Functional requirements with IDs | ✅ | §2.2 (41 FRs — Arch Doc §4.1) |
+| 7 | Functional requirements with IDs | ✅ | §2.2 (43 FRs — Arch Doc §4.1) |
 | 8 | Measurable NFRs | ✅ | §2.3 (50 NFRs — Arch Doc §4.2) |
 | 9 | User stories, priority, backlog | ✅ | §2.4 (42 stories), §2.5 |
 | 10 | Five-way feasibility | ✅ | §2.6.1 – §2.6.5 |
@@ -1731,7 +1789,7 @@ Section coverage of this document against the project specification. ✅ = compl
 | 14 | Activity + sequence diagrams | ✅ | §3.4 + Arch §5.3 |
 | 15 | Class diagram | ✅ | §3.6 |
 | 16 | ER diagram, keys, data dictionary | ✅ | §3.7, §3.8 |
-| 17 | Wireframes, UI, navigation, a11y | ⚠️ | §3.9.2, §3.9.3 done; wireframes ❌ |
+| 17 | Wireframes, UI, navigation, a11y | ⚠️ | §3.9.2, §3.9.3 done; `design.md` has 18/18 page specs + design system, but only 3/18 wireframes — §3.9.1 |
 
 ### Outstanding items requiring team input
 
@@ -1739,4 +1797,12 @@ Section coverage of this document against the project specification. ✅ = compl
    sample size. Do not claim research that was not conducted.
 2. **§1.2 — Real-world problem example.** Supply one concrete case (the 2018 Amazon
    CV-screening case is directly relevant and well documented).
-3. **§3.9.1 — Wireframes.** Obtain from the UI/UX designer or substitute low-fi.
+3. **§3.9.1 — Wireframes.** `design.md` covers all 18 screens as written page specs
+   and delivers the full design system, but only 3 wireframe visuals exist (#40, #41,
+   #29). The other 15 are listed per-screen in §3.9.1 and tracked in `design.md` §12.
+4. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` does not list public job
+   browse/search endpoints for the new REQ-FR-042, nor the GDPR export/delete
+   endpoints for REQ-FR-040/041.
+5. **Unconfirmed design decisions** (`design.md` §12) — most importantly, **when the
+   candidate's name is revealed to the employer**, which changes screens #40 and #41
+   and is also open in `prd.md` §19 item 4.
