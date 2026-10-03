@@ -1,9 +1,9 @@
 # MATCH MINDS — Detailed Architecture & Requirements Specification
 
-**Version:** 3.1 (Gap Analysis + SDLC Alignment + Complete Requirements)  
+**Version:** 4.0 (50 FRs · employer_team_members · message soft-delete)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
-**Authors:** Md Habibulla Mahmud, Minhajul Islam Rifat, Md Jobayer Arafat, Asif Salman Zarar  
+**Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque  
 
 > **Companion document to:** `MATCH_MINDS_Complete_Project_Document.md`  
 > This document provides the detailed, implementation-ready architecture and requirements that supplement the high-level project document. Where the project document describes *what* to build and *why*, this document specifies *how* — with concrete APIs, data models, acceptance criteria, and measurable quality attributes.
@@ -337,8 +337,8 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | REQ-FR-026 | Job Editing | High | **Given** existing job (draft status); **When** employer edits; **Then** all fields updated; **And** audit log entry created |
 | REQ-FR-027 | Job Activation | High | **Given** draft job; **When** employer publishes; **Then** status changes to "active"; **And** job visible to candidates |
 | REQ-FR-028 | AI Screening Trigger | High | **Given** active job with applications; **When** employer clicks "Screen All"; **Then** cost estimate shown ($0.00 for free tier); **And** user confirms; **And** Celery batch task queued |
-| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale |
-| REQ-FR-030 | Evidence-Cited Rationale | High | **Given** AI-generated rationale; **When** employer views candidate; **Then** rationale shows specific resume text for each claim; **And** missing skills listed; **And** bias audit status shown |
+| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030) |
+| REQ-FR-030 | Evidence-Cited Rationale | High | **Given** AI-generated rationale; **When** employer views candidate; **Then** rationale shows specific resume text for each claim; **And** missing skills listed; **And** bias audit status shown; **And** the candidate's name, photo and contact details stay hidden until the employer shortlists them, at which point they are revealed to that employer only and the reveal writes an audit entry; **And** unrevealed PII is never sent to any external AI provider |
 | REQ-FR-031 | Interview Pack Generation | Medium | **Given** job with requirements; **When** employer generates interview pack; **Then** AI produces structured Qs + scoring rubric; **And** pack stored and linked to job |
 | REQ-FR-032 | Interview Scheduling | Medium | **Given** shortlisted candidate; **When** employer schedules; **Then** calendar invite sent; **And** video call URL generated; **And** candidate notified |
 | REQ-FR-033 | Interview Feedback | Medium | **Given** completed interview; **When** interviewer submits feedback; **Then** scores + comments stored; **And** recommendation recorded |
@@ -368,11 +368,30 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | ID | Requirement | Priority | Acceptance Criteria |
 |---|---|---|---|
 | REQ-FR-042 | Job Browse and Search | High | **Given** a job with status `active`; **When** any user (including an unauthenticated guest) visits the job board; **Then** active jobs listed, newest first; **And** keyword search over title, description and skills; **And** filters for location, remote flag and experience level combine with search; **And** results paginated; **And** an employer name is not shown until the employer has opted into candidate-facing disclosure |
-| REQ-FR-043 | Candidate–Employer Messaging | Medium | **Given** an application exists; **When** either party opens the message thread for that application; **Then** thread is scoped to that application only; **And** the other party can send and read messages; **And** read state is stored and shown as an unread marker; **And** the recipient is notified in-app; **And** messages are excluded from AI processing and never sent to any external AI provider; **And** deleting one party to a thread soft-deletes rather than removes the counterparty's copy (see §3.7 cascade note) |
+| REQ-FR-043 | Candidate–Employer Messaging | Medium | **Given** an application exists; **When** either party opens the message thread for that application; **Then** thread is scoped to that application only; **And** the other party can send and read messages; **And** read state is stored and shown as an unread marker; **And** the recipient is notified in-app; **And** messages are excluded from AI processing and never sent to any external AI provider; **And** deleting one party soft-deletes rather than removes the counterparty's copy: the `messages` row is retained with `content` blanked, `sender_id`/`recipient_id` nulled and `deleted_at` set, since all three FKs are `ON DELETE SET NULL` (§5.1) |
 
 **Related API gap:** `Complete Doc §C.12` does not list public job browse/search
-endpoints for REQ-FR-042, nor GDPR export/delete endpoints for REQ-FR-040/041.
-Those must be added to the API list before the build starts.
+endpoints for REQ-FR-042, nor GDPR export/delete endpoints for REQ-FR-040/041, nor any
+endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or broadcast
+(REQ-FR-050). Those must be added to the API list before the build starts.
+
+#### Employer Organisation, Billing & Content
+
+> Added to close a second round of traceability gaps. A page-level audit of
+> `design.md` §10 found seven pages building real features with no requirement
+> behind them — the same failure mode as GAP-1/GAP-2, missed by the use-case
+> pass because those pages are supporting features rather than core journeys.
+> See `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1 for the analysis.
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|---|---|---|---|
+| REQ-FR-044 | Certification Management | Medium | **Given** authenticated candidate; **When** candidate adds a certification; **Then** `Certification` record created with name, issuer, issue/expiry dates and credential ID; **And** `credential_id` stored encrypted; **And** candidate can list, edit and delete their own certifications; **And** `verified` remains false until manually confirmed |
+| REQ-FR-045 | Employer Company Profile | High | **Given** registered user with the employer role; **When** completing onboarding; **Then** `EmployerProfile` created with company name (encrypted), industry and company size; **And** an employer cannot hold both the candidate and employer roles; **And** a job cannot be activated until a company profile exists |
+| REQ-FR-046 | Employer Dashboard | Medium | **Given** authenticated employer; **When** opening the dashboard; **Then** open job count, new applications, applications awaiting screening and interviews this week are shown; **And** quota usage is displayed against the current subscription; **And** applications flagged by the bias check are surfaced for human review; **And** every KPI links to the underlying list |
+| REQ-FR-047 | Employer Team and Roles | Medium | **Given** an employer with `employer_hr` role; **When** inviting, re-roling or removing a team member; **Then** `employer_manager`, `employer_hr` or `interviewer` role assigned from the defined set; **And** the last `employer_hr` cannot be removed or demoted, which would orphan the account; **And** an `employer_team_members` row is created or updated (§5.1); **And** an audit entry is written for every role change; **And** MFA is required before an invited member can act |
+| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches MATCH MINDS; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
+| REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
+| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, message, audience and schedule captured with a preview; **And** the announcement is delivered to the selected audience on schedule; **And** an empty audience match sends nothing and is reported rather than silently succeeding. **This requirement is optional** — kept in scope by decision 2026-10-03 because it is 3 story points, Low priority and Phase 4, and removing it would touch four documents for no benefit. If the team later decides against it, remove REQ-FR-050, US-062 and `design.md` page #62 **together** |
 
 ### 4.2 Non-Functional Requirements
 
@@ -523,6 +542,23 @@ CREATE TABLE employer_profiles (
     stripe_customer_id TEXT ENCRYPTED,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE employer_team_members (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employer_id     UUID REFERENCES employer_profiles(id) ON DELETE CASCADE,
+    user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
+    role            VARCHAR(20) NOT NULL DEFAULT 'interviewer',
+    invited_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+    invite_status   VARCHAR(20) NOT NULL DEFAULT 'pending',
+    mfa_enforced    BOOLEAN DEFAULT TRUE,
+    joined_at       TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_employer_team_member UNIQUE (employer_id, user_id),
+    CONSTRAINT ck_team_role CHECK (role IN ('employer_manager','employer_hr','interviewer')),
+    CONSTRAINT ck_invite_status CHECK (invite_status IN ('pending','accepted','revoked'))
+);
+CREATE INDEX idx_team_employer ON employer_team_members(employer_id);
+CREATE INDEX idx_team_user ON employer_team_members(user_id);
 
 CREATE TABLE subscriptions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -683,13 +719,20 @@ CREATE TABLE interview_feedback (
 -- === COMMUNICATION ===
 CREATE TABLE messages (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id  UUID REFERENCES applications(id) ON DELETE CASCADE,
-    sender_id       UUID REFERENCES users(id) ON DELETE CASCADE,
-    recipient_id    UUID REFERENCES users(id) ON DELETE CASCADE,
+    application_id  UUID REFERENCES applications(id) ON DELETE SET NULL,
+    sender_id       UUID REFERENCES users(id) ON DELETE SET NULL,
+    recipient_id    UUID REFERENCES users(id) ON DELETE SET NULL,
     content         TEXT NOT NULL,
     read            BOOLEAN DEFAULT FALSE,
+    -- Soft delete (REQ-FR-043): a user's GDPR erasure must not delete the
+    -- counterparty's copy of a conversation. Rows are retained with the
+    -- content blanked and the party references nulled.
+    deleted_at      TIMESTAMPTZ,
+    deleted_by_user BOOLEAN DEFAULT FALSE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE INDEX idx_messages_thread ON messages(application_id, created_at);
+CREATE INDEX idx_messages_recipient ON messages(recipient_id, read);
 
 CREATE TABLE notifications (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1678,7 +1721,9 @@ local (dev laptop) → CI (test) → staging → production
 - ✅ Resume embeddings generated via sentence-transformers (384-dim vectors)
 - ✅ pgvector cosine similarity returns ranked results in < 2s for 100 candidates
 - ✅ LLM rationale generated for top 10 candidates per job (evidence-cited format)
-- ✅ Bias audit flags 100% of biased language in test dataset
+- ⬜ Deterministic keyword pass flags every seeded phrase in the versioned bias test set (set does not exist yet — Phase 2)
+- ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
+- ⚠️ LLM bias pass is advisory only and may not block auto-shortlist
 - ✅ Employer sees ranked candidates with scores + evidence-cited rationales
 - ✅ Cost estimate shown before processing; $0.00 for free tier
 - ✅ Audit entries logged for every AI scoring action (timestamp, model, rationale hash)

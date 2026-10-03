@@ -7,10 +7,10 @@
 | Document | Role | Covers |
 |---|---|---|
 | [MATCH_MINDS_Complete_Project_Document.md](MATCH_MINDS_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
-| [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 43 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
+| [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 50 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
 | [prd.md](prd.md) | **Canonical** | Product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | [MATCH_MINDS_Feasibility_and_Design.md](MATCH_MINDS_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| [design.md](design.md) | Supplement | UI design specification — colour tokens & verified contrast, typography, 19 generic + 10 product components, 62 page specs, wireframes, implementation notes |
+| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 10 product components, 62 page specs, 23 wireframes covering all 18 required screens, implementation notes |
 | [HISTORY.md](HISTORY.md) | Log | What has been done on this repo and what is still outstanding |
 
 **Start here:** `prd.md` if you want the product, `MATCH_MINDS_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.

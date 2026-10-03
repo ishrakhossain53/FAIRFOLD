@@ -1,9 +1,9 @@
 # MATCH MINDS — Complete Project Document
 ## AI-Powered Bias-Free Recruitment Platform
 
-**Version:** 2.0 (Full Architecture + Security + Market Analysis)
+**Version:** 2.1 (EmployerTeamMember model · Professional tier corrected)
 **Date:** September 2026
-**Team:** Md Habibulla Mahmud, Minhajul Islam Rifat, Md Jobayer Arafat, Asif Salman Zarar
+**Team:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque
 
 ---
 
@@ -647,6 +647,23 @@ class EmployerProfile(models.Model):
     stripe_customer_id = models.CharField(max_length=100, blank=True)  # if paid
     created_at = models.DateTimeField(auto_now_add=True)
 
+class EmployerTeamMember(models.Model):
+    """An employer organisation has several people, so EmployerProfile is 1-to-1 with
+    User but the organisation is many-to-many with it. REQ-FR-047."""
+    employer = models.ForeignKey(EmployerProfile, on_delete=models.CASCADE, related_name="team")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="employer_teams")
+    role = models.CharField(max_length=20, choices=TEAM_ROLE_CHOICES, default="interviewer")
+    invited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    invite_status = models.CharField(max_length=20, default="pending")  # pending/accepted/revoked
+    mfa_enforced = models.BooleanField(default=True)
+    joined_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["employer", "user"], name="uq_employer_team_member"),
+        ]
+
 # matching/models.py
 class Job(models.Model):
     employer = models.ForeignKey(EmployerProfile, on_delete=models.CASCADE, related_name="jobs")
@@ -863,12 +880,13 @@ sphinx >= 8.2  # documentation generation
 
 | Person | Role | Primary Responsibilities |
 |---|---|---|
-| Md Habibulla Mahmud | Frontend Engineer | Django templates/HTMX UI, TailwindCSS, interactive journey mapping charts, responsive design |
-| Minhajul Islam Rifat | Frontend Engineer | Employer dashboard UI, application review interface, interview scheduling UI, real-time status updates |
-| Md Jobayer Arafat | Backend & AI Engineer | Django backend, DRF API, Celery tasks, OpenRouter AI integration, PII stripping, pgvector matching, security implementation |
-| Asif Salman Zarar | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, Journey Mapping interactive timeline design, design system |
+| Sardar Shihab | Full-Stack Engineer | Django templates/HTMX UI, TailwindCSS, interactive journey mapping charts, responsive design; backend endpoints as needed |
+| Arnob Biswas Antu | Frontend Engineer | Employer dashboard UI, application review interface, interview scheduling UI, real-time status updates |
+| Ishrak Hossain | Backend & AI Engineer | Django backend, DRF API, Celery tasks, OpenRouter AI integration, PII stripping, pgvector matching, security implementation |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — colour, type and spacing tokens, component library, accessibility (WCAG 2.1 AA) |
+| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, Journey Mapping interactive timeline design |
 
-**Missing role:** DevOps/Infrastructure — initially handled by Md Jobayer Arafat (backend engineer). When scaling, add or outsource.
+**Missing role:** DevOps/Infrastructure — initially handled by Ishrak Hossain (backend engineer). When scaling, add or outsource.
 
 ### 10.5 Estimated Timeline to MVP
 
@@ -1624,7 +1642,7 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 |---|---|---|---|
 | **Free** | $0/mo | Basic profile, resume upload, apply to jobs, basic match scores, interview coaching (5 sessions/mo), journey mapping (basic) | 5 applications/day, 5 AI interactions/day |
 | **Essential** | $5/mo | All Free features + unlimited applications, 20 AI coaching sessions/mo, advanced journey mapping (skill evolution charts), priority in employer search | 50 AI interactions/day |
-| **Professional** | $20/mo | All Essential + unlimited AI coaching, career story generation per application, skill assessments (10/mo), interview recording & analysis, export journey as PDF | 200 AI interactions/day |
+| **Professional** | $20/mo | All Essential + unlimited AI coaching, career story generation per application, skill assessments (10/mo), interview pack builder, export journey as PDF | 200 AI interactions/day |
 | **Premium** | $50/mo | All Professional + personalized AI mentor, market salary insights, 50 skill assessments/mo, featured in employer search, custom resume templates | Unlimited |
 
 **Employer Tiers:**
@@ -1658,7 +1676,7 @@ POST   /api/v1/admin/broadcast/                  # Send system-wide announcement
 - [ ] Resume embeddings generated via sentence-transformers
 - [ ] pgvector cosine similarity returns ranked results in < 2 seconds for 100 candidates
 - [ ] LLM rationale generated for top 10 candidates per job
-- [ ] Bias audit flags 100% of biased language in test dataset
+- [ ] Deterministic keyword bias pass flags every seeded phrase in the versioned bias test set (set is a Phase 2 deliverable — do not claim a pass rate until it exists)
 - [ ] Employer sees ranked candidates with scores + evidence-cited rationales
 - [ ] Cost estimate shown before processing; $0.00 for free tier
 - [ ] Audit entries logged for every AI scoring action

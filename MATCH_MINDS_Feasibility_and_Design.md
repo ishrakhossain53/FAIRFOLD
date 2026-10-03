@@ -8,17 +8,20 @@
 
 ## How to read this document
 
-This file supplements — and does not replace — the two engineering specifications:
+This file supplements — and does not replace — the specifications below:
 
 | Document | Role | Status |
 |---|---|---|
 | `MATCH_MINDS_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 43 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
-| `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | **Supplement** |
+| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | Architecture, 50 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
+| `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
+| `design.md` | UI design system, 62 page specs, 23 wireframes, implementation notes | Supplement |
+| `MATCH_MINDS_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
 
-**No content is duplicated here.** Where a section needs detail that already exists
-(compliance checklist, pricing tiers, ADRs), this document *cites* the canonical
-section rather than restating it, so the two cannot drift apart.
+**Functional requirements live in the Arch Doc §4.1.** `prd.md` proposes them and this
+document traces them to stories and pages; neither is the origin. Where a section needs
+detail that already exists (compliance checklist, pricing tiers, ADRs), this document
+*cites* the canonical section rather than restating it, so the documents cannot drift apart.
 
 ### Source-of-truth rule for this document
 
@@ -37,6 +40,8 @@ Section numbers are **ambiguous across documents by nature** — this document h
 | `Arch Doc §N.M` | `MATCH_MINDS_Project_Architecture_and_Requirements.md` §N.M |
 | `Complete Doc §N.M` | `MATCH_MINDS_Complete_Project_Document.md` §N.M |
 | `Arch §N.M` / `Complete §N.M` | short form of the above, in tables and bullet lists |
+| `PRD §N.M` | `prd.md` §N.M |
+| `design.md §N.M` | `design.md` §N.M |
 | Bare `§N.M` | **this document**, unless the surrounding sentence names the other file |
 
 ---
@@ -192,7 +197,7 @@ See §1.3. **`[PLACEHOLDER]`**
 
 ### 2.2 Functional requirements
 
-**Complete.** 43 functional requirements with unique IDs, priorities, and Given/When/Then
+**Complete.** 50 functional requirements with unique IDs, priorities, and Given/When/Then
 acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` §4.1.
 
 | Group | ID range | Count | Priority distribution |
@@ -202,6 +207,8 @@ acceptance criteria — `MATCH_MINDS_Project_Architecture_and_Requirements.md` �
 | Employer portal | REQ-FR-025 – FR-036 | 12 | 6 High, 6 Medium, 1 Low |
 | Administrative / GDPR | REQ-FR-037 – FR-041 | 5 | 3 High, 2 Medium |
 | Job discovery & messaging | REQ-FR-042 – FR-043 | 2 | 1 High, 1 Medium |
+| Employer organisation & billing | REQ-FR-045 – FR-048 | 4 | 1 High, 3 Medium |
+| Certification & content management | REQ-FR-044, FR-049 – FR-050 | 3 | 2 Medium, 1 Low |
 
 Representative example:
 
@@ -237,7 +244,7 @@ by axe-core/pa11y in CI (REQ-COM-007).
 
 ### 2.4 User stories
 
-Derived one-to-one from the 43 FRs in Arch Doc §4.1. Written in standard
+Derived one-to-one from the 50 FRs in Arch Doc §4.1. Written in standard
 *As a / I want / so that* form with story points and MoSCoW priority.
 
 #### Authentication — actor: Registered User
@@ -302,14 +309,31 @@ Derived one-to-one from the 43 FRs in Arch Doc §4.1. Written in standard
 | US-054 | As a **user**, I want to export all my personal data, so that I can exercise my right to portability. | FR-040 | 5 | Must |
 | US-055 | As a **user**, I want my data deleted on request, so that I can exercise my right to erasure. | FR-041 | 8 | Must |
 
+#### Supporting platform features — actor: Candidate / Employer / Admin
+
+> Added with `REQ-FR-044` – `REQ-FR-050` (round 2 of the traceability audit).
+
+| Story ID | User story | FR | Pts | Priority |
+|---|---|---|---|---|
+| US-056 | As a **candidate**, I want to list the certifications I have earned, so that my verified skills are visible to employers. | FR-044 | 3 | Should |
+| US-057 | As a **new employer**, I want to create my company profile, so that I can post jobs. | FR-045 | 3 | Must |
+| US-058 | As an **employer**, I want to see my hiring pipeline at a glance, so that I know what needs my attention today. | FR-046 | 5 | Should |
+| US-059 | As an **employer admin**, I want to invite colleagues and set their roles, so that the right people can act on my behalf. | FR-047 | 5 | Should |
+| US-060 | As an **employer**, I want to see my plan, usage and invoices, so that I can manage cost without contacting support. | FR-048 | 5 | Could |
+| US-061 | As an **admin**, I want to create and edit assessments, so that candidates can be tested on skills. | FR-049 | 5 | Should |
+| US-062 | As an **admin**, I want to send a scheduled announcement to a chosen audience, so that I can communicate service changes. | FR-050 | 3 | Could |
+
 **Priority model:** MoSCoW — **Must** = 26 stories (core flow, MVP-blocking),
 **Should** = 13, **Could** = 3. No "Won't" items; deliberate exclusions are listed in
 Arch Doc §1.2 Out of Scope.
 
-**Coverage:** all 43 functional requirements map to at least one user story.
-**Total effort:** 42 stories, 170 story points.
+**Coverage:** all 50 functional requirements map to at least one user story.
+**Total effort:** 49 stories, 199 story points.
+**MoSCoW:** 27 Must · 17 Should · 5 Could.
 
-#### 2.4.1 Traceability gaps — found, and now closed
+#### 2.4.1 Traceability gaps
+
+##### Round 1 — found and closed ✅
 
 Two capabilities appeared in the user journeys (Complete Doc §7.1, §7.2) and had
 database models and use cases, but **had no functional requirement** in Arch Doc §4.1:
@@ -333,9 +357,45 @@ implementation guesswork:
   reach an external provider, and that deleting one party soft-deletes rather than
   removes the counterparty's copy (the cascade problem noted in §3.7).
 
-One follow-up remains: `Complete Doc §C.12` does not yet list public job
-browse/search endpoints for REQ-FR-042, nor the GDPR export/delete endpoints for
-REQ-FR-040/041.
+##### Round 2 — found by the page-level design audit, and now closed ✅
+
+The first pass worked from use cases and journeys. The second pass worked from
+`design.md` §10, which specifies all 62 pages and names the requirement behind each one.
+That surfaced **7 further pages that built a real feature with no functional requirement
+behind them** — the same class of problem as GAP-1/GAP-2, but smaller and found later:
+
+| Page | Feature | Now |
+|---|---|---|
+| #19 | Certifications | **REQ-FR-044** Certification Management |
+| #33 | Employer onboarding | **REQ-FR-045** Employer Company Profile |
+| #34 | Employer dashboard | **REQ-FR-046** Employer Dashboard |
+| #49 | Team and roles | **REQ-FR-047** Employer Team and Roles |
+| #50 | Billing and plan | **REQ-FR-048** Billing and Plan Management |
+| #61 | Assessment management | **REQ-FR-049** Assessment Management |
+| #62 | Broadcast announcement | **REQ-FR-050** Broadcast Announcement (optional) |
+
+**Status: closed.** All seven are now in Arch Doc §4.1 as a new *Employer Organisation,
+Billing & Content* group with Given/When/Then criteria, and each has a user story
+(`US-056`–`US-062`) in §2.4. FR↔story↔page traceability now holds across all 62 pages
+except the two marketing pages (#1 landing, #2 pricing), which correctly need no FR.
+
+Four conditions were written into the requirements rather than left to implementation guesswork:
+
+- **REQ-FR-045** — a job cannot be activated until a company profile exists, which stops an
+  anonymous employer from posting.
+- **REQ-FR-047** — the last `employer_hr` cannot be demoted or removed, which would otherwise
+  orphan the account.
+- **REQ-FR-048** — subscription state updates on the Stripe **webhook**, not the browser
+  redirect, so a failed webhook leaves the subscription unchanged rather than half-updated.
+- **REQ-FR-050** — an empty audience match must report rather than silently succeed. The
+  requirement is marked **optional**: if the team decides the page is not worth building,
+  remove `REQ-FR-050`, `US-062` and page #62 together.
+
+The Arch Doc now holds **50 functional requirements**.
+
+One further follow-up from round 1 remains: `Complete Doc §C.12` does not yet list public
+job browse/search endpoints for REQ-FR-042, nor the GDPR export/delete endpoints for
+REQ-FR-040/041 — nor endpoints for the seven requirements added in round 2.
 
 ### 2.5 Product backlog and priority
 
@@ -344,13 +404,13 @@ criteria in Arch Doc §10. The phase breakdown aligns with the backlog:
 
 | Phase | Weeks | Story points | Theme |
 |---|---|---|---|
-| 1 — Foundation | 1–3 | ~28 | Auth, profiles, jobs, job search (FR-042), applications (no AI) |
+| 1 — Foundation | 1–3 | ~41 | Auth, profiles, jobs, job search (FR-042), applications, employer onboarding (no AI) |
 | 2 — AI Integration | 4–6 | ~41 | PII stripping, screening, rationale, bias audit |
-| 3 — Candidate AI | 7–9 | ~37 | Assessments, coaching, journey mapping, messaging (FR-043) |
-| 4 — Hardening | 10–12 | ~36 | Security, GDPR, monitoring, CI/CD |
-| 5 — Advanced | 13+ | ~28 | i18n, billing, WebSockets, skill ontology |
+| 3 — Candidate AI | 7–9 | ~45 | Assessments, coaching, journey mapping, messaging (FR-043), certifications |
+| 4 — Hardening | 10–12 | ~39 | Security, GDPR, monitoring, CI/CD, announcements |
+| 5 — Advanced | 13+ | ~33 | i18n, billing (FR-048), WebSockets, skill ontology |
 
-**Total: ~170 story points**, matching the 42 stories in §2.4.
+**Total: ~199 story points**, matching the 49 stories in §2.4.
 
 *(Point figures are a planning estimate for the Gantt in §2.7, not an independent
 measurement — re-estimate at sprint planning. The authoritative task lists are
@@ -443,7 +503,7 @@ precisely because the marginal cost of an additional free user is close to zero.
 | Backup/restore | Automated backup with restore verification | §C.4 |
 | Secrets | Docker secrets / cloud secret manager; no `.env` on servers | §5.6 |
 
-**Constraint to declare honestly:** a 4-person student team operating a production
+**Constraint to declare honestly:** a 5-person student team operating a production
 service is a genuine operational risk. The mitigation is deliberate scope control —
 MVP targets a single VPS, not multi-region, and operational procedures are written
 to be followable by one person.
@@ -527,7 +587,7 @@ resolved in §5.7 and both should be acknowledged as open items.
 - requirements for an AI product cannot be fully specified up front — the quality of
   rationales and bias detection can only be tuned by building and evaluating;
 - the phased roadmap (§2.6.4) maps directly to sprint goals, giving visible progress;
-- the 4-person team suits a lightweight ceremony structure.
+- the 5-person team suits a lightweight ceremony structure.
 
 **Practices:** sprint planning, daily standup, sprint review with sponsor/stakeholder,
 retrospective. Definition of Done = code merged + tests passing + 80% coverage floor
@@ -543,15 +603,34 @@ sprint targets a user-story subset from §2.4.
 
 #### 2.7.2 Gantt chart
 
+**Kickoff: Monday 2026-10-05**, the first working day after this specification set was
+completed (`prd.md` and `design.md` are dated October 2026). Weekends are excluded, so
+each "week" below is five working days.
+
+| Milestone | Week | Ends |
+|---|---|---|
+| Phase 1 — Foundation | 1–3 | Fri 2026-10-23 |
+| Phase 2 — AI Integration | 4–6 | Fri 2026-11-13 |
+| Phase 3 — Candidate AI | 7–9 | Fri 2026-12-04 |
+| Phase 4 — Hardening | 10–12 | Fri 2026-12-25 |
+
+> ⚠️ **The Phase 4 milestone lands on Christmas Day.** This is a real scheduling problem,
+> not a formality: a 5-person student team losing ~2 weeks a year to holidays will not
+> finish a 12-week plan that starts in October without slipping. Two ways out — either
+> start earlier, or plan a **demo at the end of Phase 3 (early December)** and treat the
+> hardened build as a January continuation. The phase *durations* are the commitment;
+> **the dates are a plan.**
+
+
 ```mermaid
 gantt
-    title MATCH MINDS — 12-Week MVP Schedule
+    title MATCH MINDS — 12-Week MVP Schedule (kickoff 2026-10-05)
     dateFormat  YYYY-MM-DD
     axisFormat  %b %d
     excludes weekends
 
     section Phase 1 — Foundation
-    Docker stack + Django scaffold      :p1a, 2026-01-05, 3d
+    Docker stack + Django scaffold      :p1a, 2026-10-05, 3d
     Security settings configuration     :p1b, after p1a, 2d
     User model + email auth + verification :p1c, after p1b, 4d
     Candidate + Employer profiles       :p1d, after p1b, 4d
@@ -616,10 +695,11 @@ Complete Doc §10.4:
 
 | Person | Role | Responsibilities | Assigned stories |
 |---|---|---|---|
-| Md Habibulla Mahmud | Frontend Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts | US-013, US-014, US-030–032 |
-| Minhajul Islam Rifat | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040 |
-| Md Jobayer Arafat | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054 |
-| Asif Salman Zarar | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping design, design system | US-013, US-040, all UI specs |
+| Sardar Shihab | Full-Stack Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts; backend endpoints as needed | US-013, US-014, US-030–032 |
+| Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040 |
+| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062 |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — tokens, component library, accessibility (WCAG 2.1 AA) | US-040, all design tokens and UI specs |
+| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping interaction design | US-013, all wireframes |
 
 **Declared gap:** no dedicated DevOps/Infrastructure role — currently absorbed by the
 backend engineer. §2.6.3 identifies this as the largest operational risk.
@@ -656,7 +736,7 @@ Complete Doc §4.2 (Django app structure).
 **Architecture in brief.** A Django monolith with a DRF API, Django Templates + HTMX
 for the frontend, Celery for asynchronous work, and PostgreSQL + pgvector as the
 system of record. The monolith choice is deliberate and documented as an ADR
-(Arch Doc §3.1): a single deployable unit is operationally appropriate for a 4-person
+(Arch Doc §3.1): a single deployable unit is operationally appropriate for a 5-person
 team, and DRF keeps a clean seam if services must be extracted later.
 
 **Layers:**
@@ -939,6 +1019,18 @@ classDiagram
         +str stripe_customer_id 🔒
     }
 
+    class EmployerTeamMember {
+        +UUID id
+        +UUID employer_id
+        +UUID user_id
+        +str role
+        +UUID invited_by
+        +str invite_status
+        +bool mfa_enforced
+        +datetime joined_at
+        +can_be_removed() bool
+    }
+
     class Subscription {
         +UUID id
         +UUID employer_id
@@ -1094,7 +1186,10 @@ classDiagram
         +UUID recipient_id
         +str content
         +bool read
+        +datetime deleted_at
+        +bool deleted_by_user
         +datetime created_at
+        +soft_delete(by_user) void
     }
 
     class Notification {
@@ -1157,6 +1252,9 @@ classDiagram
 
     EmployerProfile "1" *-- "0..1" Subscription : subscribes via
     EmployerProfile "1" *-- "0..N" Job : posts
+    EmployerProfile "1" *-- "0..N" EmployerTeamMember : has
+    User "1" <-- "0..N" EmployerTeamMember : joins as
+    User "1" <-- "0..N" EmployerTeamMember : invites
 
     Job "1" *-- "0..N" Application : receives
     Job "1" *-- "0..N" InterviewPack : has
@@ -1188,7 +1286,7 @@ classDiagram
 
 ### 3.7 ER diagram
 
-Derived from the SQL schema in Arch Doc §5.1 (21 tables) and the Django models in
+Derived from the SQL schema in Arch Doc §5.1 (22 tables) and the Django models in
 Complete Doc §8.2 / §C.11.
 
 ```mermaid
@@ -1216,6 +1314,8 @@ erDiagram
 
     EMPLOYER_PROFILES ||--o| SUBSCRIPTIONS : "subscribes via"
     EMPLOYER_PROFILES ||--o{ JOBS : "posts"
+    EMPLOYER_PROFILES ||--o{ EMPLOYER_TEAM_MEMBERS : "has"
+    USERS ||--o{ EMPLOYER_TEAM_MEMBERS : "joins / invites"
 
     JOBS ||--o{ APPLICATIONS : "receives"
     JOBS ||--o{ INTERVIEW_PACKS : "has"
@@ -1291,6 +1391,18 @@ erDiagram
         timestamptz ai_quota_reset_date
         integer max_jobs
         integer jobs_used
+    }
+
+    EMPLOYER_TEAM_MEMBERS {
+        uuid id PK
+        uuid employer_id FK
+        uuid user_id FK
+        varchar role "manager-hr-interviewer"
+        uuid invited_by FK "nullable, SET NULL"
+        varchar invite_status "pending-accepted-revoked"
+        boolean mfa_enforced
+        timestamptz joined_at
+        timestamptz created_at
     }
 
     JOBS {
@@ -1419,11 +1531,13 @@ erDiagram
 
     MESSAGES {
         uuid id PK
-        uuid application_id FK
-        uuid sender_id FK
-        uuid recipient_id FK
-        text content
+        uuid application_id FK "nullable, SET NULL"
+        uuid sender_id FK "nullable, SET NULL"
+        uuid recipient_id FK "nullable, SET NULL"
+        text content "blanked on erasure"
         boolean read
+        timestamptz deleted_at "soft delete"
+        boolean deleted_by_user
         timestamptz created_at
     }
 
@@ -1472,8 +1586,8 @@ erDiagram
 ```
 
 **Cardinality reading:** `||` = exactly one, `o|` = zero or one, `o{` = zero or many.
-All 21 tables and 25 relationships shown. The canonical SQL (Arch Doc §5.1) declares
-**27** foreign keys; the two not drawn are redundant self-references on `users` that
+All 22 tables and 28 relationships shown. The canonical SQL (Arch Doc §5.1) declares
+**30** foreign keys; the two not drawn are redundant self-references on `users` that
 would clutter the diagram without adding information — `USERS → CANDIDATE_PROFILES`
 and `USERS → EMPLOYER_PROFILES` are both already shown. PK/FK detail is carried in the
 attribute blocks.
@@ -1485,19 +1599,35 @@ Note the three special cases:
 - `DATA_DELETION_REQUESTS.user_id` is unique — at most one active erasure request.
 - `APPLICATIONS` carries a composite `UNIQUE(job_id, candidate_id)` constraint, not
   expressible in Mermaid's ER notation; it is documented here and in the class diagram.
+- `EMPLOYER_TEAM_MEMBERS` is the join that makes an employer organisation many-to-many
+  with users. `EmployerProfile.user` is `OneToOneField`, so without this table an employer
+  company could have exactly one person — which is what `REQ-FR-047` needs and could not
+  previously express. It carries `UNIQUE(employer_id, user_id)` and a `CHECK` constraint
+  limiting `role` to the three defined employer roles.
+- `MESSAGES` is the one table whose foreign keys are `SET NULL` rather than `CASCADE`;
+  see the erasure note below.
 
-**On `ON DELETE CASCADE` breadth.** Most foreign keys cascade, which means deleting a
-user deletes their profile, resumes, applications, interviews and messages. That is
-intentional (GDPR erasure, FR-041) but has one consequence worth stating: a cascade
-from `USERS` reaches `APPLICATIONS`, and therefore `INTERVIEWS` and `MESSAGES`,
-belonging to **other** users. Erasing one party to a conversation deletes it for both.
-For a messaging feature this is a design decision, not an oversight, and if message
-history must survive one party's erasure the two conversation FKs need `SET NULL` plus
-a soft-delete flag on `MESSAGES`.
+**On `ON DELETE CASCADE` breadth, and the one deliberate exception.** Most foreign keys
+cascade, so deleting a user deletes their profile, resumes, applications and interviews.
+That is intentional (GDPR erasure, REQ-FR-041). But a cascade from `USERS` reaches
+`APPLICATIONS`, and therefore `INTERVIEWS` and `MESSAGES`, belonging to **other** users —
+so erasing one party to a conversation would have deleted it for both.
+
+That is now fixed. `MESSAGES` is the single exception: `application_id`, `sender_id` and
+`recipient_id` are all `ON DELETE SET NULL`, and the table carries `deleted_at` and
+`deleted_by_user`. On erasure the row is **retained** with `content` blanked and the party
+references nulled, so the counterparty keeps a thread with a visible gap rather than losing
+it silently. This is what `REQ-FR-043` requires; before this change the requirement and
+the DDL contradicted each other.
+
+`INTERVIEWS` still cascades, and deliberately so — an interview is a mutual arrangement
+with no separable half, so deleting a user's interview history is correct.
 
 ### 3.8 Data dictionary
 
-Field-level definitions for the core entities. Full SQL DDL: Arch Doc §5.1.
+Field-level definitions for the 8 entities that carry the interesting behaviour: the four
+lifecycle tables plus the four with non-obvious constraints or erasure semantics
+(`EMPLOYER_TEAM_MEMBERS`, `MESSAGES`). Full SQL DDL: Arch Doc §5.1 (22 tables).
 
 #### USERS
 
@@ -1575,6 +1705,48 @@ Field-level definitions for the core entities. Full SQL DDL: Arch Doc §5.1.
 > **Composite constraint:** `UNIQUE(job_id, candidate_id)` — a candidate may apply to
 > a given job only once.
 
+#### EMPLOYER_TEAM_MEMBERS
+
+| Field | Type | Key | Null | Default | Description |
+|---|---|---|---|---|---|
+| id | UUID | **PK** | NO | `gen_random_uuid()` | — |
+| employer_id | UUID | **FK** → `employer_profiles.id` | NO | — | `ON DELETE CASCADE` — company is deleted with its team |
+| user_id | UUID | **FK** → `users.id` | NO | — | `ON DELETE CASCADE` |
+| role | VARCHAR(20) | | NO | `'interviewer'` | `employer_manager`, `employer_hr`, `interviewer` |
+| invited_by | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` — invite record survives |
+| invite_status | VARCHAR(20) | | NO | `'pending'` | `pending`, `accepted`, `revoked` |
+| mfa_enforced | BOOLEAN | | NO | `TRUE` | REQ-FR-047 requires MFA before an invited member can act |
+| joined_at | TIMESTAMPTZ | | YES | — | Set when the invite is accepted |
+| created_at | TIMESTAMPTZ | | NO | `NOW()` | — |
+
+> **Constraints:** `UNIQUE(employer_id, user_id)` — one person has one role per company.
+> `CHECK (role IN ('employer_manager','employer_hr','interviewer'))` — the role set is
+> closed, so an invalid role cannot be written.
+>
+> **Why this table exists:** `EmployerProfile.user` is `OneToOneField`, so before this
+> table an employer company could have exactly **one** person. `REQ-FR-047` requires
+> inviting, re-roling and removing colleagues, which a 1-to-1 relation cannot express.
+
+#### MESSAGES (soft-delete)
+
+| Field | Type | Key | Null | Default | Description |
+|---|---|---|---|---|---|
+| id | UUID | **PK** | NO | `gen_random_uuid()` | — |
+| application_id | UUID | **FK** → `applications.id` | YES | — | `ON DELETE SET NULL` — thread survives application deletion |
+| sender_id | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` |
+| recipient_id | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` |
+| content | TEXT | | NO | — | Blanked on erasure — see note |
+| read | BOOLEAN | | NO | `FALSE` | Unread marker |
+| deleted_at | TIMESTAMPTZ | | YES | — | Set on soft delete |
+| deleted_by_user | BOOLEAN | | NO | `FALSE` | Whether the erasure was the user's own request |
+| created_at | TIMESTAMPTZ | | NO | `NOW()` | Indexed with `application_id` |
+
+> **The one table where FKs do not cascade.** On GDPR erasure (REQ-FR-041) of one party,
+> the row is retained with `content` blanked and the party references nulled, so the
+> counterparty keeps a thread with a visible gap rather than losing it silently
+> (`REQ-FR-043`). `deleted_at` distinguishes a soft delete from a live row; `null`
+> `sender_id`/`recipient_id` plus a blank body is the erasure marker.
+
 #### AUDIT_LOG_ENTRIES (append-only)
 
 | Field | Type | Key | Null | Default | Description |
@@ -1618,35 +1790,40 @@ denormalised copies exist where search performance matters (e.g.
 
 #### 3.9.1 Wireframes
 
-> **Status: partially delivered.** A written page specification now exists for **all 18**
-> required screens in `design.md` §10, but only **3 of 18** have a wireframe visual.
-> See the coverage table below for exactly which are missing.
+> **Status: complete for low fidelity.** `design.md` §10 specifies all 62 pages and
+> draws **23 wireframes** covering **36 of those 62 pages** — which includes **all 18**
+> required screens and **all 22** core-flow pages. This section no longer needs any
+> visual assets to be complete.
 
 **Screens required (per §3.2 workflows and §3.3 use cases):**
 
-| # | Screen | Primary actor | Source FRs | Page spec | Wireframe |
+| # | Screen | Primary actor | Source FRs | Pages | Wireframe |
 |---|---|---|---|---|---|
-| 1 | Registration / login (incl. MFA) | Guest, all | FR-001 – FR-008 | `design.md` #6–11 | ❌ |
-| 2 | Candidate onboarding + profile | Candidate | FR-009, FR-014 | #14, #16 | ❌ |
-| 3 | Resume upload + upload progress | Candidate | FR-010 | #17 | ❌ |
-| 4 | Job browse / search results | Candidate | FR-042 | #4, #5 | ❌ |
-| 5 | Job detail + apply | Candidate | FR-022 | #5, #30 | ❌ |
-| 6 | Application tracker (status timeline) | Candidate | FR-023 | #28 | ❌ |
-| 7 | Match score + rationale view | Candidate | FR-024 | #29 | ✅ `design.md` §10.5 |
-| 8 | Journey map (interactive timeline + skill evolution) | Candidate | FR-016, FR-017 | #20–22 | ❌ |
-| 9 | Assessment taking (timed) | Candidate | FR-019 | #23–25 | ❌ |
-| 10 | Interview coaching feedback | Candidate | FR-021 | #27 | ❌ |
-| 11 | Employer job list + create/edit job | Employer | FR-025 – FR-027 | #35, #36 | ❌ |
-| 12 | Application list (ranked) | Employer | FR-029 | #40 | ✅ `design.md` §10.5 |
-| 13 | Candidate review (rationale + bias audit) | Employer | FR-030 | #41 | ✅ `design.md` §10.5 |
-| 14 | AI screening confirm + cost estimate | Employer | FR-028 | #38, #39 | ❌ |
-| 15 | Interview pack builder | Employer | FR-031 | #42 | ❌ |
-| 16 | Scheduling + feedback form | Employer, Interviewer | FR-032, FR-033 | #43–45 | ❌ |
-| 17 | Analytics dashboard | Employer | FR-035 | #47 | ❌ |
-| 18 | Admin: users, audit log search | Admin | FR-038, FR-039 | #56–58 | ❌ |
+| 1 | Registration / login (incl. MFA) | Guest, all | FR-001 – FR-008 | #6–8 | ✅ S01 |
+| 2 | Candidate onboarding + profile | Candidate | FR-009 | #14, #16 | ✅ S02 |
+| 3 | Resume upload + upload progress | Candidate | FR-010 – FR-013 | #17 | ✅ S03 |
+| 4 | Job browse / search results | Candidate | FR-042 | #4 | ✅ S04 |
+| 5 | Job detail + apply | Candidate | FR-022, FR-042 | #5, #30 | ✅ S05 |
+| 6 | Application tracker (status timeline) | Candidate | FR-023 | #28 | ✅ S06 |
+| 7 | Match score + rationale view | Candidate | FR-024 | #29 | ✅ S07 |
+| 8 | Journey map (timeline + skill evolution) | Candidate | FR-016, FR-017 | #20, #21 | ✅ S08 |
+| 9 | Assessment taking (timed) | Candidate | FR-019 | #25, #26 | ✅ S09 |
+| 10 | Interview coaching feedback | Candidate | FR-021 | #27 | ✅ S10 |
+| 11 | Employer job list + create/edit job | Employer | FR-025 – FR-027 | #35, #36 | ✅ S11 |
+| 12 | Application list (ranked) | Employer | FR-029 | #40 | ✅ S12 |
+| 13 | Candidate review (rationale + bias audit) | Employer | FR-030 | #41 | ✅ S13 |
+| 14 | AI screening confirm + cost estimate | Employer | FR-028 | #38, #39 | ✅ S14 |
+| 15 | Interview pack builder | Employer | FR-031 | #42 | ✅ S15 |
+| 16 | Scheduling + feedback form | Employer, Interviewer | FR-032, FR-033 | #43, #45 | ✅ S16 |
+| 17 | Analytics dashboard | Employer | FR-035 | #47 | ✅ S17 |
+| 18 | Admin: users, audit log search | Admin | FR-038, FR-039 | #56, #58 | ✅ S18 |
 
-**What `design.md` delivers beyond wireframes** — all owned by Asif Salman Zarar,
-UI/UX Designer (Complete Doc §10.4):
+Wireframes `X01`–`X05` add the remaining core-flow pages: landing (#1), password
+recovery and verification (#9–11), candidate dashboard (#15), skills manager (#18),
+and employer dashboard (#34).
+
+**What `design.md` delivers** — all owned by Mohammad Abdul Ahad, UI/UX Designer
+(Complete Doc §10.4):
 
 | Deliverable | Where | State |
 |---|---|---|
@@ -1654,24 +1831,36 @@ UI/UX Designer (Complete Doc §10.4):
 | Colour tokens + 16 verified contrast ratios | §3.1–3.2 | ✅ complete |
 | Typography, spacing, breakpoints, app shell | §4–5 | ✅ complete |
 | 19 generic + 10 product-specific components | §6–7 | Specified, not drawn |
+| Component state sheet (all states, text rendering) | §6.6 | ✅ complete |
 | State matrix, HTMX interaction patterns, error copy | §8 | ✅ complete |
 | 13 accessibility rules, WCAG 2.1 AA | §9 | ✅ complete |
-| 62 page specifications with FR and phase | §10.1–10.4 | ✅ complete |
-| 3 low-fi wireframes | §10.5 | ⚠️ 3 of 18 |
+| 62 page specifications with FR, phase and core-flow flag | §10.0–10.4 | ✅ complete |
+| Marker legend and page-to-wireframe map | §10.0 | ✅ complete |
+| 23 low-fi wireframes (36 of 62 pages) | §10.5 | ✅ complete |
+| Per-screen `A11y:` annotations inside each wireframe | §10.5 | ✅ complete |
 | CSS variables, Tailwind config, template tree, perf budget | §11 | ✅ complete |
-| Deliverables checklist with owners and dates | §12 | 10 items open |
+| Deliverables checklist with owners and status | §12 | 10 items, 7 drafted |
 
-**What is still missing** — tracked as open deliverables in `design.md` §12:
+**What is still missing** — tracked in `design.md` §12, all low-risk:
 
-- **15 wireframes** for the screens marked ❌ above
-- High-fidelity mockups (mobile 360px, desktop 1280px) for the core flow
-- The Figma file, component library with all states, logo and icon sets
-- Journey Map prototype including its table alternative
-- Accessibility annotations (heading levels, landmarks, focus order) on key pages
+- **Figma file and Figma components.** The tokens and state decisions are recorded as
+  text, which is enough to brief a build, but the design tool itself has not been started.
+- **High-fidelity mockups** (mobile 360px, desktop 1280px) for the core flow
+- **Interactive Journey Map prototype** — `S08` draws timeline, skills, story and the
+  table alternative, but nothing is clickable yet
+- Logo set, favicon, social image, icon set, illustration notes
+- Microcopy for emails and notifications (in-app copy is drafted in §2.3)
+- Usability test plan (5 candidates, 5 recruiters)
+
+**26 pages have a written spec but no wireframe** (`design.md` §10.6): #2, #3, #12, #13,
+#19, #23, #24, #31, #32, #33, #37, #44, #46, #48, #49, #50, #51, #52, #53, #54, #55,
+#57, #59, #60, #61, #62. These reuse components already drawn in `S01`–`S18`, so they
+are lower risk — but note that **#31 and #48 are the two messaging pages**, so the
+`REQ-FR-043` UI has no drawing even though the requirement now exists.
 
 **Design decisions still unconfirmed** (`design.md` §12): score-band thresholds once
 the scoring model is calibrated; **when the candidate's name is revealed to the
-employer** (also open in `prd.md` §19 item 4 — this one changes screens #40 and #41);
+employer** (also open in `prd.md` §19.2 item 4 — this one changes screens #40 and #41);
 whether dark mode ships in the MVP; whether Bengali ships at launch; final brand
 styling and accent colour.
 
@@ -1741,7 +1930,7 @@ MATCH MINDS
 **Test tooling** (Complete Doc §C.13): axe-core and pa11y, run in CI across all HTML
 pages, form fields and keyboard navigation paths.
 
-**Design-system responsibility:** Asif Salman Zarar owns the design system
+**Design-system responsibility:** Mohammad Abdul Ahad owns the design system
 (Complete Doc §10.4). **This is now delivered** — `design.md` §3.1 defines the token
 set, §3.2 records 16 measured contrast ratios (lowest passing pair is
 `--ink-4` on `--surface` at 4.76 : 1), §3.1 states that `--border` at 1.48 : 1 is
@@ -1754,6 +1943,11 @@ Two rules are load-bearing for the charts called out above: `design.md` §9 requ
 **every** chart to ship a table alternative and a one-sentence summary, and §11.3
 provides a reusable `chart_with_table.html` component so it is defined once rather
 than re-implemented per page.
+
+`design.md` §10.5 goes further and carries a per-screen **`A11y:` annotation line inside
+each of the 23 wireframes**, so accessibility is specified at the level of the individual
+screen rather than only as a general rule set. `S08` (Journey Map) and `S17` (Analytics)
+are the two charts to check those annotations against.
 
 **A note on charts:** the Journey Mapping timeline (FR-016) and the employer analytics
 dashboard (FR-035) are both chart-heavy. Canvas-based charting libraries are
@@ -1778,9 +1972,9 @@ Section coverage of this document against the project specification. ✅ = compl
 | 5 | Solution, objectives, scope, users | ✅ | §1.5 |
 | **REQUIREMENTS & PLANNING** ||||
 | 6 | Requirement collection method | ❌ | §1.3 — **team must complete** |
-| 7 | Functional requirements with IDs | ✅ | §2.2 (43 FRs — Arch Doc §4.1) |
+| 7 | Functional requirements with IDs | ✅ | §2.2 (50 FRs — Arch Doc §4.1) |
 | 8 | Measurable NFRs | ✅ | §2.3 (50 NFRs — Arch Doc §4.2) |
-| 9 | User stories, priority, backlog | ✅ | §2.4 (42 stories), §2.5 |
+| 9 | User stories, priority, backlog | ✅ | §2.4 (49 stories), §2.5 |
 | 10 | Five-way feasibility | ✅ | §2.6.1 – §2.6.5 |
 | 11 | Methodology, Gantt, roles, risk | ✅ | §2.7.1 – §2.7.4 |
 | **SYSTEM ANALYSIS & DESIGN** ||||
@@ -1789,7 +1983,7 @@ Section coverage of this document against the project specification. ✅ = compl
 | 14 | Activity + sequence diagrams | ✅ | §3.4 + Arch §5.3 |
 | 15 | Class diagram | ✅ | §3.6 |
 | 16 | ER diagram, keys, data dictionary | ✅ | §3.7, §3.8 |
-| 17 | Wireframes, UI, navigation, a11y | ⚠️ | §3.9.2, §3.9.3 done; `design.md` has 18/18 page specs + design system, but only 3/18 wireframes — §3.9.1 |
+| 17 | Wireframes, UI, navigation, a11y | ✅ | §3.9.1 (18/18 screens, 23 wireframes), §3.9.2, §3.9.3 — `design.md` |
 
 ### Outstanding items requiring team input
 
@@ -1797,12 +1991,20 @@ Section coverage of this document against the project specification. ✅ = compl
    sample size. Do not claim research that was not conducted.
 2. **§1.2 — Real-world problem example.** Supply one concrete case (the 2018 Amazon
    CV-screening case is directly relevant and well documented).
-3. **§3.9.1 — Wireframes.** `design.md` covers all 18 screens as written page specs
-   and delivers the full design system, but only 3 wireframe visuals exist (#40, #41,
-   #29). The other 15 are listed per-screen in §3.9.1 and tracked in `design.md` §12.
-4. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` does not list public job
+3. **§3.9.1 — design tooling.** Wireframes are now complete for low fidelity (23 of them,
+   covering all 18 required screens and all 22 core-flow pages), but the **Figma file,
+   Figma components and high-fidelity mockups have not been started**. The decisions they
+   would encode are recorded as text in `design.md` §3–§7, §6.6 and §11, which is enough to
+   brief a build. Tracked as `design.md` §12 items 1–4.
+4. **§2.4.1 round 2 — decided.** The page-level design audit found 7 pages with features
+   but no functional requirement. All seven are now in the Arch Doc as `REQ-FR-044`–`050`
+   with matching stories `US-056`–`US-062`. **One decision remains: is `REQ-FR-050`
+   (broadcast announcement, page #62) worth building?** It is marked optional; if not,
+   remove the FR, the story and the page together.
+5. **§2.4.1 follow-up — API list.** `Complete Doc §C.12` does not list public job
    browse/search endpoints for the new REQ-FR-042, nor the GDPR export/delete
-   endpoints for REQ-FR-040/041.
-5. **Unconfirmed design decisions** (`design.md` §12) — most importantly, **when the
+   endpoints for REQ-FR-040/041. The same list also lacks endpoints for the seven
+   requirements added on 2026-10-03.
+6. **Unconfirmed design decisions** (`design.md` §12) — most importantly, **when the
    candidate's name is revealed to the employer**, which changes screens #40 and #41
    and is also open in `prd.md` §19 item 4.
