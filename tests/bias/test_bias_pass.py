@@ -20,16 +20,17 @@ from pathlib import Path
 
 import pytest
 
-from ai.bias_pass import load_terms, normalise, scan
+from ai.bias_pass import ScanContext, load_rules, load_terms, normalise, scan
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SET_DIR = REPO_ROOT / "tests" / "bias" / "v1.0.0"
+SET_DIR = REPO_ROOT / "tests" / "bias" / "v1.0.1"
 
 MANIFEST = json.loads((SET_DIR / "manifest.json").read_text(encoding="utf-8"))
 TERMS_DOC = json.loads((SET_DIR / "keyword_terms.json").read_text(encoding="utf-8"))
 
-# Categories 1-8 are the proxy surface the pass exists to catch. Categories 9-10
-# are must-not-flag and exist to stop the pass being trivially good.
+# Categories 1-8 and 11-12 are the proxy surface the pass exists to catch.
+# Categories 9, 10 and 13 are must-not-flag and exist to stop the pass being
+# trivially good.
 FLAG_RATE_CATEGORIES = {
     "gendered_club_role",
     "institution_gender_signal",
@@ -39,6 +40,8 @@ FLAG_RATE_CATEGORIES = {
     "disability_health",
     "photo_appearance",
     "uncited_vague_rationale",
+    "numeric_age",
+    "graduation_year_proximity",
 }
 
 
@@ -63,8 +66,19 @@ def terms():
 
 
 @pytest.fixture(scope="module")
-def results(terms):
-    return {case["id"]: scan(case["text"], terms) for case in ALL_CASES}
+def rules():
+    """The numeric rule layer, added in v1.0.1 to close LIM-001 and LIM-002."""
+    return load_rules(SET_DIR)
+
+
+@pytest.fixture(scope="module")
+def context():
+    return ScanContext()
+
+
+@pytest.fixture(scope="module")
+def results(terms, rules, context):
+    return {case["id"]: scan(case["text"], terms, rules, context) for case in ALL_CASES}
 
 
 # ------------------------------------------------------------------ the pass
@@ -291,3 +305,75 @@ def test_apostrophe_and_case_variants_all_match(terms, raw, expected):
     like a pass result.
     """
     assert scan(raw, terms).flagged is expected
+
+
+# ------------------------------------------------- the numeric rules (v1.0.1)
+
+def test_every_rule_reports_as_checked_even_when_silent(results):
+    """The panel shows what was CHECKED, so an unfired rule must still appear.
+
+    Without this, a reader cannot distinguish "rule ran and found nothing" from
+    "rule did not run" -- and the second is indistinguishable from a pass.
+    """
+    silent = results["NEG-001"]
+    assert silent.rules_checked, "a clean scan must still report the rules it ran"
+    assert "graduation_year" in silent.rules_checked
+    assert "explicit_age_years" in silent.rules_checked
+
+
+def test_stated_age_is_caught_in_every_common_form(terms, rules, context):
+    """LIM-001. An age can be written at least four ways and all are proxies."""
+    for text in ("24 years old", "Age: 31", "Aged 22", "DOB: 12/03/1998",
+                 "Born on 1999-06-14", "Date of birth 4 July 1995"):
+        assert scan(text, terms, rules, context).flagged, f"not caught: {text!r}"
+
+
+def test_graduation_recency_is_parameterised_not_hardcoded(terms, rules):
+    """LIM-002. The window is a parameter, so 'recent' cannot silently mean 2026.
+
+    A rule hard-coding the current year would need editing every January, and
+    one omission would make last year's cohort stop flagging with nothing in
+    the changelog. So the year travels in ScanContext and is asserted here.
+    """
+    text = "Graduated in 2020."
+    assert not scan(text, terms, rules, ScanContext(reference_year=2026)).flagged
+    assert scan(text, terms, rules, ScanContext(reference_year=2026, graduation_window_years=10)).flagged
+
+
+def test_graduation_year_needs_an_education_keyword(terms, rules, context):
+    """A bare four-digit year is a phone number or a budget, not a signal.
+
+    Without the keyword requirement this rule would fire on every CV, and a
+    pass that flags everything reports clean by flagging everything.
+    """
+    assert not scan("Budget approved: 2026 for the platform team.", terms, rules, context).flagged
+    assert not scan("Call +880 1711 2026 for the recruiter.", terms, rules, context).flagged
+    assert scan("Graduated in 2026.", terms, rules, context).flagged
+
+
+def test_a_year_outside_the_window_never_flags(terms, rules, context):
+    """NUMF-009. Every resume has a graduation year, so an unbounded rule is useless."""
+    assert not scan("Graduated in 1994 from a public university.", terms, rules, context).flagged
+
+
+def test_ordinary_numbers_are_not_ages(terms, rules, context):
+    """The 10 numeric near-misses, as a single assertion over the worst shapes.
+
+    These are the cases a loosened rule would break first: a bare two-digit
+    number after 'team of', three-digit throughput, and durations.
+    """
+    for text in ("Managed a team of 12 junior engineers over three quarters.",
+                 "Sustained 120 req/s at p95 180 ms across six replicas.",
+                 "Ran a 1,000-concurrent applicant load test; 99.9 percent success.",
+                 "Owned the on-call rotation for 18 months; cut P1 incidents by 40 percent."):
+        assert not scan(text, terms, rules, context).flagged, f"false positive: {text!r}"
+
+
+def test_rule_matches_carry_their_captured_value(terms, rules, context):
+    """The audit trail must quote what fired, not just which rule.
+
+    A flag reading 'graduation_year' with no year attached is not evidence, and
+    evidence is the whole product claim.
+    """
+    result = scan("Graduated in 2026.", terms, rules, context)
+    assert "2026" in " ".join(result.highlights)

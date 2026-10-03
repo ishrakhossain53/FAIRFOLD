@@ -23,11 +23,11 @@ Everything else in the tree is specifications, requirements, and supporting conf
 | File | Lines | Role |
 | --- | ---: | --- |
 | `FAIRFOLD_Complete_Project_Document.md` | 2245 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2047 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1223 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2324 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `prd.md` | 1240 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | `design.md` | 1418 | Supplement — UI design system, 62 page specifications, 23 wireframes, frontend build tooling, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2778 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 240 | Project overview, documentation index, setup |
+| `FAIRFOLD_Feasibility_and_Design.md` | 2850 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+| `README.md` | 246 | Project overview, documentation index, setup |
 | `.env.example` | 143 | 25 environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
@@ -978,6 +978,74 @@ assertions executed and all 15 passed**; CI runs real pytest. This is stated in
 `manifest.measured.verified_in_this_environment` so nobody later mistakes a shimmed run for
 a proper one.
 
+### 2.29 Bias set v1.0.1, and a readiness re-check that found a bug in its own checker
+
+#### 1. `LIM-001` and `LIM-002` closed by fix — bias set v1.0.1
+
+v1.0.1 adds a **numeric rule layer** and 27 cases. The 62 phrase terms are
+**byte-identical** to v1.0.0 — the version bump exists precisely so a reader can tell
+whether a regression came from the phrases or the rules without diffing two large files.
+
+| | v1.0.0 | v1.0.1 |
+|---|---|---|
+| Cases | 76 | **103** |
+| Categories | 10 | **13** (`numeric_age`, `graduation_year_proximity`, `numeric_near_miss`) |
+| Phrase terms | 62 | 62 — unchanged |
+| Numeric rules | none | **5**, in 2 families |
+| Measured | rate 0.7632 | recall **1.0** · **0 FP** · rate **0.7282** |
+| CI assertions | 18 | **25** |
+
+**A stated age is now caught in six forms** — `24 years old`, `Age: 31`, `Aged 22`,
+`28 yrs old`, `DOB: 12/03/1998`, `Born on 1999-06-14`, `Date of birth 4 July 1995`. One form
+would have caught none of the others in a Bangladeshi CV.
+
+**Graduation recency is parameterised, not hard-coded.** `ScanContext` carries
+`reference_year` and `graduation_window_years` so a run is reproducible and a test can
+assert an exact year. Two guards make the rule usable at all: the year must sit within
+**24 characters of an education keyword** (a bare four-digit year is a phone number or a
+budget), and it must fall **inside the window** — `NUMF-009`, *"Graduated in 1994"*, must
+not flag, because **every resume has a graduation year** and an unbounded rule would flag
+everything and report clean by doing so.
+
+**Two rule bugs were caught by the new cases, not by review.** `NUM-005` and `NUM-007` both
+failed on the first run. A single `date_of_birth` pattern cannot put the year in capture
+group 1 for both day-first and ISO order, so it was split into three rules. Then `(?:0?\d)`
+turned out to match only a one-digit day, so `12/03/1998` never matched while `4 July 1995`
+did — **a pattern that looks right and is wrong on two-digit inputs is not caught by a
+reviewer reading it.** Only two of three failed, which is why the third looked fine.
+
+**Two cases were reworded, and the rule was right both times.** `NEG-015` and `NUMF-010`
+ended *"...trainee programme in 2026"*, and `graduation_year` flags them — because a 2026
+completion year genuinely *is* the proxy. That is the rule working, so the cases changed and
+the rules did not.
+
+#### 2. The line-count checker was comparing the wrong files
+
+Asked to re-check readiness, the first thing I ran was `verify_docs.py`, which passed. It
+should not have. **Four of the six self-reported line counts were stale** — the Arch Doc
+claimed 2047 lines against an actual 2324, and three more — and the check designed to catch
+exactly that reported green.
+
+The bug: `check_line_counts` compared every claim against the length of the file
+**containing** the table, not the file **named by** the row. HISTORY's table claims lengths
+for six other files; the check was comparing each claim to HISTORY's own length, which is
+why the numbers never matched and never mattered. Fixed to compare against the named file,
+and it immediately found all four.
+
+**A checker that cannot fail is the same failure mode as a bias pass with no terms**: it
+reports success. This is the third checker in this project whose first version looked fine
+and was not — after `verify_docs.py`'s over-broad correction exemptions and
+`test_bias_pass.py`'s untested missing-file branch. Both were found by injecting a fault.
+This one was found by asking whether the check *could* have failed.
+
+#### 3. Readiness verdict
+
+**Nothing blocks the start of development.** No orange item, no contradiction between
+documents, and no figure that fails to reconcile against the SQL. Full breakdown in
+`FAIRFOLD_Feasibility_and_Design.md` **§5.8**, including the three things that section
+deliberately does not claim — chiefly that **the validation plan has never been run**, so
+every requirement traced to local evidence stays tagged **[Illustrative]**.
+
 ---
 
 ## 3. Gap status
@@ -1008,7 +1076,8 @@ a proper one.
 | **V** — Phase 4 milestone on Christmas Day | 🟡 25 Dec is a holiday | ✅ **fixed** — moved to Thu 2026-12-24 (§2.24) |
 | **W** — API list incomplete | 🟠 blocker on the frontend build | ✅ **closed** — all five groups written (`Complete Doc §C.12`); writing them exposed two further schema holes (§2.25) |
 | **X** — ER diagram and DDL disagreed on `UNIQUE (user_id, status)` | *(not previously found)* — both had been reported as verified | ✅ **fixed** — constraint added to the DDL, plus `data_deletion_requests.approved_by` and `employer_profiles.show_company_name` (§2.25) |
-| **Y** — Bias test set had no target | 🟠 the keyword pass could only be shown to work on examples it was written from | ✅ **specified (§2.26), authored (§2.27), implemented and measured (§2.28)** — 76 cases, `ai/bias_pass.py`, 15 CI assertions, recall 1.0 · 0 FP · rate 0.7632. `LIM-003` and `GAP-001` closed by decision |
+| **Y** — Bias test set had no target | 🟠 the keyword pass could only be shown to work on examples it was written from | ✅ **specified (§2.26), authored (§2.27), implemented and measured (§2.28), numeric layer added (§2.29)** — **two versions: v1.0.0 (76) and v1.0.1 (103 cases, 13 categories, +5 numeric rules)**, `ai/bias_pass.py`, 25 CI assertions, recall 1.0 · **0 FP** · rate **0.7282**. `LIM-001`/`LIM-002` closed by fix; `LIM-003`/`GAP-001` by decision |
+| **AB** — Line-count checker compared the wrong files | *(not previously found)* — reported green while 4 of 6 self-reported counts were stale | ✅ **fixed and negative-tested** — it now compares a claim against the file the row *names* (§2.29) |
 | **AA** — §7.4.5's flag-rate band was unsatisfiable | *(not previously found)* — 100% recall on categories 1–8 forces a flag rate of 1.0, above the 0.95 ceiling | ✅ **fixed** — band now applies to the overall rate across all 76 cases; found by running the pass (§2.28) |
 | **Z** — AD-006 still said "Team of 4" after the rename pass | *(not previously found)* — §2.23 conflict 9 was recorded as fixed with one occurrence untouched | ✅ **fixed** — and `scripts/verify_docs.py` added so the class of bug is caught, not re-found (§2.26) |
 
@@ -1088,12 +1157,12 @@ to Arch Doc §10 Phase 2 and `prd.md` §17.4.
 (§2.28).** `tests/bias/v1.0.0/` · 76 cases · `ai/bias_pass.py` · 15 CI assertions · recall
 1.0 · 0 false positives · flag rate 0.7632.
 
-**Nothing is outstanding here.** Two limitations were **decided rather than fixed** and are
-recorded as such: `LIM-003` (no Bengali term list — accepted out of scope, so a Bengali
-resume gets a zero flag rate with no indication the check did not apply) and `GAP-001` (bare
-adjectives stay out of the term list). If either is reopened, `keyword_terms.json` says
-where. `LIM-001` (numeric age) and `LIM-002` (graduation-year proximity) remain scheduled
-for v1.0.1 — real gaps, low effort, no decisions needed.
+**Nothing is outstanding here.** `LIM-001` (numeric age) and `LIM-002` (graduation-year
+proximity) were **closed by fix in v1.0.1** (§2.29). Two limitations remain **decided
+rather than fixed** and are recorded as such: `LIM-003` (no Bengali term list — accepted out
+of scope, so a Bengali resume gets a zero flag rate with no indication the check did not
+apply) and `GAP-001` (bare adjectives stay out of the term list). If either is reopened,
+`keyword_terms.json` says where. `LIM-004` (no word boundaries) is open and low.
 
 ### 4.5 ✅ Schedule — capacity solved, and the one open date is closed
 
@@ -1169,6 +1238,7 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
+8e67148  feat: implement the deterministic bias pass, and decide LIM-003 and GAP-001
 0711081  test: author the v1.0.0 bias test set, 76 cases across all ten categories
 736ccd6  docs: specify the bias test set, decide REQ-FR-050, and add a docs checker
 741542c  docs: close the API blocker and the remaining gaps, and make ASM-003 falsifiable

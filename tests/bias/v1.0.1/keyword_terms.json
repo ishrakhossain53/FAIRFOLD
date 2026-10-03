@@ -1,0 +1,218 @@
+{
+  "version": "1.0.1",
+  "authored": "2026-10-03",
+  "owner": "Ishrak Hossain",
+  "status": "PROPOSED. v1.0.1 adds the numeric rule layer that closes LIM-001 (stated age) and LIM-002 (graduation-year proximity). Terms are UNCHANGED from v1.0.0 -- this version adds regex rules and new cases, it does not move the phrase list.",
+  "matching": {
+    "case_sensitive": false,
+    "apostrophe_normalisation": "U+2019 and U+02BC are folded to ASCII apostrophe before matching, because Bangladeshi resumes mix both and 'women's' must not match 'women\u2019s' by accident of typography.",
+    "note": "Plain substring matching. No word-boundary logic in v1.0.0 -- the excluded list below explains why most broad words are out, and why the narrow phrases in this file do not need boundaries."
+  },
+  "terms": {
+    "gendered_org": [
+      "women's society",
+      "women's club",
+      "women's association",
+      "women's sports",
+      "women's cricket",
+      "women's volleyball",
+      "ladies' committee",
+      "women's cell",
+      "girls' guide battalion",
+      "beauty pageant",
+      "queen of the campus",
+      "head girl"
+    ],
+    "institution_gender_signal": [
+      "girls' college",
+      "girls' school",
+      "girls' high school",
+      "women's college",
+      "women's university",
+      "girls' university",
+      "female hostel",
+      "all-girls"
+    ],
+    "age_reference": [
+      "young and energetic",
+      "young and dynamic",
+      "young energetic",
+      "young age preferred",
+      "under 30",
+      "under the age of 30",
+      "digital native"
+    ],
+    "nationality_origin_proxy": [
+      "must be bangladeshi",
+      "bangladeshi male",
+      "native speaker",
+      "native bengali speaker",
+      "local candidate only",
+      "must be from dhaka",
+      "expatriate preferred"
+    ],
+    "family_status": [
+      "married",
+      "unmarried",
+      "single male",
+      "no children",
+      "not planning to marry",
+      "young male preferred",
+      "family responsibilities"
+    ],
+    "disability_health": [
+      "must be physically fit",
+      "no glasses",
+      "healthy and fit",
+      "no physical disability"
+    ],
+    "photo_appearance": [
+      "attach a photo",
+      "formal appearance",
+      "well-presented",
+      "presentable",
+      "smart appearance"
+    ],
+    "vague_rationale": [
+      "cultural fit",
+      "does not fit our culture",
+      "not a team player",
+      "seems junior",
+      "appears junior",
+      "appears inexperienced",
+      "lacks confidence",
+      "passive personality",
+      "needs maturity",
+      "hard to work with",
+      "not the right fit"
+    ]
+  },
+  "single_word_terms": {
+    "note": "Five terms are single words: all-girls, married, unmarried, presentable, well-presented. They are allowed because each names a specific marital-status or appearance token rather than an ordinary professional adjective, which is the distinction GAP-001 draws. Each one still matches inside longer words, so each is covered by a must-flag case and the no-false-positive test guards the other direction.",
+    "allowed": [
+      "all-girls",
+      "married",
+      "unmarried",
+      "presentable",
+      "well-presented"
+    ],
+    "known_interaction": "'married' is a substring of 'unmarried'. Both are family_status terms and both must flag, so the overlap is harmless here -- but it is recorded because the same overlap in another pair would be a silent double-count. test_single_word_terms_are_narrow_tokens_not_adjectives caps the count at 8 so the set cannot quietly grow toward one-word adjectives."
+  },
+  "deliberately_excluded": [
+    {
+      "term": "women's",
+      "reason": "Bare 'women's' flags a candidate who co-founded a women's rights reading group or worked at an NGO. That is advocacy experience, not a credential signalling gender. The gendered-organisation PHRASES are listed individually instead.",
+      "caught_by": "NEG-013"
+    },
+    {
+      "term": "women-only",
+      "reason": "A legitimate job requirement, not a signal about a candidate. This pass scans candidate-derived text; the job's own requirements live in the job, not the resume.",
+      "caught_by": "NEG-014"
+    },
+    {
+      "term": "recent graduate",
+      "reason": "Collides with 'recent graduate programme', an ordinary job and course description. The real age proxy here is graduation YEAR, not the phrase. Deferred to v1.0.1 as a date-proximity rule rather than kept as a substring.",
+      "caught_by": "NEG-015"
+    },
+    {
+      "term": "male",
+      "reason": "Bare 'male' appears in 'male-dominated field', which is a candidate describing a problem, not a credential. The credential case ('young male preferred') is listed as a phrase.",
+      "caught_by": "NEG-017"
+    },
+    {
+      "term": "female",
+      "reason": "Same reasoning as 'male', and it collides with 'female candidates preferred', which is job text.",
+      "caught_by": "NEG-014"
+    },
+    {
+      "term": "graduate",
+      "reason": "Far too broad to be a useful proxy; would flag most of the corpus.",
+      "caught_by": "NEG-015"
+    }
+  ],
+  "known_limitations": [
+    {
+      "id": "LIM-001",
+      "limitation": "There is NO numeric age detection. A line reading '22 years old' is not caught by any term in this list.",
+      "why_it_matters": "A stated age is a stronger proxy than 'young and energetic', and it is the more common form in the resumes this product will ingest.",
+      "severity": "closed",
+      "status": "CLOSED IN v1.0.1 by the stated_age rule family. A resume reading '24 years old', 'Age: 24' or carrying a DOB is now caught."
+    },
+    {
+      "id": "LIM-002",
+      "limitation": "There is NO graduation-year proximity rule, so a 1994 graduate and a 2026 graduate score identically.",
+      "why_it_matters": "This is the mechanism behind the 2018 proxy case. 'Recent graduate' was removed from the term list because of a false-positive collision, and nothing replaced it yet.",
+      "severity": "closed",
+      "status": "CLOSED IN v1.0.1 by the graduation_recency rule family, parameterised by ScanContext.reference_year and graduation_window_years. A 2026 graduation is flagged against the 2026 reference; a 1994 one is not, because recency of graduation is the signal, not the year."
+    },
+    {
+      "id": "LIM-003",
+      "limitation": "The list holds English phrases only. A Bengali-language resume can carry every one of these signals in transliterated or Bengali script and none will be caught.",
+      "why_it_matters": "The primary market is Bangladesh, so a pass that reads only English can report clean on exactly the population the product is for. This is stated once here and not repeated in the documentation, because the team has accepted it.",
+      "status": "ACCEPTED AS OUT OF SCOPE. Decided by the team 2026-10-03: no Bengali term list. Retained in this file rather than deleted, because a limitation the team has consciously accepted is a different thing from one nobody wrote down.",
+      "residual_risk": "A Bengali or transliterated resume receives a flag rate of zero from this pass and no indication that the check did not apply. Accepted for the MVP; revisit if Bengali resumes become a material share of volume.",
+      "compensating_control": "The pass is advisory and the ranking output is shown with evidence to a human, so a missed phrase does not silently become a hiring decision. This is weaker than a Bengali list and is not claimed to be equivalent.",
+      "severity": "high"
+    },
+    {
+      "id": "LIM-004",
+      "limitation": "Substring matching has no word boundaries, so a term can match inside a longer word.",
+      "why_it_matters": "Low today, because the terms are multi-word, but it becomes a real risk if a single short term is ever added.",
+      "planned": "Revisit if any single-word term is added.",
+      "severity": "low"
+    },
+    {
+      "id": "GAP-001",
+      "limitation": "Single-word vague and age-coded words are absent by choice. 'Energetic', 'articulate', 'mature', 'ambitious', 'young', 'dynamic' and 'passive' are NOT terms.",
+      "why_it_matters": "A rationale reading 'Energetic and culturally aligned' is age-coded and would NOT be flagged by v1.0.0. This was found while authoring RAT-010, which originally carried that exact wording.",
+      "why_not_just_added": "Each of these is a common positive word in ordinary professional text. Adding them bare would flag ordinary CVs and rationales, and the 0-false-positive criterion in Arch Doc 7.4.5 is not negotiable. 'Energetic' is the sharpest example: on its own it is an adjective, not a proxy.",
+      "how_it_is_handled": "DECIDED 2026-10-03: the exclusions stand. Bare adjectives are NOT added to the keyword list. The mitigation is the existing design, not more terms -- the LLM bias pass is advisory, the rationale is shown with evidence, and a human decides (prd 8.1). test_no_bare_vague_adjectives_in_the_list enforces the decision in CI so the temptation to add one after reading a missed case has to be argued for, not slipped in.",
+      "status": "CLOSED BY DECISION, not by fix. The gap still exists; it is accepted.",
+      "severity": "medium"
+    }
+  ],
+  "numeric_rules": {
+    "_note": "Added in v1.0.1. A phrase list cannot express '22 years old' -- that is a shape, not a term. These are regexes, kept separate from terms so that 'what was checked' in the audit panel can distinguish a phrase match from a rule match.",
+    "stated_age": {
+      "_note": "Closes LIM-001. Capture group 1 must be the age itself.",
+      "explicit_age_years": {
+        "pattern": "\\b(\\d{2})\\s*(?:years?\\s*old|yo\\b|yrs?\\s*old)\\b",
+        "contextual": false,
+        "description": "Explicit 'NN years old'. The clearest age statement in a resume."
+      },
+      "aged": {
+        "pattern": "\\baged?\\s*:?\\s*(\\d{2})\\b",
+        "contextual": false,
+        "description": "'Aged 24', 'Age: 24'. Common in structured forms and job posts."
+      },
+      "dob_day_first": {
+        "pattern": "\\b(?:d\\.?\\s?o\\.?\\s?b\\.?|date\\s+of\\s+birth|born\\s+on)\\b[^0-9\\n]{0,14}(?:\\d{1,2})[/\\-.](?:\\d{1,2})[/\\-.]((?:19|20)\\d{2}|\\d{2})\\b",
+        "contextual": false,
+        "description": "Date of birth, day-first numeric. The capture is the YEAR. A DOB field is itself the signal -- no resume has a business carrying one."
+      },
+      "dob_iso": {
+        "pattern": "\\b(?:d\\.?\\s?o\\.?\\s?b\\.?|date\\s+of\\s+birth|born\\s+on)\\b[^0-9\\n]{0,14}((?:19|20)\\d{2})[/\\-.](?:\\d{1,2})[/\\-.](?:\\d{1,2})\\b",
+        "contextual": false,
+        "description": "Date of birth, ISO order (yyyy-mm-dd). Split from dob_day_first because a single pattern with alternatives cannot put the year in capture group 1 for both."
+      },
+      "dob_named_month": {
+        "pattern": "\\b(?:d\\.?\\s?o\\.?\\s?b\\.?|date\\s+of\\s+birth|born\\s+on)\\b[^0-9\\n]{0,14}(?:\\d{1,2})\\s+[A-Za-z]{3,9}\\s+((?:19|20)\\d{2})\\b",
+        "contextual": false,
+        "description": "Date of birth with a spelled month: '4 July 1995'. Common in Bangladeshi CVs and invisible to a numeric-only pattern."
+      }
+    },
+    "graduation_recency": {
+      "_note": "Closes LIM-002. The year only counts when it falls inside the recency window AND an education keyword sits near it. A bare four-digit year is a phone number or a budget; requiring the keyword is what keeps 'BBA, Some College, 2023' out of the rule.",
+      "graduation_year": {
+        "pattern": "\\b(?:graduat\\w*|class\\s*of|cohort\\s*of|passed\\s+(?:hsc|ssc|o[-\\s]?level|a[-\\s]?level)|completed\\s+(?:hsc|ssc))\\b[^0-9\\n]{0,24}((?:19|20)\\d{2})\\b",
+        "contextual": true,
+        "description": "Graduation or completion year within ScanContext.graduation_window_years of ScanContext.reference_year."
+      },
+      "current_student": {
+        "pattern": "\\b(?:currently\\s+(?:pursuing|studying|at)\\s+(?:bachelor|master|b\\.?sc|m\\.?sc|mba)|final\\s+year\\s+(?:student|of)|undergraduate\\s+final\\s+year)\\b",
+        "contextual": false,
+        "description": "An explicit statement of current enrolment, which places the candidate in an age band without stating an age."
+      }
+    }
+  }
+}

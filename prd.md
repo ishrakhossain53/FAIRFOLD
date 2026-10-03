@@ -1109,17 +1109,19 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
   or quality degradation. If it fails, **re-scope; do not compress.**
 - **`ASM-001`** — the 52 requirements are the right scope for an MVP. If it fails, cut
   `REQ-FR-050` first; it is the only requirement the team itself called optional.
-- **Phase 2 bias test set** — **✅ authored, implemented and measured 2026-10-03**:
-  `tests/bias/v1.0.0/` with **76 cases** (58 must-flag, 18 must-not-flag) across all ten
-  categories, `ai/bias_pass.py`, and `tests/bias/test_bias_pass.py` (15 assertions, CI).
-  **Measured: recall 1.0 · 0 false positives · flag rate 0.7632 (58/76).** Read
-  `manifest.measured.caveat` before quoting those numbers — recall on a set whose terms
-  were authored alongside it proves little; the zero false positives and the in-band rate
-  are the figures that carry information. **Two decisions: `LIM-003` no Bengali term list
-  (accepted out of scope — a Bengali resume gets a zero flag rate and **no indication the
-  check did not apply**), and `GAP-001` bare adjectives stay out of the term list (closed
-  by decision, enforced in CI).** The set supports no disparity claim (§1.4.1 already
-  withdraws that) and `manifest.json` says so in `does_not_support`.
+- **Phase 2 bias test set** — **✅ authored, implemented and measured 2026-10-03.** Two
+  versions: `tests/bias/v1.0.0/` (76 cases, 10 categories) and **`tests/bias/v1.0.1/`
+  (103 cases, 13 categories, plus the numeric rule layer)**. `ai/bias_pass.py` +
+  `tests/bias/test_bias_pass.py` (25 assertions, CI).
+  **Measured on v1.0.1: recall 1.0 · 0 false positives · flag rate 0.7282 (75/103).** Read
+  `manifest.measured.caveat` before quoting — recall on a set whose rules were authored
+  alongside it proves little; the **zero false positives across 28 must-not-flag cases** and
+  the in-band rate are the figures that carry information. `LIM-001` (stated age) and
+  `LIM-002` (graduation recency) are **closed by fix**. **Two decisions: `LIM-003` no
+  Bengali term list (accepted out of scope — a Bengali resume gets a zero flag rate and
+  **no indication the check did not apply**), and `GAP-001` bare adjectives stay out of
+  the term list (closed by decision, enforced in CI).** The set supports no disparity claim
+  (§1.4.1 already withdraws that) and `manifest.json` says so in `does_not_support`.
 - **`ASM-003`** — AI assistance raises delivery capacity for the 217 points. *Plausible
   for boilerplate; unmeasured.* **Tested at the end of Phase 1** by points actually
   delivered against the 41-point, 3-week phase. If it fails, drop the capacity assumption

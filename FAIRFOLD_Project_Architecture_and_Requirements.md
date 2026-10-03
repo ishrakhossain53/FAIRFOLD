@@ -1521,10 +1521,10 @@ jobs:
         run: python3 scripts/verify_docs.py
 
       - name: Bias test set consistency check
-        # Validates the fixture set: every declared term exists, no must-not-flag case
-        # contains a term, category counts match §7.4.3, and the manifest's
-        # keyword_list_sha matches the term list it hashes. The pass's own behaviour is
-        # asserted by pytest below, not here.
+        # Validates EVERY version's fixture set: every declared term or rule exists, no
+        # must-not-flag case contains a term, category counts match that version's targets,
+        # and each manifest's keyword_list_sha matches the file it hashes. The pass's own
+        # behaviour is asserted by pytest below, not here.
         run: python3 scripts/verify_bias_set.py
 
       - name: Upload schema artifact
@@ -1637,7 +1637,7 @@ tests/
 │   │   ├── proxy_cases.jsonl      # 48 must_flag, categories 1-7
 │   │   ├── negative_cases.jsonl   # 18 must_not_flag, categories 9-10
 │   │   └── rationale_cases.jsonl  # 10 must_flag, category 8 (LLM pass only, not CI-gated)
-│   └── test_bias_pass.py          # ✅ WRITTEN — 15 assertions, CI-gated
+│   └── test_bias_pass.py          # ✅ WRITTEN — 25 assertions, CI-gated
 ├── unit/
 │   ├── test_pii_stripping.py     # PII detection regex + NER accuracy tests
 │   ├── test_matching.py           # pgvector cosine similarity correctness
@@ -1683,28 +1683,51 @@ acceptance criterion says *"flags every seeded phrase in the versioned bias test
 and there was no test set to seed. **A keyword list with no fixture set is a list that
 can only be shown to work on the examples it was written from.**
 
-#### 7.4.0 Status — **v1.0.0 authored and measured, 2026-10-03**
+#### 7.4.0 Status — **v1.0.1 authored and measured, 2026-10-03**
 
-The cases are **written** and the pass is **implemented**. `tests/bias/v1.0.0/` holds **76
-cases** — 58 must-flag, 18 must-not-flag — across all ten categories, with a 62-term list
-in `keyword_terms.json`. `ai/bias_pass.py` is the deterministic pass and
-`tests/bias/test_bias_pass.py` is the CI-gated suite (15 assertions).
+Two versions exist and **both** are checked in CI, because versions are immutable and a
+stale one nobody maintains is exactly what a reader would trust by accident.
 
-**Measured: recall 1.0 · 0 false positives · overall flag rate 0.7632** (58/76).
+| | v1.0.0 | **v1.0.1 (current)** |
+|---|---|---|
+| Cases | 76 | **103** |
+| Categories | 10 | **13** (adds `numeric_age`, `graduation_year_proximity`, `numeric_near_miss`) |
+| Phrase terms | 62 | 62 — **unchanged** |
+| Numeric rules | none | **5**, in 2 families (`stated_age`, `graduation_recency`) |
+| Must-flag / must-not-flag | 58 / 18 | **75 / 28** |
+| Measured | recall 1.0 · 0 FP · rate 0.7632 | recall **1.0** · **0 FP** · rate **0.7282** |
+| CI assertions | 18 | **25** |
 
-> **Read the caveat before quoting those numbers.** Recall of 1.0 on a set whose term list
-> was authored alongside the cases is close to tautological. The figures that carry
-> information are the **zero false positives** — the six deliberate exclusions hold — and
-> the **flag rate landing inside [0.60, 0.95]**, which shows the pass is not flagging
-> everything. This is a fixture result, not evidence about real candidates or the ranking
+`ai/bias_pass.py` is the deterministic pass and `tests/bias/test_bias_pass.py` the CI-gated
+suite. `scripts/verify_bias_set.py` validates every version's internal consistency.
+
+> **Read the caveat before quoting those numbers.** Recall of 1.0 on a set whose rules were
+> authored alongside the cases is close to tautological. The figures that carry information
+> are the **zero false positives across 28 must-not-flag cases** — including 10 numeric
+> near-misses that exist to prove a rule has not learned to read any two-digit number as an
+> age — and the **flag rate landing inside [0.60, 0.95]**, which shows the pass is not
+> flagging everything. A fixture result, not evidence about real candidates or the ranking
 > model, and it supports no disparity claim.
 
 | | |
 |---|---|
-| Cases | 76 (48 proxy · 18 negative · 10 rationale) |
-| Terms | 62 across 8 groups, plus **6 deliberately excluded**, 5 allowed single-word tokens |
-| Known limitations | **5** — `LIM-001`/`LIM-002` scheduled for v1.0.1, `LIM-004` low, **`LIM-003` and `GAP-001` closed by decision** |
 | **First source in the repo** | `ai/bias_pass.py` is the **first source file**. Kept dependency-free so it runs and tests with no Django, database or settings module |
+| Known limitations | **3 remaining** — `LIM-004` (no word boundaries, low); **`LIM-003` and `GAP-001` closed by decision**. `LIM-001` and `LIM-002` are **closed by fix in v1.0.1** |
+
+**`LIM-001` closed — a stated age is now caught.** `"24 years old"`, `"Age: 31"`,
+`"Aged 22"`, `"DOB: 12/03/1998"`, `"Born on 1999-06-14"` and `"Date of birth 4 July 1995"`
+all fire. Six forms, because a rule that reads one date format reads none of the others in
+a Bangladeshi CV.
+
+**`LIM-002` closed — graduation recency, parameterised.** `ScanContext` carries
+`reference_year` and `graduation_window_years` rather than reading the clock, so the rule is
+reproducible and a test can assert an exact year. Two guards make it usable at all:
+
+- **The year must sit within 24 characters of an education keyword.** A bare four-digit year
+  is a phone number or a budget; without the keyword this rule would fire on every CV.
+- **The year must fall inside the window.** `NUMF-009` — *"Graduated in 1994"* — must not
+  flag. Every resume has a graduation year, so an unbounded rule would flag everything and
+  report clean by doing so.
 
 **Two decisions taken 2026-10-03**, both recorded in `keyword_terms.json`:
 
@@ -1803,7 +1826,14 @@ meaningless.
 | 7 | `photo_appearance` | "attach a photo", "formal appearance", "well-presented" | ✅ true | 4 |
 | 8 | `uncited_vague_rationale` | "cultural fit", "not a team player", "seems junior", no resume text cited | ✅ true | 10 |
 | 9 | `legitimate_skill_match` | A real skills match with no proxy language — must **not** flag | ❌ false | 12 |
+
+Categories 11–13 were added in **v1.0.1** alongside the numeric rule layer. Category 13 is
+the one to watch: it is ten lines of ordinary professional text, and it is what stops a rule
+learning to read any two-digit number as an age.
 | 10 | `necessary_context` | "Eligible for a women-only safety officer role", "must hold a valid visa", "co-founded a women's rights reading group" | ❌ false | 6 |
+| 11 | `numeric_age` | `24 years old`, `Age: 31`, `DOB: 12/03/1998`, `Born on 1999-06-14` — closes `LIM-001` | ✅ true | 9 |
+| 12 | `graduation_year_proximity` | `Graduated in 2026`, `Class of 2025`, `Currently pursuing B.Sc` — closes `LIM-002` | ✅ true | 8 |
+| 13 | `numeric_near_miss` | `team of 12 junior engineers`, `120 req/s`, `1,000-concurrent load test`, `Graduated in 1994` | ❌ false | 10 |
 
 Categories 9 and 10 matter more than their size suggests. **A keyword pass that flags
 everything reports a clean result by flagging the whole file**, and category 10 exists
@@ -1847,7 +1877,7 @@ checked in CI:
 | `must_flag` cases flagged | **100%** | A proxy phrase that gets through is a silent ranking error. There is no acceptable miss rate for a known-bad phrase |
 | `must_flag` cases flagged by an `expected_terms` hit (not incidentally) | **100%** | Stops the flag-everything strategy passing |
 | `must_flag` **false** positives (categories 9, 10) | **0** | Every false positive is an employer shown a rationale the product calls biased when it is not. It trains recruiters to ignore the badge |
-| Overall flag rate, **all 76 cases** | **between 60% and 95%** | The band is the check. Under 60% means the list is too thin; over 95% means it is flagging noise. Measured 0.7632 (58/76) |
+| Overall flag rate, **all cases in the version** | **between 60% and 95%** | The band is the check. Under 60% means the list is too thin; over 95% means it is flagging noise. Measured **0.7282** (75/103) on v1.0.1 |
 
 ```python
 # tests/bias/test_bias_pass.py -- runs in CI, no network, no AI provider.
@@ -1868,7 +1898,7 @@ advisory signal makes the suite flaky and tempts someone to disable it.
 > categories 1–8."* **That was unsatisfiable**: 100% recall is required on exactly those
 > categories, so their flag rate is necessarily 1.0 — permanently above the 0.95 ceiling.
 > Two requirements in one spec section, mutually exclusive. The band applies to the
-> **overall** rate across all 76 cases, which is the only denominator under which it
+> **overall** rate across every case in the version, which is the only denominator under which it
 > carries information. Found by implementing the pass and running it, not by reading the
 > section: the two requirements look fine on the page and cannot both be met.
 
@@ -1879,6 +1909,17 @@ If the keyword list changes and the manifest SHA does not, the set is stale and 
 so. Without that field, adding a term silently makes old cases pass for a new reason,
 and the set stops being a regression test — it becomes a snapshot of whatever the list
 happened to be.
+
+**`scripts/verify_bias_set.py` checks every version, not just the newest.** Two exist
+(v1.0.0, v1.0.1) and both are validated, with per-version category targets. The guard
+earned its place twice within one session: adding `GAP-001` to the term list failed the
+manifest SHA check immediately, and adding the rules layer to v1.0.1 without bumping the
+SHA did the same.
+
+**v1.0.1 changed the pass, not the phrase list.** The 62 terms are byte-identical to
+v1.0.0; the version bump carries the numeric rules and 27 new cases. That separation is the
+point of versioning — a reader can tell whether a regression came from the phrases or from
+the rules without diffing two large files.
 
 ---
 
@@ -2217,8 +2258,9 @@ closes the registration half of this risk. Two consequences worth writing down:
 - ✅ Resume embeddings generated via sentence-transformers (384-dim vectors)
 - ✅ pgvector cosine similarity returns ranked results in < 2s for 100 candidates
 - ✅ LLM rationale generated for top 10 candidates per job (evidence-cited format)
-- ✅ The versioned bias test set **exists**: `tests/bias/v1.0.0/`, **76 cases** across all ten categories, with a 62-term list, 6 deliberate exclusions and 5 recorded limitations. `scripts/verify_bias_set.py` validates it in CI
-- ✅ Deterministic keyword pass flags **100%** of the `must_flag` cases, with **0** false positives on categories 9–10, and an overall flag rate inside the 60–95% band. **Measured 2026-10-03: 58/76 flagged, rate 0.7632** — `ai/bias_pass.py`, 15 assertions passing. Read `manifest.measured.caveat` before quoting it
+- ✅ The versioned bias test set **exists**: `tests/bias/v1.0.0/` (76 cases) and **`tests/bias/v1.0.1/` (103 cases, 13 categories, + the numeric rule layer)**. Both validated in CI by `scripts/verify_bias_set.py`
+- ✅ Deterministic keyword pass flags **100%** of the `must_flag` cases, with **0** false positives on the 28 must-not-flag cases, and an overall flag rate inside the 60–95% band. **Measured 2026-10-03 on v1.0.1: 75/103 flagged, rate 0.7282** — `ai/bias_pass.py`, 25 assertions passing. Read `manifest.measured.caveat` before quoting it
+- ✅ A **stated age** in any of six common forms is caught, and a **graduation year inside the recency window** is caught only when an education keyword sits near it (`LIM-001`, `LIM-002` closed by fix)
 - ✅ The bias test set **includes Amazon-style proxy cases** as mandatory categories 1 and 2 — synthetic, in the same shape, source pattern recorded in each case's `source_pattern` field (§7.4.4). These survive PII stripping untouched, which is why stripping names is not sufficient. Pattern source: `FAIRFOLD_Feasibility_and_Design.md` §1.2.1
 - ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
 - ⚠️ LLM bias pass is advisory only and may not block auto-shortlist

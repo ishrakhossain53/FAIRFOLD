@@ -450,18 +450,27 @@ def check_placeholders(r: Result, docs: dict[str, str]) -> None:
 def check_line_counts(r: Result, docs: dict[str, str]) -> None:
     section("10. Self-reported line counts")
 
+    # A table row names the file it describes and claims a length for it. Compare
+    # that claim against the length of the NAMED file, not of the file containing
+    # the table -- an earlier version of this check did the latter, compared every
+    # claim to the containing file's own length, and therefore passed while five
+    # counts were stale.
+    actual_lengths = {name: len(text.splitlines()) for name, text in docs.items()}
+
     stale = []
-    for name, text in docs.items():
-        for m in re.finditer(r"^\|\s*`?" + re.escape(name) + r"`?\s*\|\s*(\d{3,5})\s*\|", text, re.M):
-            claimed = int(m.group(1))
-            actual = len(text.splitlines())
-            if claimed != actual:
+    checked = 0
+    for holder, text in docs.items():
+        for m in re.finditer(r"^\|\s*`?([A-Za-z0-9_.\-]+\.md)`?\s*\|\s*(\d{3,5})\s*\|", text, re.M):
+            target, claimed_s = m.group(1), int(m.group(2))
+            if target not in actual_lengths:
+                continue
+            checked += 1
+            actual = actual_lengths[target]
+            if claimed_s != actual:
                 line_no = text[: m.start()].count("\n") + 1
-                stale.append(f"{name}:{line_no} claims {claimed}, actual {actual}")
-    if stale:
-        r.check(False, "line counts in file tables are current", "; ".join(stale))
-    else:
-        r.check(True, "line counts in file tables are current")
+                stale.append(f"{holder}:{line_no} says {target} is {claimed_s}, actually {actual}")
+    r.check(not stale, f"line counts in file tables are current ({checked} claim(s) checked)",
+            "; ".join(stale) or "all current")
 
 
 def check_diagrams(r: Result) -> None:

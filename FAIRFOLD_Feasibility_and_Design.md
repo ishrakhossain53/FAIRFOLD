@@ -2661,12 +2661,12 @@ start building?* Nothing here repeats §2.4.1 or §1.3; it is the consolidated v
 | File | Role | Canonical for | Lines |
 |---|---|---|---|
 | `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), migrations/seed (§C.8), team (§10.4) | 2245 |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2047 |
-| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1223 |
-| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML, Gantt, data dictionary, this readiness review | 2778 |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2324 |
+| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1240 |
+| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML, Gantt, data dictionary, this readiness review | 2850 |
 | `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 23 wireframes, build tooling (§11.2), deliverables checklist | 1418 |
-| `HISTORY.md` | Log | What was done, what is still open, and why | 808 |
-| `README.md` | Entry point | Setup, project structure, the two standing warnings | 240 |
+| `HISTORY.md` | Log | What was done, what is still open, and why | 1269 |
+| `README.md` | Entry point | Setup, project structure, the two standing warnings | 246 |
 
 **⚠️ Ownership rule that must survive the rename.** *Functional requirements live in
 the Arch Doc §4.1, not the PRD.* The PRD proposes and summarises them. Any new FR starts
@@ -2684,6 +2684,8 @@ in the Arch Doc; the PRD table is a pointer, never the definition.
 | `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 24 / 35 / 13 |
 | Mermaid diagrams parse | ✅ 5 of 5 |
 | `scripts/verify_docs.py` (added 2026-10-03, runs in CI) | ✅ all checks pass — counts, id contiguity, dangling refs, story arithmetic, links, anchors, naming, stale figures, placeholders, secrets, self-reported line counts |
+| `scripts/verify_bias_set.py` (added 2026-10-03, runs in CI) | ✅ **both versions** internally consistent — v1.0.0 (76 cases) and v1.0.1 (103), including the manifest SHA guard |
+| `tests/bias/test_bias_pass.py` (25 assertions, runs in CI) | ✅ 25 passing — recall 1.0, **0 false positives**, flag rate 0.7282. Read `manifest.measured.caveat` before quoting |
 | `makemigrations --check` in CI | ✅ so a model change cannot land without its migration (Complete Doc §C.8.1) |
 | Frontend build in CI | ✅ `npm ci && npm run build`, plus a hard 30 KB budget on the built CSS (`design.md` §11.4) |
 | `[PLACEHOLDER]` / `?` cells / `TBD` remaining | ✅ none |
@@ -2747,7 +2749,7 @@ the canonical document's rule was applied and the stale one corrected.
 | # | Item | Owner |
 |---|---|---|
 | 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned, but a search is not a clearance | Legal / PM |
-| 4 | ~~Phase 2 **versioned bias test set**~~ — ✅ **Authored, implemented and measured 2026-10-03.** 76 cases, `ai/bias_pass.py`, 15 CI assertions. Recall 1.0 · 0 false positives · flag rate 0.7632. Two decisions recorded: `LIM-003` no Bengali list (accepted out of scope), `GAP-001` bare adjectives stay out | Ishrak |
+| 4 | ~~Phase 2 **versioned bias test set**~~ — ✅ **Authored, implemented and measured 2026-10-03.** Two versions: `v1.0.0` (76 cases) and **`v1.0.1` (103 cases, 13 categories, numeric rule layer)**. `ai/bias_pass.py`, 25 CI assertions. Recall 1.0 · **0** false positives · flag rate **0.7282**. `LIM-001` and `LIM-002` closed by fix. Two decisions recorded: `LIM-003` no Bengali list (accepted out of scope), `GAP-001` bare adjectives stay out | Ishrak |
 | 5 | Cross-border data transfer (SCCs) and provider ToS — `prd.md` §19.1 item 4, still open | Legal / PM |
 | 6 | Figma file, components and hi-fi mockups (`design.md` §12 items 1–4) | UI/UX |
 | 7 | Screens for the two new components (§7.11, §7.12) — `design.md` §12 item 11 | UI/UX |
@@ -2791,3 +2793,58 @@ forces a question the schema had never been asked.
 The second one is the more interesting: the ER diagram and the `CREATE TABLE` disagreed,
 and both were previously described as verified. A diagram is prose with boxes. The DDL is
 the artefact.
+
+### 5.8 Readiness status — re-checked 2026-10-03
+
+**Question asked: can Phase 1 start today?** Answered against the tree as it stands, not
+from memory. Re-run `scripts/verify_docs.py`, `scripts/verify_bias_set.py`,
+`pytest tests/bias/test_bias_pass.py` and the Mermaid parse to reproduce it.
+
+#### Nothing blocks the start of development
+
+Both first-hour blockers are closed (§5.5). There is no orange item, no contradiction
+between documents, and no figure that fails to reconcile against the SQL. **Work can begin
+today.**
+
+#### What remains, grouped by what it actually costs
+
+| Group | Items | Blocks the build? |
+|---|---|---|
+| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); 26 pages specified but not wireframed (`design.md` §10.6); dark mode, Bengali UI, score-band thresholds | No — these *are* Phases 2–3 |
+| **Assumptions, with test dates** | `ASM-001` (scope, end of Phase 1), `ASM-002` (double shifts, end of Phase 2), `ASM-003` (AI capacity, end of Phase 1) | No — each has a stated test date and fallback |
+| **Decisions taken, not fixed** | `LIM-003` no Bengali term list · `GAP-001` no bare adjectives | No — recorded with residual risk |
+| **Needs a person** | `RSK-011` trademark search + class 42/35 filing · SCCs / cross-border transfer (`prd.md` §19.1 item 4) | No — legal, and both before launch |
+| **Needs a designer** | `design.md` §12 items 1–4 (Figma, components, hi-fi), 7–8 (logo, icons), 10 (usability test plan), 11 (screens for §7.11/§7.12) | No — content decisions are recorded as text |
+| **Low-severity open** | `LIM-004` substring matching has no word boundaries | No |
+
+#### Three things this section deliberately does not claim
+
+1. **"Complete" means the documentation is internally consistent and executable** — not
+   that the product is designed. Design judgement is `design.md`'s job and most of it is not
+   started.
+2. **The bias pass measures nothing about real candidates.** 103 fixture cases and 0 false
+   positives say the *rules* behave. They say nothing about the embedding model, the ranking
+   function, or whether outcomes differ across groups. `manifest.json` says so in
+   `does_not_support`.
+3. **The validation plan has not been run.** §1.3.4 fixes the sample size, channel and
+   questions *in advance* so nobody can later describe a result that was never collected.
+   **No interview, survey or concept test has happened.** Every requirement traced to local
+   evidence in §1.2.2 is tagged **[Illustrative]**, and that tag is still accurate.
+
+#### The one number that would change the verdict
+
+If `ASM-001` fails at the end of Phase 1 — 52 requirements is too much scope — the answer is
+to cut `REQ-FR-050` first, and only that, because it is the sole requirement whose four
+artefacts are coupled by design. 217 → 209 points. Everything else in this document is
+either closed or scheduled against a phase.
+
+#### Reproducing this section
+
+```bash
+python3 scripts/verify_docs.py        # cross-document consistency
+python3 scripts/verify_bias_set.py    # every bias set version
+pytest tests/bias/test_bias_pass.py   # the pass itself
+```
+
+All three must pass. If a figure in this document disagrees with what they report, the
+figure is wrong — these check the artefacts, and the artefacts win.

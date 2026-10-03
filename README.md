@@ -131,7 +131,7 @@ scripts/
 ├── generate_secret_key.py   # generates DJANGO_SECRET_KEY + ENCRYPTION_KEY
 ├── verify_docs.py           # cross-document consistency check (also runs in CI)
 └── verify_bias_set.py       # validates the bias test set's internal consistency (CI)
-tests/bias/v1.0.0/           # versioned bias test set — 76 cases, spec in Arch Doc §7.4
+tests/bias/                 # versioned bias test set — v1.0.0 (76) + v1.0.1 (103 cases); spec in Arch Doc §7.4
 ai/                         # bias_pass.py — deterministic keyword pass (first source file)
 ```
 

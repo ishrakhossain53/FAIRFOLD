@@ -7,6 +7,81 @@ Format follows the spec in `FAIRFOLD_Project_Architecture_and_Requirements.md` �
 
 ---
 
+## v1.0.1 — 2026-10-03 — the numeric rule layer
+
+**Closes `LIM-001` (no numeric age) and `LIM-002` (no graduation-year proximity) by fix.**
+Authored and measured the same day as v1.0.0.
+
+| | v1.0.0 | v1.0.1 |
+|---|---|---|
+| Cases | 76 | **103** (+27) |
+| Categories | 10 | **13** |
+| Phrase terms | 62 | 62 — **unchanged, byte-identical** |
+| Numeric rules | none | **5**, in 2 families |
+| Must-flag / must-not-flag | 58 / 18 | 75 / 28 |
+| Measured | rate 0.7632 | recall **1.0** · **0 FP** · rate **0.7282** |
+| CI assertions | 18 | **25** |
+
+**Versioning is why the terms did not move.** The phrase list and the rules are separate
+layers precisely so a reader can tell whether a regression came from the phrases or from the
+rules without diffing two large files. A single mixed list would make that unanswerable.
+
+### New categories
+
+| # | Category | Cases | Purpose |
+|---|---|---|---|
+| 11 | `numeric_age` | 9 must-flag | Closes `LIM-001`. `24 years old`, `Age: 31`, `Aged 22`, `28 yrs old`, and three date-of-birth formats |
+| 12 | `graduation_year_proximity` | 8 must-flag | Closes `LIM-002`. `Graduated in 2026`, `Class of 2025`, `Cohort of 2024`, `Passed HSC in 2026`, `Currently pursuing B.Sc` |
+| 13 | `numeric_near_miss` | 10 must-not-flag | Ordinary professional text, including `team of 12 junior engineers` and `1,000-concurrent load test` |
+
+**Category 13 is the point of this version.** Ten lines that look nothing like an age are
+what stop a rule learning to read any two-digit number as one.
+
+### Two guards make the graduation rule usable at all
+
+Without either of these the rule is worthless, and both are asserted:
+
+1. **The year must sit within 24 characters of an education keyword.** A bare four-digit
+   year is a phone number or a budget. `Budget approved: 2026` must not flag.
+2. **The year must fall inside `graduation_window_years` of `reference_year`.**
+   `NUMF-009` — *"Graduated in 1994"* — must not flag. **Every resume has a graduation
+   year**, so an unbounded rule flags everything and reports clean by doing so.
+
+`ScanContext` carries both parameters instead of the rule reading the clock, so a run is
+reproducible and a test can assert an exact year.
+
+### Three findings from authoring it
+
+**1. My own cases caught two rule bugs, not the reverse.** `NUM-005` (*"Date of birth 4 July
+1995"*) and `NUM-007` (*"Born on 1999-06-14"*) both failed on the first run. The cause was
+not the cases but the rule: a single `date_of_birth` pattern could not put the year in
+capture group 1 for both day-first and ISO order, so it was **split into three rules** —
+`dob_day_first`, `dob_iso`, `dob_named_month` — each capturing the year.
+
+**2. `(?:0?\d)` matched only a one-digit day.** So `12/03/1998` never matched at all while
+`4 July 1995` did, which is why only two of the three failed. Corrected to `(?:\d{1,2})` in
+all three rules. **A pattern that looks right and is wrong on two-digit inputs is not caught
+by a reviewer reading it** — it is caught by a case with a two-digit day in it.
+
+**3. `NEG-015` and `NUMF-010` had to be reworded, and the rule was right both times.**
+v1.0.0's `NEG-015` ended *"…trainee programme in 2026"*. The new `graduation_year` rule
+flags it — **a 2026 completion year genuinely is the proxy**. That is the rule working, not
+a failure, so the case was reworded rather than the rule weakened. Both cases now say why
+they changed.
+
+### Still open after this version
+
+| ID | Status |
+|---|---|
+| `LIM-003` | **Accepted out of scope** — no Bengali term list |
+| `GAP-001` | **Closed by decision** — bare adjectives stay out |
+| `LIM-004` | Open, **low** — substring matching has no word boundaries |
+
+No limitation in this version is "scheduled and unwritten". The three that remain are one
+accepted risk, one decision, and one low-severity note.
+
+---
+
 ## v1.0.0 — 2026-10-03 — first version, and the pass
 
 **Authored:** Ishrak Hossain. **Spec:** Arch Doc §7.4.
