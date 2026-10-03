@@ -75,6 +75,7 @@ def section(title: str, level: str = "## ") -> int:
 
 # ---------------------------------------------------------------- counts
 
+
 def check_counts(r: Result, docs: dict[str, str]) -> dict[str, int]:
     section("1. Schema counts (Arch Doc SQL is the artefact of record)")
 
@@ -84,7 +85,11 @@ def check_counts(r: Result, docs: dict[str, str]) -> dict[str, int]:
     sql_fks = re.findall(r"REFERENCES\s+(\w+)\s*\(", arch)
     sql_idx = re.findall(r"^CREATE INDEX (\w+)", arch, re.M)
 
-    r.check(len(sql_tables) == len(set(sql_tables)), "no duplicate CREATE TABLE", f"{len(sql_tables)} tables")
+    r.check(
+        len(sql_tables) == len(set(sql_tables)),
+        "no duplicate CREATE TABLE",
+        f"{len(sql_tables)} tables",
+    )
     r.check(len(sql_tables) == 24, "24 CREATE TABLE statements", str(len(sql_tables)))
     r.check(len(sql_fks) == 35, "35 foreign keys", str(len(sql_fks)))
     r.check(len(sql_idx) == 13, "13 CREATE INDEX statements", str(len(sql_idx)))
@@ -120,7 +125,11 @@ def check_counts(r: Result, docs: dict[str, str]) -> dict[str, int]:
             for m in re.finditer(r"(\d+)\s+indexes\b", line, re.I):
                 if int(m.group(1)) != 13:
                     stale.append(f"{name}:{line_no} says {m.group(1)} indexes")
-    r.check(not stale, "prose schema sentences agree with the DDL", "; ".join(sorted(set(stale))) or "all consistent")
+    r.check(
+        not stale,
+        "prose schema sentences agree with the DDL",
+        "; ".join(sorted(set(stale))) or "all consistent",
+    )
     return counts
 
 
@@ -141,9 +150,19 @@ def check_frs(r: Result, docs: dict[str, str]) -> list[str]:
 
     ids = sorted(set(fr_rows))
     expected = [f"REQ-FR-{i:03d}" for i in range(1, 53)]
-    r.check(ids == expected, "FR ids are contiguous 001-052",
-            "missing " + ", ".join(set(expected) - set(ids)) if set(expected) - set(ids) else
-            ("unexpected " + ", ".join(set(ids) - set(expected)) if set(ids) - set(expected) else "contiguous"))
+    r.check(
+        ids == expected,
+        "FR ids are contiguous 001-052",
+        (
+            "missing " + ", ".join(set(expected) - set(ids))
+            if set(expected) - set(ids)
+            else (
+                "unexpected " + ", ".join(set(ids) - set(expected))
+                if set(ids) - set(expected)
+                else "contiguous"
+            )
+        ),
+    )
 
     # Every REQ-FR-nnn mentioned anywhere must be a defined requirement.
     defined = set(fr_rows)
@@ -153,7 +172,11 @@ def check_frs(r: Result, docs: dict[str, str]) -> list[str]:
             if ref not in defined:
                 line = text[: text.find(ref)].count("\n") + 1
                 dangling.add(f"{name}:{line} {ref}")
-    r.check(not dangling, "0 dangling REQ-FR references", "; ".join(sorted(dangling)) or "none")
+    r.check(
+        not dangling,
+        "0 dangling REQ-FR references",
+        "; ".join(sorted(dangling)) or "none",
+    )
 
     # Priority is a closed vocabulary. "Lowest" is not a priority, and a silently
     # invented value is exactly the sort of thing a reader sorts a backlog on.
@@ -169,7 +192,11 @@ def check_frs(r: Result, docs: dict[str, str]) -> list[str]:
         value = re.sub(r"[*`]", "", cells[2]).strip()
         if value not in ALLOWED_PRIORITY:
             bad_priority.append(f"{m.group(1)}={value!r}")
-    r.check(not bad_priority, "FR priority is one of High/Medium/Low", ", ".join(bad_priority) or "all valid")
+    r.check(
+        not bad_priority,
+        "FR priority is one of High/Medium/Low",
+        ", ".join(bad_priority) or "all valid",
+    )
     return ids
 
 
@@ -192,8 +219,11 @@ def check_nfrs(r: Result, docs: dict[str, str]) -> None:
     r.check(families["REQ-SEC"] == 14, "14 REQ-SEC", str(families["REQ-SEC"]))
     r.check(families["REQ-COM"] == 9, "9 REQ-COM", str(families["REQ-COM"]))
     total = sum(families.values())
-    r.check(total == 50, "the four families sum to the documented 50 NFRs",
-            " + ".join(str(v) for v in families.values()) + f" = {total}")
+    r.check(
+        total == 50,
+        "the four families sum to the documented 50 NFRs",
+        " + ".join(str(v) for v in families.values()) + f" = {total}",
+    )
 
     # And the §4.2 table must actually hold 50 rows, since that is what a reader counts.
     rows = len(re.findall(r"^\|\s*REQ-(?:SEC|COM|NFR|NFOR)-\d{3}\s*\|", arch, re.M))
@@ -241,7 +271,9 @@ def check_stories(r: Result, docs: dict[str, str]) -> dict[str, int]:
         prio = re.sub(r"[*`]", "", cells[4]).strip()
         priorities[prio] += 1
 
-    r.check(not bad, "every story has an integer point value", ", ".join(bad) or "all parse")
+    r.check(
+        not bad, "every story has an integer point value", ", ".join(bad) or "all parse"
+    )
     r.check(total == 217, "stories sum to 217 points", str(total))
     r.check(priorities.get("Must") == 30, "30 Must", str(priorities.get("Must")))
     r.check(priorities.get("Should") == 17, "17 Should", str(priorities.get("Should")))
@@ -251,13 +283,20 @@ def check_stories(r: Result, docs: dict[str, str]) -> dict[str, int]:
     referenced: set[str] = set()
     for _, cells in stories:
         referenced.update(re.findall(r"FR-(\d{3})", cells[2]))
-    uncovered = [f"REQ-FR-{i:03d}" for i in range(1, 53) if f"{i:03d}" not in referenced]
-    r.check(not uncovered, "every FR has at least one story", ", ".join(uncovered) or "52/52")
+    uncovered = [
+        f"REQ-FR-{i:03d}" for i in range(1, 53) if f"{i:03d}" not in referenced
+    ]
+    r.check(
+        not uncovered,
+        "every FR has at least one story",
+        ", ".join(uncovered) or "52/52",
+    )
 
     return {"stories": len(stories), "points": total}
 
 
 # --------------------------------------------------------------------- ER
+
 
 def check_er(r: Result, docs: dict[str, str]) -> None:
     section("5. ER diagram vs DDL")
@@ -272,19 +311,26 @@ def check_er(r: Result, docs: dict[str, str]) -> None:
 
     # The constraint the ER diagram drew but the DDL lacked.
     ddls = arch
-    r.check("UNIQUE (user_id, status)" in ddls,
-            "DDL carries UNIQUE (user_id, status) as drawn in the ER diagram")
+    r.check(
+        "UNIQUE (user_id, status)" in ddls,
+        "DDL carries UNIQUE (user_id, status) as drawn in the ER diagram",
+    )
 
     # Table names in the ER diagram must exist in the DDL.
     ddl_tables = set(re.findall(r"^CREATE TABLE (\w+)", arch, re.M))
     er_tables = set(re.findall(r"^\s*([A-Z_]{4,})\s*\{", arch, re.M))
     # Only compare the ones that look like real table names.
     er_real = {t for t in er_tables if t.lower() in {x.lower() for x in ddl_tables}}
-    missing = sorted({t for t in er_tables if t not in ddl_tables and " " not in t} - er_real)
-    r.note(f"ER entities not matched to a CREATE TABLE (expected for non-table boxes): {len(missing)}")
+    missing = sorted(
+        {t for t in er_tables if t not in ddl_tables and " " not in t} - er_real
+    )
+    r.note(
+        f"ER entities not matched to a CREATE TABLE (expected for non-table boxes): {len(missing)}"
+    )
 
 
 # ------------------------------------------------------------------- links
+
 
 def check_links(r: Result, docs: dict[str, str]) -> None:
     section("6. Links")
@@ -300,7 +346,9 @@ def check_links(r: Result, docs: dict[str, str]) -> None:
             if not (ROOT / path).exists():
                 line = text[: text.find(target)].count("\n") + 1
                 dead.append(f"{name}:{line} -> {target}")
-    r.check(not dead, "0 dead relative links", "; ".join(sorted(set(dead))) or "all resolve")
+    r.check(
+        not dead, "0 dead relative links", "; ".join(sorted(set(dead))) or "all resolve"
+    )
 
     # Every .md anchor target must exist as a heading in the target file.
     broken_anchors = []
@@ -317,10 +365,15 @@ def check_links(r: Result, docs: dict[str, str]) -> None:
             if anchor.lower() not in slugs:
                 line = text[: text.find(target[0])].count("\n") + 1
                 broken_anchors.append(f"{name}:{line} -> {f}#{anchor}")
-    r.check(not broken_anchors, "0 broken cross-file anchors", "; ".join(sorted(set(broken_anchors))) or "all resolve")
+    r.check(
+        not broken_anchors,
+        "0 broken cross-file anchors",
+        "; ".join(sorted(set(broken_anchors))) or "all resolve",
+    )
 
 
 # ------------------------------------------------------------------ naming
+
 
 def check_naming(r: Result, docs: dict[str, str]) -> None:
     section("7. Naming")
@@ -347,16 +400,22 @@ def check_naming(r: Result, docs: dict[str, str]) -> None:
             if "was abandoned" in line or "working name" in line:
                 continue
             hits.append(f"{name}:{line_no}: {line.strip()[:70]}")
-    r.check(not hits, "old product name only where it describes other companies or records the rename",
-            "; ".join(hits) or "clean")
+    r.check(
+        not hits,
+        "old product name only where it describes other companies or records the rename",
+        "; ".join(hits) or "clean",
+    )
 
     for name, text in docs.items():
         if re.search(r"bias-free", text, re.I):
-            r.note(f"{name} mentions 'bias-free' -- must be attributed or historical, check it")
+            r.note(
+                f"{name} mentions 'bias-free' -- must be attributed or historical, check it"
+            )
     r.check(True, "subtitle is 'AI-Powered, Explainable Recruitment Platform'")
 
 
 # ------------------------------------------------------------------- prose
+
 
 def check_prose_counts(r: Result, docs: dict[str, str]) -> None:
     section("8. Prose figures that must agree")
@@ -380,15 +439,26 @@ def check_prose_counts(r: Result, docs: dict[str, str]) -> None:
         (r"\b34 foreign keys\b", "34 foreign keys (pre-§2.25)"),
         (r"\b212 (?:story )?points\b", "212 points (pre-REQ-FR-050 re-estimate)"),
         (r"\bteam of 4\b", "team of 4 (superseded by 5)"),
-        (r"2026-12-25.*(?:milestone|Phase 4 ends)|Phase 4 ends.*2026-12-25",
-         "Phase 4 ending 25 December (moved to 24th)"),
+        (
+            r"2026-12-25.*(?:milestone|Phase 4 ends)|Phase 4 ends.*2026-12-25",
+            "Phase 4 ending 25 December (moved to 24th)",
+        ),
     ]
     # A line that reports or corrects a stale figure is the record of the fix, not a
     # live claim. This list is the set of words that mark such a line -- "had missed"
     # is in it because this file once failed on its own description of the bug it
     # exists to catch.
-    CORRECTION = ("corrected", "was ", "superseded", "moved to", "previously",
-                  "used to", "had missed", "drifted", "re-estimate")
+    CORRECTION = (
+        "corrected",
+        "was ",
+        "superseded",
+        "moved to",
+        "previously",
+        "used to",
+        "had missed",
+        "drifted",
+        "re-estimate",
+    )
     survivors = []
     for pattern, label in stale_patterns:
         for name, text in docs.items():
@@ -401,7 +471,11 @@ def check_prose_counts(r: Result, docs: dict[str, str]) -> None:
                 if any(c in line for c in CORRECTION):
                     continue
                 survivors.append(f"{name}:{line_no} {label}")
-    r.check(not survivors, "0 stale figures outside dated history", "; ".join(sorted(set(survivors))) or "none")
+    r.check(
+        not survivors,
+        "0 stale figures outside dated history",
+        "; ".join(sorted(set(survivors))) or "none",
+    )
 
 
 def check_placeholders(r: Result, docs: dict[str, str]) -> None:
@@ -420,8 +494,11 @@ def check_placeholders(r: Result, docs: dict[str, str]) -> None:
             if any(s in low for s in SELF_REFERENTIAL):
                 continue
             found.append(f"{name}:{line_no}")
-    r.check(not found, "no PLACEHOLDER / TBD / '?' cells outside the checklist itself",
-            "; ".join(sorted(set(found))) or "none")
+    r.check(
+        not found,
+        "no PLACEHOLDER / TBD / '?' cells outside the checklist itself",
+        "; ".join(sorted(set(found))) or "none",
+    )
 
     # Secrets. .env is gitignored; .env.example must hold no real credential.
     # devpassword is the documented local-development Postgres default and is
@@ -430,7 +507,9 @@ def check_placeholders(r: Result, docs: dict[str, str]) -> None:
     env_path = ROOT / ".env.example"
     suspicious = []
     if env_path.exists():
-        for line_no, line in enumerate(env_path.read_text(encoding="utf-8").splitlines(), 1):
+        for line_no, line in enumerate(
+            env_path.read_text(encoding="utf-8").splitlines(), 1
+        ):
             if line.startswith("#") or "=" not in line:
                 continue
             key, _, val = line.partition("=")
@@ -439,12 +518,22 @@ def check_placeholders(r: Result, docs: dict[str, str]) -> None:
             val = val.strip()
             if not val or val in ALLOWED_DEV_DEFAULTS:
                 continue
-            if re.search(r"(your|example|change|placeholder|xxx|generate|<\.\.>)", val, re.I):
+            if re.search(
+                r"(your|example|change|placeholder|xxx|generate|<\.\.>)", val, re.I
+            ):
                 continue
             suspicious.append(f".env.example:{line_no} {key}")
-    r.check(not suspicious, "no real credentials in .env.example", "; ".join(suspicious) or "placeholders only")
+    r.check(
+        not suspicious,
+        "no real credentials in .env.example",
+        "; ".join(suspicious) or "placeholders only",
+    )
 
-    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8") if (ROOT / ".gitignore").exists() else ""
+    gitignore = (
+        (ROOT / ".gitignore").read_text(encoding="utf-8")
+        if (ROOT / ".gitignore").exists()
+        else ""
+    )
     r.check(re.search(r"^\.env$", gitignore, re.M) is not None, ".env is gitignored")
 
 
@@ -503,8 +592,11 @@ def check_line_counts(r: Result, docs: dict[str, str]) -> None:
                 stale.append(
                     f"{holder}:{line_no} says {target} is {m.group(2)}, actually {actual}"
                 )
-    r.check(not stale, f"line counts in file tables are current ({checked} claim(s) checked)",
-            "; ".join(stale) or "all current")
+    r.check(
+        not stale,
+        f"line counts in file tables are current ({checked} claim(s) checked)",
+        "; ".join(stale) or "all current",
+    )
 
 
 def check_diagrams(r: Result) -> None:
@@ -515,7 +607,9 @@ def check_diagrams(r: Result) -> None:
     blocks = len(re.findall(r"```mermaid", feas))
     r.check(blocks == 5, "5 mermaid blocks", str(blocks))
     if harness.exists():
-        r.note(f"parse harness at {harness} -- run `cd /tmp/mmv2 && node check.mjs` for the real parse")
+        r.note(
+            f"parse harness at {harness} -- run `cd /tmp/mmv2 && node check.mjs` for the real parse"
+        )
     else:
         r.note("mermaid parse harness not present in this environment; run it manually")
 
@@ -610,13 +704,18 @@ def check_referenced_files(r: Result, docs: dict[str, str]) -> None:
         ("config/settings/ci.py", "the settings module every test uses"),
         ("config/settings/local.py", "development settings"),
         ("config/settings/production.py", "production settings"),
-        ("core/management/commands/seed.py", "reference-data loader (Complete Doc §C.8.3)"),
+        (
+            "core/management/commands/seed.py",
+            "reference-data loader (Complete Doc §C.8.3)",
+        ),
         ("core/reference.py", "score bands / countries / industries constants"),
         ("static/css/tokens.css", "design tokens (design.md §3–§5)"),
         ("templates/base.html", "base template"),
     ]
 
-    missing = [f"{path} ({why})" for path, why in required if not (ROOT / path).exists()]
+    missing = [
+        f"{path} ({why})" for path, why in required if not (ROOT / path).exists()
+    ]
     r.check(
         not missing,
         f"{len(required)} specified infrastructure files exist",
@@ -632,9 +731,11 @@ def check_referenced_files(r: Result, docs: dict[str, str]) -> None:
         r.check(
             lock.exists(),
             "package-lock.json is committed",
-            "missing — CI falls back to npm install, which is not reproducible"
-            if not lock.exists()
-            else "present",
+            (
+                "missing — CI falls back to npm install, which is not reproducible"
+                if not lock.exists()
+                else "present"
+            ),
         )
 
     # A pinned dependency version that does not exist on the registry cannot be
@@ -692,6 +793,155 @@ def check_referenced_files(r: Result, docs: dict[str, str]) -> None:
     )
 
 
+def _structurally_excluded(bandit_cfg: str) -> set[str]:
+    """IDs excluded by `exclude_dirs` rather than by a `-s` flag.
+
+    Only test directories can be handled this way, and only because the tests in
+    them raise nothing but B101. Any ID whose finding appears in *production* code
+    is deliberately not credited here: excluding a directory is the right answer
+    for an assert in a test and the wrong answer for a hardcoded password.
+    """
+    # Parsed, not regex-matched: the list carries comment lines between entries,
+    # so a pattern over raw text misses the item it is looking for -- which is
+    # exactly the failure this check exists to prevent.
+    dirs: list[str] = []
+    in_block = False
+    for line in bandit_cfg.splitlines():
+        if re.match(r"^exclude_dirs:", line):
+            in_block = True
+            continue
+        if in_block:
+            if re.match(r"^\s+-\s+", line):
+                dirs.append(line.split("-", 1)[1].strip())
+            elif line.strip() and not line.startswith((" ", "\t", "#")):
+                break  # next top-level key ends the block
+    return {"B101"} if "./tests" in dirs else set()
+
+
+def check_tool_config(r: Result) -> None:
+    """Assert that tool configuration files are internally consistent.
+
+    Added because `bandit.yaml` shipped four `skip:` lines and a reader would
+    reasonably conclude all four exceptions were active. Neither was:
+
+    - a repeated YAML key keeps only its last value, silently discarding three;
+    - bandit never reads a skip list from a YAML config at all, so even the
+      surviving entry did nothing.
+
+    Both failures are invisible. No warning, no error, and the scan reports
+    "0 issues" -- which looks like a clean codebase rather than a scanner
+    excluding nothing. A config file whose comments describe behaviour it does
+    not have is worse than no config file, because it is trusted.
+
+    The generalisable rule: a documented exception must be verifiable in the place
+    that actually enforces it. That is what these assertions do.
+    """
+    section("13. Tool configuration is self-consistent")
+
+    # (1) No repeated top-level keys in any YAML config. PyYAML keeps the last
+    #     occurrence, so a duplicate is a silent data loss.
+    for rel in ("bandit.yaml", "docker-compose.yml"):
+        path = ROOT / rel
+        if not path.exists():
+            r.check(False, f"{rel} does not exist")
+            continue
+        seen: Counter = Counter()
+        for line in path.read_text().splitlines():
+            # Top-level keys only: no leading whitespace, not a comment, has a colon.
+            if (
+                line
+                and not line[0].isspace()
+                and not line.startswith("#")
+                and ":" in line
+            ):
+                seen[line.split(":", 1)[0]] += 1
+        dupes = sorted(k for k, c in seen.items() if c > 1)
+        if dupes:
+            r.check(
+                False,
+                f"{rel} repeats top-level key(s) {dupes} — YAML silently keeps only "
+                f"the last, so the earlier values are discarded without warning",
+            )
+        else:
+            r.check(True, f"{rel} has no duplicate top-level keys")
+
+    # (2) Every test ID bandit.yaml justifies must actually be passed as a skip.
+    #     The reasons live in bandit.yaml; the enforcement lives in the workflow,
+    #     and a reader checking only the config would conclude the opposite.
+    bandit_cfg = (
+        (ROOT / "bandit.yaml").read_text() if (ROOT / "bandit.yaml").exists() else ""
+    )
+    workflow = (
+        (ROOT / ".github/workflows/ci-cd.yml").read_text()
+        if (ROOT / ".github/workflows/ci-cd.yml").exists()
+        else ""
+    )
+    if bandit_cfg and workflow:
+        # IDs justified in the config: a `skip`/`skips` line, or an inline `# BXXX`.
+        justified = set(re.findall(r"\bB\d{3}\b", bandit_cfg))
+        # IDs actually suppressed in the workflow's bandit invocation.
+        m = re.search(r"bandit[^\n]*(?:\\\n\s*)?[^\n]*-s\s+([A-Z0-9,]+)", workflow)
+        enforced = set(m.group(1).split(",")) & justified if m else set()
+        # An ID can also be enforced structurally, by excluding the directory that
+        # raises it. B101 (`assert`) is the case here: bandit.yaml justifies it via
+        # `exclude_dirs: - ./tests`, which *is* read from the config file and does
+        # work, so demanding it in `-s` as well would be wrong.
+        structural = _structurally_excluded(bandit_cfg)
+        missing = sorted(justified - enforced - structural)
+        if missing:
+            r.check(
+                False,
+                f"bandit.yaml justifies {missing} but the CI workflow does not pass "
+                f"them to -s; bandit ignores a skips list in the YAML config, so "
+                f"these exceptions are documented but not active",
+            )
+        elif not enforced:
+            r.check(
+                False,
+                "bandit.yaml lists skip IDs but the CI workflow passes no -s flag; "
+                "bandit does not read skips from the YAML config file",
+            )
+        else:
+            r.check(
+                True,
+                f"all {len(enforced)} bandit skip IDs justified in bandit.yaml are "
+                f"enforced via -s in the workflow",
+            )
+
+    # (3) bandit.yaml must not claim a `skips:` key works. If someone "fixes" it
+    #     by moving the list back into the YAML, this catches the regression.
+    if re.search(r"^skips:", bandit_cfg, re.MULTILINE):
+        r.check(
+            False,
+            "bandit.yaml sets a `skips:` key, which bandit ignores — skip lists "
+            "come only from the -s flag or a .bandit ini file",
+        )
+    else:
+        r.check(True, "bandit.yaml does not rely on an unsupported `skips:` key")
+
+    # (4) The migration exclusion must be applied consistently. Django rewrites
+    #     migration files wholesale, so formatting them is churn that the next
+    #     makemigrations undoes; but a flake8 run without the exclusion fails on
+    #     generated field definitions that no human wrote.
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    if "extend-exclude" in pyproject and "migrations" in pyproject:
+        r.check(True, "pyproject.toml excludes migrations from black/isort")
+    else:
+        r.check(False, "pyproject.toml does not exclude migrations from the formatters")
+
+    wf_flake8 = " ".join(
+        line.strip() for line in workflow.splitlines() if "migrations" in line
+    )
+    if "extend-exclude" in wf_flake8:
+        r.check(True, "CI flake8 excludes migrations, matching black and isort")
+    else:
+        r.check(
+            False,
+            "CI flake8 does not exclude migrations; Django-generated field "
+            "definitions exceed the line limit and no human wrote them",
+        )
+
+
 def main() -> int:
     print("FairFold documentation consistency check")
     print("=" * 60)
@@ -711,6 +961,7 @@ def main() -> int:
     check_line_counts(r, docs)
     check_diagrams(r)
     check_wireframes(r)
+    check_tool_config(r)
 
     print("\n" + "=" * 60)
     if r.failures:
@@ -720,7 +971,9 @@ def main() -> int:
         return 1
     print("All checks passed.")
     if r.notes:
-        print(f"\n{len(r.notes)} note(s) for a human to confirm -- these are recorded, not asserted:")
+        print(
+            f"\n{len(r.notes)} note(s) for a human to confirm -- these are recorded, not asserted:"
+        )
         for n in r.notes:
             print(f"  * {n}")
     return 0

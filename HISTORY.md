@@ -45,7 +45,7 @@ blocked.
 | `FAIRFOLD_Feasibility_and_Design.md` | 2880 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
 | `.env.example` | 158 | Environment variables, all placeholders |
-| `requirements.txt` / `requirements-dev.txt` | 64 / 25 | Pinned Python dependencies (planned stack) |
+| `requirements.txt` / `requirements-dev.txt` | 26 / 26 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
 **Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24 and §2.25):
@@ -1276,6 +1276,118 @@ scaffold. So `manage.py check`, `migrate` and anything importing a model will fa
 first `models.py` is written. That is expected: the models are day-one work and this pass was
 not to build them. The workflow now runs `manage.py check` **before** the tests so it fails
 with that message rather than as a traceback from whichever later step imported the file first.
+
+#### 10. CI failed again — SIX pins in `requirements.txt` did not exist
+
+The previous fix moved the failure from 49s to 53s, which meant the frontend was never the
+cause. **Six version pins I wrote do not exist on PyPI**, and `pip install` reports them **one
+at a time** — so each round of CI surfaced exactly one and I fixed it. All six were found in
+one pass by asking pip to resolve without installing.
+
+| Package | I wrote | Reality |
+|---|---|---|
+| `djangorestframework-simplejwt` | `5.3.3` | does not exist — 5.3.0, then 5.4.0 |
+| `django-otp` | `0.16.0` | does not exist — **the line is 1.x** |
+| `drf-spectacular` | `0.28.1` | does not exist — 0.28.0, then 0.29.0 |
+| `django-encrypted-model-fields` | `>=1.3.0` | does not exist — the line is 0.6.x |
+| `clamav-client` | `>=0.10.0` | does not exist — the line is 0.7.x |
+| `pip-audit` / `safety` | `2.8.1` / `2.5.1` | do not exist |
+
+**A seventh problem was worse than any of them, and no version error would have revealed it.**
+`django-celery-beat==2.7.0` **requires `Django<5.2`** — so it cannot install alongside the
+5.2 LTS that every document in this repository specifies. The pin exists, the package is real,
+and only a resolution pass finds the contradiction. Fixed to `2.9.0`, verified by reading
+`Requires-Dist` out of the wheel rather than trusting the release notes.
+
+**And an eighth: `Django>=5.2` had no upper bound**, so pip resolved to **Django 6.1.1** while
+the documents specify 5.2 LTS. An unbounded range means the version under test is whichever one
+released that morning, so **a green CI run would have said nothing about the deployed version.**
+Now `>=5.2,<6.0`, and resolution confirms it picks **5.2.17**.
+
+**Both files now resolve cleanly**, verified:
+`pip install --dry-run -r requirements.txt -r requirements-dev.txt` → `Would install …` with
+Django 5.2.17, no errors.
+
+**The lesson, and the fix.** Six invented version numbers in one file is not six independent
+typos — it is a habit. Nothing catches it: not review, not reading, not proofreading, and not
+`pip install` either, because pip stops at the first one. So the workflow now runs a
+**resolution-only pass** before installing, which finds all of them in ~20 seconds instead of
+one per CI run.
+
+The Arch Doc §3.4 stack table carried three of the same wrong versions and is corrected, with
+the correction inline so a reader comparing it to an old `requirements.txt` knows why they
+differ.
+
+---
+
+### 2.31 CI green end-to-end — and a config file that documented decisions it was not making
+
+The full lint-and-test job now passes locally, run with the same commands the
+workflow runs. The failures it took to get there were not the interesting part.
+The interesting part is **how three of them were invisible**.
+
+**1. CI would have failed on a database credential it never set.** The Postgres
+service creates user `postgres`; `base.py` reads `POSTGRES_USER` and defaults it
+to `fairfold`; the workflow set `DB_PASSWORD` but never `POSTGRES_USER`. Every
+database-touching test died with `password authentication failed for user
+"fairfold"` — which reads as a wrong password, not a wrong username, and sends
+you to rotate a secret that is correct. Reproduced locally before fixing, then
+verified fixed.
+
+**2. `bandit.yaml` had four `skip:` lines, and none of them did anything.** Two
+independent causes, both silent:
+
+- YAML keeps only the **last** of a repeated key, so three of the four were
+  discarded before bandit ever read the file.
+- bandit does not read a skip list from a YAML config **at all**. Verified
+  against the installed source: `bandit/core/config.py` exposes `exclude_dirs`
+  and profiles, and nothing reads `skip` or `skips`. Skips come from `-s` or a
+  `.bandit` ini file.
+
+So the file documented four deliberate exceptions, and a reader — including me —
+would conclude all four were active. A scanner that silently checks nothing is
+worse than no scanner: it reports "0 issues", which looks like a clean codebase.
+The skips now live in the workflow's `-s` flag, and `bandit.yaml` explains why
+that is the only place they work.
+
+**3. My "flake8 passes" claim was from the wrong command.** There is no flake8
+config in the repo, and flake8 does not read `pyproject.toml`, so a bare
+`flake8 .` enforces a **79-character** limit. CI passes `--max-line-length=120`
+on the command line. My local check used the default and would have reported
+~400 violations that CI never sees; CI's own run had 7 real ones I had not
+looked at (two missing trailing newlines, five over-long Django-generated
+migration lines). The claim "flake8 passes" was true of neither command.
+
+**Migrations are now excluded from flake8, black and isort.** Django rewrites
+those files wholesale on every `makemigrations`, so hand-wrapping them buys
+nothing and the next model change undoes it. The exclusion is applied
+consistently and asserted.
+
+**Also fixed, and worth recording because it is the same bug twice more:**
+
+- `production.py` does `from base import *`, which copies *references*. Importing
+  it in a test rewrites the live `DATABASES` dict, leaving `sslmode="require"` in
+  place so test-database teardown fails with *"server does not support SSL, but
+  SSL was required"*. My first two fixes for this both looked right and both
+  restored nothing — one rebound the name (the connection kept its reference),
+  the next cleared before recursing (so every nested dict was replaced anyway).
+  The third recurses in place, and `tests/core/test_settings_isolation.py`
+  exists specifically so neither broken version can come back silently.
+- `seed.py` declared a method `@staticmethod` while its body used `self` — a
+  `NameError` on every seed run, invisible until the command was executed.
+
+**New check — §13 of `verify_docs.py`.** A config file whose comments describe
+behaviour it does not have is worse than no config file, because it is trusted.
+The new check asserts no YAML config repeats a top-level key, that every bandit
+ID justified in `bandit.yaml` is actually enforced (`-s`, or a justified
+`exclude_dirs`), that `bandit.yaml` does not rely on an unsupported `skips:` key,
+and that the migration exclusion is applied to all three tools. Negative-tested
+four ways: duplicate key, `skips:` reintroduced, `-s` removed from the workflow,
+flake8 exclusion removed. All four caught.
+
+**Final state — 115 tests, 91.04% coverage (gate is 80%).** flake8, black, isort,
+mypy, bandit, `verify_docs.py`, `verify_bias_set.py`: all green, each run with
+the command CI actually uses.
 
 ---
 

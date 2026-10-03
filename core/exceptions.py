@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import logging
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.http import Http404
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
 
@@ -51,19 +52,22 @@ def api_exception_handler(exc, context):
         # A missing row and a row the user may not see must be indistinguishable,
         # or the 403/404 difference becomes an enumeration oracle for candidate
         # IDs. See Complete Doc §C.12 on `jobs/public/`.
-        return Response(
-            {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    if isinstance(exc, PermissionDenied):
+    if isinstance(exc, (DRFPermissionDenied, DjangoPermissionDenied)):
+        # Both classes, because views raise the DRF one and Django's auth
+        # backends raise Django's. Checking only Django's left this branch
+        # unreachable: DRF's own handler had already turned a DRF
+        # PermissionDenied into a 403 carrying the *view's* message, so a view
+        # raising `PermissionDenied("not your job")` leaked its own wording to
+        # the client instead of the deliberate one here. A test that passed the
+        # builtin would never have caught it.
         return Response(
             {"detail": "You do not have permission to perform this action."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
     if isinstance(response.data, dict) and "detail" in response.data:
-        response.data["reference"] = getattr(
-            context.get("request"), "request_id", ""
-        )
+        response.data["reference"] = getattr(context.get("request"), "request_id", "")
 
     return response

@@ -13,13 +13,34 @@ read.
 from __future__ import annotations
 
 from django.urls import include, path
+from django.views.decorators.cache import never_cache
+from drf_spectacular.utils import extend_schema
+from rest_framework import serializers
+from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import never_cache
 
 app_name = "api"
+
+
+class ApiRootSerializer(serializers.Serializer):
+    """The shape of the API index response.
+
+    Exists so the endpoint appears in the OpenAPI schema. drf-spectacular cannot
+    infer a body for a bare `APIView` and omits the view entirely
+    (spectacular.W002) -- so without this the endpoint is in no client
+    generation and no contract test, which is the same failure shape as the
+    absent package-lock.json: a thing invisible because the tool that should
+    have reported it had nothing to report.
+
+    `domains` is a `DictField` rather than fixed fields because its keys are the
+    mounted app names. Fixed fields would need editing every time an app is
+    mounted, and would then quietly under-report instead of failing.
+    """
+
+    version = serializers.CharField()
+    documentation = serializers.CharField()
+    domains = serializers.DictField(child=serializers.CharField())
 
 
 class ApiRootView(APIView):
@@ -34,6 +55,14 @@ class ApiRootView(APIView):
     permission_classes: list = []
     authentication_classes: list = []
 
+    @extend_schema(
+        responses={200: ApiRootSerializer},
+        summary="API index",
+        description=(
+            "Public. Lists the mounted domain prefixes only -- no schema, no "
+            "model names, no field-level detail."
+        ),
+    )
     @never_cache
     def get(self, request) -> Response:
         return Response(

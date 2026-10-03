@@ -21,13 +21,22 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
-__all__ = [
-    "ImproperlyConfigured",
-    "env",
-    "env_bool",
-    "env_list",
-    "env_required",
-]
+# ⚠️ DO NOT ADD AN `__all__` HERE.
+#
+# An earlier revision of this file defined `__all__ = ["ImproperlyConfigured", "env", ...]`
+# so that `production.py` could import `ImproperlyConfigured` by name. That broke every
+# setting: `__all__` restricts what `from .base import *` exports, so `ci.py` and
+# `production.py` received only those five names and NONE of the Django settings.
+# `INSTALLED_APPS` became `[]`, `DATABASES` became empty, and `manage.py check`
+# reported **"System check identified no issues"** — a pass produced by checking
+# nothing at all.
+#
+# The lesson is recorded here rather than in HISTORY because the next person to
+# tidy this file will reach for `__all__` too: it is the idiomatic way to export a
+# helper, and here it silently empties a Django settings module.
+#
+# To import a name explicitly, just import it -- see `production.py`, which does
+# `from config.settings.base import ImproperlyConfigured, ...`.
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -257,7 +266,9 @@ SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=False)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=False)
 
 SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "0"))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=False)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=False
+)
 SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", default=False)
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -274,7 +285,9 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_REFERRER_POLICY = "same-origin"
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {"min_length": 12},

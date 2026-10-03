@@ -1,13 +1,29 @@
-Django>=5.2  # LTS (5.0 is EOL — no security patches)
+# CORRECTED 2026-10-04. Five version pins in this file did not exist on PyPI and
+# broke `pip install` in about five seconds of resolution:
+#   djangorestframework-simplejwt==5.3.3  -> does not exist; 5.3.0 then 5.4.0
+#   django-otp==0.16.0                    -> does not exist; the line is 1.x now
+#   drf-spectacular==0.28.1                -> does not exist; 0.28.0 then 0.29.0
+#   pip-audit==2.8.1 / safety==2.5.1       -> dev; same problem
+# They read as perfectly plausible. Nothing but asking the index catches it.
+#
+# The upper bound on Django is the second fix, and it matters more: `>=5.2` alone
+# resolves to **Django 6.1.1**, while every document in this repository specifies
+# 5.2 LTS. An unbounded range means the version under test is whichever one
+# released this morning, so a CI pass says nothing about the deployed version.
+Django>=5.2,<6.0  # 5.2 LTS. Capped: 5.0 is EOL and 6.x is untested here.
 djangorestframework==3.15.1
-djangorestframework-simplejwt==5.3.3
+# 5.3.3 did not exist. 5.5.1 is current and resolves against Django 5.2.
+djangorestframework-simplejwt==5.5.1
 django-celery-results==2.5.1
 django-ratelimit==4.1.0
-django-otp==0.16.0
+# 0.16.0 did not exist. django-otp is on 1.x; 1.7.3 is current.
+django-otp==1.7.3
 
 celery==5.4.0
 redis==5.0.3
-django-celery-beat==2.7.0  # periodic task scheduling (Celery Beat)
+# 2.7.0 requires Django<5.2 and so cannot install alongside the 5.2 LTS this
+# project targets. 2.9.0 allows Django<6.1. Verified from its wheel metadata.
+django-celery-beat==2.9.0  # periodic task scheduling (Celery Beat)
 django-redis==5.4.0    # Redis cache backend — REQUIRED: Arch Doc §5.4 / Complete Doc §C.2
                         # specify Redis-backed caching, and rate-limit counters live in
                         # Redis so they are shared across gunicorn workers. Without
@@ -30,14 +46,16 @@ spacy>=3.8.2  # PII detection NER
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
 cryptography>=43.0.1  # AES-256-GCM
-django-encrypted-model-fields>=1.3.0  # EncryptedCharField
+# 1.3.0 did not exist; the line is 0.6.x. 0.6.5 is current.
+django-encrypted-model-fields>=0.6.5  # EncryptedCharField
 argon2-cffi>=23.1.0
 
 # Storage & file handling
 django-storages>=1.14.0  # S3-compatible storage backend
 boto3>=1.34.0  # AWS S3/MinIO SDK
 python-magic>=0.4.27  # MIME type validation (libmagic)
-clamav-client>=0.10.0  # antivirus scanning (clamd protocol)
+# 0.10.0 did not exist; the line is 0.7.x. 0.7.2 is current.
+clamav-client>=0.7.2  # antivirus scanning (clamd protocol)
 pdfplumber>=0.11.0  # PDF text extraction for resume parsing
 
 # Frontend
@@ -45,7 +63,8 @@ django-htmx>=1.0.0  # HTMX integration
 
 # API schema — runtime, not dev: prd.md §13 serves /api/schema/ and the OpenAPI
 # document is consumed by the frontend team, so it must be installed in production.
-drf-spectacular==0.28.1
+# 0.28.1 did not exist. 0.29.0 is the nearest real release; 0.30.0 is current.
+drf-spectacular==0.29.0
 
 # Production
 gunicorn>=22.0.0

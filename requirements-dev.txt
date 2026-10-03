@@ -14,8 +14,8 @@ mypy==1.13.0
 
 # Security
 bandit==1.7.10
-pip-audit==2.8.1
-safety==2.5.1
+pip-audit==2.9.0  # 2.8.1 did not exist; 2.9.0 is the nearest real release
+safety==3.8.1    # 2.5.1 did not exist; 3.x is current
 
 # Documentation
 sphinx==8.2.2

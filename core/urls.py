@@ -42,7 +42,9 @@ def ready(request: HttpRequest) -> JsonResponse:
         from django.core.cache import cache
 
         cache.set("healthcheck", "1", timeout=5)
-        checks["cache"] = "ok" if cache.get("healthcheck") == "1" else "error: no round-trip"
+        checks["cache"] = (
+            "ok" if cache.get("healthcheck") == "1" else "error: no round-trip"
+        )
     except Exception as exc:
         checks["cache"] = f"error: {type(exc).__name__}"
 

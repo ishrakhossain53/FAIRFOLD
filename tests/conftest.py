@@ -53,6 +53,7 @@ if django is not None:
 # usually a typo, and a typo'd marker means the tests it was meant to select ran
 # for the wrong reason.
 
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
@@ -71,6 +72,7 @@ def pytest_configure(config):
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def bias_set_dir() -> Path:

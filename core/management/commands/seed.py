@@ -109,8 +109,7 @@ class Command(BaseCommand):
     def _fixture_path(name: str) -> Path:
         return Path(settings.BASE_DIR) / "core" / "fixtures" / f"{name}.json"
 
-    @staticmethod
-    def _verify_reference() -> None:
+    def _verify_reference(self) -> None:
         """Validate the constants, and warn loudly about uncalibrated bands.
 
         The warning is on every seed run because the bands will still be
@@ -118,6 +117,11 @@ class Command(BaseCommand):
         interview" band in the UI should know the threshold has never been tested
         against real scores. Silence here would let an uncalibrated threshold
         harden into an assumed one.
+
+        An instance method, not a static one: it writes to `self.stdout`, and a
+        `@staticmethod` decorator here meant every `manage.py seed` raised
+        `NameError` at exactly the point the bands are known to be provisional.
+        flake8's F821 caught it; nothing in the docs could have.
         """
         try:
             reference.validate()

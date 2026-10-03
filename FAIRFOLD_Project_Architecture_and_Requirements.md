@@ -279,10 +279,10 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | | pdfplumber | 0.11+ | PDF text extraction |
 | **Security** | Argon2id | via argon2-cffi | Password hashing |
 | | cryptography | 43.0+ | AES-256-GCM field encryption |
-| | django-encrypted-model-fields | 1.3.0 | EncryptedCharField |
+| | django-encrypted-model-fields | 0.6.5 | EncryptedCharField (1.3.0 corrected 2026-10-04 — the line is 0.6.x) |
 | | django-ratelimit | 4.1.0 | Rate limiting. **Must be configured against the Redis cache**, not the default local-memory cache, or limits are enforced per gunicorn worker and are therefore not limits |
-| | django-otp | 0.16.0 | TOTP MFA |
-| | djangorestframework-simplejwt | 5.3.3 | JWT authentication |
+| | django-otp | 1.7.3 | TOTP MFA (0.16.0 corrected 2026-10-04 — django-otp is on 1.x) |
+| | djangorestframework-simplejwt | 5.5.1 | JWT authentication (5.3.3 was corrected 2026-10-04 — it does not exist on PyPI) |
 | **Email** | django-anymail | 10.0+ | Unified email backend |
 | **Billing** | stripe | 10.0+ | Payment processing |
 | **Monitoring** | sentry-sdk | 2.14+ | Error tracking |

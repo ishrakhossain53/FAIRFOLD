@@ -51,6 +51,7 @@ def flagged_audit():
 
 # ------------------------------------------------------------- the verdict
 
+
 def test_clean_rationale_passes(clean_audit):
     assert not clean_audit.flagged
     assert clean_audit.outcome == RESULT_PASS
@@ -79,6 +80,7 @@ def test_a_flag_is_not_a_veto(flagged_audit):
 
 # --------------------------------------------------- the "what was checked"
 
+
 def test_checked_lists_every_rule_not_only_the_firing_ones(clean_audit, flagged_audit):
     """A silent rule must still be reported as having run.
 
@@ -101,6 +103,7 @@ def test_a_missing_rule_set_fails_loudly_rather_than_passing(tmp_path):
 
 # ------------------------------------------------------- the audit payload
 
+
 def test_payload_maps_to_real_columns(clean_audit):
     """Every key must correspond to a column in Arch Doc 5.1.
 
@@ -109,8 +112,10 @@ def test_payload_maps_to_real_columns(clean_audit):
     """
     payload = audit_payload(clean_audit, resource_id=RESOURCE_ID)
     repo = Path(__file__).resolve().parents[2]
-    arch = (repo / "FAIRFOLD_Project_Architecture_and_Requirements.md").read_text(encoding="utf-8")
-    ddl = arch[arch.index("CREATE TABLE audit_log_entries"):]
+    arch = (repo / "FAIRFOLD_Project_Architecture_and_Requirements.md").read_text(
+        encoding="utf-8"
+    )
+    ddl = arch[arch.index("CREATE TABLE audit_log_entries") :]
     ddl = ddl[: ddl.index(");")]
 
     for column in ("action", "resource_type", "resource_id", "details", "result"):
@@ -153,8 +158,15 @@ def test_details_carry_everything_needed_to_replay_the_flag(flagged_audit):
     once the terms have changed.
     """
     details = audit_payload(flagged_audit, resource_id=RESOURCE_ID)["details"]
-    for key in ("pass_version", "rationale_hash", "checked", "highlights",
-                "explanation", "reference_year", "graduation_window_years"):
+    for key in (
+        "pass_version",
+        "rationale_hash",
+        "checked",
+        "highlights",
+        "explanation",
+        "reference_year",
+        "graduation_window_years",
+    ):
         assert key in details, f"details missing {key!r}"
     assert details["pass_version"] == "1.0.1"
     assert details["highlights"], "a flag must quote what fired"
@@ -182,9 +194,12 @@ def test_payload_is_json_serialisable(clean_audit, flagged_audit):
 
 # --------------------------------------------------------- the review step
 
+
 def test_review_payload_names_a_real_person(flagged_audit):
     payload = review_payload(
-        flagged_audit, resource_id=RESOURCE_ID, actor_id="9a8b7c6d-0000-4000-8000-000000000002",
+        flagged_audit,
+        resource_id=RESOURCE_ID,
+        actor_id="9a8b7c6d-0000-4000-8000-000000000002",
         note="Reviewed the phrase; the CV genuinely lists a society role.",
     )
     assert payload["actor_id"] is not None

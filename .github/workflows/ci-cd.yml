@@ -74,6 +74,11 @@ jobs:
       # Placeholder. No CI test round-trips an encrypted field; production.py is
       # the module that rejects a missing or unchanged value.
       ENCRYPTION_KEY: ci-only-fernet-placeholder-0000000000=
+      # Must match the postgres service's POSTGRES_USER above. base.py defaults
+      # this to `fairfold`, so without this the first database-touching test dies
+      # with "password authentication failed for user \"fairfold\"" -- a
+      # credential error that reads like a wrong password, not a wrong username.
+      POSTGRES_USER: postgres
 
     steps:
       - uses: actions/checkout@v4
@@ -93,10 +98,21 @@ jobs:
             requirements.txt
             requirements-dev.txt
 
-      - name: Install dependencies
+      # Added 2026-10-04. This is a resolution-only pass: pip downloads metadata
+      # but installs nothing, so it takes ~20s and catches a version that does not
+      # exist on PyPI or two packages that cannot co-install.
+      #
+      # It earns its place because SIX pins in these files did not exist when this
+      # workflow first ran, and `pip install` reports them one at a time. Seven
+      # minutes of installing to learn the third bad pin is the expensive way to
+      # discover a typo. `--dry-run` finds all of them in one pass.
+      - name: Check dependency resolution
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev.txt
+          pip install --dry-run --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
         # REMOVED 2026-10-04. requirements.txt already pins en_core_web_sm from its
@@ -155,7 +171,8 @@ jobs:
         run: |
           flake8 config/ core/ accounts/ candidates/ employers/ matching/ \
             assessments/ interviews/ notifications/ api/ journey/ ai/ \
-            --max-line-length=120
+            --max-line-length=120 \
+            --extend-exclude='*/migrations/*'
 
       - name: Lint — black (check)
         run: black --check .
@@ -169,7 +186,13 @@ jobs:
             --ignore-missing-imports
 
       - name: Security scan — bandit
-        run: bandit -r . -c bandit.yaml
+        # The `-s` list is not optional and cannot live in bandit.yaml: bandit
+        # reads skip lists from the command line or a `.bandit` ini file, and
+        # silently ignores a `skips:` key in the YAML config. Every ID is
+        # justified in bandit.yaml.
+        run: |
+          bandit -r . -c bandit.yaml \
+            -s B104,B105,B106,B107,B108,B311,B403
 
       - name: Dependency audit — pip-audit
         # A known CVE in a transitive dependency is an inherited risk nobody
@@ -224,6 +247,28 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
           DJANGO_SETTINGS_MODULE: config.settings.ci
+        run: python manage.py check
+
+      # `check --deploy` against PRODUCTION settings, not against ci.py.
+      #
+      # The deploy checks (HSTS, SSL redirect, a strong SECRET_KEY, DEBUG off)
+      # exist to validate the module that actually serves users. Running them
+      # against ci.py reports warnings that are true of ci and irrelevant -- there
+      # is no TLS in a GitHub runner -- and the obvious way to make them pass is
+      # to set insecure values in production.py, which is the opposite of the
+      # point. Here it validates the module that matters, and every placeholder
+      # below is a value production.py asserts are non-placeholder.
+      - name: Django deployment check (production settings)
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret-key-0000000000000000000000000000000000
+          ENCRYPTION_KEY: ci-only-fernet-placeholder-0000000000=
+          ALLOWED_HOSTS: ci.example.invalid
+          CSRF_TRUSTED_ORIGINS: https://ci.example.invalid
+          EMAIL_BACKEND_URL: https://placeholder@api.resend.com
+          DEFAULT_FROM_EMAIL: noreply@ci.example.invalid
+          SENTRY_DSN: "https://publickey@o0.ingest.sentry.io/0"
+          CLAMD_HOST: localhost
         run: python manage.py check --deploy --fail-level WARNING
 
       - name: Run migrations and seed
