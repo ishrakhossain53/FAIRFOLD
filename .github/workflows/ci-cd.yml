@@ -99,7 +99,11 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # REMOVED 2026-10-04. requirements.txt already pins en_core_web_sm from its
+        # GitHub release wheel, so `spacy download` re-resolved and overwrote that
+        # pin with whatever the model index served that day -- making a CI run
+        # depend on a registry's current contents rather than on the repository.
+        run: python -c "import spacy; spacy.load('en_core_web_sm'); print('spacy model present')"
 
       # There is no SPA, but there IS a compiled CSS file: design.md §11.2 builds
       # Tailwind to a static file rather than loading it from the CDN, which is
@@ -115,7 +119,21 @@ jobs:
           cache: 'npm'
 
       - name: Install frontend dependencies
-        run: npm ci --no-audit --no-fund
+        # `npm ci` requires a committed package-lock.json and deletes node_modules
+        # first, which is what makes a build reproducible. It FAILED on 2026-10-04
+        # with EUSAGE because no lockfile was committed -- the file existed only
+        # in the tree that generated it.
+        #
+        # The fallback matters: a lockfile regenerated in CI defeats the point of
+        # committing one, but refusing to build is worse than an unpinned build
+        # while someone fixes it. `npm ci` first, `npm install` only if it fails.
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            echo "::warning::package-lock.json is missing -- falling back to npm install, which is not reproducible. Commit the lockfile."
+            npm install --no-audit --no-fund
+          fi
 
       - name: Build frontend assets
         run: npm run build
@@ -168,8 +186,13 @@ jobs:
         run: |
           pip install licensedb
           licensedb cache
+          # `licensedb.yml` did not exist on 2026-10-04, so this step failed on a
+          # file nobody had written. An absent whitelist means "nothing approved
+          # yet", not "abort".
+          if [ -f licensedb.yml ]; then
+            licensedb whitelist --from-file=licensedb.yml || true
+          fi
           licensedb report --format csv --packages . > licence-report.csv || true
-          licensedb whitelist --from-file=licensedb.yml || true
         continue-on-error: true
 
       # ------------------------------------------------------------------------

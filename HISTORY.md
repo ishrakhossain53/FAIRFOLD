@@ -1240,6 +1240,43 @@ non-interactive commands (`pytest`, `makemigrations`) that would otherwise hang 
 TTY. Also updated `docker-compose up -d` to `docker compose up -d --wait`, so the stack is
 ready rather than merely started.
 
+#### 9. CI failed on the first run — three real bugs, and one that was my own invention
+
+`lint-and-test` failed in **49 seconds** on both push and pull_request. Too fast for a full
+PyTorch install, so the failure was early. Three causes, all reproduced locally rather than
+guessed at:
+
+| # | Failure | Why it was invisible |
+|---|---|---|
+| 1 | **`npm ci` → EUSAGE.** It requires a committed `package-lock.json`, and there was none | The workflow step I wrote referenced a file I never created. Reproduced exactly: `npm error code EUSAGE` |
+| 2 | **`htmx.org@1.18.0` does not exist on npm.** Latest 1.x is **1.9.12**; current is 2.0.11 | I wrote that version number without checking. It reads as completely plausible in a `package.json` and fails only on install. The failure surfaced as `ETARGET`, not as "bad version" |
+| 3 | **`licensedb.yml` never existed**, and the licence step passed it to `licensedb whitelist` | The step was `|| true` for the command but the file argument failed first |
+
+**Bug 2 is the one that matters.** Nothing in a documentation review, a read of
+`package.json`, or a careful proofread catches a version number that does not exist — the
+only test is asking the registry. A plausible-looking fabricated pin is worse than a missing
+one, because a missing one fails immediately and obviously.
+
+**Two more CI fixes:**
+- The `spacy download en_core_web_sm` step **overrode the pin in `requirements.txt`** with
+  whatever the model index served that day, so a CI run depended on a registry's current
+  contents rather than on the repository. Replaced with a load check.
+- Six `flake8` violations (lines > 120) from generated docstrings, now wrapped.
+
+**`verify_docs.py` §6b gains two checks**, both negative-tested: `package-lock.json` must be
+committed, and every npm dependency must be an **exact version** rather than a range. The
+second cannot detect a version that does not exist — nothing local can, without a network
+call this script should not make — but a range defers the same failure to a later and less
+obvious build, so it is refused outright.
+
+**⚠️ What is still failing, and cannot be fixed from here.** `AUTH_USER_MODEL` names
+`accounts.User` and `ai.bias_audit` imports `core.models.AuditLogEntry`. **Neither class
+exists yet** — `accounts/models.py` and `core/models.py` are the empty placeholders from the
+scaffold. So `manage.py check`, `migrate` and anything importing a model will fail until the
+first `models.py` is written. That is expected: the models are day-one work and this pass was
+not to build them. The workflow now runs `manage.py check` **before** the tests so it fails
+with that message rather than as a traceback from whichever later step imported the file first.
+
 ---
 
 ## 3. Gap status
