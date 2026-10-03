@@ -603,15 +603,34 @@ sprint targets a user-story subset from §2.4.
 
 #### 2.7.2 Gantt chart
 
+**Kickoff: Monday 2026-10-05**, the first working day after this specification set was
+completed (`prd.md` and `design.md` are dated October 2026). Weekends are excluded, so
+each "week" below is five working days.
+
+| Milestone | Week | Ends |
+|---|---|---|
+| Phase 1 — Foundation | 1–3 | Fri 2026-10-23 |
+| Phase 2 — AI Integration | 4–6 | Fri 2026-11-13 |
+| Phase 3 — Candidate AI | 7–9 | Fri 2026-12-04 |
+| Phase 4 — Hardening | 10–12 | Fri 2026-12-25 |
+
+> ⚠️ **The Phase 4 milestone lands on Christmas Day.** This is a real scheduling problem,
+> not a formality: a 5-person student team losing ~2 weeks a year to holidays will not
+> finish a 12-week plan that starts in October without slipping. Two ways out — either
+> start earlier, or plan a **demo at the end of Phase 3 (early December)** and treat the
+> hardened build as a January continuation. The phase *durations* are the commitment;
+> **the dates are a plan.**
+
+
 ```mermaid
 gantt
-    title MATCH MINDS — 12-Week MVP Schedule
+    title MATCH MINDS — 12-Week MVP Schedule (kickoff 2026-10-05)
     dateFormat  YYYY-MM-DD
     axisFormat  %b %d
     excludes weekends
 
     section Phase 1 — Foundation
-    Docker stack + Django scaffold      :p1a, 2026-01-05, 3d
+    Docker stack + Django scaffold      :p1a, 2026-10-05, 3d
     Security settings configuration     :p1b, after p1a, 2d
     User model + email auth + verification :p1c, after p1b, 4d
     Candidate + Employer profiles       :p1d, after p1b, 4d
@@ -1000,6 +1019,18 @@ classDiagram
         +str stripe_customer_id 🔒
     }
 
+    class EmployerTeamMember {
+        +UUID id
+        +UUID employer_id
+        +UUID user_id
+        +str role
+        +UUID invited_by
+        +str invite_status
+        +bool mfa_enforced
+        +datetime joined_at
+        +can_be_removed() bool
+    }
+
     class Subscription {
         +UUID id
         +UUID employer_id
@@ -1155,7 +1186,10 @@ classDiagram
         +UUID recipient_id
         +str content
         +bool read
+        +datetime deleted_at
+        +bool deleted_by_user
         +datetime created_at
+        +soft_delete(by_user) void
     }
 
     class Notification {
@@ -1218,6 +1252,9 @@ classDiagram
 
     EmployerProfile "1" *-- "0..1" Subscription : subscribes via
     EmployerProfile "1" *-- "0..N" Job : posts
+    EmployerProfile "1" *-- "0..N" EmployerTeamMember : has
+    User "1" <-- "0..N" EmployerTeamMember : joins as
+    User "1" <-- "0..N" EmployerTeamMember : invites
 
     Job "1" *-- "0..N" Application : receives
     Job "1" *-- "0..N" InterviewPack : has
@@ -1249,7 +1286,7 @@ classDiagram
 
 ### 3.7 ER diagram
 
-Derived from the SQL schema in Arch Doc §5.1 (21 tables) and the Django models in
+Derived from the SQL schema in Arch Doc §5.1 (22 tables) and the Django models in
 Complete Doc §8.2 / §C.11.
 
 ```mermaid
@@ -1277,6 +1314,8 @@ erDiagram
 
     EMPLOYER_PROFILES ||--o| SUBSCRIPTIONS : "subscribes via"
     EMPLOYER_PROFILES ||--o{ JOBS : "posts"
+    EMPLOYER_PROFILES ||--o{ EMPLOYER_TEAM_MEMBERS : "has"
+    USERS ||--o{ EMPLOYER_TEAM_MEMBERS : "joins / invites"
 
     JOBS ||--o{ APPLICATIONS : "receives"
     JOBS ||--o{ INTERVIEW_PACKS : "has"
@@ -1352,6 +1391,18 @@ erDiagram
         timestamptz ai_quota_reset_date
         integer max_jobs
         integer jobs_used
+    }
+
+    EMPLOYER_TEAM_MEMBERS {
+        uuid id PK
+        uuid employer_id FK
+        uuid user_id FK
+        varchar role "manager-hr-interviewer"
+        uuid invited_by FK "nullable, SET NULL"
+        varchar invite_status "pending-accepted-revoked"
+        boolean mfa_enforced
+        timestamptz joined_at
+        timestamptz created_at
     }
 
     JOBS {
@@ -1480,11 +1531,13 @@ erDiagram
 
     MESSAGES {
         uuid id PK
-        uuid application_id FK
-        uuid sender_id FK
-        uuid recipient_id FK
-        text content
+        uuid application_id FK "nullable, SET NULL"
+        uuid sender_id FK "nullable, SET NULL"
+        uuid recipient_id FK "nullable, SET NULL"
+        text content "blanked on erasure"
         boolean read
+        timestamptz deleted_at "soft delete"
+        boolean deleted_by_user
         timestamptz created_at
     }
 
@@ -1533,8 +1586,8 @@ erDiagram
 ```
 
 **Cardinality reading:** `||` = exactly one, `o|` = zero or one, `o{` = zero or many.
-All 21 tables and 25 relationships shown. The canonical SQL (Arch Doc §5.1) declares
-**27** foreign keys; the two not drawn are redundant self-references on `users` that
+All 22 tables and 28 relationships shown. The canonical SQL (Arch Doc §5.1) declares
+**30** foreign keys; the two not drawn are redundant self-references on `users` that
 would clutter the diagram without adding information — `USERS → CANDIDATE_PROFILES`
 and `USERS → EMPLOYER_PROFILES` are both already shown. PK/FK detail is carried in the
 attribute blocks.
@@ -1546,19 +1599,35 @@ Note the three special cases:
 - `DATA_DELETION_REQUESTS.user_id` is unique — at most one active erasure request.
 - `APPLICATIONS` carries a composite `UNIQUE(job_id, candidate_id)` constraint, not
   expressible in Mermaid's ER notation; it is documented here and in the class diagram.
+- `EMPLOYER_TEAM_MEMBERS` is the join that makes an employer organisation many-to-many
+  with users. `EmployerProfile.user` is `OneToOneField`, so without this table an employer
+  company could have exactly one person — which is what `REQ-FR-047` needs and could not
+  previously express. It carries `UNIQUE(employer_id, user_id)` and a `CHECK` constraint
+  limiting `role` to the three defined employer roles.
+- `MESSAGES` is the one table whose foreign keys are `SET NULL` rather than `CASCADE`;
+  see the erasure note below.
 
-**On `ON DELETE CASCADE` breadth.** Most foreign keys cascade, which means deleting a
-user deletes their profile, resumes, applications, interviews and messages. That is
-intentional (GDPR erasure, FR-041) but has one consequence worth stating: a cascade
-from `USERS` reaches `APPLICATIONS`, and therefore `INTERVIEWS` and `MESSAGES`,
-belonging to **other** users. Erasing one party to a conversation deletes it for both.
-For a messaging feature this is a design decision, not an oversight, and if message
-history must survive one party's erasure the two conversation FKs need `SET NULL` plus
-a soft-delete flag on `MESSAGES`.
+**On `ON DELETE CASCADE` breadth, and the one deliberate exception.** Most foreign keys
+cascade, so deleting a user deletes their profile, resumes, applications and interviews.
+That is intentional (GDPR erasure, REQ-FR-041). But a cascade from `USERS` reaches
+`APPLICATIONS`, and therefore `INTERVIEWS` and `MESSAGES`, belonging to **other** users —
+so erasing one party to a conversation would have deleted it for both.
+
+That is now fixed. `MESSAGES` is the single exception: `application_id`, `sender_id` and
+`recipient_id` are all `ON DELETE SET NULL`, and the table carries `deleted_at` and
+`deleted_by_user`. On erasure the row is **retained** with `content` blanked and the party
+references nulled, so the counterparty keeps a thread with a visible gap rather than losing
+it silently. This is what `REQ-FR-043` requires; before this change the requirement and
+the DDL contradicted each other.
+
+`INTERVIEWS` still cascades, and deliberately so — an interview is a mutual arrangement
+with no separable half, so deleting a user's interview history is correct.
 
 ### 3.8 Data dictionary
 
-Field-level definitions for the core entities. Full SQL DDL: Arch Doc §5.1.
+Field-level definitions for the 8 entities that carry the interesting behaviour: the four
+lifecycle tables plus the four with non-obvious constraints or erasure semantics
+(`EMPLOYER_TEAM_MEMBERS`, `MESSAGES`). Full SQL DDL: Arch Doc §5.1 (22 tables).
 
 #### USERS
 
@@ -1635,6 +1704,48 @@ Field-level definitions for the core entities. Full SQL DDL: Arch Doc §5.1.
 
 > **Composite constraint:** `UNIQUE(job_id, candidate_id)` — a candidate may apply to
 > a given job only once.
+
+#### EMPLOYER_TEAM_MEMBERS
+
+| Field | Type | Key | Null | Default | Description |
+|---|---|---|---|---|---|
+| id | UUID | **PK** | NO | `gen_random_uuid()` | — |
+| employer_id | UUID | **FK** → `employer_profiles.id` | NO | — | `ON DELETE CASCADE` — company is deleted with its team |
+| user_id | UUID | **FK** → `users.id` | NO | — | `ON DELETE CASCADE` |
+| role | VARCHAR(20) | | NO | `'interviewer'` | `employer_manager`, `employer_hr`, `interviewer` |
+| invited_by | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` — invite record survives |
+| invite_status | VARCHAR(20) | | NO | `'pending'` | `pending`, `accepted`, `revoked` |
+| mfa_enforced | BOOLEAN | | NO | `TRUE` | REQ-FR-047 requires MFA before an invited member can act |
+| joined_at | TIMESTAMPTZ | | YES | — | Set when the invite is accepted |
+| created_at | TIMESTAMPTZ | | NO | `NOW()` | — |
+
+> **Constraints:** `UNIQUE(employer_id, user_id)` — one person has one role per company.
+> `CHECK (role IN ('employer_manager','employer_hr','interviewer'))` — the role set is
+> closed, so an invalid role cannot be written.
+>
+> **Why this table exists:** `EmployerProfile.user` is `OneToOneField`, so before this
+> table an employer company could have exactly **one** person. `REQ-FR-047` requires
+> inviting, re-roling and removing colleagues, which a 1-to-1 relation cannot express.
+
+#### MESSAGES (soft-delete)
+
+| Field | Type | Key | Null | Default | Description |
+|---|---|---|---|---|---|
+| id | UUID | **PK** | NO | `gen_random_uuid()` | — |
+| application_id | UUID | **FK** → `applications.id` | YES | — | `ON DELETE SET NULL` — thread survives application deletion |
+| sender_id | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` |
+| recipient_id | UUID | **FK** → `users.id` | YES | — | `ON DELETE SET NULL` |
+| content | TEXT | | NO | — | Blanked on erasure — see note |
+| read | BOOLEAN | | NO | `FALSE` | Unread marker |
+| deleted_at | TIMESTAMPTZ | | YES | — | Set on soft delete |
+| deleted_by_user | BOOLEAN | | NO | `FALSE` | Whether the erasure was the user's own request |
+| created_at | TIMESTAMPTZ | | NO | `NOW()` | Indexed with `application_id` |
+
+> **The one table where FKs do not cascade.** On GDPR erasure (REQ-FR-041) of one party,
+> the row is retained with `content` blanked and the party references nulled, so the
+> counterparty keeps a thread with a visible gap rather than losing it silently
+> (`REQ-FR-043`). `deleted_at` distinguishes a soft delete from a live row; `null`
+> `sender_id`/`recipient_id` plus a blank body is the erasure marker.
 
 #### AUDIT_LOG_ENTRIES (append-only)
 

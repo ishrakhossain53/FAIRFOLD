@@ -2,7 +2,7 @@
 
 **Product:** Match Minds — AI-Powered, Bias-Free Recruitment Platform
 **Owner:** Mohammad Abdul Ahad (UI/UX) · **Co-owner:** Fahad Haque (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
-**Companion to:** `prd.md` (requirements) · **Version:** 1.1 · **Date:** October 2026
+**Companion to:** `prd.md` (requirements) · **Version:** 1.2 (name-reveal decision) · **Date:** October 2026
 
 > **Changes in v1.1**
 > - Added low-fidelity wireframes for all 18 required screens plus the other core-flow pages (§10.5), with accessibility annotations on each.
@@ -595,7 +595,7 @@ Notation: **Phase** P1–P5 · ★ = one of the PRD's 18 required screens (map i
 | #49 Team and roles | RBAC roles were defined (Complete Doc §5.1); nothing covered inviting or managing employer team members | **REQ-FR-047** Employer Team and Roles |
 | #50 Billing and plan | Pricing is in Complete Doc §C.14 (Phase 5); no FR | **REQ-FR-048** Billing and Plan Management |
 | #61 Assessment management | Admin API existed (Complete Doc §C.12); nothing covered creating assessments | **REQ-FR-049** Assessment Management |
-| #62 Broadcast announcement | Admin API existed (`admin/broadcast/`); no FR | **REQ-FR-050** Broadcast Announcement — **optional**: cut the page, the FR and `US-062` together if it is not worth building |
+| #62 Broadcast announcement | Admin API existed (`admin/broadcast/`); no FR | **REQ-FR-050** Broadcast Announcement — optional, kept in scope 2026-10-03 (3 pts, Phase 4). If cut later, remove the FR, `US-062` and this page together |
 
 Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functional requirement.
 They are the only two pages in the 62 that legitimately carry no requirement ID.
@@ -654,8 +654,8 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 37 | **Job overview** | Pipeline funnel (counts per stage), share link + embed code (copy buttons), edit/pause/close | Funnel, copy field | REQ-FR-036 | P1–P3 |  | — |
 | 38 | ★ **Screening confirm** | Cost Estimate Modal (7.3) | Modal | REQ-FR-028 | P2 | Yes | S14 |
 | 39 | **Screening progress** | Progress bar, stage text (Filtering → Ranking → Analysing top 10 → Checking for bias), degraded badge if needed, "Leave this page; we'll notify you" | Progress, badge | REQ-FR-028 | P2 |  | S14 |
-| 40 | ★ **Ranked applications** | Table: rank, anonymized candidate ID (reveal name after shortlist, per policy decision), score chip, bias-check status, status pill, selected; filters (score range, status, flagged); bulk bar (Shortlist / Reject / Export); sort by score | Table, bulk bar, chips | REQ-FR-029 | P2 | Yes | S12 |
-| 41 | ★ **Candidate review** | Split view (xl): left = anonymized resume with placeholder tokens; right = Score Card (7.2), Bias Audit Panel (7.7), screening answers, notes. Sticky action bar: Shortlist · Reject (with reason) · Message | Score card, panels | REQ-FR-030 | P2 | Yes | S13 |
+| 40 | ★ **Ranked applications** | Table: rank, anonymized candidate ID (name reveals on shortlist — decided 2026-10-03), score chip, bias-check status, status pill, selected; filters (score range, status, flagged); bulk bar (Shortlist / Reject / Export); sort by score | Table, bulk bar, chips | REQ-FR-029 | P2 | Yes | S12 |
+| 41 | ★ **Candidate review** | Split view (xl): left = anonymized resume with placeholder tokens (name reveals on shortlist — decided 2026-10-03); right = Score Card (7.2), Bias Audit Panel (7.7), screening answers, notes. Sticky action bar: Shortlist · Reject (with reason) · Message | Score card, panels | REQ-FR-030 | P2 | Yes | S13 |
 | 42 | ★ **Interview pack builder** | Generate (AI action + cost note) → editable list of questions grouped by category, follow-ups, rubric table (criterion, weight, scale); drag to reorder (keyboard alternative: move up/down buttons) | AI action, sortable list | REQ-FR-031 | P3 |  | S15 |
 | 43 | ★ **Schedule interview** | Candidate, date/time (with timezone shown), duration, interviewers, pack, video URL; confirmation summary | Form, date picker | REQ-FR-032 | P3 |  | S16 |
 | 44 | **Interviews list / calendar** | Toggle list ↔ week calendar; status chips; calendar has list alternative | Calendar, table | REQ-FR-032 | P3 |  | — |
@@ -1318,7 +1318,7 @@ Allow 30–40% text expansion; avoid fixed-width buttons; no text baked into ima
 ### Design Decisions Needing Confirmation
 
 1. Score band thresholds (Section 3.4) once the scoring model is calibrated.
-2. When the candidate's name is revealed to the employer (after shortlist? after interview?). This changes pages #40 and #41. It is also open in `prd.md` §19.2 item 4 (PII retention).
+2. ~~When the candidate's name is revealed to the employer.~~ **Decided 2026-10-03: at shortlist.** Pages #40 and #41 reflect this and `REQ-FR-030` now requires it. Rationale: anonymised screening is the product's core claim, so the identity must stay hidden for exactly as long as the ranking decision is being made and no longer. Reveal is audited and scoped to the shortlisting employer only.
 3. Whether dark mode ships in the MVP (this file assumes no).
 4. Whether Bengali ships at launch for the Bangladesh market (the PRD defers it to Phase 5; the font choice and layout rules here are ready for it).
 5. Final brand name styling, logo and accent colour.

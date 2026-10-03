@@ -2,7 +2,7 @@
 
 **Product:** Match Minds — AI-Powered, Bias-Free Recruitment Platform
 **Document type:** Product Requirements Document
-**Version:** 1.0 (consolidated from the three project documents)
+**Version:** 1.1 (50 FRs · all §19.2 items resolved)
 **Date:** October 2026
 **Team:** Sardar Shihab (Full-Stack), Arnob Biswas Antu (Frontend), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX), Fahad Haque (UI/UX)
 **Status:** Ready for review
@@ -360,7 +360,8 @@ which are marketing pages and correctly need no requirement.
 - **Phase 2 (later):** LLM-assisted PII detection with a separate, cheaper model.
 - Replaced with placeholders (for example `[CANDIDATE_NAME]`) and generic labels (`[COMPANY_A]`, `[ROLE_B]`) keyed to a hashed `candidate_id`.
 - Post-processing filter re-strips any PII that leaks into an LLM rationale and logs the leak attempt.
-- Target: ≥ 95% accuracy on the test dataset (Phase 2 acceptance); 100% of AI payloads pass the filter (REQ-SEC-002).
+- Target: 100% of AI payloads pass the PII filter (REQ-SEC-002) — this one is checkable on a sample today.
+- Bias detection: the deterministic keyword pass is the only checkable target, and only once a versioned test set exists (Phase 2). The LLM pass is advisory and may not block auto-shortlist.
 
 ### 8.3 Matching Funnel
 
@@ -526,7 +527,7 @@ Full SQL DDL: Arch Doc §5.1. Django models: Complete Doc §8.2 and Appendix C.1
 |---|---|
 | Accounts | `User` (auth, MFA, lockout state) |
 | Candidate | `CandidateProfile`, `CandidateResume`, `Skill`, `CandidateSkill`, `Certification`, `AssessmentAttempt` |
-| Employer | `EmployerProfile`, `Subscription` |
+| Employer | `EmployerProfile`, `EmployerTeamMember`, `Subscription` |
 | Hiring | `Job`, `Application`, `InterviewPack`, `Interview`, `InterviewFeedback` |
 | Assessment | `Assessment`, `AssessmentQuestion` |
 | Communication | `Notification`, `Message` |
@@ -536,6 +537,7 @@ Full SQL DDL: Arch Doc §5.1. Django models: Complete Doc §8.2 and Appendix C.1
 
 ```
 User 1─1 CandidateProfile / EmployerProfile
+EmployerProfile 1─N EmployerTeamMember N─1 User     (REQ-FR-047)
 CandidateProfile 1─N CandidateSkill N─1 Skill
 CandidateProfile 1─N CandidateResume · Certification · AssessmentAttempt · Application
 EmployerProfile  1─N Job · 1─1 Subscription
@@ -684,7 +686,7 @@ Canonical source: Complete Doc §C.14 (see Section 19 for the conflicting versio
 |---|---|---|---|
 | Free | $0 | Profile, resume upload, apply, basic match scores, 5 coaching sessions/mo, basic journey map | 5 applications/day, 5 AI interactions/day |
 | Essential | $5/mo | Unlimited applications, 20 coaching sessions/mo, advanced journey charts, priority in employer search | 50 AI interactions/day |
-| Professional | $20/mo | Unlimited coaching, per-application career story, 10 assessments/mo, interview analysis, PDF export | 200 AI interactions/day |
+| Professional | $20/mo | Unlimited coaching, per-application career story, 10 assessments/mo, interview pack builder, PDF export | 200 AI interactions/day |
 | Premium | $50/mo | AI mentor, salary insights, 50 assessments/mo, featured placement, resume templates | Unlimited |
 
 ### 15.2 Employer Tiers
@@ -784,7 +786,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 ### 17.4 Phase Acceptance Criteria (headline items)
 
 - **Phase 1:** Compose stack starts; register/login with verification email; resume upload via presigned URL; job CRUD; duplicate applications blocked; security headers present; 80%+ coverage on models/auth/job CRUD; lint and security scans pass.
-- **Phase 2:** PII stripping ≥ 95% accurate on test set; 384-dim embeddings; pgvector ranking < 2 s for 100 candidates; LLM rationale for top 10; bias audit flags 100% of seeded biased language; cost estimate shown first; audit entry per AI action.
+- **Phase 2:** PII stripping ≥ 95% accurate on test set; 384-dim embeddings; pgvector ranking < 2 s for 100 candidates; LLM rationale for top 10; deterministic bias keyword pass (accuracy target set once the versioned test set exists, Phase 2); cost estimate shown first; audit entry per AI action.
 - **Phase 3:** Interactive timeline; skill-evolution chart; assessment taking and auto-scoring; coaching feedback; job-tailored narrative; match scores visible to candidates.
 - **Phase 4:** MFA for employer admins; encrypted PII verified unreadable in backups; authenticated file serving only; rate limits enforced; Sentry clean of PII; `/metrics/` live; GDPR export and delete working; auto-deploy to staging; load test of 100 concurrent applicants < 5 s with < 1% errors.
 - **Phase 5:** Stripe plan changes; Bengali plus 3 more languages; installable PWA; WebSocket coaching and notifications.
@@ -835,7 +837,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 | 2 | **Real-world problem example** (the 2018 Amazon CV-screening case is well documented and relevant, or a local Bangladesh case). | Team |
 | 3 | ~~**Wireframes** for the 18 screens.~~ **Resolved 2026-10-03** — delivered as low-fidelity text wireframes in `design.md` §10.5 (S01–S18). Still open: the Figma file, Figma components and high-fidelity mockups. | UI/UX designer |
 | 4 | Legal position on cross-border data transfer (Standard Contractual Clauses) and on provider terms of service. | Legal / PM |
-| 5 | ~~**Seven pages build features with no functional requirement.**~~ **Closed 2026-10-03** — added to the Arch Doc §4.1 as `REQ-FR-044`–`REQ-FR-050` (§7.4, §7.4b). **Remaining decision:** is `REQ-FR-050` (broadcast announcement, page #62) worth building? It is marked optional — if not, remove the FR, `US-062` and the page together. | Team |
+| 5 | ~~**Seven pages build features with no functional requirement.**~~ **Closed 2026-10-03** — added to the Arch Doc §4.1 as `REQ-FR-044`–`REQ-FR-050` (§7.4, §7.4b). All seven kept in scope; `REQ-FR-050` remains optional. **Resolved 2026-10-03 — kept.** 3 story points, Low priority, Phase 4. Removing it would touch four documents for no benefit. If it is ever cut, `REQ-FR-050`, `US-062` and `design.md` page #62 must go together. | Team |
 
 ### 19.2 Inconsistencies Between Sources
 
@@ -844,17 +846,17 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 | 1 | **Candidate pricing** | Complete Doc: Professional $20 and Premium $50. Feasibility Doc: "Pro" $50 only. | Complete Doc used (Section 15). Confirm. |
 | 2 | **Employer pricing** | Feasibility Doc omits the Scale ($1,500) tier and lists a "Free" employer tier; Complete Doc §C.14 table has no free employer row, but the `Subscription` model defines a Free plan (3 jobs, 50 screens). | Free tier retained; Scale included. Confirm. |
 | 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | **Closed 2026-10-03** — promoted into the Arch Doc §4.1 as REQ-FR-042 and REQ-FR-043 (new *Job Discovery & Messaging* group). See also §19.1 item 5, closed the same day with REQ-FR-044–050. **Arch Doc now holds 50 FRs.** |
-| 4 | **PII retention** | Complete Doc §5.2 says PII is encrypted at rest; Arch Doc Flow 3 says original PII "stays in EncryptedCharField" while anonymized text is stored. Where the original resume file and un-stripped text live, and who can see them, is not specified. | Open: define exactly what employers can see (anonymized text only, or original file after shortlist). |
-| 5 | **Audit log retention vs. GDPR retention** | Audit logs rotate at 90 days (REQ-COM-008) while candidate data is retained 2 years and hired-employee data 5 years; AI-decision evidence may be needed longer than 90 days for AI Act accountability. | Open: decide whether the 90-day figure applies to access logs only. |
-| 6 | **Audit log key type** | `AuditLogEntry.resource_id` is `INTEGER` but core entities use `UUID` primary keys (Feasibility Doc data dictionary). | Open: change `resource_id` to UUID/text. |
-| 7 | **Auth model** | Sessions (Django) vs JWT are both specified; HTMX/templates would normally use sessions, while JWT is specified for the API/SPA. | Assumed: sessions for the HTMX UI, JWT for the API. Confirm. |
-| 8 | **OpenRouter free-tier limits** | Quoted as "20 req/min, 50 req/day" and also "per IP"; free model IDs listed are as of September 2026. | Treated as configuration; re-verify before build. |
+| 4 | **PII retention** | Complete Doc §5.2 says PII is encrypted at rest; Arch Doc Flow 3 says original PII "stays in EncryptedCharField" while anonymized text is stored. Where the original resume file and un-stripped text live, and who can see them, is not specified. | **Resolved 2026-10-03 — reveal at shortlist.** Employers see **anonymised text only** while screening. On shortlist the name and contact details become visible **to that employer only**, and the reveal writes an audit entry. The original resume file and un-stripped text stay encrypted at rest and are **never** sent to an external AI provider. Written into `REQ-FR-029` and `REQ-FR-030`. |
+| 5 | **Audit log retention vs. GDPR retention** | Audit logs rotate at 90 days (REQ-COM-008) while candidate data is retained 2 years and hired-employee data 5 years; AI-decision evidence may be needed longer than 90 days for AI Act accountability. | **Resolved 2026-10-03 — two retention classes.** `resource_type = 'access'` entries (who looked at what) rotate at 90 days and are operational only. Entries with `resource_type = 'ai_decision'` (every screening, rationale and bias check, per REQ-FR-030) are **retained with the application record** — 2 years, 5 years if hired. 90 days would have destroyed the only evidence that a hiring decision was unbiased. |
+| 6 | **Audit log key type** | `AuditLogEntry.resource_id` was `INTEGER` in the Feasibility Doc while core entities use `UUID` primary keys. | **Resolved 2026-10-03** — `UUID` in the Feasibility Doc class diagram, ER diagram and data dictionary, matching Arch Doc §5.1. The Arch Doc was already correct. |
+| 7 | **Auth model** | Sessions (Django) vs JWT are both specified; HTMX/templates would normally use sessions, while JWT is specified for the API/SPA. | **Resolved 2026-10-03 — both, for different consumers.** Django sessions (httpOnly, `SameSite=Lax`) for the server-rendered HTMX UI; short-lived JWT for the DRF API and any mobile client. Same user table, same permissions, one logout endpoint that revokes both. |
+| 8 | **OpenRouter free-tier limits** | Quoted as "20 req/min, 50 req/day" and also "per IP"; free model IDs listed are as of September 2026. | **Resolved 2026-10-03 — configuration, not a design assumption.** Free model IDs and rate limits are settings, read from `.env`, not hard-coded; the offline fallback (REQ-FR-028) is what keeps $0-cost operation true if the free tier changes. Re-verify the numbers at implementation. |
 | 9 | **Django version** | One line of the Complete Doc says ≥ 5.2 LTS with a note that 5.0 is EOL; others say "Django 5". | 5.2+ LTS used. |
-| 10 | **Gantt dates** | The Gantt in the Feasibility Doc starts 2026-01-05, but the documents are dated September 2026. | Dates left to be re-based on the real kickoff. |
-| 11 | **Phase story points** | Per-phase estimates (~21/34/31/30/25) do not sum to the stated 170 total. | Planning estimates only; re-estimate in sprint planning. |
-| 12 | **Bias audit definition** | The bias audit is both a deterministic keyword check and an LLM check, and "100% flagged on test dataset" needs a defined, versioned test set. | Open: build and version the bias test set in Phase 2. |
-| 13 | **Interview coaching vs. "interview recording & analysis"** | The Professional tier lists recording and analysis, but video recording is out of scope. | Treat as post-MVP or remove from the tier. |
-| 14 | **Offer letter priority** | REQ-FR-034 is Low priority, but the Complete Doc places offer generation in the core employer flow. | Kept Low, Phase 5. Confirm. |
+| 10 | **Gantt dates** | The Gantt in the Feasibility Doc started 2026-01-05, nine months before the documents were dated. | **Resolved 2026-10-03** — re-based to a kickoff of Mon 2026-10-05, the first working day after the specs were completed. Feasibility Doc §2.7.2 now carries a milestone table and a warning that the Phase 4 milestone lands on Christmas Day. |
+| 11 | **Phase story points** | Per-phase estimates (~21/34/31/30/25) did not sum to the stated 170 total. | **Resolved 2026-10-03** — re-split to 41/41/45/39/33 = 199, matching the 49 stories at their actual point values. Still a planning estimate; re-estimate at sprint planning. |
+| 12 | **Bias audit definition** | The bias audit is both a deterministic keyword check and an LLM check, and "100% flagged on test dataset" needs a defined, versioned test set. | **Resolved 2026-10-03 — the claim is narrowed until the set exists.** The deterministic keyword pass (gendered terms, "cultural fit" without evidence, age proxies) ships in Phase 2 and is the only thing that may be described as testable. The LLM pass is **advisory** and may not block auto-shortlist. "100% flagged on test dataset" is removed from acceptance criteria until a versioned set exists; building it is a Phase 2 task with Ishrak Hossain as owner. |
+| 13 | **Interview coaching vs. "interview recording & analysis"** | The Professional tier listed recording and analysis, but video recording is out of scope (`prd.md` §2.3). | **Resolved 2026-10-03 — removed from the tier, in both documents.** Advertising a feature that is out of scope is worse than having a thinner tier. Complete Doc §C.14 and `prd.md` §15.2 now list interview coaching (REQ-FR-021) and interview pack builder (REQ-FR-031) instead. |
+| 14 | **Offer letter priority** | REQ-FR-034 is Low priority, but the Complete Doc places offer generation in the core employer flow. | **Resolved 2026-10-03 — kept Low, Phase 5.** Generating and storing an offer letter is the highest-consequence AI output in the product and the one most likely to be misused. It does not belong in an MVP that cannot yet verify bias in its own output. |
 
 ---
 

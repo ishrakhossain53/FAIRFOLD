@@ -18,11 +18,11 @@ specifications, requirements, and supporting configuration.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `MATCH_MINDS_Complete_Project_Document.md` | 1914 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | 1750 | **Canonical** specification — ADRs, 50 functional requirements, 50 non-functional requirements, 21-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 919 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `MATCH_MINDS_Complete_Project_Document.md` | 1932 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | 1777 | **Canonical** specification — ADRs, 50 functional requirements, 50 non-functional requirements, 21-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `prd.md` | 922 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | `design.md` | 1328 | Supplement — UI design system, 62 page specifications, 23 wireframes, implementation notes |
-| `MATCH_MINDS_Feasibility_and_Design.md` | 1893 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
+| `MATCH_MINDS_Feasibility_and_Design.md` | 2010 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
 | `README.md` | 205 | Project overview, documentation index, setup |
 | `.env.example` | 142 | 25 environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
@@ -37,8 +37,9 @@ specifications, requirements, and supporting configuration.
   `REQ-SEC-001`–`014` (14), `REQ-COM-001`–`009` (9), `REQ-NFR-001`–`018` (18),
   `REQ-NFR-019`–`023` (5, code quality), and four operational `REQ-NFOR-001`, `-002`, `-024`, `-025`.
   ⚠️ `REQ-NFR` and `REQ-NFOR` interleave — a naive `REQ-NF` regex conflates them. Use `REQ-NFR-[0-9]+`.
-- **21 database tables** in Arch Doc §5.1, with 27 foreign keys declared (25 drawn in the ER
-  diagram; 2 redundant `users` self-references intentionally omitted)
+- **22 database tables** in Arch Doc §5.1, with 30 foreign keys declared (28 drawn in the ER
+  diagram; 2 redundant `users` self-references intentionally omitted). `MESSAGES` is the one
+  table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
 - **10 AES-256-GCM encrypted fields** (PII at rest)
 - **49 user stories / 199 story points**, MoSCoW **27 Must / 17 Should / 5 Could** —
   every one of the 50 FRs maps to at least one story (verified programmatically)
@@ -94,6 +95,7 @@ Content from the canonical specs is **cited, not duplicated**, to prevent drift.
 | *(uncommitted)* | Round-2 gaps closed: FR count 43 → 50, stories 42 → 49, points 170 → 199 |
 | *(uncommitted)* | Team roster replaced with the current five members across all six documents |
 | *(uncommitted)* | Feasibility doc now lists prd.md and design.md in its document table and reference convention |
+| *(uncommitted)* | Gantt re-based; `employer_team_members` added; message soft-delete; name-reveal and all 14 §19.2 items decided; versions bumped |
 | *(uncommitted)* | FR count 43 → 50; stories 42 → 49; §2.4.1 round 2 closed; §3.9.1 rewritten; checklist rows 7, 9, 17 updated |
 
 ### 2.4 Corrections made during a self-audit ✅
@@ -157,7 +159,7 @@ The PRD's inconsistency register exposed real errors in documents written earlie
 | --- | --- | --- |
 | **Phase story points did not reconcile** | 21 + 34 + 31 + 30 + 25 = **141**, against a stated 170-point total | Re-split to 28/41/37/36/28 = **170**, with a note that these are planning estimates to be re-estimated at sprint planning |
 | **`AuditLogEntry.resource_id` type conflict** | `INTEGER` in the class diagram, ER diagram and data dictionary; Arch Doc §5.1 says `UUID` | `UUID` everywhere — core entities all use UUID PKs |
-| **Gantt runs backwards** | Starts `2026-01-05`, but the documents are dated September 2026 | Left as an explicit placeholder (see §4.5) — the chart cannot be dated until the real kickoff is known |
+| **Gantt ran backwards** | Started `2026-01-05`, nine months before the documents were dated | **Fixed** — re-based to kickoff 2026-10-05 (§2.16) |
 
 ### 2.10 `design.md` added, then expanded ✅ (team, commits `34fbe78` + revision)
 
@@ -247,6 +249,83 @@ Also updated: the three "4-person team" claims in the feasibility study became 5
 the DevOps gap line in all three docs, and the minimal-viable answer for the outstanding
 requirement-collection question.
 
+### 2.16 Gantt re-based to the document date ✅
+
+The chart started `2026-01-05`, nine months before the documents were dated, so it ran
+backwards. Re-based to **kickoff Monday 2026-10-05** — the first working day after this
+specification set was completed (`prd.md` and `design.md` are dated October 2026).
+
+| Milestone | Weeks | Ends |
+|---|---|---|
+| Phase 1 — Foundation | 1–3 | Fri 2026-10-23 |
+| Phase 2 — AI Integration | 4–6 | Fri 2026-11-13 |
+| Phase 3 — Candidate AI | 7–9 | Fri 2026-12-04 |
+| Phase 4 — Hardening | 10–12 | Fri 2026-12-25 |
+
+> ⚠️ **The Phase 4 milestone lands on Christmas Day.** A 5-person student team losing
+> ~2 weeks a year to holidays will not finish a 12-week plan starting in October without
+> slipping. The doc now says so, and suggests either starting earlier or planning a
+> **demo at the end of Phase 3 (early December)** with the hardened build as a January
+> continuation. The phase *durations* are the commitment; the dates are a plan.
+
+### 2.17 Two schema holes closed ✅
+
+Both were found while auditing what `REQ-FR-042`–`050` had opened up.
+
+**`messages` cascade.** `REQ-FR-043` mandated soft-delete, but all three FKs in Arch Doc
+§5.1 were `ON DELETE CASCADE` and there was no `deleted_at` column — the requirement and
+the DDL contradicted each other. `application_id`, `sender_id` and `recipient_id` are now
+`ON DELETE SET NULL`, with `deleted_at` and `deleted_by_user` added plus two indexes. On
+erasure the row is **retained** with `content` blanked and the party references nulled, so
+the counterparty keeps a thread with a visible gap rather than losing it silently.
+`INTERVIEWS` still cascades deliberately — an interview has no separable half.
+
+**No team-member table.** `REQ-FR-047` requires inviting, re-roling and removing
+colleagues, but `EmployerProfile.user` is `OneToOneField`, so **an employer company could
+have exactly one person** — the requirement was unimplementable. Added
+`employer_team_members` (the 22nd table) with `UNIQUE(employer_id, user_id)`, a `CHECK`
+constraint limiting `role` to the three defined employer roles, and `invite_status`.
+Propagated to the Complete Doc model list, `prd.md` §11.1–11.2, the class diagram, the ER
+diagram, and the data dictionary (two new sections). Counts updated: **22 tables, 30 FKs,
+28 relationships drawn.**
+
+### 2.18 Candidate name reveal decided — at shortlist ✅
+
+`design.md` §12 and `prd.md` §19.2 item 4 both left this open, and it changes pages #40
+and #41. **Decided: reveal at shortlist.** Rationale — anonymised screening *is* the
+product's core claim, so identity must stay hidden for exactly as long as the ranking
+decision is being made, and no longer.
+
+Written into `REQ-FR-029` and `REQ-FR-030` rather than left as a UI note: employers see
+anonymised text only while screening; on shortlist the name becomes visible **to that
+employer only** and the reveal writes an audit entry; unrevealed PII is never sent to an
+external AI provider.
+
+### 2.19 All 14 `prd.md` §19.2 items resolved ✅
+
+| # | Decision |
+|---|---|
+| 1–2 | Complete Doc is canonical for pricing |
+| 3 | Closed — `REQ-FR-042`/`043` |
+| 4 | Reveal at shortlist (§2.18) |
+| 5 | **Two retention classes** — `access` audit entries rotate at 90 days; `ai_decision` entries are retained with the application (2y, 5y if hired). 90 days would destroy the only evidence a hiring decision was unbiased |
+| 6 | Closed — `resource_id` is `UUID` |
+| 7 | **Both** — Django sessions for the HTMX UI, short-lived JWT for the API |
+| 8 | Configuration, not assumption — free model IDs live in `.env`; the offline fallback preserves $0-cost |
+| 9 | Django 5.2 LTS |
+| 10 | Closed — Gantt re-based (§2.16) |
+| 11 | Closed — 41/41/45/39/33 = 199 |
+| 12 | **Claim narrowed** — see below |
+| 13 | Interview recording removed from the Professional tier, in both documents |
+| 14 | Offer letter stays Low/Phase 5 |
+
+**Item 12 changed a claim the docs could not support.** Three documents asserted the bias
+audit "flags 100% of biased language in test dataset" — as an acceptance criterion in the
+Arch Doc and Complete Doc, and in the Phase 2 milestone. **No versioned test set exists**,
+so that number is unverifiable and would fail CI forever. Replaced with the deterministic
+keyword pass as the only checkable target; the LLM pass is now explicitly **advisory** and
+may not block auto-shortlist. Building the test set is a Phase 2 task.
+
 ### 2.15 Fixes to `design.md` itself ✅
 
 Three stale or wrong items inside the revised file:
@@ -268,138 +347,102 @@ Three stale or wrong items inside the revised file:
 | **C** — Wireframes | ❌ none at all | ✅ **complete for low fidelity** — 23 wireframes, all 18 screens, all 22 core-flow pages. Figma and hi-fi still open |
 | **D** — GAP-1 / GAP-2 | ⚠️ documented, no FR | ✅ **closed** — `REQ-FR-042`/`043` in the Arch Doc |
 | **E** — Round-2 page gaps | *(not previously found)* | ✅ **closed** — `REQ-FR-044`–`050`, 7 stories added (§2.12, §2.13) |
+| **F** — Gantt dates | 🟡 ran backwards | ✅ **re-based** to kickoff 2026-10-05 (§2.16) |
+| **G** — `messages` cascade | 🟡 DDL contradicted FR-043 | ✅ **fixed** — `SET NULL` + soft delete (§2.17) |
+| **H** — No team-member table | 🟡 FR-047 unimplementable | ✅ **added** `employer_team_members` (§2.17) |
+| **I** — Name reveal undecided | 🟡 open | ✅ **decided: at shortlist** (§2.18) |
+| **J** — 14 open §19.2 items | 🟡 open | ✅ **all resolved** (§2.19) |
 
 ---
 
 ## 4. Outstanding work
 
-### 4.1 🔴 Requirement collection method — `Feasibility §1.3` (line ~97) — *blocks*
+**Nine of the sixteen gaps found across this work are now closed.** What remains is
+listed here. Only two items genuinely need the team; everything else is build work.
+
+### 4.1 🔴 Requirement collection method — `Feasibility §1.3` (line ~99) — *the last blocker*
 
 A table of how requirements were gathered. **4 of its 5 rows are still `?`.** Only
 "Competitor analysis / 11 systems" is filled in. `prd.md` §19.1 item 1 confirms this was
 never collected, and asks the team to state what was actually done.
 
-**Cannot be completed without real facts, and fabricating an interview study would be
-academic misconduct.** Needed from the team:
+**Cannot be written without real facts, and fabricating an interview study would be
+academic misconduct.** Needed:
 
-- **A1** Which methods were actually used: stakeholder review, candidate interviews,
-  recruiter interviews, survey, observation?
-- **A2** Per method: sample size `N`, channel (LinkedIn / personal network / local IT firms /
-  alumni), and date.
+- **A1** Which methods were used: stakeholder review, candidate interviews, recruiter
+  interviews, survey, observation?
+- **A2** Per method: sample size `N`, channel, date.
 - **A3** The ~3 findings that actually shaped design decisions.
-- **A4** Which functional requirement each finding produced. A candidate mapping can be
-  proposed for correction.
-- **A5** What was *not* done — honest blanks are fine and should be stated plainly.
+- **A4** Which FR each finding produced — a mapping can be proposed for correction.
+- **A5** What was *not* done. Honest blanks are fine and should be stated plainly.
 
 Minimum viable answer: *"stakeholder review, 5 team members."*
 
 ### 4.2 🟡 Real-world problem example — `§1.2` (line ~83)
 
-A concrete, sourced real-world case of recruitment bias is still missing.
+A concrete, sourced case of recruitment bias. Still open (`prd.md` §19.1 item 2).
 
-Recommended: the **Amazon 2018 CV-screening tool** — the model was trained on a decade of
-mostly male CVs and learned to downgrade CVs containing the word "women's"; the effort was
-eventually abandoned. Pair it with one line on how MATCH_MINDS differs (PII stripping plus a
-full audit trail) so it does not read as "we read this article."
+Recommended: the **Amazon 2018 CV-screening tool** — trained on a decade of mostly male
+CVs, it learned to downgrade CVs containing "women's"; the effort was abandoned. Pair it
+with one line on how MATCH MINDS differs (PII stripping plus an audit trail) so it does
+not read as "we read this article."
 
-Needs only a yes/no from the team to proceed.
+### 4.3 🟡 API list is behind — `Complete Doc §C.12`
 
-### 4.3 ~~Seven pages with no functional requirement~~ ✅ closed
+Endpoints exist for the original 41 requirements but **not for the nine added since**:
 
-Found by the page-level design audit, now written into the Arch Doc as `REQ-FR-044`–`050`
-with matching stories `US-056`–`US-062`. Full list in §2.13.
+| Requirement | Missing |
+|---|---|
+| REQ-FR-042 | Public job browse/search endpoints (design.md page #4) |
+| REQ-FR-040 / 041 | GDPR export and delete endpoints |
+| REQ-FR-047 | Team invite / role-change / remove |
+| REQ-FR-049 | Assessment create/edit/deactivate — only `GET /api/v1/assessments/` exists |
+| REQ-FR-050 | Broadcast (`admin/broadcast/` is cited in design.md but not defined) |
 
-**One decision remains: is `REQ-FR-050` (broadcast announcement, page #62) worth building?**
-It is deliberately marked optional. If not, remove the FR, `US-062` and the page together —
-keeping one of the three would break traceability again.
+### 4.4 🟡 Bias test set — new, Phase 2
 
-### 4.4 🟡 Design tooling — `design.md` §12
+Deciding item 12 removed the unverifiable "100% flagged" claim rather than satisfying it.
+Building a **versioned** bias test set is now an explicit Phase 2 deliverable, owned by
+Ishrak Hossain. Until it exists, the deterministic keyword pass has no measurable target.
 
-The content decisions are all recorded as text, which is enough to brief a build. Still
-outstanding, and all owned by Mohammad Abdul Ahad (UI/UX):
+### 4.5 🟡 Schedule — the plan will not fit as drawn
 
-- Figma file and Figma components (items 1, 2) — decisions are in §3–§7, §6.6, §11.1
-- High-fidelity mockups, mobile 360px and desktop 1280px (item 4)
-- Interactive Journey Map prototype (item 5) — `S08` draws the four states, nothing is clickable
-- Logo set, favicon, social image, icon set (items 7, 8)
-- Microcopy for emails and notifications (item 9) — in-app copy is drafted in §2.3
-- Usability test plan: 5 candidates, 5 recruiters (item 10)
+Kickoff 2026-10-05 puts the Phase 4 milestone on **Christmas Day**, and a 5-person student
+team loses roughly two weeks a year to holidays. Realistic options are in `Feasibility
+§2.7.2`: start earlier, or demo at the end of Phase 3 (early December) and continue the
+hardened build in January. **This is a planning decision, not a documentation fix.**
 
-**26 pages have a spec but no wireframe** (`design.md` §10.6). These reuse components already
-drawn in `S01`–`S18`, so they are lower risk — but note **#31 and #48 are the two messaging
-pages**, so the `REQ-FR-043` UI has no drawing even though the requirement now exists.
+### 4.6 🟡 Design tooling — `design.md` §12
 
-### 4.5 🟢 Unconfirmed design decisions — `design.md` §12
+Content decisions are recorded as text, which briefs a build. Not started: the Figma file
+and components (items 1–2), high-fidelity mockups (4), the interactive Journey Map
+prototype (5), logo and icon sets (7–8), notification copy (9), usability test plan (10).
+
+26 pages have a spec but no wireframe (`design.md` §10.6) — including **#31 and #48, the
+two messaging pages**, so `REQ-FR-043` has no drawing even though the requirement exists.
+
+### 4.7 🟢 Remaining design decisions — `design.md` §12
 
 1. Score-band thresholds, once the scoring model is calibrated
-2. **When the candidate's name is revealed to the employer** — also open in `prd.md` §19.2 item 4.
-   This one changes pages #40 and #41 and is a genuine privacy decision, not a cosmetic one.
+2. ~~Name reveal~~ — **decided at shortlist** (§2.18)
 3. Whether dark mode ships in the MVP
 4. Whether Bengali ships at launch (the PRD defers it to Phase 5)
 5. Final brand name styling, logo and accent colour
 
-### 4.6 🟡 Schema and API gaps created by the new requirements
+### 4.8 🟢 Open questions the docs still record
 
-Three gaps opened when `REQ-FR-042`–`050` were added. All are implementation-facing, not
-documentation, so none has been silently patched.
+- **No dedicated DevOps role.** Absorbed by Ishrak Hossain; recorded as the largest
+  operational risk (R3 / RSK-009).
+- **OpenRouter free-tier limits** are quoted from September 2026 and must be re-verified at
+  implementation. They are configuration, not a design assumption, so this cannot break the
+  $0-cost claim — the offline fallback covers it.
+- **Pricing** is canonical in the Complete Doc; `prd.md` §15 and Complete Doc §C.14 should
+  be checked against each other before any billing work.
 
-1. **No table exists for employer team members.** `REQ-FR-047` requires inviting,
-   re-roling and removing them, and Django groups are defined (Complete Doc §5.1), but
-   there is **no `team_members` join table** anywhere in Arch Doc §5.1 or Complete Doc
-   §C.11. `EmployerProfile` is one-to-one with `User`, so an employer organisation with
-   several people cannot be represented. Needs a model + migration.
-2. **`messages` still cascades.** Arch Doc §5.1 lines 702–706 declare
-   `application_id`, `sender_id` and `recipient_id` all `ON DELETE CASCADE`. `REQ-FR-043`
-   mandates soft-delete so one party's erasure does not delete the counterparty's copy,
-   and there is no `deleted_at` column. The requirement and the DDL currently contradict
-   each other.
-3. **API list is behind by nine requirements.** `Complete Doc §C.12` has
-   `GET /api/v1/assessments/` (admin list) but no create/edit endpoints for `REQ-FR-049`,
-   no endpoints at all for `REQ-FR-050` broadcast (despite `design.md` citing
-   `admin/broadcast/`), none for `REQ-FR-047` team invites, and none for `REQ-FR-042`
-   public job browse/search or `REQ-FR-040`/`041` GDPR export/delete.
+### 4.9 Push state
 
-### 4.6 🟡 Missing API endpoints — `Complete Doc §C.12`
-
-Flagged by `prd.md` and now noted in both the Arch Doc and the feasibility doc:
-public job browse/search endpoints for `REQ-FR-042`, and GDPR export/delete endpoints for
-`REQ-FR-040`/`041`. Must be added before the build starts.
-
-### 4.7 Gantt chart dates — 🟡 illustrative only
-
-The Gantt starts `2026-01-05` with weekends excluded, but the documents are dated
-September 2026 — the chart currently runs backwards. Replace with real semester dates,
-including any exam or submission deadlines.
-
-### 4.8 Schema design issue — 🟡 flagged, unfixed
-
-Noted in `Feasibility §3.7`: the `APPLICATIONS` foreign key **cascades** down to `MESSAGES`
-and `INTERVIEWS` rows belonging to *other* users. Deleting one party to a conversation deletes
-it for both sides. `REQ-FR-043` now mandates soft-delete for messages, but the FK definitions
-in Arch Doc §5.1 still need changing to `ON DELETE SET NULL`.
-
-### 4.9 Other inconsistencies logged in `prd.md` §19.2
-
-The PRD's 14-item register is a good backlog of smaller decisions. The ones with real
-engineering consequences:
-
-- **#4** — PII retention is undefined: where the *original resume file* and *un-stripped text*
-  live, and who can see them, is not specified anywhere
-- **#5** — Audit logs rotate at 90 days (`REQ-COM-008`) while candidate data is retained
-  2 years; AI Act accountability may need decision evidence longer than 90 days
-- **#6** — `AuditLogEntry.resource_id` type conflict. **Fixed** (§2.9); the Arch Doc was correct
-- **#7** — Auth model: sessions vs JWT are both specified. Proposed split is sessions for the
-  HTMX UI, JWT for the API
-- **#12** — The bias audit claims "100% flagged on test dataset", but no versioned test set
-  exists yet. Needs building in Phase 2
-- **#13** — The Professional tier lists interview recording and analysis, but video recording
-  is out of scope
-- **#1, #2** — Pricing conflicts between the Complete Doc and the feasibility doc
-
-### 4.10 Push state
-
-The user pushes manually; `git fetch` / `ls-remote` cannot be verified from this environment
-(no GitHub credentials). Confirm on GitHub before assuming anything is synced.
+The user pushes manually; `git fetch` / `ls-remote` cannot be verified from this
+environment (no GitHub credentials). Confirm on GitHub before assuming anything is synced.
 
 ---
 
