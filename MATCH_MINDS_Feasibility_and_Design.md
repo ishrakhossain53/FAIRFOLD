@@ -498,7 +498,7 @@ precisely because the marginal cost of an additional free user is close to zero.
 | Backup/restore | Automated backup with restore verification | §C.4 |
 | Secrets | Docker secrets / cloud secret manager; no `.env` on servers | §5.6 |
 
-**Constraint to declare honestly:** a 4-person student team operating a production
+**Constraint to declare honestly:** a 5-person student team operating a production
 service is a genuine operational risk. The mitigation is deliberate scope control —
 MVP targets a single VPS, not multi-region, and operational procedures are written
 to be followable by one person.
@@ -582,7 +582,7 @@ resolved in §5.7 and both should be acknowledged as open items.
 - requirements for an AI product cannot be fully specified up front — the quality of
   rationales and bias detection can only be tuned by building and evaluating;
 - the phased roadmap (§2.6.4) maps directly to sprint goals, giving visible progress;
-- the 4-person team suits a lightweight ceremony structure.
+- the 5-person team suits a lightweight ceremony structure.
 
 **Practices:** sprint planning, daily standup, sprint review with sponsor/stakeholder,
 retrospective. Definition of Done = code merged + tests passing + 80% coverage floor
@@ -671,10 +671,11 @@ Complete Doc §10.4:
 
 | Person | Role | Responsibilities | Assigned stories |
 |---|---|---|---|
-| Md Habibulla Mahmud | Frontend Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts | US-013, US-014, US-030–032 |
-| Minhajul Islam Rifat | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040 |
-| Md Jobayer Arafat | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062 |
-| Asif Salman Zarar | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping design, design system | US-013, US-040, all UI specs |
+| Sardar Shihab | Full-Stack Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts; backend endpoints as needed | US-013, US-014, US-030–032 |
+| Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040 |
+| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062 |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — tokens, component library, accessibility (WCAG 2.1 AA) | US-040, all design tokens and UI specs |
+| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping interaction design | US-013, all wireframes |
 
 **Declared gap:** no dedicated DevOps/Infrastructure role — currently absorbed by the
 backend engineer. §2.6.3 identifies this as the largest operational risk.
@@ -711,7 +712,7 @@ Complete Doc §4.2 (Django app structure).
 **Architecture in brief.** A Django monolith with a DRF API, Django Templates + HTMX
 for the frontend, Celery for asynchronous work, and PostgreSQL + pgvector as the
 system of record. The monolith choice is deliberate and documented as an ADR
-(Arch Doc §3.1): a single deployable unit is operationally appropriate for a 4-person
+(Arch Doc §3.1): a single deployable unit is operationally appropriate for a 5-person
 team, and DRF keeps a clean seam if services must be extracted later.
 
 **Layers:**
@@ -1705,7 +1706,7 @@ Wireframes `X01`–`X05` add the remaining core-flow pages: landing (#1), passwo
 recovery and verification (#9–11), candidate dashboard (#15), skills manager (#18),
 and employer dashboard (#34).
 
-**What `design.md` delivers** — all owned by Asif Salman Zarar, UI/UX Designer
+**What `design.md` delivers** — all owned by Mohammad Abdul Ahad, UI/UX Designer
 (Complete Doc §10.4):
 
 | Deliverable | Where | State |
@@ -1813,7 +1814,7 @@ MATCH MINDS
 **Test tooling** (Complete Doc §C.13): axe-core and pa11y, run in CI across all HTML
 pages, form fields and keyboard navigation paths.
 
-**Design-system responsibility:** Asif Salman Zarar owns the design system
+**Design-system responsibility:** Mohammad Abdul Ahad owns the design system
 (Complete Doc §10.4). **This is now delivered** — `design.md` §3.1 defines the token
 set, §3.2 records 16 measured contrast ratios (lowest passing pair is
 `--ink-4` on `--surface` at 4.76 : 1), §3.1 states that `--border` at 1.48 : 1 is

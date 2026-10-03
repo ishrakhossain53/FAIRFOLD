@@ -1,7 +1,7 @@
 # MATCH MINDS — UI Design Specification (design.md)
 
 **Product:** Match Minds — AI-Powered, Bias-Free Recruitment Platform
-**Owner:** Asif Salman Zarar (UI/UX) · **Implementers:** Md Habibulla Mahmud, Minhajul Islam Rifat (Django Templates + HTMX + Tailwind)
+**Owner:** Mohammad Abdul Ahad (UI/UX) · **Co-owner:** Fahad Haque (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
 **Companion to:** `prd.md` (requirements) · **Version:** 1.1 · **Date:** October 2026
 
 > **Changes in v1.1**

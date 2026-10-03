@@ -92,6 +92,7 @@ Content from the canonical specs is **cited, not duplicated**, to prevent drift.
 | `96993d4` | FR count 41 → 43; GAP-1/GAP-2 closed; story-point split reconciled; `resource_id` → UUID |
 | `36ccdb6` | Synced to the expanded `design.md`; wireframes 3 → 23; recorded round-2 gaps |
 | *(uncommitted)* | Round-2 gaps closed: FR count 43 → 50, stories 42 → 49, points 170 → 199 |
+| *(uncommitted)* | Team roster replaced with the current five members across all six documents |
 | *(uncommitted)* | FR count 43 → 50; stories 42 → 49; §2.4.1 round 2 closed; §3.9.1 rewritten; checklist rows 7, 9, 17 updated |
 
 ### 2.4 Corrections made during a self-audit ✅
@@ -223,6 +224,28 @@ The Arch Doc now holds **50 FRs**, and all 50 map to at least one of the **49 st
 (199 points). FR↔story↔page traceability now holds across all 62 pages except #1 and #2
 (landing, pricing), which are marketing pages and correctly need no requirement.
 
+### 2.15 Team roster replaced ✅
+
+The four original team members were removed from every document and replaced with the
+current five. Roles, not just names, were updated:
+
+| Person | Role | Notes |
+|---|---|---|
+| Sardar Shihab | Full-Stack Engineer | Was frontend-only; now also takes backend endpoints |
+| Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI |
+| Ishrak Hossain | Backend & AI Engineer | Also absorbs DevOps — the declared gap |
+| Mohammad Abdul Ahad | UI/UX Designer | Owns the design system: tokens, components, WCAG 2.1 AA |
+| Fahad Haque | UI/UX Designer | **New member** — wireframes and journey-map interaction design |
+
+The fifth member splits what was one person's job in two: **Mohammad Abdul Ahad** takes the
+design system (tokens, component library, accessibility — the parts already specified in
+`design.md` §3, §6, §9, §11.1), and **Fahad Haque** takes the wireframes and journey-map
+interaction design (§10.5). `design.md` now lists both as owner and co-owner.
+
+Also updated: the three "4-person team" claims in the feasibility study became 5-person,
+the DevOps gap line in all three docs, and the minimal-viable answer for the outstanding
+requirement-collection question.
+
 ### 2.14 Fixes to `design.md` itself ✅
 
 Three stale or wrong items inside the revised file:
@@ -267,7 +290,7 @@ academic misconduct.** Needed from the team:
   proposed for correction.
 - **A5** What was *not* done — honest blanks are fine and should be stated plainly.
 
-Minimum viable answer: *"stakeholder review, 4 team members."*
+Minimum viable answer: *"stakeholder review, 5 team members."*
 
 ### 4.2 🟡 Real-world problem example — `§1.2` (line ~83)
 
@@ -292,7 +315,7 @@ keeping one of the three would break traceability again.
 ### 4.4 🟡 Design tooling — `design.md` §12
 
 The content decisions are all recorded as text, which is enough to brief a build. Still
-outstanding, and all owned by Asif Salman Zarar (UI/UX):
+outstanding, and all owned by Mohammad Abdul Ahad (UI/UX):
 
 - Figma file and Figma components (items 1, 2) — decisions are in §3–§7, §6.6, §11.1
 - High-fidelity mockups, mobile 360px and desktop 1280px (item 4)

@@ -3,7 +3,7 @@
 **Version:** 3.1 (Gap Analysis + SDLC Alignment + Complete Requirements)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
-**Authors:** Md Habibulla Mahmud, Minhajul Islam Rifat, Md Jobayer Arafat, Asif Salman Zarar  
+**Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque  
 
 > **Companion document to:** `MATCH_MINDS_Complete_Project_Document.md`  
 > This document provides the detailed, implementation-ready architecture and requirements that supplement the high-level project document. Where the project document describes *what* to build and *why*, this document specifies *how* — with concrete APIs, data models, acceptance criteria, and measurable quality attributes.

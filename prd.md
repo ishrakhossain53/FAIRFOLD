@@ -4,7 +4,7 @@
 **Document type:** Product Requirements Document
 **Version:** 1.0 (consolidated from the three project documents)
 **Date:** October 2026
-**Team:** Md Habibulla Mahmud (Frontend), Minhajul Islam Rifat (Frontend), Md Jobayer Arafat (Backend & AI), Asif Salman Zarar (UI/UX)
+**Team:** Sardar Shihab (Full-Stack), Arnob Biswas Antu (Frontend), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX), Fahad Haque (UI/UX)
 **Status:** Ready for review
 
 > **Source documents consolidated here**
@@ -763,10 +763,11 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 
 | Person | Role | Focus |
 |---|---|---|
-| Md Habibulla Mahmud | Frontend Engineer | Templates/HTMX, Tailwind, journey charts |
-| Minhajul Islam Rifat | Frontend Engineer | Employer dashboard, application review, scheduling UI |
-| Md Jobayer Arafat | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security (also covers DevOps) |
-| Asif Salman Zarar | UI/UX Designer | Wireframes, design system, journey-map design |
+| Sardar Shihab | Full-Stack Engineer | Templates/HTMX, Tailwind, journey charts; backend endpoints as needed |
+| Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI |
+| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security (also covers DevOps) |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system, tokens, accessibility (WCAG 2.1 AA) |
+| Fahad Haque | UI/UX Designer | Wireframes, employer dashboard UX, journey-map design |
 
 **Known gap:** no dedicated DevOps role; the backend engineer absorbs it. This is the largest operational risk (RSK-009).
 

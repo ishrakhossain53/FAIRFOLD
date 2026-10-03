@@ -3,7 +3,7 @@
 
 **Version:** 2.0 (Full Architecture + Security + Market Analysis)
 **Date:** September 2026
-**Team:** Md Habibulla Mahmud, Minhajul Islam Rifat, Md Jobayer Arafat, Asif Salman Zarar
+**Team:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque
 
 ---
 
@@ -863,12 +863,13 @@ sphinx >= 8.2  # documentation generation
 
 | Person | Role | Primary Responsibilities |
 |---|---|---|
-| Md Habibulla Mahmud | Frontend Engineer | Django templates/HTMX UI, TailwindCSS, interactive journey mapping charts, responsive design |
-| Minhajul Islam Rifat | Frontend Engineer | Employer dashboard UI, application review interface, interview scheduling UI, real-time status updates |
-| Md Jobayer Arafat | Backend & AI Engineer | Django backend, DRF API, Celery tasks, OpenRouter AI integration, PII stripping, pgvector matching, security implementation |
-| Asif Salman Zarar | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, Journey Mapping interactive timeline design, design system |
+| Sardar Shihab | Full-Stack Engineer | Django templates/HTMX UI, TailwindCSS, interactive journey mapping charts, responsive design; backend endpoints as needed |
+| Arnob Biswas Antu | Frontend Engineer | Employer dashboard UI, application review interface, interview scheduling UI, real-time status updates |
+| Ishrak Hossain | Backend & AI Engineer | Django backend, DRF API, Celery tasks, OpenRouter AI integration, PII stripping, pgvector matching, security implementation |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — colour, type and spacing tokens, component library, accessibility (WCAG 2.1 AA) |
+| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, Journey Mapping interactive timeline design |
 
-**Missing role:** DevOps/Infrastructure — initially handled by Md Jobayer Arafat (backend engineer). When scaling, add or outsource.
+**Missing role:** DevOps/Infrastructure — initially handled by Ishrak Hossain (backend engineer). When scaling, add or outsource.
 
 ### 10.5 Estimated Timeline to MVP
 
