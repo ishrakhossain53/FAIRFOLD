@@ -43,7 +43,8 @@ specifications, requirements, and supporting configuration.
   the one table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
 - **10 AES-256-GCM encrypted fields** (PII at rest)
 - **52 user stories / 217 story points**, MoSCoW **30 Must / 17 Should / 5 Could** —
-  every one of the 52 FRs maps to at least one story (verified programmatically)
+  every one of the 52 FRs maps to at least one story. **Verified programmatically by
+  `scripts/verify_docs.py`**, which runs in CI (§2.26)
 - **62 pages specified** in `design.md` §10; **36 have wireframes** (23 drawings), covering
   all 18 required screens and all 22 core-flow pages; 53 of 62 pages carry a requirement ID
 - 5 roadmap phases: Phases 1–4 = weeks 1–12 (MVP), Phase 5 = week 13+ (optional)
@@ -727,6 +728,79 @@ is not an unfinished item.
 
 ---
 
+### 2.26 Four more items — a bias test set, a scope decision, and a checker
+
+#### 1. The bias test set is now **specified**, not just promised
+
+§2.23 and §2.24 both recorded this as an open gap: the bias audit had **no measurable
+target**. The Phase 2 criterion said *"flags every seeded phrase in the versioned bias
+test set"* and no test set existed — **a keyword list with no fixture set is a list that
+can only be shown to work on the examples it was written from.** Specified in **Arch Doc
+§7.4**.
+
+| What is fixed now | Detail |
+|---|---|
+| **Ten case categories** | `gendered_club_role`, `institution_gender_signal`, `age_reference`, `nationality_origin_proxy`, `family_status`, `disability_health`, `photo_appearance`, `uncited_vague_rationale`, and two **must-NOT-flag** categories (18 cases) |
+| **`expected_terms` per case** | The pass test checks that a case flagged *via its expected terms*, not incidentally. Without this, "accuracy" on a flag-only test is meaningless and flagging everything passes |
+| **A pass band, not a single number** | 100% recall on must-flag, **0** false positives, and flag rate on categories 1–8 **between 60% and 95%** — under 60% means the list is too thin, over 95% means it is flagging noise |
+| **Immutable versions + `keyword_list_sha`** | Adding a keyword term without bumping the manifest SHA makes old cases pass for a new reason, and the set silently stops being a regression test |
+
+**What the set cannot do, stated up front.** At 40–80 cases it supports **no disparity
+claim**, and §1.4.1 already withdraws that claim. The set measures the *keyword pass*; it
+does not measure whether the model is biased or whether outcomes differ across groups. A
+test set that quietly became a diversity statistic is how a "bias-free" assertion creeps
+back in through the side door — which is the exact thing §2.22 removed.
+
+**The Amazon-style cases are mandatory, synthetic, and self-limited.** They are written in
+the same shape as the 2018 pattern, with each case recording its `source_pattern` — the
+test needs the *shape* of the failure, not another company's wording committed into this
+repository. The honest weakness is recorded rather than glossed: invented phrases come from
+patterns we already know about, so the set **can only find proxies we thought of**. That
+is why category 8 is hand-extended after every production incident.
+
+And the reason they are mandatory at all: **every one of those phrases survives PII
+stripping.** The pipeline removes names, emails, phones and locations; *"President,
+University Women's Society"* contains none of those, so it passes through clean, gets
+embedded, and gets ranked. Stripping names is not enough, and this is now a testable claim
+rather than a paragraph.
+
+#### 2. `REQ-FR-050` — **decided: kept**, Phase 4 only
+
+The one open scope decision in the set. The team chose to **keep** it: total stays **217
+points**, Phase 4 stays **44**. Two conditions are now binding rather than advisory:
+
+- **It never becomes a launch blocker.** If Phase 4 hardening is short, this is what slips
+  — not the GDPR export, not the load test, not the backup restore.
+- **The four artefacts stay coupled.** A later cut removes `REQ-FR-050` + `US-062` +
+  `design.md` page #62 + the `announcements` table in one change.
+
+The "never a launch dependency" half is the load-bearing part of this decision, not a
+caveat on it — this is the one feature in the build whose worst case is a platform-wide
+incident caused by an admin clicking Send. Keeping it does not lower the bar on the five
+constraints; each one removes a failure mode rather than adding a feature.
+
+#### 3. `scripts/verify_docs.py` — and the bug it immediately found
+
+The doc set states the same figures in many places, and they had already drifted twice
+(34 → 35 FKs, 212 → 217 points). Reading does not catch that; a checker does. The script
+verifies counts against the **SQL rather than the prose**, id contiguity, dangling
+references, story arithmetic, links, cross-file anchors, naming, stale figures,
+placeholders, secrets, and self-reported line counts. It runs in CI.
+
+It found a real one on the first run: **`FAIRFOLD_Project_Architecture_and_Requirements.md`
+line 136, AD-006, still read *"Team of 4 developers."*** Conflict 9 in §2.23 recorded that
+as *"corrected to 5"* — and one of its two occurrences had never been touched. The pattern
+is worth keeping in mind: **a fix is not done until every occurrence is found**, and
+grep-with-the-wrong-pattern finds none of them.
+
+Four of the script's own first-pass "failures" were its fault, not the documents': a
+`12 tables` inside a wireframe mockup, dated snapshots in this log, markdown emphasis
+breaking `"is *also* used by"`, and `devpassword` as the documented local Postgres default.
+All four are now explicit, documented exemptions — a checker that cries wolf gets ignored,
+and an ignored checker is worse than none.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |
@@ -755,13 +829,16 @@ is not an unfinished item.
 | **V** — Phase 4 milestone on Christmas Day | 🟡 25 Dec is a holiday | ✅ **fixed** — moved to Thu 2026-12-24 (§2.24) |
 | **W** — API list incomplete | 🟠 blocker on the frontend build | ✅ **closed** — all five groups written (`Complete Doc §C.12`); writing them exposed two further schema holes (§2.25) |
 | **X** — ER diagram and DDL disagreed on `UNIQUE (user_id, status)` | *(not previously found)* — both had been reported as verified | ✅ **fixed** — constraint added to the DDL, plus `data_deletion_requests.approved_by` and `employer_profiles.show_company_name` (§2.25) |
+| **Y** — Bias test set had no target | 🟠 the keyword pass could only be shown to work on examples it was written from | ✅ **specified** — Arch Doc §7.4: ten categories, `expected_terms`, immutable versions, `keyword_list_sha`, pass band 100%/0/60–95% in CI. ⬜ **the set itself is still to be authored** (Ishrak, Phase 2) (§2.26) |
+| **Z** — AD-006 still said "Team of 4" after the rename pass | *(not previously found)* — §2.23 conflict 9 was recorded as fixed with one occurrence untouched | ✅ **fixed** — and `scripts/verify_docs.py` added so the class of bug is caught, not re-found (§2.26) |
 
 ---
 
 ## 4. Outstanding work
 
-**No item in this section blocks the start of development.** Both first-hour blockers —
-the incomplete API list and the 25 December milestone — are closed (§2.25). What remains
+**No item in this section blocks the start of development.** All four first-hour blockers —
+the incomplete API list, the 25 December milestone, the `REQ-FR-050` scope call and the
+bias test set's missing target — are now closed or specified (§2.25, §2.26). What remains
 needs a person rather than a document. The full picture, including the conflicts settled in
 §2.23, is in `FAIRFOLD_Feasibility_and_Design.md` **§5 Pre-Development Readiness Review**.
 
@@ -826,6 +903,13 @@ Ishrak Hossain. Until it exists, the deterministic keyword pass has no measurabl
 captain", gendered club roles. PII stripping removes names, emails and phone numbers and
 **none** of that text, which is why stripping names alone is not sufficient. Added in §2.20
 to Arch Doc §10 Phase 2 and `prd.md` §17.4.
+
+**✅ The spec now exists — Arch Doc §7.4, written 2026-10-03** (§2.26). Ten categories,
+`expected_terms` per case so flagging everything cannot pass, a 100% / 0 / 60–95% pass
+band checked in CI, immutable versions with a `keyword_list_sha`, and an explicit statement
+of what the set cannot support. **⬜ What remains is authoring the cases themselves** —
+Ishrak, Phase 2. That is build work, not a decision, and it does not block anything else
+in the phase.
 
 ### 4.5 ✅ Schedule — capacity solved, and the one open date is closed
 
@@ -901,6 +985,7 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
+741542c  docs: close the API blocker and the remaining gaps, and make ASM-003 falsifiable
 4b4ea7e  docs: move the Phase 4 milestone, record AI-assisted development, and build the broadcast feature
 ca4061f  docs: readiness review before development — nine conflicts settled, five gaps opened
 1079588  docs: rename to FairFold, and withdraw the bias-free claim the product cannot support

@@ -133,7 +133,13 @@ This document defines the complete technical architecture, functional requiremen
 
 #### AD-006: Monolith-First Architecture
 **Status:** Accepted  
-**Context:** Team of 4 developers, single deployment target.  
+**Context:** Team of 5 developers, single deployment target.  
+
+> *Corrected 2026-10-03.* This line still said 4 after the rename pass, so conflict 9
+> (§5.3 of the feasibility document) was recorded as settled when one of its two
+> occurrences had never been touched. The correction note is kept on its own line on
+> purpose: a note sharing the line would also share the exemption that lets a line
+> describe a stale figure, and the claim would then never be checked again.
 **Decision:** Single Django monolith with app-level separation (candidates, employers, matching, assessments, interviews, journey, ai, core). Docker Compose for local; single-container or Kubernetes for prod. Microservices split only when scaling demands it.  
 **Consequences:** Faster development, simpler debugging, atomic deployments. Future risk of tight coupling mitigated by app-level boundaries.
 
@@ -396,7 +402,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 | REQ-FR-047 | Employer Team and Roles | Medium | **Given** an employer with `employer_hr` role; **When** inviting, re-roling or removing a team member; **Then** `employer_manager`, `employer_hr` or `interviewer` role assigned from the defined set; **And** the last `employer_hr` cannot be removed or demoted, which would orphan the account; **And** an `employer_team_members` row is created or updated (§5.1); **And** an audit entry is written for every role change; **And** MFA is required before an invited member can act |
 | REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches FAIRFOLD; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
 | REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
-| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, body, audience, channel and schedule are captured in an `Announcement` row with a preview; **And** the announcement is delivered to the selected audience on schedule via Celery Beat; **And** an empty audience match sends nothing and is reported rather than silently succeeding; **And** the resolved audience size is shown **before** sending, because "empty" is only one of the two bad outcomes — see the five constraints below. **HARDENED 2026-10-03.** This is the highest blast-radius feature per story point in the specification, and the original criteria covered only the *empty*-audience case. Five conditions are now written into the requirement itself rather than left to implementation: **(1) Suppression list** — the audience is resolved at send time, not create time, and deleted, bounced and unsubscribed users are skipped and counted in `skipped_count`. Otherwise a scheduled announcement emails a hard-deleted account, contradicting `REQ-FR-041`. **(2) Audience-type confinement** — an `employers`-only announcement must never be readable by a candidate, and vice versa. A wrong audience is a confidentiality incident, not a UI bug, so the send task re-checks the recipient's role rather than trusting the stored filter. **(3) Transactional-email protection** — bulk sends are capped per hour and go through a **separate** sending domain/subaddress from verification and password-reset mail. A burst from the transactional path can get the sending domain rate-limited or blocked, which would break account access for every user; a marketing feature must not be able to do that. **(4) Idempotency** — `idempotency_key` is unique and set before the task runs, so a Celery retry cannot send the same announcement twice. **(5) Audit entry** on create, send and cancel. **This requirement remains optional.** The original estimate was 3 points, which was wrong: it was re-estimated at **8** on 2026-10-03 once the missing table and these five constraints were priced. If the team decides against it, remove `REQ-FR-050`, `US-062`, `design.md` page #62 **and** the `announcements` table together |
+| REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, body, audience, channel and schedule are captured in an `Announcement` row with a preview; **And** the announcement is delivered to the selected audience on schedule via Celery Beat; **And** an empty audience match sends nothing and is reported rather than silently succeeding; **And** the resolved audience size is shown **before** sending, because "empty" is only one of the two bad outcomes — see the five constraints below. **HARDENED 2026-10-03.** This is the highest blast-radius feature per story point in the specification, and the original criteria covered only the *empty*-audience case. Five conditions are now written into the requirement itself rather than left to implementation: **(1) Suppression list** — the audience is resolved at send time, not create time, and deleted, bounced and unsubscribed users are skipped and counted in `skipped_count`. Otherwise a scheduled announcement emails a hard-deleted account, contradicting `REQ-FR-041`. **(2) Audience-type confinement** — an `employers`-only announcement must never be readable by a candidate, and vice versa. A wrong audience is a confidentiality incident, not a UI bug, so the send task re-checks the recipient's role rather than trusting the stored filter. **(3) Transactional-email protection** — bulk sends are capped per hour and go through a **separate** sending domain/subaddress from verification and password-reset mail. A burst from the transactional path can get the sending domain rate-limited or blocked, which would break account access for every user; a marketing feature must not be able to do that. **(4) Idempotency** — `idempotency_key` is unique and set before the task runs, so a Celery retry cannot send the same announcement twice. **(5) Audit entry** on create, send and cancel. **KEPT — decided 2026-10-03.** The team confirmed: keep `REQ-FR-050`, **Phase 4 only, never a launch dependency.** The total stays **217 points** and Phase 4 stays **44**. Two conditions ride on that decision, and both are binding: **(a)** it must never become a launch blocker — if Phase 4 hardening is short, this is the thing that slips, not GDPR export or the load test; **(b)** the four artefacts stay coupled, so if it is ever cut later, `REQ-FR-050`, `US-062`, `design.md` page #62 **and** the `announcements` table go together in one change. The original estimate was 3 points, which was wrong: it was re-estimated at **8** on 2026-10-03 once the missing table and these five constraints were priced |
 
 #### Screening Integrity — Employer-Required Assessments, Override Visibility, Reviewable Filters
 
@@ -1507,6 +1513,13 @@ jobs:
       - name: Generate OpenAPI schema
         run: python manage.py spectacular --file schema.yml
 
+      - name: Documentation consistency check
+        # Added 2026-10-03. The six documents state the same figures in many places,
+        # and those figures had already drifted twice (34 -> 35 FKs, 212 -> 217 points)
+        # plus a live team-size figure in an ADR that an earlier pass had missed. Reading
+        # the docs does not catch that; running the checker does.
+        run: python3 scripts/verify_docs.py
+
       - name: Upload schema artifact
         uses: actions/upload-artifact@v4
         with:
@@ -1609,6 +1622,14 @@ jobs:
 tests/
 ├── __init__.py
 ├── conftest.py                    # Pytest fixtures (DB, Redis, test users)
+├── bias/                          # versioned bias test set — spec in §7.4
+│   ├── CHANGELOG.md
+│   ├── v1.0.0/
+│   │   ├── manifest.json          # version + keyword_list_sha + case count
+│   │   ├── proxy_cases.jsonl      # must_flag
+│   │   ├── negative_cases.jsonl   # must_not_flag
+│   │   └── rationale_cases.jsonl  # LLM pass only, not CI-gated
+│   └── test_bias_pass.py          # 100% recall, 0 false positives, 60–95% flag rate
 ├── unit/
 │   ├── test_pii_stripping.py     # PII detection regex + NER accuracy tests
 │   ├── test_matching.py           # pgvector cosine similarity correctness
@@ -1637,7 +1658,7 @@ tests/
 | PII stripping accuracy | Unit | 95%+ of PII types (name, email, phone, location) correctly stripped from test resumes |
 | Offline fallback | Contract | When OpenRouter returns 5xx, system uses pgvector + spaCy without user-facing error |
 | Evidence-cited rationale | Integration | LLM rationale always contains specific resume text citations; no hallucinated claims |
-| Bias audit pass rate | Integration | 100% of LLM rationales pass bias keyword check; flagged rationales are re-processed |
+| Bias audit pass rate | Integration | 100% of LLM rationales pass bias keyword check; flagged rationales are re-processed. **Measured against the versioned set in §7.4, not against examples the keyword list was written from** |
 | Cost estimate accuracy | Unit | Estimated cost matches actual API cost within ±10% |
 | Audit log completeness | Integration | Every screening action creates audit entry with timestamp, model, rationale hash |
 | GDPR export | Integration | User can export all personal data as JSON/PDF; includes resume text, skills, applications |
@@ -1645,6 +1666,143 @@ tests/
 | MFA enforcement | Integration | Employer admin accounts require TOTP; incorrect codes rejected; recovery codes work |
 | Rate limiting | Security | 1000 req/hr user limit enforced; AI endpoints 20 req/min limit enforced; excess returns 429 |
 | Concurrent applications | Load | 1000 candidates applying to same job simultaneously; no data loss; < 5 sec response |
+
+### 7.4 Versioned Bias Test Set — Phase 2, owner Ishrak Hossain
+
+**Specified 2026-10-03.** Until this file existed, the bias audit had no measurable
+target: §7.3 says *"100% of LLM rationales pass bias keyword check"*, and the Phase 2
+acceptance criterion says *"flags every seeded phrase in the versioned bias test set"* —
+and there was no test set to seed. **A keyword list with no fixture set is a list that
+can only be shown to work on the examples it was written from.**
+
+#### 7.4.1 What the set is for, and what it is not for
+
+| The set measures | The set does **not** measure |
+|---|---|
+| Whether the deterministic keyword pass flags text it should flag | Whether FairFold is "bias-free", or unbiased, or fair in any statistical sense |
+| Whether a proxy phrase survives PII stripping | Whether the *model* is biased, or whether outcomes differ across groups |
+| Whether a regression in the keyword list is caught by CI | Anything publishable as a disparity statistic |
+
+That second column is the reason the set is sized at tens of cases and not thousands.
+**A 40-case fixture cannot support a disparity claim**, and §1.4.1 already records that
+the product makes no such claim. A test set that quietly became a diversity statistic is
+how a "bias-free" assertion creeps back in through the side door — the exact withdrawal
+recorded in §2.22 of `HISTORY.md`.
+
+#### 7.4.2 File layout and case format
+
+```
+tests/bias/
+├── __init__.py
+├── CHANGELOG.md              # one line per version: what was added and why
+├── v1.0.0/
+│   ├── manifest.json         # version, created, author, keyword_list_sha, case count
+│   ├── proxy_cases.jsonl     # MUST-FLAG cases (the Amazon-style category)
+│   ├── negative_cases.jsonl  # MUST-NOT-FLAG cases
+│   └── rationale_cases.jsonl # uncited / vague-rationale cases (LLM pass only)
+```
+
+Versions are **immutable**. Fixing a case means adding `v1.0.1`, not editing `v1.0.0`,
+so a CI run months later reproduces the set it thought it ran.
+
+One JSON object per line:
+
+```json
+{
+  "id": "PROXY-014",
+  "category": "gendered_club_role",
+  "text": "President, University Women's Society; organised the annual intra-faculty debate",
+  "must_flag": true,
+  "expected_terms": ["women's society"],
+  "note": "A gendered organisation name in an otherwise strong CV. PII stripping removes the candidate's name and does not touch this.",
+  "source_pattern": "Amazon 2018 - gendered club/society roles correlated with male-dominated technical roles"
+}
+```
+
+**`expected_terms` is what makes this a test rather than a demo.** The keyword pass has to
+flag the case *and* the case asserts which terms should have triggered it, so a keyword
+list that flags everything still fails. Without it, "accuracy" on a flag-only test is
+meaningless.
+
+#### 7.4.3 Case categories
+
+| # | Category | What it catches | `must_flag` | v1.0.0 target |
+|---|---|---|---|---:|
+| 1 | `gendered_club_role` | "President, University Women's Society", "women's sports captain" | ✅ true | 12 |
+| 2 | `institution_gender_signal` | College names that correlate with gender in the labour market | ✅ true | 8 |
+| 3 | `age_reference` | "young and energetic", "recent graduate", "must be under 30", "digital native" | ✅ true | 8 |
+| 4 | `nationality_origin_proxy` | "Bangladeshi male", "native speaker", "must be from Dhaka" | ✅ true | 6 |
+| 5 | `family_status` | "married", "no children", "young male preferred", "family responsibilities" | ✅ true | 6 |
+| 6 | `disability_health` | "must be physically fit", "no glasses", "healthy and fit" | ✅ true | 4 |
+| 7 | `photo_appearance` | "attach a photo", "formal appearance", "well-presented" | ✅ true | 4 |
+| 8 | `uncited_vague_rationale` | "cultural fit", "not a team player", "seems junior", no resume text cited | ✅ true | 10 |
+| 9 | `legitimate_skill_match` | A real skills match with no proxy language — must **not** flag | ❌ false | 12 |
+| 10 | `necessary_context` | "Women-only safety officer role", "must hold a valid visa", "recent graduate programme 2026" | ❌ false | 6 |
+
+Categories 9 and 10 matter more than their size suggests. **A keyword pass that flags
+everything reports a clean result by flagging the whole file**, and category 10 exists
+specifically to stop someone "fixing" a false positive by deleting the case.
+
+#### 7.4.4 The Amazon-style proxy cases, and why PII stripping is not enough
+
+The Amazon 2018 case (`Feasibility §1.2.1`) is in the specification for one reason. The
+screening model did not use gender, age or college as features. It learned a proxy from
+**the resume text itself** — activities, clubs, societies — which correlate with gender in
+the applicant pool.
+
+**Every one of those phrases survives PII stripping untouched.** The stripping pipeline
+removes names, emails, phone numbers and locations. "President, University Women's
+Society" contains none of those, so it passes through clean, is embedded, and is ranked.
+This is the single most important thing the bias test set has to prove, and it is why
+categories 1 and 2 are mandatory rather than aspirational.
+
+The cases are **synthetic, in the same shape, with the source pattern recorded** in the
+`source_pattern` field. That is a deliberate choice over quoting the published material
+verbatim: the test needs the *shape* of the failure, not another company's wording
+committed into this repository. The reasoning stays traceable through the field, so a
+reviewer can check the derivation without the repo carrying the text.
+
+**A synthetic set has one honest weakness**, stated here so nobody is surprised: invented
+phrases are drawn from the patterns we already know about, so the set can only find
+proxies we thought of. It cannot bound the ones we did not. This is why category 8 is
+hand-extended after every production use that produced a flagged rationale — the set
+grows from real cases, and the version bump records which production incident added
+which line.
+
+#### 7.4.5 Pass criteria
+
+The Phase 2 criterion *"flags every seeded phrase"* means precisely this, and it is
+checked in CI:
+
+| Metric | Threshold | Why that number |
+|---|---|---|
+| `must_flag` cases flagged | **100%** | A proxy phrase that gets through is a silent ranking error. There is no acceptable miss rate for a known-bad phrase |
+| `must_flag` cases flagged by an `expected_terms` hit (not incidentally) | **100%** | Stops the flag-everything strategy passing |
+| `must_flag` **false** positives (categories 9, 10) | **0** | Every false positive is an employer shown a rationale the product calls biased when it is not. It trains recruiters to ignore the badge |
+| Overall flag rate on categories 1–8 | **between 60% and 95%** | The band is the check. Under 60% means the list is too thin; over 95% means it is flagging noise |
+
+```python
+# tests/bias/test_bias_pass.py -- runs in CI, no network, no AI provider.
+def test_bias_keyword_pass(bias_pass, manifest):
+    cases = load(f"tests/bias/{manifest['version']}")
+    result = bias_pass.run_all(cases)
+    assert result.recall == 1.0, f"missed: {result.missed_ids}"       # must_flag
+    assert result.false_positives == [], result.false_positives         # must_not_flag
+    assert 0.60 <= result.flag_rate <= 0.95, result.flag_rate
+```
+
+`bias_pass` is the deterministic keyword implementation only. **The LLM bias pass is
+advisory and is not gated on this set** — an advisory signal is allowed to be wrong, and
+§10 Phase 2 already records that it may not block auto-shortlist. Gating CI on an
+advisory signal makes the suite flaky and tempts someone to disable it.
+
+#### 7.4.6 Versioning
+
+`manifest.json` records the **SHA of the keyword list the cases were written against**.
+If the keyword list changes and the manifest SHA does not, the set is stale and CI says
+so. Without that field, adding a term silently makes old cases pass for a new reason,
+and the set stops being a regression test — it becomes a snapshot of whatever the list
+happened to be.
 
 ---
 
@@ -1983,8 +2141,8 @@ closes the registration half of this risk. Two consequences worth writing down:
 - ✅ Resume embeddings generated via sentence-transformers (384-dim vectors)
 - ✅ pgvector cosine similarity returns ranked results in < 2s for 100 candidates
 - ✅ LLM rationale generated for top 10 candidates per job (evidence-cited format)
-- ⬜ Deterministic keyword pass flags every seeded phrase in the versioned bias test set (set does not exist yet — Phase 2, owner Ishrak Hossain)
-- ⬜ The bias test set **includes Amazon-style proxy cases** — women's-college names, "women's society captain", gendered club roles. These survive PII stripping untouched, which is why stripping names is not sufficient. Source: `FAIRFOLD_Feasibility_and_Design.md` §1.2.1
+- ✅ Deterministic keyword pass flags **100%** of the `must_flag` cases in the versioned bias test set, with **0** false positives on categories 9–10, and a flag rate on categories 1–8 between 60% and 95% (**specified 2026-10-03** in §7.4 — the set itself is still to be authored, owner Ishrak Hossain)
+- ✅ The bias test set **includes Amazon-style proxy cases** as mandatory categories 1 and 2 — synthetic, in the same shape, source pattern recorded in each case's `source_pattern` field (§7.4.4). These survive PII stripping untouched, which is why stripping names is not sufficient. Pattern source: `FAIRFOLD_Feasibility_and_Design.md` §1.2.1
 - ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
 - ⚠️ LLM bias pass is advisory only and may not block auto-shortlist
 - ✅ Employer sees ranked candidates with scores + evidence-cited rationales

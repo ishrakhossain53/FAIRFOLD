@@ -117,7 +117,10 @@ fix proxy bias — that is the part most product teams get wrong.
 3. A bias audit runs on every rationale (REQ-COM-008).
 4. A human always decides (`prd.md` §8.1).
 
-**Action this triggers.** The Phase 2 versioned bias test set must include
+**Action this triggers.** The Phase 2 versioned bias test set must include these as
+mandatory categories. **Specified 2026-10-03 — see Arch Doc §7.4** (`gendered_club_role`
+and `institution_gender_signal`, both `must_flag`). Synthetic cases in the same shape,
+each recording its `source_pattern`.
 Amazon-style proxy cases — women's-college names, "women's society captain",
 gendered club roles. Stripping names, emails and phone numbers removes **none** of
 that text, so it is exactly the residue the PII filter leaves behind.
@@ -759,13 +762,22 @@ whole specification**, and the original 3-point estimate was wrong by more than 
 matcher, a suppression list, a rate cap and an idempotency key are not three points of
 work. Phase 4 moves 39 → 44; total 212 → **217**.
 
-**Recommendation: keep it, but only as a Phase 4 item and never as a launch dependency.**
+**DECIDED 2026-10-03 — the team kept it. Phase 4 only, never a launch dependency.**
 It is cheap enough now that it is fixed, and an operator genuinely needs to tell users
 about a pricing or maintenance change. But it is also the one feature in the build whose
-worst case is a platform-wide incident caused by an admin clicking Send. If the team wants
-it gone, cut **`REQ-FR-050` + `US-062` + page #62 + the `announcements` table**
-together — the coupling is written into the requirement itself so a partial cut cannot
-leave a phantom table behind.
+worst case is a platform-wide incident caused by an admin clicking Send — so the "never
+a launch dependency" half is the load-bearing part of the decision, not a caveat on it.
+
+Two conditions now bind:
+
+1. **It never becomes a launch blocker.** If Phase 4 hardening is short, this is what
+   slips. Not the GDPR export, not the load test, not the backup restore.
+2. **The four artefacts stay coupled.** A later cut removes **`REQ-FR-050` + `US-062` +
+   page #62 + the `announcements` table`** in one change. The coupling is written into the
+   requirement itself so a partial cut cannot leave a phantom table behind.
+
+Keeping it does not lower the bar on the five constraints; they are the reason it is
+affordable at all, since each one removes a failure mode rather than adding a feature.
 
 ### 2.5 Product backlog and priority
 
@@ -2671,6 +2683,7 @@ in the Arch Doc; the PRD table is a pointer, never the definition.
 | Duplicate FR rows | ✅ none — 52 rows, 52 unique IDs |
 | `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 24 / 35 / 13 |
 | Mermaid diagrams parse | ✅ 5 of 5 |
+| `scripts/verify_docs.py` (added 2026-10-03, runs in CI) | ✅ all checks pass — counts, id contiguity, dangling refs, story arithmetic, links, anchors, naming, stale figures, placeholders, secrets, self-reported line counts |
 | `makemigrations --check` in CI | ✅ so a model change cannot land without its migration (Complete Doc §C.8.1) |
 | Frontend build in CI | ✅ `npm ci && npm run build`, plus a hard 30 KB budget on the built CSS (`design.md` §11.4) |
 | `[PLACEHOLDER]` / `?` cells / `TBD` remaining | ✅ none |
@@ -2734,11 +2747,11 @@ the canonical document's rule was applied and the stale one corrected.
 | # | Item | Owner |
 |---|---|---|
 | 3 | Formal trademark search + class 42/35 filing (**RSK-011**). Domain is owned, but a search is not a clearance | Legal / PM |
-| 4 | Phase 2 **versioned bias test set**, now required to include Amazon-style proxy cases | Ishrak |
+| 4 | Phase 2 **versioned bias test set** — **✅ spec written 2026-10-03** (Arch Doc §7.4: ten categories, immutable versions, `keyword_list_sha`, pass band 100% / 0 / 60–95% in CI). ⬜ **The set itself is still to be authored** — Ishrak, Phase 2 | Ishrak |
 | 5 | Cross-border data transfer (SCCs) and provider ToS — `prd.md` §19.1 item 4, still open | Legal / PM |
 | 6 | Figma file, components and hi-fi mockups (`design.md` §12 items 1–4) | UI/UX |
 | 7 | Screens for the two new components (§7.11, §7.12) — `design.md` §12 item 11 | UI/UX |
-| 8 | `REQ-FR-050` (broadcast, page #62) — keep or cut, and cut all three artefacts together | Team |
+| 8 | ~~**`REQ-FR-050` (broadcast, page #62) — keep or cut.**~~ ✅ **Decided 2026-10-03: kept**, Phase 4 only, never a launch dependency. Two binding conditions recorded in §2.4.1 and in the requirement itself | — |
 
 **🟢 Build work, no decision needed:** dark mode, Bengali at launch, score-band
 thresholds (they need a calibrated model, not a meeting). Gaps **O–R are now closed**;

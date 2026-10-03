@@ -128,7 +128,8 @@ requirements.txt
 .env.example        # template for all 25 env vars (never put secrets here)
 .gitignore          # keeps .env out of git; .env.example stays tracked
 scripts/
-└── generate_secret_key.py   # generates DJANGO_SECRET_KEY + ENCRYPTION_KEY
+├── generate_secret_key.py   # generates DJANGO_SECRET_KEY + ENCRYPTION_KEY
+└── verify_docs.py           # cross-document consistency check (also runs in CI)
 ```
 
 > **Settings modules:** The project uses split Django settings — `base.py` for shared config, `local.py` for development, `test.py` for fast unit tests, `ci.py` for CI, and `production.py` for production. Set `DJANGO_SETTINGS_MODULE` in `.env`.

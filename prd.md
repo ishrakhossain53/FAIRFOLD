@@ -1068,7 +1068,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 ### 17.4 Phase Acceptance Criteria (headline items)
 
 - **Phase 1:** Compose stack starts; register/login with verification email; resume upload via presigned URL; job CRUD; duplicate applications blocked; security headers present; 80%+ coverage on models/auth/job CRUD; lint and security scans pass.
-- **Phase 2:** PII stripping ≥ 95% accurate on test set; 384-dim embeddings; pgvector ranking < 2 s for 100 candidates; LLM rationale for top 10; deterministic bias keyword pass (accuracy target set once the versioned test set exists, Phase 2) **including Amazon-style proxy cases — women's-college names, "women's society captain", gendered clubs**; cost estimate shown first; audit entry per AI action; **`not_matched` results show the rule that fired, stay reviewable and carry `filter_rules_version` (REQ-FR-029); an override requires a written reason and writes an `ai_decision`-class audit entry (REQ-FR-052)**.
+- **Phase 2:** PII stripping ≥ 95% accurate on test set; 384-dim embeddings; pgvector ranking < 2 s for 100 candidates; LLM rationale for top 10; deterministic bias keyword pass, measured against the **versioned bias test set** in Arch Doc §7.4 — 100% of `must_flag` cases flagged, 0 false positives, flag rate 60–95% — **including Amazon-style proxy cases as mandatory categories 1–2 (synthetic, same shape, source pattern recorded); these survive PII stripping untouched, which is why stripping names alone is not sufficient**; cost estimate shown first; audit entry per AI action; **`not_matched` results show the rule that fired, stay reviewable and carry `filter_rules_version` (REQ-FR-029); an override requires a written reason and writes an `ai_decision`-class audit entry (REQ-FR-052)**.
 - **Phase 3:** Interactive timeline; skill-evolution chart; assessment taking and auto-scoring; coaching feedback; job-tailored narrative; match scores visible to candidates. **An employer can attach an assessment as a required step, and an applicant without a passing attempt cannot be shortlisted on score alone (REQ-FR-051); the gate status shows on the application row; removing a requirement leaves existing attempts intact; analytics shows override rate by user and job (REQ-FR-035).**
 - **Phase 4:** MFA for employer admins; encrypted PII verified unreadable in backups; authenticated file serving only; rate limits enforced; Sentry clean of PII; `/metrics/` live; GDPR export and delete working; auto-deploy to staging; load test of 100 concurrent applicants < 5 s with < 1% errors.
 - **Phase 5:** Stripe plan changes; Bengali plus 3 more languages; installable PWA; WebSocket coaching and notifications.
@@ -1109,6 +1109,13 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
   or quality degradation. If it fails, **re-scope; do not compress.**
 - **`ASM-001`** — the 52 requirements are the right scope for an MVP. If it fails, cut
   `REQ-FR-050` first; it is the only requirement the team itself called optional.
+- **Phase 2 bias test set** — **✅ spec written 2026-10-03**, Arch Doc §7.4. Ten case
+  categories, immutable versions, a `keyword_list_sha` in the manifest, and a pass band
+  (100% recall, 0 false positives, 60–95% flag rate) checked in CI. **The set itself is
+  still to be authored** — Ishrak Hossain, Phase 2. Specifying the target before writing
+  the keywords is the point: otherwise the pass rate is only ever measured on examples the
+  keyword list was written from. Note also what the set cannot do — at 40–80 cases it
+  supports no disparity claim, and §1.4.1 already withdraws that claim.
 - **`ASM-003`** — AI assistance raises delivery capacity for the 217 points. *Plausible
   for boilerplate; unmeasured.* **Tested at the end of Phase 1** by points actually
   delivered against the 41-point, 3-week phase. If it fails, drop the capacity assumption
