@@ -1391,6 +1391,89 @@ the command CI actually uses.
 
 ---
 
+### 2.32 A security step that had never been run
+
+The job now runs **3–4 minutes** instead of failing at 53 seconds, which is the
+good news: pip install completes, so the failure moved much later in the job.
+
+The cause is one line of `requirements.txt`:
+
+```
+djangorestframework  3.15.1  PYSEC-2026-1304  fix 3.15.2
+djangorestframework  3.15.1  PYSEC-2026-3827  fix 3.17.2
+djangorestframework  3.15.1  PYSEC-2026-3828  fix 3.17.2
+```
+
+`pip-audit` exits non-zero on any advisory, so a two-minor-version-old pin with
+three known CVEs was a hard build failure. Raised to **3.17.2**; the audit now
+reports *No known vulnerabilities found*. Verified against the installed package
+rather than assumed: `manage.py check`, `spectacular`, and all 115 tests still
+pass on 3.17.2.
+
+**Why this survived four rounds of CI fixes.** In the previous round I reported
+"all 8 stages green." That was true — and covered 8 of roughly twenty steps.
+I never ran `pip-audit`, `check-budget`, `collectstatic`, the spaCy model load,
+or `migrate`+`seed` against a clean database. Every stage I *did* run passed, and
+I wrote the sentence as though the job would now pass. Sampling the checks and
+describing the result as the whole is the error, and it is the same shape as the
+earlier ones: a narrower claim stated as a wider one.
+
+All five untested steps have now been run. The other four passed first time.
+
+**One consequence worth recording.** `bandit` was skipped by four `skip:` entries
+that were never active (§2.31). `pip-audit` was not skipped — it was simply
+never run. A scanner nobody has executed is not a control, it is a line in a
+YAML file, and it reports "0 issues" either way.
+
+**Final state:** all 13 executable CI steps plus `migrate`/`seed` and pytest pass
+locally, each run with the command the workflow uses.
+
+---
+
+### 2.33 The command was right; the environment it ran in was wrong
+
+`Django system check` failed with:
+
+```
+ImproperlyConfigured: CLAMD_HOST is required but not set
+```
+
+`base.py:324` declares `CLAMD_HOST = env_required("CLAMD_HOST")`. Every *other*
+Django step sets it. This one did not — it set `DATABASE_URL` instead, and
+**no settings module reads `DATABASE_URL` at all**. `base.py` builds `DATABASES`
+from `POSTGRES_DB` / `DB_HOST` / `DB_PASSWORD`. So that variable was inert: it
+read as "the database is configured in this step" while configuring nothing.
+
+The step now declares the same variables as every other Django step.
+
+**Third recurrence of one mistake, and the most expensive.** The previous round
+reported "all 20 CI steps pass in CI order." That simulation exported **one
+shared environment** for all twenty steps. The real workflow gives each step its
+*own* `env:` block, and they differ. I verified every command and none of the
+environments they actually run in. A developer's shell or a `.env` supplies the
+missing variable locally, so the command passes on the machine that wrote it and
+fails only on the runner.
+
+Round 1 was a version that did not exist. Round 2 was an env var set under the
+wrong name. Round 3 was a scanner never executed. This round is a command verified
+in an environment that was not the one it runs in.
+
+**§14 of `verify_docs.py` now asserts it.** For every step whose `run:` invokes
+`manage.py` or `pytest`, each `env_required` variable in the settings chain must
+appear in that step's `env:` block or the job-level `env:`. It also flags any step
+setting `DATABASE_URL` when no settings module reads it. Negative-tested three
+ways: the exact bug above, `CLAMD_HOST` removed from `Run tests`, and an unread
+`DATABASE_URL` added elsewhere. All three caught.
+
+Writing that check went wrong twice before it worked, which is why the
+negative tests matter. `splitlines()[:]` is a **full slice**, not an empty one, so
+the first version harvested env keys from the entire file — every required
+variable looked present and the check could not fail. The second returned no keys
+at all because the `env:` header was excluded. Both looked correct and both were
+useless; only the negative test distinguished them.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |

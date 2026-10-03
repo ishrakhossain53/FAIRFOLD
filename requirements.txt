@@ -11,7 +11,16 @@
 # 5.2 LTS. An unbounded range means the version under test is whichever one
 # released this morning, so a CI pass says nothing about the deployed version.
 Django>=5.2,<6.0  # 5.2 LTS. Capped: 5.0 is EOL and 6.x is untested here.
-djangorestframework==3.15.1
+# 3.15.1 -> 3.17.2, for three advisories, not a feature. PYSEC-2026-1304 (fixed in
+# 3.15.2) plus PYSEC-2026-3827 and -3828 (fixed only in 3.17.2). The CI step
+# `pip-audit -r requirements.txt` exits non-zero on any advisory, so this pin was
+# a hard build failure rather than a note.
+#
+# Worth stating plainly: every other pin in this file was written by reading
+# documentation, and this one had sat two minor versions behind carrying known
+# advisories. A security step that has never been run locally is not a control --
+# it is a line in a YAML file. Run the audits before trusting them.
+djangorestframework==3.17.2
 # 5.3.3 did not exist. 5.5.1 is current and resolves against Django 5.2.
 djangorestframework-simplejwt==5.5.1
 django-celery-results==2.5.1

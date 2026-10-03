@@ -244,9 +244,22 @@ jobs:
         # missing module in an `include()`, or a settings module that will not
         # load. Without it those surface as a confusing traceback from whichever
         # later step happened to import the file first.
+        #
+        # FAILED on 2026-10-04 with "CLAMD_HOST is required but not set". Every
+        # *other* Django step sets CLAMD_HOST, this one set DATABASE_URL instead
+        # -- and base.py never reads DATABASE_URL at all. It builds DATABASES from
+        # POSTGRES_DB / DB_HOST / DB_PASSWORD, so that variable was inert: it
+        # looked like the database was configured here and nothing was.
+        # CLAMD_HOST is `env_required`, so omitting it fails at settings import,
+        # before `check` runs a single check.
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fairfold_test
           DJANGO_SETTINGS_MODULE: config.settings.ci
+          POSTGRES_DB: fairfold_test
+          DB_HOST: localhost
+          DB_PASSWORD: postgres
+          CLAMD_HOST: localhost
+          CLAMD_PORT: 3310
+          REDIS_URL: redis://localhost:6379/0
         run: python manage.py check
 
       # `check --deploy` against PRODUCTION settings, not against ci.py.
