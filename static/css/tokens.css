@@ -12,8 +12,12 @@
  * a violet reserved **exclusively** for AI-generated content — so a user can
  * always tell what the AI produced without reading a label.
  *
- * Dark mode is NOT defined here. §3.3 holds its tokens and whether it ships in
- * the MVP is open decision 3 in design.md.
+ * Dark mode is NOT defined here. §3.3 holds its tokens, and design.md §11.1
+ * shows them as a reference block, but open decision 3 says this file "assumes
+ * no" — so a `[data-theme="dark"]` rule here would imply a decision that has not
+ * been taken. When it is taken, copy §3.3's values in and re-run the contrast
+ * check: §3.3 states them without the ratios, and design.md notes the soft
+ * backgrounds still need verifying before shipping.
  */
 
 :root {

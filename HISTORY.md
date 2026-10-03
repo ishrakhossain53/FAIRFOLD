@@ -1394,6 +1394,38 @@ build brief, a hi-fi mockup is a design artefact.
 ⚠️ And the honest limit: "has a wireframe" does not mean "is buildable". A layout proven only
 in a monospace grid can still fail at implementation, which is why §4.6 stays 🟡 and not ✅.
 
+#### Start here, designer — the order that unblocks the most
+
+All 62 pages have a text wireframe (§10.5). These are the items in §12 order, with the
+reasoning for the sequence:
+
+1. **§12 item 1 — Figma file with tokens** — before anything else. Every other Figma task
+   imports colour, type and spacing from §3–§5, and doing them first means re-doing them when
+   the token set changes. `static/css/tokens.css` already holds these values as CSS custom
+   properties, so the file and the tokens must stay in step.
+2. **§12 item 7 — logo, favicon, social image.** Now unblocked: the name is **FairFold**
+   (§4.7 item 5). ⚠️ **Do not print the logo on packaging, the domain registration or any
+   public collateral until `RSK-011`'s formal trademark search returns** (§4.1). A search is
+   not a clearance.
+3. **§12 item 2 — component library with all states**, then **item 4 — hi-fi at 360px and
+   1280px** for the core flow. 360px first, always (§5.3).
+4. **§12 item 10 — usability test plan** (5 candidates, 5 recruiters; task: apply / screen and
+   shortlist). Needs no Figma, so it can run in parallel with the above.
+
+**Two constraints that are easy to miss and expensive to fix late:**
+
+- **Anonymised views are marked as such** on #40 and #41, and the name reveals only at
+  shortlist (§4.7 item 2). A hi-fi mock that shows the name everywhere silently contradicts
+  `REQ-FR-030`.
+- **`--ai` colour is violet, used *only* for AI-generated content** (§3.1). It is never a
+  success and never a warning — the first would claim the system endorses the output, the
+  second that it is suspect. Every AI number sits next to its reason (§1).
+
+#### What the designer should not wait for
+
+Nothing in §12 items 1–4 or 7–8 depends on a Django model existing, an AI provider key, or the
+scaffold booting. The design can start immediately and in parallel with backend work.
+
 ### 4.7 🟢 Remaining design decisions — `design.md` §12
 
 1. Score-band thresholds, once the scoring model is calibrated
@@ -1441,8 +1473,10 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
-(new)   feat: scaffold the Django project, close the last wireframe gap, and fix two contradictions
-2e855a8  feat: bias set v1.0.1 with the numeric rule layer; readiness re-check
+694b537  docs: correct three wrong claims in the log, and fix 8 broken README commands
+4ef2aa0  feat: add the three files §6.1/§6.2/§6.5 specified and did not have
+744afae  feat: scaffold the Django project, close the last wireframe gap, fix two contradictions
+2e855a8  feat: bias set v1.0.1 closes LIM-001 and LIM-002; fix a checker that could not fail
 8e67148  feat: implement the deterministic bias pass, and decide LIM-003 and GAP-001
 0711081  test: author the v1.0.0 bias test set, 76 cases across all ten categories
 736ccd6  docs: specify the bias test set, decide REQ-FR-050, and add a docs checker
@@ -1452,22 +1486,13 @@ ca4061f  docs: readiness review before development — nine conflicts settled, f
 1079588  docs: rename to FairFold, and withdraw the bias-free claim the product cannot support
 2f7f01f  docs: trace requirements back to the problem, and flag a contested product name
 f342dd0  docs: re-base the Gantt, close two schema holes, and decide the open questions
-34fbe78  Create design.md
-6a50343  Create prd.md
+76106b8  docs: correct the document index now that six documents exist
+9d6a762  docs: order the HISTORY.md section numbers correctly
+4ec59df  docs: replace the team roster with the current five members
+7f51aff  docs: close the round-2 traceability gaps with REQ-FR-044 to 050
+36ccdb6  docs: sync all docs to the expanded design.md and record round-2 gaps
 96993d4  docs: promote REQ-FR-042/043 to the Arch Doc and reconcile spec drift
-c7d8c00  docs: add HISTORY.md recording completed work and outstanding items
-b16b7a6  docs: correct wireframe row 4 to reference GAP-1, not FR-022
-0486ee1  docs: rename submission doc and link all three specs from README
-a9f3817  Merge pull request #5
-c9d335d  Merge pull request #4
-ba51af9  Merge pull request #3
-17f872c  Merge pull request #2
-29eae4e  Merge branch 'docs/fill-academic-gaps' into ishrakhossain53-patch-1
-5e74189  docs: add academic submission document covering rubric gaps
-ea0e688  Merge pull request #1
-070d520  Update license section in README
-67bd089  Initial Documentations
-6c2632e  Initial commit
+34fbe78  Create design.md
 ```
 
 Upstream `main` also contains merge commits `18d5713` (PR #6), `bc47ae0` (PR #7) and
