@@ -1,6 +1,6 @@
 # MATCH MINDS — Detailed Architecture & Requirements Specification
 
-**Version:** 4.0 (50 FRs · employer_team_members · message soft-delete)  
+**Version:** 4.1 (52 FRs · override visibility · employer-required assessments · versioned hard filters)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
 **Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque  
@@ -337,13 +337,13 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy
 | REQ-FR-026 | Job Editing | High | **Given** existing job (draft status); **When** employer edits; **Then** all fields updated; **And** audit log entry created |
 | REQ-FR-027 | Job Activation | High | **Given** draft job; **When** employer publishes; **Then** status changes to "active"; **And** job visible to candidates |
 | REQ-FR-028 | AI Screening Trigger | High | **Given** active job with applications; **When** employer clicks "Screen All"; **Then** cost estimate shown ($0.00 for free tier); **And** user confirms; **And** Celery batch task queued |
-| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030) |
+| REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030); **And** candidates the hard filter marked `not_matched` **remain listed and visible to the employer with the reason shown** — a rule-based rejection is never hidden and never final on its own; **And** the employer can pull any `not_matched` candidate into review, which sets `status` back to `screened` and writes an audit entry; **And** the version of the hard-filter rule set that produced each result is recorded on the application (`filter_rules_version`) and shown in the UI. *Amended 2026-10-03 from Gap G3 — see `MATCH_MINDS_Feasibility_and_Design.md` §2.4.1. Motivated by EEOC v. iTutorGroup, where a hard-coded age filter was the entire discriminating mechanism (§1.2.1).* |
 | REQ-FR-030 | Evidence-Cited Rationale | High | **Given** AI-generated rationale; **When** employer views candidate; **Then** rationale shows specific resume text for each claim; **And** missing skills listed; **And** bias audit status shown; **And** the candidate's name, photo and contact details stay hidden until the employer shortlists them, at which point they are revealed to that employer only and the reveal writes an audit entry; **And** unrevealed PII is never sent to any external AI provider |
 | REQ-FR-031 | Interview Pack Generation | Medium | **Given** job with requirements; **When** employer generates interview pack; **Then** AI produces structured Qs + scoring rubric; **And** pack stored and linked to job |
 | REQ-FR-032 | Interview Scheduling | Medium | **Given** shortlisted candidate; **When** employer schedules; **Then** calendar invite sent; **And** video call URL generated; **And** candidate notified |
 | REQ-FR-033 | Interview Feedback | Medium | **Given** completed interview; **When** interviewer submits feedback; **Then** scores + comments stored; **And** recommendation recorded |
 | REQ-FR-034 | Offer Generation | Low | **Given** selected candidate; **When** employer generates offer; **Then** AI drafts offer letter from job details; **And** employer can edit |
-| REQ-FR-035 | Analytics Dashboard | Medium | **Given** jobs with applications; **When** employer views analytics; **Then** time-to-hire, source of hire, drop-off points, AI accuracy shown in charts |
+| REQ-FR-035 | Analytics Dashboard | Medium | **Given** jobs with applications; **When** employer views analytics; **Then** time-to-hire, source of hire, drop-off points, AI accuracy shown in charts; **And** an **override rate** is shown — the number and share of shortlist/reject decisions that went against the AI ranking, broken down by who made them and by job — so a reviewer can see whether the ranking is actually being respected, and each override links to its recorded reason (REQ-FR-052); **And** the count of `not_matched` candidates pulled into review is shown alongside the count that were not, so the hard filter's effect is measurable |
 | REQ-FR-036 | Job Sharing | Medium | **Given** published job; **When** employer generates share link; **Then** unique URL created; **And** embed code provided for career page |
 
 #### Administrative
@@ -392,6 +392,42 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 | REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches MATCH MINDS; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
 | REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
 | REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, message, audience and schedule captured with a preview; **And** the announcement is delivered to the selected audience on schedule; **And** an empty audience match sends nothing and is reported rather than silently succeeding. **This requirement is optional** — kept in scope by decision 2026-10-03 because it is 3 story points, Low priority and Phase 4, and removing it would touch four documents for no benefit. If the team later decides against it, remove REQ-FR-050, US-062 and `design.md` page #62 **together** |
+
+#### Screening Integrity — Employer-Required Assessments, Override Visibility, Reviewable Filters
+
+> Added 2026-10-03 to close **G1**, **G2** and **G3**, the three gaps exposed by writing
+> the experience-to-requirement traceability table
+> (`MATCH_MINDS_Feasibility_and_Design.md` §1.3.2, analysis in §2.4.1). All three
+> trace back to the same root cause — the Product Owner's own hiring process — and
+> all three were approved by the team on 2026-10-03.
+>
+> **G2 is the important one.** Anonymised ranking only matters if the ranking is
+> respected. Nothing in the previous specification recorded a shortlist or rejection
+> that went *against* the ranking, which meant the platform could have offered a
+> fair-looking process while the real decision was still made informally.
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|---|---|---|---|
+| REQ-FR-051 | Employer-Required Skill Assessment | High | **Given** an active job; **When** the employer attaches one or more assessments to that job as a required step; **Then** a `job_assessment_requirements` row is created per assessment with an optional `min_score` pass mark (§5.1); **And** an applicant who has not completed a required assessment has `assessment_gate_status = 'pending'` and **cannot be shortlisted on their match score alone** — the Shortlist action is disabled and explains why; **And** `assessment_gate_status` becomes `passed` or `failed` once a completed `AssessmentAttempt` is matched on candidate + assessment, and it is shown on the application row; **And** a job with no required assessment sets the gate to `not_required` for all its applicants, so existing behaviour is unchanged; **And** removing a required assessment never deletes existing attempts or scores; **And** every change to a job's required assessments writes an audit entry. **Phase 3** — this is the requirement that answers pain point P2 ("no skills check before the interview"), which the candidate-initiated assessments of REQ-FR-019/020 did not |
+| REQ-FR-052 | Override Visibility and Record | High | **Given** a ranked application; **When** a user shortlists a candidate ranked **below** the employer's cut-off, or rejects one ranked **above** it; **Then** a written reason is **required** before the action completes — the dialog cannot be dismissed with an empty reason; **And** the application records `decision_override = TRUE`, `decision_override_reason` and `decided_by`; **And** an `AuditLogEntry` is written with `resource_type = 'ai_decision'`, so it is retained with the application record (2 years, 5 years if hired) rather than rotating at 90 days; **And** the employer can override with the reason empty only where the job has no cut-off configured, and that exception is recorded in the audit entry; **And** the override is surfaced on the application row, in the audit log, and as the override-rate chart in REQ-FR-035; **And** overrides are **not** blocked — the employer remains the decision-maker (`prd.md` §8.1). Requiring a reason makes an informal decision *visible and countable*, it does not prevent it. **Phase 2–3** |
+
+#### Reviewable Hard Filters — implementation notes for G3
+
+`not_matched` was previously a terminal state created by a rule, with no reason
+recorded and no route back. Three changes make it defensible:
+
+1. **Reason.** `applications.not_matched_reason` stores which rule fired (e.g.
+   `experience_level`, `min_years`, `location`). Without it the employer cannot
+   review the decision and the candidate cannot be told.
+2. **Version.** `jobs.screening_config` holds the rule set as JSONB and
+   `jobs.screening_config_version` increments on every edit. Each application stores
+   `filter_rules_version`, so "which rule rejected this?" is answerable months later
+   even after the job has been edited. An unversioned rule set is an unauditable one.
+3. **Route back.** `not_matched` candidates stay in the ranked list behind a filter
+   toggle, with the reason shown, and the employer can pull any of them into review.
+
+**Constraint:** a filter may only ever produce `not_matched`, never `rejected`. Only
+a person can reject a candidate.
 
 ### 4.2 Non-Functional Requirements
 
@@ -590,6 +626,8 @@ CREATE TABLE jobs (
     status          VARCHAR(20) DEFAULT 'draft',   -- draft, active, paused, closed
     description_embedding VECTOR(384),              -- pgvector
     screening_questions JSONB DEFAULT '[]',
+    screening_config JSONB DEFAULT '{}',            -- G3: stage-1 hard-filter rule set {"filters": {...}}
+    screening_config_version INTEGER DEFAULT 1,     -- G3: increments on every rule edit; stamped onto each application
     ai_model_used   VARCHAR(100),
     cost_estimate   DECIMAL(10,4),
     created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -600,15 +638,31 @@ CREATE TABLE applications (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id          UUID REFERENCES jobs(id) ON DELETE CASCADE,
     candidate_id    UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
-    status          VARCHAR(20) DEFAULT 'applied',  -- applied, screened, shortlisted, interview, offered, hired, rejected
+    status          VARCHAR(20) DEFAULT 'applied',  -- applied, screened, not_matched, shortlisted, interview, offered, hired, rejected
     match_score     INTEGER,                       -- 0-100 from AI
     match_rationale TEXT,                          -- AI-generated explanation
     ai_model_used   VARCHAR(100),
     screened_at     TIMESTAMPTZ,
     shortlisted_at  TIMESTAMPTZ,
+    -- Gap G3: the stage-1 hard filter records what it excluded and under which
+    -- rule-set version, and the employer can always pull the candidate back.
+    not_matched_reason   TEXT,                     -- which rule fired, e.g. experience_level
+    filter_rules_version INTEGER,                  -- = jobs.screening_config_version at screening time
+    -- Gap G1: employer-required assessments gate the shortlist.
+    assessment_gate_status VARCHAR(20) DEFAULT 'not_required', -- not_required, pending, passed, failed
+    -- Gap G2: a decision that goes against the ranking is recorded, not prevented.
+    decision_override        BOOLEAN DEFAULT FALSE,
+    decision_override_reason TEXT,                 -- required whenever decision_override is TRUE
+    decided_by               UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(job_id, candidate_id)
+    UNIQUE(job_id, candidate_id),
+    -- A recorded override must always carry a reason. Enforced in the database, not only in the form.
+    CONSTRAINT chk_override_has_reason CHECK (
+        decision_override = FALSE OR (decision_override_reason IS NOT NULL AND length(btrim(decision_override_reason)) > 0)
+    )
 );
+
+CREATE INDEX idx_applications_gate ON applications(assessment_gate_status);
 
 -- === SKILLS & CERTIFICATIONS ===
 CREATE TABLE skills (
@@ -681,6 +735,22 @@ CREATE TABLE assessment_attempts (
     status          VARCHAR(20) DEFAULT 'in_progress',
     answers         JSONB DEFAULT '[]'
 );
+
+-- === EMPLOYER-REQUIRED ASSESSMENTS (Gap G1, REQ-FR-051) ===
+-- An employer attaches an assessment to a job as a step that must be completed
+-- before shortlist. Reuses the existing assessments/assessment_attempts pair: the
+-- gate is satisfied by matching candidate + assessment on a completed attempt.
+CREATE TABLE job_assessment_requirements (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id          UUID REFERENCES jobs(id) ON DELETE CASCADE,
+    assessment_id   UUID REFERENCES assessments(id) ON DELETE CASCADE,
+    min_score       DECIMAL(5,2),                  -- pass mark; NULL = any completed attempt satisfies it
+    sort_order      INTEGER DEFAULT 0,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(job_id, assessment_id)
+);
+
+CREATE INDEX idx_job_assessment_req_job ON job_assessment_requirements(job_id);
 
 -- === INTERVIEWS ===
 CREATE TABLE interview_packs (
@@ -1699,6 +1769,7 @@ local (dev laptop) → CI (test) → staging → production
 | RSK-008 | Bangladesh market doesn't convert | Business | Medium | High | MVP targets both BD market + global SMBs; self-hostable option for price-sensitive markets | Product Lead |
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
+| RSK-011 | **Name / trademark conflict.** "Match Minds" and "MatchMindAI" are both in use by other AI recruitment products; "MatchMinds" also names an unrelated Android app and a teammate-recommendation tool. Match Mind is descriptive of what every ATS does, so a word mark is hard to register or defend. | Legal / Brand | **High** | High | Decide the name **before** any branding spend; commission a proper trademark search in Bangladesh and target export markets; candidates screened on 2026-10-03 (fairfold.com/.ai, niyoti.app/.io, sightfold.com, evidencefold.com all had no DNS record) are recorded in `MATCH_MINDS_Feasibility_and_Design.md` §1.4.2. Renaming after launch would force a rebrand, a domain change and a support burden | Product Owner |
 
 ---
 
@@ -1721,12 +1792,16 @@ local (dev laptop) → CI (test) → staging → production
 - ✅ Resume embeddings generated via sentence-transformers (384-dim vectors)
 - ✅ pgvector cosine similarity returns ranked results in < 2s for 100 candidates
 - ✅ LLM rationale generated for top 10 candidates per job (evidence-cited format)
-- ⬜ Deterministic keyword pass flags every seeded phrase in the versioned bias test set (set does not exist yet — Phase 2)
+- ⬜ Deterministic keyword pass flags every seeded phrase in the versioned bias test set (set does not exist yet — Phase 2, owner Ishrak Hossain)
+- ⬜ The bias test set **includes Amazon-style proxy cases** — women's-college names, "women's society captain", gendered club roles. These survive PII stripping untouched, which is why stripping names is not sufficient. Source: `MATCH_MINDS_Feasibility_and_Design.md` §1.2.1
 - ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
 - ⚠️ LLM bias pass is advisory only and may not block auto-shortlist
 - ✅ Employer sees ranked candidates with scores + evidence-cited rationales
 - ✅ Cost estimate shown before processing; $0.00 for free tier
 - ✅ Audit entries logged for every AI scoring action (timestamp, model, rationale hash)
+- ⬜ Hard-filter `not_matched` results show the rule that fired and stay listed behind a filter toggle, and can be pulled into review (REQ-FR-029, Gap G3)
+- ⬜ `filter_rules_version` is stamped onto every screened application and survives later edits to the job's rules (Gap G3)
+- ⬜ A shortlist/reject that goes against the ranking requires a written reason and writes an `ai_decision`-class audit entry (REQ-FR-052, Gap G2)
 
 ### Phase 3: Candidate AI Features (Weeks 7-9)
 - ✅ Candidate sees interactive career timeline from parsed resume (Chart.js)
@@ -1735,6 +1810,10 @@ local (dev laptop) → CI (test) → staging → production
 - ✅ AI interview coaching provides structured feedback on practice answers
 - ✅ Dynamic storytelling generates a narrative optimized for a specific target job
 - ✅ Candidate sees match scores for all applied jobs with AI rationale
+- ⬜ An employer can attach an assessment to a job as a required step, and an applicant without a passing attempt cannot be shortlisted on their score alone (REQ-FR-051, Gap G1)
+- ⬜ `assessment_gate_status` (not_required / pending / passed / failed) is shown on the application row and disables the Shortlist action with an explanation (REQ-FR-051)
+- ⬜ Removing a required assessment leaves existing attempts and scores intact (REQ-FR-051)
+- ⬜ Analytics shows override rate, broken down by user and by job, each override linking to its recorded reason (REQ-FR-035, REQ-FR-052)
 
 ### Phase 4: Production Hardening (Weeks 10-12)
 - ✅ MFA (TOTP) works for employer admin accounts

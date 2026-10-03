@@ -2,8 +2,14 @@
 
 **Product:** Match Minds — AI-Powered, Bias-Free Recruitment Platform
 **Owner:** Mohammad Abdul Ahad (UI/UX) · **Co-owner:** Fahad Haque (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
-**Companion to:** `prd.md` (requirements) · **Version:** 1.2 (name-reveal decision) · **Date:** October 2026
+**Companion to:** `prd.md` (requirements) · **Version:** 1.3 (screening integrity: override dialog, assessment gate, reviewable filters) · **Date:** October 2026
 
+> **Changes in v1.3** (2026-10-03)
+> - Added two components for gaps G1–G3: Override Reason Dialog (7.11) and Assessment Gate Pill (7.12).
+> - Pages #36, #40, #41 and #47 updated for employer-required assessments, override recording and reviewable `not_matched` results.
+> - Deliverable 11 added: screens for the new components are not yet drawn.
+> - Item 5 of the decisions list is now **blocked on the product name**, not on styling — see `prd.md` §4.3.
+>
 > **Changes in v1.1**
 > - Added low-fidelity wireframes for all 18 required screens plus the other core-flow pages (§10.5), with accessibility annotations on each.
 > - Added the screen-to-page map and coverage summary (§10.0), and a component state sheet (§6.6).
@@ -459,6 +465,49 @@ Placeholders render as pill tokens: `[CANDIDATE_NAME]`, `[COMPANY_A]`, `[ROLE_B]
 
 Rows = criteria from the rubric (e.g., technical, communication), each a 1–5 radio group with labels (1 Poor … 5 Excellent), comment field per criterion, overall recommendation (Strong yes / Yes / No / Strong no), Submit. Autosave draft. Radio groups are `fieldset` + `legend`.
 
+### 7.11 Override Reason Dialog (REQ-FR-052)
+
+Opens when a user shortlists a candidate ranked **below** the employer's cut-off, or rejects one ranked **above** it. The decision is never blocked — it is recorded.
+
+```
+You are overriding the ranking
+─────────────────────────────────────────────
+This candidate is ranked #18 of 42. Your cut-off for
+this role is #10.
+
+  Shortlisting anyway is allowed. Your reason is required
+  and is stored with this decision.
+
+  Reason *  ┌─────────────────────────────────────────┐
+            │ e.g. "Portfolio shows production         │
+            │ Kubernetes experience the rubric missed" │
+            └─────────────────────────────────────────┘
+            0 / 500 characters
+
+  [ Cancel ]                    [ Shortlist anyway ]
+```
+
+Rules:
+
+- The dialog **cannot be dismissed with an empty reason** — the confirm button stays disabled and `aria-disabled="true"` with the reason as the described error target.
+- Escape and backdrop click return to the previous screen **without** performing the action, so an accidental dismissal cannot become an unrecorded override.
+- The reason is free text, not a picklist. A fixed list would let a reviewer click a label instead of thinking, which defeats the purpose.
+- The same dialog serves `reject/`, with the copy changed.
+- Server-side, the reason is required by the serializer (§C.12) — this dialog is the good experience, not the control.
+
+### 7.12 Assessment Gate Pill (REQ-FR-051)
+
+A small pill on the application row and in the Candidate Review panel, showing the employer's required-assessment state for that application.
+
+| State | Rendering | Effect on Shortlist |
+|---|---|---|
+| `not required` | No pill (nothing to show) | Available |
+| `pending` | Pill, neutral, "Assessment pending" | **Disabled**, tooltip: "This role requires [skill] assessment before shortlisting" |
+| `passed` | Pill, success, "Assessment passed" | Available |
+| `failed` | Pill, warning, "Assessment not passed" | **Disabled**, tooltip: "Shortlisting is blocked until the required assessment is passed" |
+
+The disabled control must stay focusable (`aria-disabled` rather than `disabled`) so a keyboard or screen-reader user can reach it and hear *why* it is unavailable. A silently dead button is the failure mode this rule exists to prevent.
+
 ---
 
 ## 8. Interaction, Motion and States
@@ -650,18 +699,18 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 33 | **Employer onboarding** | Company name, industry, size, logo; invite team (optional) | Form | REQ-FR-045 | P1 |  | — |
 | 34 | **Dashboard** | KPI cards (open jobs, new applications, awaiting screening, interviews this week), quota meter, activity feed, "Needs review" list (flagged rationales) | KPI cards, meter | REQ-FR-046 | P1 | Yes | X05 |
 | 35 | ★ **Jobs list** | Tabs by status (Draft / Active / Paused / Closed) with counts; table: title, applicants, last activity, actions | Tabs, table | REQ-FR-025–027 | P1 | Yes | S11 |
-| 36 | ★ **Create / edit job** | Sections: Basics · Description · Requirements (required / nice-to-have skills) · Screening questions · Review. AI suggests skills and questions (✦ chips; accept/dismiss). Auto-save draft | Form, AI chips | REQ-FR-025/026 | P1–P2 | Yes | S11 |
+| 36 | ★ **Create / edit job** | Sections: Basics · Description · Requirements (required / nice-to-have skills) · Screening questions · **Required assessments** · Review. AI suggests skills and questions (✦ chips; accept/dismiss). Auto-save draft | Form, AI chips | REQ-FR-025/026 · **REQ-FR-051** | P1–P2 | Yes | S11 |
 | 37 | **Job overview** | Pipeline funnel (counts per stage), share link + embed code (copy buttons), edit/pause/close | Funnel, copy field | REQ-FR-036 | P1–P3 |  | — |
 | 38 | ★ **Screening confirm** | Cost Estimate Modal (7.3) | Modal | REQ-FR-028 | P2 | Yes | S14 |
 | 39 | **Screening progress** | Progress bar, stage text (Filtering → Ranking → Analysing top 10 → Checking for bias), degraded badge if needed, "Leave this page; we'll notify you" | Progress, badge | REQ-FR-028 | P2 |  | S14 |
-| 40 | ★ **Ranked applications** | Table: rank, anonymized candidate ID (name reveals on shortlist — decided 2026-10-03), score chip, bias-check status, status pill, selected; filters (score range, status, flagged); bulk bar (Shortlist / Reject / Export); sort by score | Table, bulk bar, chips | REQ-FR-029 | P2 | Yes | S12 |
-| 41 | ★ **Candidate review** | Split view (xl): left = anonymized resume with placeholder tokens (name reveals on shortlist — decided 2026-10-03); right = Score Card (7.2), Bias Audit Panel (7.7), screening answers, notes. Sticky action bar: Shortlist · Reject (with reason) · Message | Score card, panels | REQ-FR-030 | P2 | Yes | S13 |
+| 40 | ★ **Ranked applications** | Table: rank, anonymized candidate ID (name reveals on shortlist — decided 2026-10-03), score chip, bias-check status, **assessment-gate pill** (`not required` / `pending` / `passed` / `failed`), **override ⚑ marker** with its reason on hover, status pill, selected; filters (score range, status, **excluded by filter — with reason shown**, flagged); bulk bar (Shortlist / Reject / Export); sort by score. Footer note shows the filter-rule version in force | Table, bulk bar, chips | REQ-FR-029 · **REQ-FR-051/052** | P2–P3 | Yes | S12 |
+| 41 | ★ **Candidate review** | Split view (xl): left = anonymized resume with placeholder tokens (name reveals on shortlist — decided 2026-10-03); right = Score Card (7.2), Bias Audit Panel (7.7), **assessment-gate panel** with the pending/failed state and what the candidate still has to do, screening answers, notes. Sticky action bar: Shortlist · Reject (with reason) · Message — **a decision against the ranking opens a required-reason dialog (7.11), and Shortlist is disabled with an explanation while the gate is `pending` or `failed`** | Score card, panels | REQ-FR-030 · **REQ-FR-051/052** | P2–P3 | Yes | S13 |
 | 42 | ★ **Interview pack builder** | Generate (AI action + cost note) → editable list of questions grouped by category, follow-ups, rubric table (criterion, weight, scale); drag to reorder (keyboard alternative: move up/down buttons) | AI action, sortable list | REQ-FR-031 | P3 |  | S15 |
 | 43 | ★ **Schedule interview** | Candidate, date/time (with timezone shown), duration, interviewers, pack, video URL; confirmation summary | Form, date picker | REQ-FR-032 | P3 |  | S16 |
 | 44 | **Interviews list / calendar** | Toggle list ↔ week calendar; status chips; calendar has list alternative | Calendar, table | REQ-FR-032 | P3 |  | — |
 | 45 | ★ **Interview feedback form** | Scorecard (7.10) | Radio groups | REQ-FR-033 | P3 |  | S16 |
 | 46 | **Offer letter editor** | AI draft in `--ai-soft` card, editable rich text, merge fields, Save/Send | Editor, AI badge | REQ-FR-034 | P5 |  | — |
-| 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 | P4 |  | S17 |
+| 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy, **override rate by user and by job (each row links to its recorded reason)**, **not-matched vs pulled-into-review**; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 · **REQ-FR-052** | P4 |  | S17 |
 | 48 | **Messages** | Same as #31, grouped by job | List, thread | REQ-FR-043 | P3 |  | — |
 | 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 | P1–P4 |  | — |
 | 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (Stripe-hosted) | Cards, meters | REQ-FR-048 | P5 |  | — |
@@ -1312,8 +1361,9 @@ Allow 30–40% text expansion; avoid fixed-width buttons; no text baked into ima
 | 8 | Icon set and illustration style notes | UI/UX | Phase 1 | Not started (set recommended in §11.5) |
 | 9 | Content spec: microcopy for all emails and notifications | UI/UX + PM | Phase 2 | Partly drafted (in-app microcopy §2.3); emails and notifications not started |
 | 10 | Usability test plan (5 candidates, 5 recruiters; task: apply / screen and shortlist) | UI/UX | Phase 2 | Not started |
+| 11 | Wireframes for the screening-integrity components: Override Reason Dialog (7.11), Assessment Gate Pill (7.12), the `not_matched` filter state on #40 and the gate panel on #41 | UI/UX | Phase 2 | Drafted as component specs (§7.11, §7.12); not yet drawn as screens in §10.5 |
 
-**Outstanding after this revision:** the Figma file and components (1, 2), Figma wireframes (3), high-fidelity mockups (4), the interactive Journey Map prototype (5), annotated hi-fi (6), brand assets (7, 8), notification copy (9) and the test plan (10).
+**Outstanding after this revision:** the Figma file and components (1, 2), Figma wireframes (3), high-fidelity mockups (4), the interactive Journey Map prototype (5), annotated hi-fi (6), brand assets (7, 8), notification copy (9), the test plan (10), and screens for the new screening-integrity components (11).
 
 ### Design Decisions Needing Confirmation
 
@@ -1321,7 +1371,7 @@ Allow 30–40% text expansion; avoid fixed-width buttons; no text baked into ima
 2. ~~When the candidate's name is revealed to the employer.~~ **Decided 2026-10-03: at shortlist.** Pages #40 and #41 reflect this and `REQ-FR-030` now requires it. Rationale: anonymised screening is the product's core claim, so the identity must stay hidden for exactly as long as the ranking decision is being made and no longer. Reveal is audited and scoped to the shortlisting employer only.
 3. Whether dark mode ships in the MVP (this file assumes no).
 4. Whether Bengali ships at launch for the Bangladesh market (the PRD defers it to Phase 5; the font choice and layout rules here are ready for it).
-5. Final brand name styling, logo and accent colour.
+5. ~~Final brand name styling, logo and accent colour.~~ **Now blocked on the name itself, not on styling.** `prd.md` §4.3 / RSK-011 records that "Match Minds" is contested by other AI recruitment products. No logo work should start until a name is chosen.
 
 ---
 

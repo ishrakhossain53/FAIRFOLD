@@ -18,31 +18,31 @@ specifications, requirements, and supporting configuration.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `MATCH_MINDS_Complete_Project_Document.md` | 1932 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | 1777 | **Canonical** specification — ADRs, 50 functional requirements, 50 non-functional requirements, 21-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 922 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 1328 | Supplement — UI design system, 62 page specifications, 23 wireframes, implementation notes |
-| `MATCH_MINDS_Feasibility_and_Design.md` | 2010 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| `README.md` | 205 | Project overview, documentation index, setup |
+| `MATCH_MINDS_Complete_Project_Document.md` | 2006 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `MATCH_MINDS_Project_Architecture_and_Requirements.md` | 1856 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 23-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `prd.md` | 1162 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `design.md` | 1378 | Supplement — UI design system, 62 page specifications, 23 wireframes, implementation notes |
+| `MATCH_MINDS_Feasibility_and_Design.md` | 2393 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility |
+| `README.md` | 220 | Project overview, documentation index, setup |
 | `.env.example` | 142 | 25 environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 52 / 24 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 136 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
-**Key numbers of record** (verified 2026-10-03):
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20):
 
-- **50 functional requirements**, `REQ-FR-001` … `REQ-FR-050` (Arch Doc §4.1)
+- **52 functional requirements**, `REQ-FR-001` … `REQ-FR-052` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
-  `REQ-FR-044`–`050` were added (§2.14)
+  `REQ-FR-044`–`050` were added (§2.14), then 50 until `REQ-FR-051`/`052` (§2.20)
 - **50 non-functional requirements** in Arch Doc §4.2, in five groups:
   `REQ-SEC-001`–`014` (14), `REQ-COM-001`–`009` (9), `REQ-NFR-001`–`018` (18),
   `REQ-NFR-019`–`023` (5, code quality), and four operational `REQ-NFOR-001`, `-002`, `-024`, `-025`.
   ⚠️ `REQ-NFR` and `REQ-NFOR` interleave — a naive `REQ-NF` regex conflates them. Use `REQ-NFR-[0-9]+`.
-- **22 database tables** in Arch Doc §5.1, with 30 foreign keys declared (28 drawn in the ER
-  diagram; 2 redundant `users` self-references intentionally omitted). `MESSAGES` is the one
+- **23 database tables** in Arch Doc §5.1, with 33 foreign keys declared (30 drawn in the ER
+  diagram; 3 redundant `users` self-references intentionally omitted). `MESSAGES` is the one
   table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
 - **10 AES-256-GCM encrypted fields** (PII at rest)
-- **49 user stories / 199 story points**, MoSCoW **27 Must / 17 Should / 5 Could** —
-  every one of the 50 FRs maps to at least one story (verified programmatically)
+- **52 user stories / 212 story points**, MoSCoW **30 Must / 17 Should / 5 Could** —
+  every one of the 52 FRs maps to at least one story (verified programmatically)
 - **62 pages specified** in `design.md` §10; **36 have wireframes** (23 drawings), covering
   all 18 required screens and all 22 core-flow pages; 53 of 62 pages carry a requirement ID
 - 5 roadmap phases: Phases 1–4 = weeks 1–12 (MVP), Phase 5 = week 13+ (optional)
@@ -336,14 +336,122 @@ Three stale or wrong items inside the revised file:
 - A cross-reference to *"the PRD, Section 19, item 4"* → made precise as
   ``prd.md §19.2 item 4 (PII retention)``
 
+### 2.20 The PRD addendum applied — Parts A–E ✅
+
+A structured addendum was supplied on 2026-10-03 with three parts of new material, three
+proposed gaps and one documentation bug. It carried an honesty rule of its own — every
+statement tagged **[Done]** / **[Illustrative]** / **[Planned]** — and that rule was kept
+intact rather than flattened into confident prose.
+
+| Part | What it was | Where it went | Effect |
+|---|---|---|---|
+| **A** — requirement collection | How requirements were actually gathered | Feasibility §1.3.1–1.3.5, new `prd.md` §3.4 | Closes gap **A** — the last 🔴 blocker |
+| **B** — real-world evidence | Amazon 2018, iTutorGroup, HireVue, Mobley, three BD sources | Feasibility §1.2.1–1.2.2, `prd.md` §1.2 | Closes gap **B**; produced Gap G3 |
+| **C** — existing products | Overlap by job-to-be-done; name clash | Feasibility §1.4.1–1.4.3, `prd.md` §4.1–4.3 | New naming risk **RSK-011**; "different not better" wording adopted |
+| **D** — gaps G1–G3 | Two pain points with no requirement; one filter that could not be reviewed | Arch Doc §4.1, §5.1, §9, §10; `prd.md` §6.3, §7.3, §11, §13, §17.4 | `REQ-FR-051`, `REQ-FR-052`, amendment to `REQ-FR-029`, extension of `REQ-FR-035` |
+| **E** — sources | Citation list | Carried inline with each claim | — |
+
+**Gap A closed honestly, not conveniently.** The last open item in the whole specification
+was *"state how requirements were gathered — do not claim research that was not
+conducted."* It is now filled in from the Product Owner's own account (lived experience of
+a hiring process decided by internal lobbying with no skills check, corroborated by friends
+who joined the team and by a university senior), with **[Planned]** used to mark the
+validation plan that has **not** been run. Fabricating an N for the tables would have closed
+the item faster and destroyed the document.
+
+**Round 3 found a different class of gap than rounds 1 and 2.** Rounds 1 and 2 worked
+*outwards from the specification* — use cases, journeys, then pages — and found
+*capabilities with no requirement*. Round 3 worked *inwards from the problem* and found
+*requirements that do not answer the problem that started the project*: pain point P2 (no
+skills check) and P5 (the selection could be bypassed) had no requirement at all. That is
+harder to see, because the document looks complete.
+
+| Gap | Finding | Resolution |
+|---|---|---|
+| **G1** | Assessments were candidate-initiated only, so an employer could shortlist on a resume with no skill evidence | `REQ-FR-051` Employer-Required Skill Assessment (High, Phase 3) |
+| **G2** | Nothing recorded a shortlist or rejection that went **against** the ranking — anonymised ranking is worthless if it can be quietly ignored | `REQ-FR-052` Override Visibility and Record (High, Phase 2–3) + override rate on `REQ-FR-035` |
+| **G3** | A hard-filter `not_matched` had no reason, no version and no route back — the exact shape of *EEOC v. iTutorGroup*, where a hard-coded age filter *was* the discriminating mechanism | Amendment to `REQ-FR-029`; `jobs.screening_config_version`; a `CHECK` constraint on overrides |
+
+Three decisions inside those are worth remembering because each could reasonably have gone
+the other way:
+
+- **An override is recorded, not blocked.** REQ-FR-052 requires a written reason and an
+  `ai_decision`-class audit entry, but the employer can still do it. A human stays the
+  decision-maker. What the requirement buys is that an informal decision becomes *visible
+  and countable* — which is the most "bias-free" the product can honestly be.
+- **A filter may produce `not_matched`, never `rejected`.** Only a person can reject a
+  candidate. This makes `prd.md` §8.1 true at the schema level.
+- **Filter rules are versioned, not just recorded**, so "which rule excluded this?" is
+  answerable a year later after the job has been edited five times.
+
+**Schema:** +1 table (`job_assessment_requirements`), +9 columns on `jobs` and
+`applications`, +1 `CHECK` constraint, +2 indexes. Counts updated: **23 tables, 33 FKs,
+52 FRs, 52 stories / 212 points** — all verified programmatically.
+
+**The housekeeping bug was real.** `prd.md` said "50 FRs" in the header and 50 in §19.2
+item 3, but the 2026-10-03 update note under *Source documents* still said *"now holds 43
+FRs, not 41"* — a leftover from earlier the same day that was never updated when seven more
+requirements landed. Replaced with three dated notes (a) 042/043, (b) 044–050, (c) 051/052
+so each increment is auditable and the next one has an obvious place to go. Logged as
+`prd.md` §19.2 item 15. A second bug found at the same time: `Complete Doc` §C.11 still had
+`AuditLogEntry.resource_id = IntegerField` while every core entity uses a UUID — corrected.
+
+**A "bias-free" claim that could not be supported was replaced, not repeated.** Part C.3's
+status column was adopted verbatim — three of seven differentiation claims are *Designed,
+not yet measured*. `prd.md` §4.2 now carries approved wording that claims *different*
+rather than *better*, and the README flags that "bias-free" in the product name is a
+positioning statement, not a measured claim.
+
+---
+
+### 2.21 🔴 The product name is contested and no decision has been taken
+
+Not closed. Recorded here because it is now the most urgent open item in the repository
+and because it was found while applying Part C, not by the plan.
+
+**Verified 2026-10-03** (web search + DNS resolution):
+
+| Finding | Evidence |
+|---|---|
+| **MatchMindAI** (matchmindai.com) already markets an AI-powered recruitment platform matching candidates to jobs | Search result; domain resolves to a live host |
+| **"MatchMinds"** is *also* used by an AI-powered recruitment platform | Public post describing itself as "an AI-powered recruitment platform and the next frontier in hiring" |
+| **"MatchMinds"** is additionally used by an unrelated Android football-prediction app, and by an unrelated teammate-recommendation system | Two further commercial uses of the same string |
+
+Three unrelated commercial spaces, one of them recruitment. "Match Mind" is also
+descriptive of what every ATS does, which makes it hard to register as a word mark and hard
+to defend.
+
+**Replacement candidates screened the same day:**
+
+| Candidate | Meaning | Domains with no DNS record | Concern |
+|---|---|---|---|
+| **FairFold** | fair + a folded resume | fairfold.com, fairfold.ai | Clean on search — best of the shortlist |
+| **Niyoti** (নিয়তি) | Bengali for impartiality; matches both the thesis and the BD beachhead | niyoti.app, niyoti.io | A common Bengali given name, so a bare word mark is hard to own |
+| **SightFold** | you can *see* the reasoning | sightfold.com | Coined, so colder as a brand |
+| **Evidencefold** | evidence-cited rationale | evidencefold.com | Long and clunky in a logo |
+
+Rejected in the same sweep: Meritfold (already a UK public-sector bid product), Sightline,
+Clearscreen, Showwork, Foldwork, Talentfold, Skillfold, Plainfold, Proofhire, Openrank,
+Rankfold, Foldscore, Meritly, Fairhire — all taken.
+
+**Two honest caveats.** "No DNS record" is not proof a domain is available, and a web search
+is not a trademark clearance. **A formal trademark search in Bangladesh and the target
+export markets has not been done and still has to be.**
+
+**No rename has been made.** The name is unchanged across all seven documents pending the
+Product Owner's decision. Renaming is a mechanical find-and-replace, so it is cheap now and
+only expensive after branding spend — which is exactly why it should not be deferred.
+Logged as **RSK-011** (High/High), `prd.md` §4.3, `prd.md` §19.2 item 17, Feasibility
+§1.4.2, and flagged at the top of `README.md`. `design.md` §12 item 5 is now blocked on it.
+
 ---
 
 ## 3. Gap status
 
 | Gap | Original state | Now |
 | --- | --- | --- |
-| **A** — Requirement collection method | ❌ blocking | ❌ **still open.** `prd.md` §19.1 item 1 confirms it was built without one |
-| **B** — Real-world problem example | ❌ missing | ❌ **still open.** `prd.md` §19.1 item 2 |
+| **A** — Requirement collection method | ❌ blocking | ✅ **closed** — Feasibility §1.3, `prd.md` §3.4, tagged [Done]/[Illustrative]/[Planned] (§2.20). Validation plan stays **[Planned]** until actually run |
+| **B** — Real-world problem example | ❌ missing | ✅ **closed** — Amazon 2018 primary + iTutorGroup / HireVue / Mobley + 3 BD sources (§2.20). *Mobley* needs re-verification before public citation |
 | **C** — Wireframes | ❌ none at all | ✅ **complete for low fidelity** — 23 wireframes, all 18 screens, all 22 core-flow pages. Figma and hi-fi still open |
 | **D** — GAP-1 / GAP-2 | ⚠️ documented, no FR | ✅ **closed** — `REQ-FR-042`/`043` in the Arch Doc |
 | **E** — Round-2 page gaps | *(not previously found)* | ✅ **closed** — `REQ-FR-044`–`050`, 7 stories added (§2.12, §2.13) |
@@ -352,71 +460,79 @@ Three stale or wrong items inside the revised file:
 | **H** — No team-member table | 🟡 FR-047 unimplementable | ✅ **added** `employer_team_members` (§2.17) |
 | **I** — Name reveal undecided | 🟡 open | ✅ **decided: at shortlist** (§2.18) |
 | **J** — 14 open §19.2 items | 🟡 open | ✅ **all resolved** (§2.19) |
+| **K** — Requirements did not answer the original problem | *(not previously found)* | ✅ **closed** — G1 → `REQ-FR-051`, G2 → `REQ-FR-052`, G3 → `REQ-FR-029` amendment (§2.20) |
+| **L** — FR count contradicted itself | 🟡 header 50 / note 43 / §19.2 50 | ✅ **fixed** — three dated notes, all now agree on 52 (§2.20, `prd.md` §19.2 item 15) |
+| **M** — Product name contested | *(not previously found)* | ❌ **open and now the most urgent item** — three unrelated commercial uses of the string; 4 candidates screened, **no choice made**; trademark search outstanding (§2.21, RSK-011) |
 
 ---
 
 ## 4. Outstanding work
 
-**Nine of the sixteen gaps found across this work are now closed.** What remains is
-listed here. Only two items genuinely need the team; everything else is build work.
+**Eleven of the nineteen gaps found across this work are now closed.** What remains is
+listed here. One item genuinely needs a decision from the team; the rest is build work.
 
-### 4.1 🔴 Requirement collection method — `Feasibility §1.3` (line ~99) — *the last blocker*
+### 4.1 🔴 The product name — `prd.md` §4.3 · **the most urgent open item**
 
-A table of how requirements were gathered. **4 of its 5 rows are still `?`.** Only
-"Competitor analysis / 11 systems" is filled in. `prd.md` §19.1 item 1 confirms this was
-never collected, and asks the team to state what was actually done.
+Full detail in §2.21. "Match Minds" is used by at least two other AI recruitment products
+and two unrelated software products, and is descriptive enough of what every ATS does to be
+hard to trademark. Four replacements were screened on 2026-10-03 — **FairFold**,
+Niyoti, SightFold, Evidencefold — but **no choice has been made** and a formal trademark
+search has not been done.
 
-**Cannot be written without real facts, and fabricating an interview study would be
-academic misconduct.** Needed:
+**Needs from the team:** pick a name (or commission the search first), then a mechanical
+find-and-replace across all seven documents. Cheap now; a rebrand after launch is not.
 
-- **A1** Which methods were used: stakeholder review, candidate interviews, recruiter
-  interviews, survey, observation?
-- **A2** Per method: sample size `N`, channel, date.
-- **A3** The ~3 findings that actually shaped design decisions.
-- **A4** Which FR each finding produced — a mapping can be proposed for correction.
-- **A5** What was *not* done. Honest blanks are fine and should be stated plainly.
+### 4.2 🟡 Validation plan — `Feasibility §1.3.4` — **[Planned]**, not a blocker
 
-Minimum viable answer: *"stakeholder review, 5 team members."*
+The requirement-collection method is now honestly recorded, so §4.1 no longer blocks the
+specification. What remains is **running** the validation: 8–10 candidate interviews, 5–6
+recruiter interviews, a 30+ response survey, 5–8 concept tests. Sample sizes, channels and
+full interview guides are already fixed in §1.3.4 so nobody has to invent them afterwards.
 
-### 4.2 🟡 Real-world problem example — `§1.2` (line ~83)
-
-A concrete, sourced case of recruitment bias. Still open (`prd.md` §19.1 item 2).
-
-Recommended: the **Amazon 2018 CV-screening tool** — trained on a decade of mostly male
-CVs, it learned to downgrade CVs containing "women's"; the effort was abandoned. Pair it
-with one line on how MATCH MINDS differs (PII stripping plus an audit trail) so it does
-not read as "we read this article."
+Until it runs, the method stays tagged **[Planned]**, and **no prevalence figure may be
+stated for Bangladesh** — the local sources establish that network access and skill
+mismatch are recognised problems, not how often internal lobbying decides an interview.
 
 ### 4.3 🟡 API list is behind — `Complete Doc §C.12`
 
-Endpoints exist for the original 41 requirements but **not for the nine added since**:
+The screening-integrity endpoints for `REQ-FR-051`/`052` and the `not_matched` review
+endpoint for `REQ-FR-029` were added in §2.20, so the new requirements do not recreate the
+gap they were written to close. **Still open:**
 
 | Requirement | Missing |
 |---|---|
 | REQ-FR-042 | Public job browse/search endpoints (design.md page #4) |
 | REQ-FR-040 / 041 | GDPR export and delete endpoints |
 | REQ-FR-047 | Team invite / role-change / remove |
-| REQ-FR-049 | Assessment create/edit/deactivate — only `GET /api/v1/assessments/` exists |
-| REQ-FR-050 | Broadcast (`admin/broadcast/` is cited in design.md but not defined) |
+| REQ-FR-049 | Assessment create/edit/deactivate — only `GET /api/v1/assessments/` exists || REQ-FR-050 | Broadcast (`admin/broadcast/` is cited in design.md but not defined) |
 
-### 4.4 🟡 Bias test set — new, Phase 2
+
+### 4.4 🟡 Bias test set — Phase 2, now with required content
 
 Deciding item 12 removed the unverifiable "100% flagged" claim rather than satisfying it.
-Building a **versioned** bias test set is now an explicit Phase 2 deliverable, owned by
+Building a **versioned** bias test set is an explicit Phase 2 deliverable, owned by
 Ishrak Hossain. Until it exists, the deterministic keyword pass has no measurable target.
+
+**The set must include Amazon-style proxy cases** — women's-college names, "women's society
+captain", gendered club roles. PII stripping removes names, emails and phone numbers and
+**none** of that text, which is why stripping names alone is not sufficient. Added in §2.20
+to Arch Doc §10 Phase 2 and `prd.md` §17.4.
 
 ### 4.5 🟡 Schedule — the plan will not fit as drawn
 
 Kickoff 2026-10-05 puts the Phase 4 milestone on **Christmas Day**, and a 5-person student
-team loses roughly two weeks a year to holidays. Realistic options are in `Feasibility
-§2.7.2`: start earlier, or demo at the end of Phase 3 (early December) and continue the
-hardened build in January. **This is a planning decision, not a documentation fix.**
+team loses roughly two weeks a year to holidays. **§2.20 made this worse:** the three
+requirements from round 3 add **13 points** to Phases 2 and 3 (199 → 212). Realistic options
+are in `Feasibility §2.7.2`: start earlier, cut scope, or demo at the end of Phase 3 (early
+December) and continue the hardened build in January. **This is a planning decision, not a
+documentation fix.**
 
 ### 4.6 🟡 Design tooling — `design.md` §12
 
 Content decisions are recorded as text, which briefs a build. Not started: the Figma file
 and components (items 1–2), high-fidelity mockups (4), the interactive Journey Map
-prototype (5), logo and icon sets (7–8), notification copy (9), usability test plan (10).
+prototype (5), logo and icon sets (7–8), notification copy (9), usability test plan (10),
+and screens for the two new screening-integrity components (11).
 
 26 pages have a spec but no wireframe (`design.md` §10.6) — including **#31 and #48, the
 two messaging pages**, so `REQ-FR-043` has no drawing even though the requirement exists.
@@ -427,7 +543,7 @@ two messaging pages**, so `REQ-FR-043` has no drawing even though the requiremen
 2. ~~Name reveal~~ — **decided at shortlist** (§2.18)
 3. Whether dark mode ships in the MVP
 4. Whether Bengali ships at launch (the PRD defers it to Phase 5)
-5. Final brand name styling, logo and accent colour
+5. ~~Final brand name styling~~ — **now blocked on the name itself** (§4.1), not on styling
 
 ### 4.8 🟢 Open questions the docs still record
 
@@ -468,7 +584,7 @@ environment (no GitHub credentials). Confirm on GitHub before assuming anything 
 ## 6. Commit history
 
 ```
-(uncommitted)  docs: update all docs for the expanded design.md; record round-2 gaps
+f342dd0  docs: re-base the Gantt, close two schema holes, and decide the open questions
 34fbe78  Create design.md
 6a50343  Create prd.md
 96993d4  docs: promote REQ-FR-042/043 to the Arch Doc and reconcile spec drift

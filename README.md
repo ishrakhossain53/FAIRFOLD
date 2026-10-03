@@ -2,12 +2,27 @@
 
 > **NOTE:** This is the development version. See [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) for detailed documentation.
 
+> ### 🟡 The product name is not settled
+> **"Match Minds" is contested and no replacement has been chosen.** At least two other
+> AI recruitment products use "Match Mind"/"MatchMinds", and two unrelated software
+> products use the same string; "Match Mind" is also descriptive of what every ATS does,
+> which makes it hard to trademark. **This is the cheapest thing to fix now and the most
+> expensive after branding spend.** Four screened alternatives, the evidence for each, and
+> the caveats are in [`prd.md` §4.3](prd.md) and
+> [Feasibility Doc §1.4.2](MATCH_MINDS_Feasibility_and_Design.md).
+> Logged as **RSK-011**. A formal trademark search in Bangladesh and the target export
+> markets has **not** been done.
+
+> ### ⚠️ "Bias-free" is positioning, not a measured claim
+> No disparity measurement exists yet. The approved wording until it does is in
+> [`prd.md` §4.2](prd.md).
+
 ## Documentation
 
 | Document | Role | Covers |
 |---|---|---|
 | [MATCH_MINDS_Complete_Project_Document.md](MATCH_MINDS_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
-| [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 50 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
+| [MATCH_MINDS_Project_Architecture_and_Requirements.md](MATCH_MINDS_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 52 functional & 50 non-functional requirements, database schema, CI/CD, operations, risk register |
 | [prd.md](prd.md) | **Canonical** | Product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | [MATCH_MINDS_Feasibility_and_Design.md](MATCH_MINDS_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
 | [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 10 product components, 62 page specs, 23 wireframes covering all 18 required screens, implementation notes |

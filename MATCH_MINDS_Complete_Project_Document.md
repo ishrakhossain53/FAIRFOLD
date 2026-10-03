@@ -1,7 +1,7 @@
 # MATCH MINDS — Complete Project Document
 ## AI-Powered Bias-Free Recruitment Platform
 
-**Version:** 2.1 (EmployerTeamMember model · Professional tier corrected)
+**Version:** 2.2 (JobAssessmentRequirement model · override recording · versioned hard filters · real-world evidence)
 **Date:** September 2026
 **Team:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque
 
@@ -678,6 +678,8 @@ class Job(models.Model):
     status = models.CharField(max_length=20, default="draft")  # draft, active, paused, closed
     description_embedding = VectorField(384)  # pgvector — from pgvector.django import VectorField; null until embed_job() called
     screening_questions = models.JSONField(default=list)  # AI-suggested + editor-edited
+    screening_config = models.JSONField(default=dict)  # Gap G3: stage-1 hard-filter rules {"filters": {...}}
+    screening_config_version = models.PositiveIntegerField(default=1)  # Gap G3: bumped on every rule edit
     ai_model_used = models.CharField(max_length=100, blank=True)  # which model scored candidates
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -685,23 +687,68 @@ class Job(models.Model):
 class Application(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="applications")
     candidate = models.ForeignKey(CandidateProfile, on_delete=models.CASCADE, related_name="applications")
-    status = models.CharField(max_length=20, default="applied")  # applied, screened, shortlisted, interview, offered, hired, rejected
+    status = models.CharField(max_length=20, default="applied")  # applied, screened, not_matched, shortlisted, interview, offered, hired, rejected
     match_score = models.IntegerField(null=True, blank=True)  # 0-100 from AI
     match_rationale = models.TextField(blank=True)  # AI-generated explanation
     ai_model_used = models.CharField(max_length=100, blank=True)
     screened_at = models.DateTimeField(null=True, blank=True)
     shortlisted_at = models.DateTimeField(null=True, blank=True)
+
+    # --- Gap G3: the stage-1 hard filter records what it excluded, and never decides ---
+    not_matched_reason = models.TextField(blank=True)  # which rule fired, e.g. "experience_level"
+    filter_rules_version = models.PositiveIntegerField(null=True, blank=True)  # = job.screening_config_version
+
+    # --- Gap G1 / REQ-FR-051: employer-required assessments gate the shortlist ---
+    assessment_gate_status = models.CharField(max_length=20, default="not_required")  # not_required, pending, passed, failed
+
+    # --- Gap G2 / REQ-FR-052: a decision against the ranking is recorded, never blocked ---
+    decision_override = models.BooleanField(default=False)
+    decision_override_reason = models.TextField(blank=True)
+    decided_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         unique_together = [("job", "candidate")]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(decision_override=False)
+                | models.Q(decision_override_reason__isnull=False),
+                name="chk_override_has_reason",
+            ),
+        ]
+
+    # not_matched is a filter outcome, not a rejection. Only a person may reject.
+    def can_shortlist(self) -> bool:
+        """REQ-FR-051. Shortlist is refused while the assessment gate is open or failed."""
+        return self.assessment_gate_status in ("not_required", "passed")
+
+
+class JobAssessmentRequirement(models.Model):
+    """An assessment an employer attaches to a job as a required pre-shortlist step.
+
+    Added 2026-10-03 to close Gap G1. REQ-FR-019/020 made assessments a *candidate*
+    action; nothing made them an *employer* action, so a hiring manager could reach
+    shortlist having seen no skill evidence at all. This join is what lets a job
+    require one. It reuses assessments/assessment_attempts — the gate is satisfied by
+    matching candidate + assessment on a completed attempt — so no attempt data is
+    duplicated.
+    """
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="required_assessments")
+    assessment = models.ForeignKey("candidates.Assessment", on_delete=models.CASCADE, related_name="required_by_jobs")
+    min_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # None = any completed attempt passes
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("job", "assessment")]
 
 class AuditLogEntry(models.Model):
     """Append-only audit log — never updated or deleted."""
     actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     action = models.CharField(max_length=100)  # "application.screened", "job.created", "user.login"
     resource_type = models.CharField(max_length=50)  # "application", "job", "candidate", "user"
-    resource_id = models.IntegerField()
+    resource_id = models.UUIDField()  # every core entity uses a UUID PK — IntegerField here was a bug (prd §19.2 item 6)
     details = models.JSONField(default=dict)  # action-specific context, NO raw PII
     ip_address = GenericIPAddressField()
     user_agent = models.CharField(max_length=500, blank=True)
@@ -1568,11 +1615,38 @@ GET    /api/v1/jobs/{id}/                        # Get job details
 PATCH  /api/v1/jobs/{id}/                        # Update job
 POST   /api/v1/jobs/{id}/activate/               # Activate job posting
 POST   /api/v1/jobs/{id}/screen/                 # Trigger AI screening (with cost estimate)
-GET    /api/v1/jobs/{id}/applications/           # List applications for job (ranked)
+GET    /api/v1/jobs/{id}/applications/           # List applications for job (ranked); ?status=not_matched shows filter-excluded candidates (REQ-FR-029)
 POST   /api/v1/jobs/{id}/interview-pack/         # Generate AI interview pack
 GET    /api/v1/jobs/{id}/analytics/              # Get job analytics
+GET    /api/v1/jobs/{id}/analytics/override-rate/ # Override rate by user + job, each linking to its reason (REQ-FR-035, REQ-FR-052)
 POST   /api/v1/jobs/{id}/share/                  # Generate shareable link
 ```
+
+#### Screening Integrity Endpoints (added 2026-10-03 — REQ-FR-051, REQ-FR-052, REQ-FR-029)
+
+```http
+GET    /api/v1/jobs/{id}/required-assessments/       # List assessments required before shortlist (REQ-FR-051)
+POST   /api/v1/jobs/{id}/required-assessments/       # Attach one: {assessment_id, min_score?} (REQ-FR-051)
+DELETE /api/v1/jobs/{id}/required-assessments/{req_id}/ # Detach; existing attempts and scores are untouched (REQ-FR-051)
+POST   /api/v1/applications/{id}/shortlist/          # {reason?} — REQ-FR-052
+POST   /api/v1/applications/{id}/reject/             # {reason?} — REQ-FR-052
+POST   /api/v1/applications/{id}/review/             # Pull a not_matched candidate back into review (REQ-FR-029)
+```
+
+> **These must be action endpoints, not a bare `PATCH applications/{id}/`.** Two
+> reasons, both load-bearing:
+>
+> 1. **The reason is required by the serializer.** REQ-FR-052 asks for a written reason
+>    when a decision goes against the ranking. If the endpoint is a generic PATCH, the
+>    reason is optional in the API and the rule is only enforced by a front-end form
+>    that any API client can bypass.
+> 2. **The assessment gate returns `409`.** REQ-FR-051 is only a constraint if the
+>    server refuses a shortlist while `assessment_gate_status` is `pending` or `failed`.
+>    A generic PATCH cannot refuse an action it does not know about.
+>
+> `POST .../reject/` writes an `AuditLogEntry` with `resource_type = 'ai_decision'`
+> whenever the rejection is against the ranking, so it is retained with the
+> application record rather than rotating at 90 days.
 
 #### Assessment Endpoints
 ```http
