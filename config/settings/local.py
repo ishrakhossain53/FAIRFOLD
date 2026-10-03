@@ -15,8 +15,12 @@ would make every embedding query fail for a reason unrelated to the code under
 test.
 """
 
+# LOGGING is imported explicitly as well as by the star import. The star import
+# supplies it at runtime, so the name IS defined -- but flake8 cannot see through
+# a star import, and F405 here would otherwise mask a genuine NameError if the
+# star import were ever removed.
 from config.settings.base import *  # noqa: F401,F403
-from config.settings.base import env, env_bool
+from config.settings.base import LOGGING, env, env_bool
 
 DEBUG = env_bool("DEBUG", default=True)
 

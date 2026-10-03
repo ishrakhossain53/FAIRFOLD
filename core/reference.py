@@ -180,7 +180,9 @@ def validate() -> None:
 
     for band in SCORE_BANDS:
         if not band["description"]:
-            raise ValueError(f"band {band['label']!r} has no description; the UI shows it")
+            raise ValueError(
+                f"band {band['label']!r} has no description; the UI shows it"
+            )
 
     if not COUNTRIES:
         raise ValueError("COUNTRIES is empty; job location filters need options")

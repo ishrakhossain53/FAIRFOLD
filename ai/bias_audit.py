@@ -49,7 +49,7 @@ failure this whole product exists to avoid.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from ai.bias_pass import (
@@ -58,7 +58,6 @@ from ai.bias_pass import (
     ScanResult,
     load_rules,
     load_terms,
-    normalise,
     scan,
 )
 

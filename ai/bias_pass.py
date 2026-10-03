@@ -169,8 +169,11 @@ class ScanResult:
         """
         if not self.matches:
             return "no phrase from the reviewed term list and no numeric rule fired"
-        return "phrases matched (" + ", ".join(sorted(self.groups)) + "): " + "; ".join(
-            f'"{h}"' for h in self.highlights
+        return (
+            "phrases matched ("
+            + ", ".join(sorted(self.groups))
+            + "): "
+            + "; ".join(f'"{h}"' for h in self.highlights)
         )
 
 

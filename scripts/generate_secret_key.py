@@ -82,7 +82,9 @@ def write_to_env(env_path: Path, secret_key: str, encryption_key: str) -> int:
     Returns the number of variables written.
     """
     if not env_path.exists():
-        print(f"error: {env_path} not found — run: cp .env.example .env", file=sys.stderr)
+        print(
+            f"error: {env_path} not found — run: cp .env.example .env", file=sys.stderr
+        )
         return 1
 
     content = env_path.read_text(encoding="utf-8")

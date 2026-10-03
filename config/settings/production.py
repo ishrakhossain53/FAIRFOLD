@@ -11,8 +11,13 @@ unlikely. Each entry below is therefore explicit even when the base already
 looks right.
 """
 
+# STORAGES, like DATABASES, is imported explicitly for the same reason: it is
+# mutated below, and an explicit import keeps the mutation honest if the star
+# import in base.py ever changes.
 from config.settings.base import *  # noqa: F401,F403
 from config.settings.base import (
+    DATABASES,
+    STORAGES,
     ImproperlyConfigured,
     env,
     env_bool,
@@ -168,7 +173,9 @@ STORAGES["staticfiles"] = {  # noqa: F405
     "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
 }
 
-STORAGES["default"] = {"BACKEND": "django.core.files.storage.FileSystemStorage"}  # noqa: F405
+STORAGES["default"] = {
+    "BACKEND": "django.core.files.storage.FileSystemStorage"
+}  # noqa: F405
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"  # noqa: F405
 

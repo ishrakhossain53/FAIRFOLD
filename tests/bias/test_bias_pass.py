@@ -83,17 +83,14 @@ def results(terms, rules, context):
 
 # ------------------------------------------------------------------ the pass
 
+
 def test_recall_is_total(results):
     """Every must-flag case is flagged.
 
     A proxy phrase that gets through is a silent ranking error. There is no
     acceptable miss rate for a phrase already known to be bad.
     """
-    missed = [
-        case["id"]
-        for case in MUST_FLAG
-        if not results[case["id"]].flagged
-    ]
+    missed = [case["id"] for case in MUST_FLAG if not results[case["id"]].flagged]
     assert not missed, f"must-flag cases not flagged: {missed}"
 
 
@@ -110,7 +107,9 @@ def test_matched_by_expected_term_not_incidentally(results):
         found = set(results[case["id"]].phrases)
         declared = {normalise(t) for t in case["expected_terms"]}
         if not declared & {normalise(f) for f in found}:
-            wrong.append(f"{case['id']}: expected one of {case['expected_terms']}, got {results[case['id']].phrases}")
+            wrong.append(
+                f"{case['id']}: expected one of {case['expected_terms']}, got {results[case['id']].phrases}"
+            )
     assert not wrong, "; ".join(wrong)
 
 
@@ -157,6 +156,7 @@ def test_every_category_1_to_8_case_carries_at_least_one_match(results):
 
 # ------------------------------------------------------------- the term list
 
+
 def test_no_bare_vague_adjectives_in_the_list(terms):
     """GAP-001 holds: the named vague/age-coded adjectives are not terms.
 
@@ -171,8 +171,17 @@ def test_no_bare_vague_adjectives_in_the_list(terms):
     ``energetic`` arrives every time someone reads a missed case.
     """
     banned = {
-        "energetic", "articulate", "mature", "ambitious", "young", "dynamic",
-        "passive", "confident", "enthusiastic", "driven", "outgoing",
+        "energetic",
+        "articulate",
+        "mature",
+        "ambitious",
+        "young",
+        "dynamic",
+        "passive",
+        "confident",
+        "enthusiastic",
+        "driven",
+        "outgoing",
     }
     present = sorted({t.phrase.lower() for t in terms} & banned)
     assert not present, (
@@ -235,9 +244,9 @@ def test_manifest_results_are_current(results):
     measured = MANIFEST["measured"]
     assert measured is not False, "manifest reverted to unmeasured"
     flagged = sum(1 for case in ALL_CASES if results[case["id"]].flagged)
-    assert measured["flagged"] == flagged, (
-        f"manifest says {measured['flagged']} flagged, live run says {flagged}"
-    )
+    assert (
+        measured["flagged"] == flagged
+    ), f"manifest says {measured['flagged']} flagged, live run says {flagged}"
     assert measured["cases"] == len(ALL_CASES)
     assert measured["caveat"], "a measured result must carry its caveat"
     assert measured["false_positives"] == sum(
@@ -288,13 +297,14 @@ def test_empty_case_set_does_not_produce_a_clean_result(terms):
 
 # ------------------------------------------------------------ normalisation
 
+
 @pytest.mark.parametrize(
     "raw,expected",
     [
-        ("President, University Women’s Society", True),   # U+2019
-        ("President, University Womenʼs Society", True),   # U+02BC
-        ("President, University Women's Society", True),    # ASCII
-        ("PRESIDENT, UNIVERSITY WOMEN'S SOCIETY", True),    # case
+        ("President, University Women’s Society", True),  # U+2019
+        ("President, University Womenʼs Society", True),  # U+02BC
+        ("President, University Women's Society", True),  # ASCII
+        ("PRESIDENT, UNIVERSITY WOMEN'S SOCIETY", True),  # case
     ],
 )
 def test_apostrophe_and_case_variants_all_match(terms, raw, expected):
@@ -308,6 +318,7 @@ def test_apostrophe_and_case_variants_all_match(terms, raw, expected):
 
 
 # ------------------------------------------------- the numeric rules (v1.0.1)
+
 
 def test_every_rule_reports_as_checked_even_when_silent(results):
     """The panel shows what was CHECKED, so an unfired rule must still appear.
@@ -323,8 +334,14 @@ def test_every_rule_reports_as_checked_even_when_silent(results):
 
 def test_stated_age_is_caught_in_every_common_form(terms, rules, context):
     """LIM-001. An age can be written at least four ways and all are proxies."""
-    for text in ("24 years old", "Age: 31", "Aged 22", "DOB: 12/03/1998",
-                 "Born on 1999-06-14", "Date of birth 4 July 1995"):
+    for text in (
+        "24 years old",
+        "Age: 31",
+        "Aged 22",
+        "DOB: 12/03/1998",
+        "Born on 1999-06-14",
+        "Date of birth 4 July 1995",
+    ):
         assert scan(text, terms, rules, context).flagged, f"not caught: {text!r}"
 
 
@@ -337,7 +354,9 @@ def test_graduation_recency_is_parameterised_not_hardcoded(terms, rules):
     """
     text = "Graduated in 2020."
     assert not scan(text, terms, rules, ScanContext(reference_year=2026)).flagged
-    assert scan(text, terms, rules, ScanContext(reference_year=2026, graduation_window_years=10)).flagged
+    assert scan(
+        text, terms, rules, ScanContext(reference_year=2026, graduation_window_years=10)
+    ).flagged
 
 
 def test_graduation_year_needs_an_education_keyword(terms, rules, context):
@@ -346,14 +365,20 @@ def test_graduation_year_needs_an_education_keyword(terms, rules, context):
     Without the keyword requirement this rule would fire on every CV, and a
     pass that flags everything reports clean by flagging everything.
     """
-    assert not scan("Budget approved: 2026 for the platform team.", terms, rules, context).flagged
-    assert not scan("Call +880 1711 2026 for the recruiter.", terms, rules, context).flagged
+    assert not scan(
+        "Budget approved: 2026 for the platform team.", terms, rules, context
+    ).flagged
+    assert not scan(
+        "Call +880 1711 2026 for the recruiter.", terms, rules, context
+    ).flagged
     assert scan("Graduated in 2026.", terms, rules, context).flagged
 
 
 def test_a_year_outside_the_window_never_flags(terms, rules, context):
     """NUMF-009. Every resume has a graduation year, so an unbounded rule is useless."""
-    assert not scan("Graduated in 1994 from a public university.", terms, rules, context).flagged
+    assert not scan(
+        "Graduated in 1994 from a public university.", terms, rules, context
+    ).flagged
 
 
 def test_ordinary_numbers_are_not_ages(terms, rules, context):
@@ -362,11 +387,15 @@ def test_ordinary_numbers_are_not_ages(terms, rules, context):
     These are the cases a loosened rule would break first: a bare two-digit
     number after 'team of', three-digit throughput, and durations.
     """
-    for text in ("Managed a team of 12 junior engineers over three quarters.",
-                 "Sustained 120 req/s at p95 180 ms across six replicas.",
-                 "Ran a 1,000-concurrent applicant load test; 99.9 percent success.",
-                 "Owned the on-call rotation for 18 months; cut P1 incidents by 40 percent."):
-        assert not scan(text, terms, rules, context).flagged, f"false positive: {text!r}"
+    for text in (
+        "Managed a team of 12 junior engineers over three quarters.",
+        "Sustained 120 req/s at p95 180 ms across six replicas.",
+        "Ran a 1,000-concurrent applicant load test; 99.9 percent success.",
+        "Owned the on-call rotation for 18 months; cut P1 incidents by 40 percent.",
+    ):
+        assert not scan(
+            text, terms, rules, context
+        ).flagged, f"false positive: {text!r}"
 
 
 def test_rule_matches_carry_their_captured_value(terms, rules, context):

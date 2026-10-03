@@ -71,12 +71,7 @@ def targets_for(version: str) -> dict[str, int]:
 
 def normalise(text: str) -> str:
     """Fold typographic apostrophes so 'women's' does not miss 'women’s'."""
-    return (
-        text.lower()
-        .replace("’", "'")
-        .replace("ʼ", "'")
-        .replace("‘", "'")
-    )
+    return text.lower().replace("’", "'").replace("ʼ", "'").replace("‘", "'")
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -115,8 +110,13 @@ def check_version(version: str, r: Result) -> None:
     d = SET / version
     print(f"\n{'=' * 60}\n{version}\n{'=' * 60}")
 
-    for name in ("manifest.json", "keyword_terms.json", "proxy_cases.jsonl",
-                 "negative_cases.jsonl", "rationale_cases.jsonl"):
+    for name in (
+        "manifest.json",
+        "keyword_terms.json",
+        "proxy_cases.jsonl",
+        "negative_cases.jsonl",
+        "rationale_cases.jsonl",
+    ):
         if not (d / name).exists():
             r.check(False, f"{version}: {name} is missing")
             return
@@ -135,51 +135,78 @@ def check_version(version: str, r: Result) -> None:
     cases = proxy + negative + rationale
 
     targets = targets_for(version)
-    must_not_flag_categories = {
-        c for c in targets if c in MUST_NOT_FLAG_CATEGORIES
-    }
+    must_not_flag_categories = {c for c in targets if c in MUST_NOT_FLAG_CATEGORIES}
 
     # --- identity ---------------------------------------------------------
     ids = [c["id"] for c in cases]
     dupes = [k for k, v in Counter(ids).items() if v > 1]
-    r.check(not dupes, f"{version}: case ids are unique", ", ".join(dupes) or f"{len(ids)} cases")
+    r.check(
+        not dupes,
+        f"{version}: case ids are unique",
+        ", ".join(dupes) or f"{len(ids)} cases",
+    )
 
     required = {"id", "category", "text", "must_flag", "expected_terms", "note"}
     missing = [c.get("id", "?") for c in cases if not required <= set(c)]
-    r.check(not missing, f"{version}: every case has all required fields", ", ".join(missing) or "ok")
+    r.check(
+        not missing,
+        f"{version}: every case has all required fields",
+        ", ".join(missing) or "ok",
+    )
 
     # --- spec conformance -------------------------------------------------
     counts = Counter(c["category"] for c in cases)
     bad = [f"{k}: {counts[k]} != {v}" for k, v in targets.items() if counts[k] != v]
     unknown = set(counts) - set(targets)
-    r.check(not bad, f"{version}: category counts match the spec", "; ".join(bad) or "ok")
-    r.check(not unknown, f"{version}: no categories outside the spec", ", ".join(sorted(unknown)) or "ok")
+    r.check(
+        not bad, f"{version}: category counts match the spec", "; ".join(bad) or "ok"
+    )
+    r.check(
+        not unknown,
+        f"{version}: no categories outside the spec",
+        ", ".join(sorted(unknown)) or "ok",
+    )
 
     wrong_flag = [
-        c["id"] for c in cases
+        c["id"]
+        for c in cases
         if c["must_flag"] == (c["category"] in must_not_flag_categories)
     ]
-    r.check(not wrong_flag, f"{version}: must_flag agrees with the category's definition",
-            ", ".join(wrong_flag) or "ok")
+    r.check(
+        not wrong_flag,
+        f"{version}: must_flag agrees with the category's definition",
+        ", ".join(wrong_flag) or "ok",
+    )
 
     # --- numeric rules declared where the categories exist ------------------
     has_numeric = "numeric_age" in targets
     rules = terms_doc.get("numeric_rules", {})
-    rule_families = {k for k in rules if not k.startswith("_") and isinstance(rules[k], dict)}
+    rule_families = {
+        k for k in rules if not k.startswith("_") and isinstance(rules[k], dict)
+    }
     if has_numeric:
-        r.check(bool(rule_families), f"{version}: numeric_rules declared",
-                ", ".join(sorted(rule_families)) or "MISSING")
-        r.check(manifest.get("rules_layer") is True,
-                f"{version}: manifest records the rules layer")
+        r.check(
+            bool(rule_families),
+            f"{version}: numeric_rules declared",
+            ", ".join(sorted(rule_families)) or "MISSING",
+        )
+        r.check(
+            manifest.get("rules_layer") is True,
+            f"{version}: manifest records the rules layer",
+        )
     else:
-        r.check(not rule_families, f"{version}: no numeric rules (pre-numeric-layer version)",
-                ", ".join(sorted(rule_families)) or "ok")
+        r.check(
+            not rule_families,
+            f"{version}: no numeric rules (pre-numeric-layer version)",
+            ", ".join(sorted(rule_families)) or "ok",
+        )
 
     # --- terms exist ------------------------------------------------------
     known = {normalise(t) for t in all_terms}
     rule_ids = {
         rid
-        for fam in rules.values() if isinstance(fam, dict)
+        for fam in rules.values()
+        if isinstance(fam, dict)
         for rid in fam
         if not rid.startswith("_") and isinstance(fam[rid], dict)
     }
@@ -189,8 +216,11 @@ def check_version(version: str, r: Result) -> None:
         for t in c["expected_terms"]
         if normalise(t) not in known and t not in rule_ids
     ]
-    r.check(not unknown_terms, f"{version}: every expected_terms entry is a declared term or rule",
-            "; ".join(unknown_terms) or f"{len(all_terms)} terms, {len(rule_ids)} rules")
+    r.check(
+        not unknown_terms,
+        f"{version}: every expected_terms entry is a declared term or rule",
+        "; ".join(unknown_terms) or f"{len(all_terms)} terms, {len(rule_ids)} rules",
+    )
 
     # --- the crucial one: negatives must be clean -------------------------
     # A must-not-flag case containing a term is a contradiction in the fixture:
@@ -202,8 +232,11 @@ def check_version(version: str, r: Result) -> None:
         hits = sorted(orig for norm, orig in terms_norm.items() if norm in hay)
         if hits:
             polluted.append(f"{c['id']} contains {hits}")
-    r.check(not polluted, f"{version}: no must-not-flag case contains a term in the list",
-            "; ".join(polluted) or f"{len(negative)} negatives clean")
+    r.check(
+        not polluted,
+        f"{version}: no must-not-flag case contains a term in the list",
+        "; ".join(polluted) or f"{len(negative)} negatives clean",
+    )
 
     # --- positives must actually carry their terms (phrases only) ---------
     # Rule-backed cases are checked by the pass suite, which can evaluate a
@@ -213,67 +246,100 @@ def check_version(version: str, r: Result) -> None:
         if not c["must_flag"]:
             continue
         hay = normalise(c["text"])
-        missing_t = [t for t in c["expected_terms"]
-                     if normalise(t) in known and normalise(t) not in hay]
+        missing_t = [
+            t
+            for t in c["expected_terms"]
+            if normalise(t) in known and normalise(t) not in hay
+        ]
         if missing_t:
             absent.append(f"{c['id']} missing {missing_t}")
-    r.check(not absent, f"{version}: every phrase-backed must-flag case contains its term",
-            "; ".join(absent) or "ok")
+    r.check(
+        not absent,
+        f"{version}: every phrase-backed must-flag case contains its term",
+        "; ".join(absent) or "ok",
+    )
 
     untagged = [
-        c["id"] for c in cases
-        if c["must_flag"] and c["category"] not in must_not_flag_categories
+        c["id"]
+        for c in cases
+        if c["must_flag"]
+        and c["category"] not in must_not_flag_categories
         and not c["expected_terms"]
     ]
-    r.check(not untagged, f"{version}: every must-flag case declares at least one expected term",
-            ", ".join(untagged) or "ok")
+    r.check(
+        not untagged,
+        f"{version}: every must-flag case declares at least one expected term",
+        ", ".join(untagged) or "ok",
+    )
 
     # --- manifest ---------------------------------------------------------
     sha = hashlib.sha256((d / "keyword_terms.json").read_bytes()).hexdigest()
-    r.check(manifest.get("keyword_list_sha") == sha,
-            f"{version}: manifest keyword_list_sha matches keyword_terms.json",
-            f"manifest={str(manifest.get('keyword_list_sha'))[:16]}... actual={sha[:16]}...")
-    r.check(manifest.get("version") == version.lstrip("v"),
-            f"{version}: manifest version matches the directory", str(manifest.get("version")))
-    r.check(manifest.get("case_count") == len(cases),
-            f"{version}: manifest case_count matches the files",
-            f"manifest={manifest.get('case_count')} actual={len(cases)}")
+    r.check(
+        manifest.get("keyword_list_sha") == sha,
+        f"{version}: manifest keyword_list_sha matches keyword_terms.json",
+        f"manifest={str(manifest.get('keyword_list_sha'))[:16]}... actual={sha[:16]}...",
+    )
+    r.check(
+        manifest.get("version") == version.lstrip("v"),
+        f"{version}: manifest version matches the directory",
+        str(manifest.get("version")),
+    )
+    r.check(
+        manifest.get("case_count") == len(cases),
+        f"{version}: manifest case_count matches the files",
+        f"manifest={manifest.get('case_count')} actual={len(cases)}",
+    )
 
     # --- exclusions and limitations ---------------------------------------
     negative_ids = {c["id"] for c in negative}
     dangling = [
-        e["term"] for e in terms_doc.get("deliberately_excluded", [])
+        e["term"]
+        for e in terms_doc.get("deliberately_excluded", [])
         if e.get("caught_by") not in negative_ids
     ]
-    r.check(not dangling, f"{version}: every excluded term names an existing negative case",
-            ", ".join(dangling) or f"{len(terms_doc.get('deliberately_excluded', []))} exclusions")
+    r.check(
+        not dangling,
+        f"{version}: every excluded term names an existing negative case",
+        ", ".join(dangling)
+        or f"{len(terms_doc.get('deliberately_excluded', []))} exclusions",
+    )
 
     lims = terms_doc.get("known_limitations", [])
     unaccounted = [
-        l.get("id", "?") for l in lims
-        if not (l.get("planned") or l.get("status"))
+        l.get("id", "?") for l in lims if not (l.get("planned") or l.get("status"))
     ]
-    r.check(not unaccounted, f"{version}: all {len(lims)} known limitations are scheduled or decided",
-            ", ".join(unaccounted) or "ok")
+    r.check(
+        not unaccounted,
+        f"{version}: all {len(lims)} known limitations are scheduled or decided",
+        ", ".join(unaccounted) or "ok",
+    )
 
     decided = [l for l in lims if l.get("status")]
     closed = [l for l in lims if l.get("severity") == "closed"]
     if decided:
-        r.note(f"{len(decided)} of {len(lims)} limitations closed by decision: "
-               f"{', '.join(l['id'] for l in decided)}")
+        r.note(
+            f"{len(decided)} of {len(lims)} limitations closed by decision: "
+            f"{', '.join(l['id'] for l in decided)}"
+        )
     if closed:
-        r.note(f"{len(closed)} closed by fix in this version: "
-               f"{', '.join(l['id'] for l in closed)}")
-    r.check(all(l.get("severity") for l in lims),
-            f"{version}: every limitation records a severity")
+        r.note(
+            f"{len(closed)} closed by fix in this version: "
+            f"{', '.join(l['id'] for l in closed)}"
+        )
+    r.check(
+        all(l.get("severity") for l in lims),
+        f"{version}: every limitation records a severity",
+    )
 
     measured = manifest.get("measured")
     if measured is False:
         r.note("pass rate unmeasured (no implementation at this version)")
     else:
-        r.note(f"measured {measured.get('date')}: {measured.get('flagged')}/{measured.get('cases')} "
-               f"flagged, recall {measured.get('recall_must_flag')}, "
-               f"{measured.get('false_positives')} false positives")
+        r.note(
+            f"measured {measured.get('date')}: {measured.get('flagged')}/{measured.get('cases')} "
+            f"flagged, recall {measured.get('recall_must_flag')}, "
+            f"{measured.get('false_positives')} false positives"
+        )
 
     if not r.failures:
         r.pass_(f"{version} is internally consistent", f"{len(cases)} cases")

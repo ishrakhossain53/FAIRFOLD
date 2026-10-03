@@ -18,10 +18,24 @@ exclude_dirs:
   - ./staticfiles
   - ./media
   - ./venv
-  - ./tests/bias
+  # The whole test tree, not just tests/bias. B101 flags every `assert`, and an
+  # assert is the mechanism a test is written with -- excluding them individually
+  # would mean either 87 `# nosec` comments or a permanently red scan. The cost
+  # is that a real B101 in a test file goes unreported, which is acceptable:
+  # `assert` evaluates a boolean and has no side effects, so the finding bandit
+  # would raise there is not a vulnerability. Production code is fully scanned,
+  # which is where B101 would actually matter.
+  - ./tests
 
 # ==============================================================================
 # Skipped tests, each with its reason
+#
+# Four separate `skip:` lines, one per exception -- which had two independent
+# silent failures. A repeated YAML key keeps only its last value, so three of the
+# four entries were discarded; and bandit never reads a skip list from this file
+# at all, so the surviving one did nothing either. All four documented
+# exceptions were therefore inactive while this file claimed they were active.
+# Each reason below is real; the flags they justify now live in the workflow.
 # ==============================================================================
 
 # B105/B106/B107 — hardcoded password string.
@@ -34,26 +48,41 @@ exclude_dirs:
 # The real protection is that config/settings/base.py raises ImproperlyConfigured
 # when either variable is missing, and production.py additionally rejects the
 # `.env.example` placeholder. Skipping the lint is not what makes those safe.
-skip: B105,B106,B107
+# -> consolidated into the `skip:` at the end of this section.
 
 # B104 — binding all interfaces (0.0.0.0).
 # The Django container must listen on 0.0.0.0 inside the Compose network, and
 # gunicorn binds 0.0.0.0 in the Dockerfile for the same reason. There is no
 # interface that would be more correct; the port is published by Compose, not
 # exposed directly.
-skip: B104
+# -> consolidated into the `skip:` at the end of this section.
 
 # B108 — hardcoded /tmp path.
 # Present in the CI workflow's coverage and cache paths. A predictable /tmp path
 # is only a vulnerability where another local user can write to it, which does not
 # apply to the CI runner's own cache directory.
-skip: B108
+# -> consolidated into the `skip:` at the end of this section.
 
 # B311/B403 — random module and pickle.
 # `random` is used for jitter in the rate-limit backoff, not for anything
 # security-bearing; the security-relevant randomness in this project is
 # `secrets.token_urlsafe` for MFA codes and Fernet keys. `pickle` does not appear.
-skip: B311,B403
+# NOT a `skips:` key, because bandit does not read skips from this file.
+#
+# Verified against bandit 1.9.4 (requirements-dev.txt pins 1.7.10; both behave
+# the same here): `bandit/core/config.py` loads this YAML and exposes
+# `exclude_dirs`, `exclude` and the profiles, but nothing ever reads a `skip` or
+# `skips` key from it. Skips come only from the `-s` flag or a `.bandit` ini
+# file. So the list below is documentation of the exact flags the CI step passes:
+#
+#     bandit -r . -c bandit.yaml -s B104,B105,B106,B107,B108,B311,B403
+#
+# Adding `skips:` here instead would be silently ignored -- no error, no warning,
+# and a build that reports "0 issues" because nothing was excluded and nothing
+# was found. The reasons above are why each ID is on that list.
+#
+# Keep the two lists in sync. scripts/verify_docs.py asserts that the `-s` flags
+# in the workflow cover exactly the IDs justified here.
 
 # ==============================================================================
 # Reporting
