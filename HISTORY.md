@@ -224,7 +224,7 @@ The Arch Doc now holds **50 FRs**, and all 50 map to at least one of the **49 st
 (199 points). FR↔story↔page traceability now holds across all 62 pages except #1 and #2
 (landing, pricing), which are marketing pages and correctly need no requirement.
 
-### 2.15 Team roster replaced ✅
+### 2.14 Team roster replaced ✅
 
 The four original team members were removed from every document and replaced with the
 current five. Roles, not just names, were updated:
@@ -246,7 +246,7 @@ Also updated: the three "4-person team" claims in the feasibility study became 5
 the DevOps gap line in all three docs, and the minimal-viable answer for the outstanding
 requirement-collection question.
 
-### 2.14 Fixes to `design.md` itself ✅
+### 2.15 Fixes to `design.md` itself ✅
 
 Three stale or wrong items inside the revised file:
 
