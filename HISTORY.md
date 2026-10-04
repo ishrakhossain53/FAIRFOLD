@@ -38,17 +38,17 @@ blocked.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `FAIRFOLD_Complete_Project_Document.md` | 2310 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `FAIRFOLD_Complete_Project_Document.md` | 2309 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2369 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1240 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `prd.md` | 1239 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | `design.md` | 2454 | Supplement — UI design system, 62 page specifications, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2880 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+| `FAIRFOLD_Feasibility_and_Design.md` | 2879 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
-| `.env.example` | 158 | Environment variables, all placeholders |
-| `requirements.txt` / `requirements-dev.txt` | 26 / 26 | Pinned Python dependencies (planned stack) |
-| `scripts/generate_secret_key.py` | 137 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
+|| `.env.example` | 158 | Environment variables, all placeholders |
+| `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
+| `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
-**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24 and §2.25):
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34):
 
 - **52 functional requirements**, `REQ-FR-001` … `REQ-FR-052` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
