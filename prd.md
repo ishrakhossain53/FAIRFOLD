@@ -4,7 +4,7 @@
 **Document type:** Product Requirements Document
 **Version:** 1.2 (52 FRs · all §19.2 items resolved · §1.2 real-world evidence · §3.4 requirement collection method)
 **Date:** October 2026
-**Team:** Sardar Shihab (Full-Stack), Arnob Biswas Antu (Full-Stack), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX)
+**Team:** Sardar Shehab (Full-Stack), Arnob Biswas Antu (Full-Stack), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX)
 **Status:** Ready for review
 
 > **Source documents consolidated here**
