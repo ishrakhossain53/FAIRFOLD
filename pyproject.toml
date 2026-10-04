@@ -52,7 +52,7 @@ python_version = "3.12"
 warn_unused_configs = true
 # Missing imports are ignored because CI installs the requirements before
 # running mypy, but a stub package for every third-party dependency is not worth
-# maintaining for a five-person team.
+# maintaining for a four-person team.
 ignore_missing_imports = true
 warn_redundant_casts = true
 warn_unused_ignores = true

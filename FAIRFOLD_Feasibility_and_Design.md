@@ -891,7 +891,7 @@ precisely because the marginal cost of an additional free user is close to zero.
 | Backup/restore | Automated backup with restore verification | §C.4 |
 | Secrets | Docker secrets / cloud secret manager; no `.env` on servers | §5.6 |
 
-**Constraint to declare honestly:** a 5-person student team operating a production
+**Constraint to declare honestly:** a 4-person student team operating a production
 service is a genuine operational risk. The mitigation is deliberate scope control —
 MVP targets a single VPS, not multi-region, and operational procedures are written
 to be followable by one person.
@@ -1083,7 +1083,7 @@ resolved in §5.7 and both should be acknowledged as open items.
 - requirements for an AI product cannot be fully specified up front — the quality of
   rationales and bias detection can only be tuned by building and evaluating;
 - the phased roadmap (§2.6.4) maps directly to sprint goals, giving visible progress;
-- the 5-person team suits a lightweight ceremony structure.
+- the 4-person team suits a lightweight ceremony structure.
 
 **Practices:** sprint planning, daily standup, sprint review with sponsor/stakeholder,
 retrospective. Definition of Done = code merged + tests passing + 80% coverage floor
@@ -1203,8 +1203,7 @@ Complete Doc §10.4:
 | Sardar Shihab | Full-Stack Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts; backend endpoints as needed | US-013, US-014, US-030–032 |
 | Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040, **US-065** |
 | Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062, **US-063, US-064** |
-| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — tokens, component library, accessibility (WCAG 2.1 AA) | US-040, all design tokens and UI specs |
-| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, journey mapping interaction design | US-013, all wireframes, **US-064** (override dialog flow) |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — tokens, component library, accessibility (WCAG 2.1 AA), candidate journey wireframes, employer dashboard UX, journey mapping interaction design | US-013, US-040, all wireframes, all design tokens and UI specs, **US-064** (override dialog flow) |
 
 **Declared gap:** no dedicated DevOps/Infrastructure role — currently absorbed by the
 backend engineer. §2.6.3 identifies this as the largest operational risk.
@@ -1241,7 +1240,7 @@ Complete Doc §4.2 (Django app structure).
 **Architecture in brief.** A Django monolith with a DRF API, Django Templates + HTMX
 for the frontend, Celery for asynchronous work, and PostgreSQL + pgvector as the
 system of record. The monolith choice is deliberate and documented as an ADR
-(Arch Doc §3.1): a single deployable unit is operationally appropriate for a 5-person
+(Arch Doc §3.1): a single deployable unit is operationally appropriate for a 4-person
 team, and DRF keeps a clean seam if services must be extracted later.
 
 **Layers:**
@@ -2707,7 +2706,7 @@ code, not a missing idea.
 | 6 | **Version drift in the stack matrix** — DRF listed as 3.14, pinned 3.15.1; pgvector 0.2.4 vs 0.2.0+; "Django Templates 5.x" in a version column | Corrected to match `requirements.txt` | `requirements.txt` is executable; the matrix is prose. **Follow-up: 3.15.1 itself carried three advisories and is now 3.17.2 — matching the matrix to the file is not the same as the file being current** |
 | 7 | **No Free employer tier in the pricing table** — `prd.md` §15.2 listed one; Complete Doc §C.14 did not | **Free row added to §C.14** | The `subscriptions` table already implements it: `plan DEFAULT 'free'`, `max_jobs 3`, `ai_quota_remaining 50` |
 | 8 | **"Trial" on the free plan** — unsupported by the schema | Changed to **"Not time-limited"**; flagged that a real trial needs a `trial_ends_at` column | `subscriptions` has no expiry column |
-| 9 | **"a focused team of 4"** vs a five-person team | Corrected to 5 | §10.4 and §2.7.3 both list five |
+| 9 | **"a focused team of 4"** vs a five-person team | Corrected to 5, then reverted to 4 | §10.4 and §2.7.3 now list four; Fahad Haque departed, responsibilities absorbed by Mohammad Abdul Ahad |
 
 **How these were settled.** In every case the **executable artefact won** — the SQL
 schema, `requirements.txt`, `.env.example`. Those can be checked; prose cannot. Where

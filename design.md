@@ -1,7 +1,7 @@
 # FAIRFOLD — UI Design Specification (design.md)
 
 **Product:** FairFold — AI-Powered, Explainable Recruitment Platform
-**Owner:** Mohammad Abdul Ahad (UI/UX) · **Co-owner:** Fahad Haque (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
+**Owner:** Mohammad Abdul Ahad (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
 **Companion to:** `prd.md` (requirements) · **Version:** 1.3 (screening integrity: override dialog, assessment gate, reviewable filters) · **Date:** October 2026
 
 > **Changes in v1.3** (2026-10-03)

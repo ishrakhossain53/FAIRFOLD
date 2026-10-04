@@ -4,7 +4,7 @@
 **Document type:** Product Requirements Document
 **Version:** 1.2 (52 FRs · all §19.2 items resolved · §1.2 real-world evidence · §3.4 requirement collection method)
 **Date:** October 2026
-**Team:** Sardar Shihab (Full-Stack), Arnob Biswas Antu (Frontend), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX), Fahad Haque (UI/UX)
+**Team:** Sardar Shihab (Full-Stack), Arnob Biswas Antu (Frontend), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX)
 **Status:** Ready for review
 
 > **Source documents consolidated here**
@@ -1050,8 +1050,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 | Sardar Shihab | Full-Stack Engineer | Templates/HTMX, Tailwind, journey charts; backend endpoints as needed |
 | Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI |
 | Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security (also covers DevOps) |
-| Mohammad Abdul Ahad | UI/UX Designer | Design system, tokens, accessibility (WCAG 2.1 AA) |
-| Fahad Haque | UI/UX Designer | Wireframes, employer dashboard UX, journey-map design |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system, tokens, accessibility (WCAG 2.1 AA), wireframes, employer dashboard UX, journey-map design |
 
 **Known gap:** no dedicated DevOps role; the backend engineer absorbs it. This is the largest operational risk (RSK-009).
 
