@@ -1503,11 +1503,11 @@ by **Mohammad Abdul Ahad**, the remaining UI/UX Designer. Concretely:
 
 ### 2.35 CI: Docker Hub login step now skips cleanly when credentials are absent
 
-The `build-and-push` job (gated on `main` only) failed with an auth error because
-`DOCKERHUB_USER` and `DOCKERHUB_TOKEN` repository secrets were not set. Since the
-project is still in the **documentation phase** with no image to ship, the "Build
-and push" step is now conditional on those secrets existing. The login step still
-runs — it fails fast with a clear message rather than a cryptic auth failure.
+The `build-and-push` job (gated on `main` only) failed with "Username and
+password required" because `DOCKERHUB_USER` and `DOCKERHUB_TOKEN` repository
+secrets were not set. Since the project is still in the **documentation phase**
+with no image to ship, the entire `build-and-push` job now skips cleanly when
+either secret is absent, rather than running the login step and failing the job.
 
 **To enable pushes:** add `DOCKERHUB_USER` and `DOCKERHUB_TOKEN` as repository
 secrets (Settings → Secrets and variables → Actions), then the build-and-push
