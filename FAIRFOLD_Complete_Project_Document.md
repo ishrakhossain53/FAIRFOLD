@@ -3,7 +3,7 @@
 
 **Version:** 2.2 (JobAssessmentRequirement model · override recording · versioned hard filters · real-world evidence)
 **Date:** September 2026
-**Team:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque
+**Team:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad
 
 ---
 
@@ -1008,8 +1008,7 @@ sphinx >= 8.2  # documentation generation
 | Sardar Shihab | Full-Stack Engineer | Django templates/HTMX UI, TailwindCSS, interactive journey mapping charts, responsive design; backend endpoints as needed |
 | Arnob Biswas Antu | Frontend Engineer | Employer dashboard UI, application review interface, interview scheduling UI, real-time status updates |
 | Ishrak Hossain | Backend & AI Engineer | Django backend, DRF API, Celery tasks, OpenRouter AI integration, PII stripping, pgvector matching, security implementation |
-| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — colour, type and spacing tokens, component library, accessibility (WCAG 2.1 AA) |
-| Fahad Haque | UI/UX Designer | Candidate journey wireframes, employer dashboard UX, Journey Mapping interactive timeline design |
+| Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — colour, type and spacing tokens, component library, accessibility (WCAG 2.1 AA), candidate journey wireframes, employer dashboard UX, Journey Mapping interactive timeline design |
 
 **Missing role:** DevOps/Infrastructure — initially handled by Ishrak Hossain (backend engineer). When scaling, add or outsource.
 

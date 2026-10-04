@@ -3,7 +3,7 @@
 **Version:** 4.1 (52 FRs · override visibility · employer-required assessments · versioned hard filters)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
-**Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad, Fahad Haque  
+**Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad  
 
 > **Companion document to:** `FAIRFOLD_Complete_Project_Document.md`  
 > This document provides the detailed, implementation-ready architecture and requirements that supplement the high-level project document. Where the project document describes *what* to build and *why*, this document specifies *how* — with concrete APIs, data models, acceptance criteria, and measurable quality attributes.

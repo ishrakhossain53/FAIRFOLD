@@ -4,7 +4,7 @@ A running log of what has been done on this repository and what is still outstan
 Kept by hand; updated whenever a chunk of work lands.
 
 - **Repository:** `github.com/ishrakhossain53/FAIRFOLD` (private)
-- **Last updated:** 2026-10-03
+- **Last updated:** 2026-10-04
 - **Current branch:** `ishrakhossain53-patch-1`
 - **Project state:** documentation phase. No application code has been written yet.
 
@@ -1471,6 +1471,35 @@ the first version harvested env keys from the entire file — every required
 variable looked present and the check could not fail. The second returned no keys
 at all because the `env:` header was excluded. Both looked correct and both were
 useless; only the negative test distinguished them.
+
+---
+
+### 2.34 Fahad Haque departed — team back to four ✅
+
+**Fahad Haque** has left the project. His UI/UX responsibilities are absorbed back
+by **Mohammad Abdul Ahad**, the remaining UI/UX Designer. Concretely:
+
+- **Wireframes** — Mohammad now owns candidate journey wireframes (previously split with Fahad).
+- **Employer dashboard UX** — consolidated under Mohammad's design system ownership.
+- **Journey-map design** — consolidated under Mohammad.
+
+**Updated everywhere needed:**
+
+| File | Change |
+|---|---|
+| `prd.md` §2, §17.2 | Team line reduced from 5 to 4; Fahad's row removed; Mohammad's row absorbs wireframes, employer dashboard UX, and journey-map design |
+| `design.md` §1 | Co-owner removed; Mohammad Abdul Ahad is sole owner |
+| `FAIRFOLD_Complete_Project_Document.md` §2, §C.6 | Team line reduced from 5 to 4; Fahad's row removed; Mohammad's row absorbs wireframes |
+| `FAIRFOLD_Feasibility_and_Design.md` §2.7.3, §10.4, §2.7.4 | Team row updated (4); conflict table §9 updated to record the reversion; all "5-person" prose references corrected to "4-person" |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` §1 | Authors list reduced from 5 to 4 |
+| `pyproject.toml` §5.5 | mypy comment corrected to "four-person team" |
+
+**Not changed (correctly left alone):**
+- The "5-person" count in HISTORY.md §2.14 and §2.16 — these are historical entries
+  that accurately record the team state at the time those changes were made.
+- `Samira Haque` referenced in `design.md` §13 — a different person (sample/test data).
+
+**Not in git:** no commits authored by Fahad Haque were found in repository history.
 
 ---
 
