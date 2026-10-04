@@ -15,7 +15,7 @@ This file supplements — and does not replace — the specifications below:
 | `FAIRFOLD_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 52 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
 | `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
-| `design.md` | UI design system, 62 page specs, 23 wireframes, implementation notes | Supplement |
+| `design.md` | UI design system, 62 page specs, 52 wireframes (18 S + 5 X + 29 W), implementation notes | Supplement |
 | `FAIRFOLD_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
 
 **Functional requirements live in the Arch Doc §4.1.** `prd.md` proposes them and this
@@ -2659,13 +2659,13 @@ start building?* Nothing here repeats §2.4.1 or §1.3; it is the consolidated v
 
 | File | Role | Canonical for | Lines |
 |---|---|---|---|
-| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), migrations/seed (§C.8), team (§10.4) | 2245 |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2324 |
+| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), migrations/seed (§C.8), team (§10.4) | 2310 |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2370 |
 | `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1240 |
-| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML, Gantt, data dictionary, this readiness review | 2850 |
-| `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 23 wireframes, build tooling (§11.2), deliverables checklist | 1418 |
-| `HISTORY.md` | Log | What was done, what is still open, and why | 1269 |
-| `README.md` | Entry point | Setup, project structure, the two standing warnings | 246 |
+| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML diagrams, Gantt, data dictionary, this readiness review | 2880 |
+| `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 52 wireframes (18 S + 5 X + 29 W), build tooling (§11.2), deliverables checklist | 2455 |
+| `HISTORY.md` | Log | What was done, what is still open, and why | 1773 |
+| `README.md` | Entry point | Setup, project structure, the two standing warnings | 284 |
 
 **⚠️ Ownership rule that must survive the rename.** *Functional requirements live in
 the Arch Doc §4.1, not the PRD.* The PRD proposes and summarises them. Any new FR starts

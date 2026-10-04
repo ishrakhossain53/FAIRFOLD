@@ -2423,7 +2423,7 @@ employer's attention goes to the evidence rather than the number.
 |---|---|---|---|---|
 | 1 | Figma file with tokens (colour, type, spacing) matching Sections 3–5 | UI/UX | Before Phase 1 UI work | Drafted in design.md (tokens in §3–5 and §11.1); Figma file not started |
 | 2 | Component library (Sections 6–7) with all states | UI/UX | Phase 1 | Drafted in design.md (state sheet §6.6); Figma components not started |
-| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | **Complete for text wireframes** — §10.5: all 62 of62 pages, 48 wireframes (18 S + 5 X + 25 W), all 22 core-flow pages and all 18 required screens. Figma versions not started |
+| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | **Complete for text wireframes** — §10.5: all 62 of 62 pages, 52 wireframes (18 S + 5 X + 29 W), all 22 core-flow pages and all 18 required screens. Figma versions not started |
 | 4 | High-fidelity mobile (360px) and desktop (1280px) for core flow | UI/UX | Phase 1–2 | Not started |
 | 5 | Journey Map prototype incl. table alternative | UI/UX + Frontend | Phase 3 start | Wireframes drafted (S08: timeline, skills, story, table view); interactive prototype not started |
 | 6 | Accessibility annotations (heading levels, landmarks, focus order) on key pages | UI/UX | With hi-fi | Text annotations drafted per wireframe (§10.5); overlay annotations on hi-fi not started |

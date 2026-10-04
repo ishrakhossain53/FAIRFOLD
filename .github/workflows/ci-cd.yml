@@ -352,7 +352,7 @@ jobs:
   build-and-push:
     needs: lint-and-test
     runs-on: ubuntu-24.04
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' && secrets.DOCKERHUB_USER != '' && secrets.DOCKERHUB_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Log in to Docker Hub
@@ -360,14 +360,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-        # Fail fast with a clear message if credentials are not set, rather
-        # than letting the build-push step fail with a cryptic auth error.
-        # Add DOCKERHUB_USER and DOCKERHUB_TOKEN as repository secrets
-        # (Settings → Secrets and variables → Actions) before this job runs.
-        # Until then, this job intentionally does not push — the project is
-        # in the documentation phase and has no image to ship.
       - name: Build and push
-        if: ${{ secrets.DOCKERHUB_USER != '' && secrets.DOCKERHUB_TOKEN != '' }}
         uses: docker/build-push-action@v6
         with:
           context: .
