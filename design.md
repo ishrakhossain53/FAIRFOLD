@@ -713,7 +713,7 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy, **override rate by user and by job (each row links to its recorded reason)**, **not-matched vs pulled-into-review**; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 · **REQ-FR-052** | P4 |  | S17 |
 | 48 | **Messages** | Same as #31, grouped by job | List, thread | REQ-FR-043 | P3 |  | W08 |
 | 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 | P1–P4 |  | W14 |
-| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (Stripe-hosted) | Cards, meters | REQ-FR-048 | P5 |  | W15 |
+| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (bKash/SSLCommerz in BDT; Stripe in Phase 5) | Cards, meters | REQ-FR-048 | P5 |  | W15 |
 | 51 | **Company settings** | Company profile, security (MFA mandatory for HR admin), notifications, default AI model preference ("Auto (free)" / "Best available (paid)") | Tabs, radio cards | REQ-SEC-009 | P1–P4 |  | W16 |
 | 52 | **MFA setup** | QR code, manual key (copy), verify code field; recovery note | QR, OTP input | REQ-FR-005/006 | P4 |  | W17 |
 | 53 | **Data retention settings** | Retention period selectors per record type with plain-language impact; saves with audit entry | Form, alert | REQ-COM-005 | P4 |  | W18 |

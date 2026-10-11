@@ -13,7 +13,7 @@ This file supplements — and does not replace — the specifications below:
 | Document | Role | Status |
 |---|---|---|
 | `FAIRFOLD_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 52 FRs, 50 NFRs, SQL schema, ops | **Canonical** |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 63 FRs (001-063), 50 NFRs, 32 tables, 51 FKs, 25 indexes, SQL schema, ops | **Canonical** |
 | `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
 | `design.md` | UI design system, 62 page specs, 52 wireframes (18 S + 5 X + 29 W), implementation notes | Supplement |
 | `FAIRFOLD_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
@@ -472,8 +472,8 @@ there until it has actually been run.
 
 ### 2.2 Functional requirements
 
-**Complete.** 52 functional requirements with unique IDs, priorities, and Given/When/Then
-acceptance criteria — `FAIRFOLD_Project_Architecture_and_Requirements.md` §4.1.
+**Complete.** 63 functional requirements with unique IDs, priorities, and Given/When/Then
+acceptance criteria — `FAIRFOLD_Project_Architecture_and_Requirements.md` §4.1 (REQ-FR-001 through REQ-FR-063).
 
 | Group | ID range | Count | Priority distribution |
 |---|---|---|---|
@@ -485,6 +485,7 @@ acceptance criteria — `FAIRFOLD_Project_Architecture_and_Requirements.md` §4.
 | Employer organisation & billing | REQ-FR-045 – FR-048 | 4 | 1 High, 3 Medium |
 | Certification & content management | REQ-FR-044, FR-049 – FR-050 | 3 | 2 Medium, 1 Low |
 | **Screening integrity** (override visibility, required assessments) | REQ-FR-051 – FR-052 | 2 | **2 High** |
+| **Business-model changes (D1–D7)** | REQ-FR-053 – FR-057 | 5 | **4 High, 1 Medium** |
 
 Representative example:
 
@@ -520,7 +521,7 @@ by axe-core/pa11y in CI (REQ-COM-007).
 
 ### 2.4 User stories
 
-Derived one-to-one from the 52 FRs in Arch Doc §4.1. Written in standard
+Derived one-to-one from the 63 FRs in Arch Doc §4.1 (REQ-FR-001 through REQ-FR-063). Written in standard
 *As a / I want / so that* form with story points and MoSCoW priority.
 
 #### Authentication — actor: Registered User
@@ -611,13 +612,24 @@ Derived one-to-one from the 52 FRs in Arch Doc §4.1. Written in standard
 | US-063 | As an **employer**, I want to require a skill assessment before shortlisting, so that a decision cannot be made on a resume alone. | FR-051 | 5 | Must |
 | US-064 | As an **employer**, I want to have to give a reason when I shortlist someone the ranking put below my cut-off, so that the decision is visible rather than invisible. | FR-052 | 5 | Must |
 | US-065 | As an **employer**, I want to see and review the candidates an automatic filter excluded, so that a rule cannot silently decide who is considered. | FR-029 | 3 | Must |
+| US-066 | As an **employer**, I see candidate aliases instead of UUIDs on all candidate-facing surfaces, so that I can never identify a candidate by internal identifiers. | FR-054 | 3 | Must |
+| US-067 | As an **employer**, I pay in BDT through bKash or SSLCommerz, so that my local payment method works. | FR-056 | 5 | Must |
+| US-068 | As an **employer**, I never see a candidate's paid tier or "Promoted" badge influence their rank in my shortlist, so that promotion cannot buy screening. | FR-053 | 2 | Must |
+| US-069 | As a **candidate**, I see exactly what PII and proxy information was stripped from my resume before AI processing, so that I know what is sent externally. | FR-057 | 3 | Must |
+| US-070 | As a **candidate**, I take an assessment with disclosure consent, so that integrity events are recorded neutrally without auto-failing me. | FR-055 | 3 | Should |
+| US-071 | As a **candidate**, I want to type a practice interview answer and get STAR-rubric feedback, so that I improve before the real interview. | FR-058 | 5 | Must |
+| US-072 | As a **candidate**, I want to know which rubric I'm graded against and see my own words cited in each feedback point, so that the feedback is fair and verifiable. | FR-059, FR-062 | 8 | Must |
+| US-073 | As an **employer**, I want to publish my scorecard criteria (not questions) for a job, so that candidates practice against the real evaluation. | FR-059 | 5 | Should |
+| US-074 | As a **candidate**, I want my practice answers to be private and never influence my job match score, so that I can practice honestly. | FR-060 | 3 | Must |
+| US-075 | As a **candidate**, I want to see curated free/low-bandwidth/Bangla-language resources for skills I'm missing, so that I can close gaps without paying. | FR-061 | 3 | Should |
+| US-076 | As a **candidate**, I want to retake an assessment after a cooldown and earn a Verified badge, so that my improved skills are recognised. | FR-063 | 3 | Should |
 
 **Priority model:** MoSCoW — **Must** = core flow, MVP-blocking. No "Won't" items;
 deliberate exclusions are listed in Arch Doc §1.2 Out of Scope.
 
-**Coverage:** all 52 functional requirements map to at least one user story.
-**Total effort:** 52 stories, 217 story points.
-**MoSCoW:** 30 Must · 17 Should · 5 Could.
+**Coverage:** all 63 functional requirements map to at least one user story.
+**Total effort:** 63 stories, 260 story points.
+**MoSCoW:** 37 Must · 21 Should · 5 Could.
 
 #### 2.4.1 Traceability gaps
 
@@ -725,8 +737,8 @@ New in this round: **2 requirements** (`REQ-FR-051`, `REQ-FR-052`), **1 amendmen
 (`job_assessment_requirements`, §5.1), **6 new columns** on `jobs` and `applications`,
 **1 `CHECK` constraint**, **2 new indexes**.
 
-The Arch Doc now holds **52 functional requirements** and the feasibility document
-**52 user stories / 217 points**.
+The Arch Doc now holds **63 functional requirements** (REQ-FR-001–063) and the feasibility document
+**63 user stories / 260 points** (37 Must · 21 Should · 5 Could).
 
 ##### Round 4 — the only approved requirement with no data model, now fixed ✅
 
@@ -779,6 +791,28 @@ Two conditions now bind:
 Keeping it does not lower the bar on the five constraints; they are the reason it is
 affordable at all, since each one removes a failure mode rather than adding a feature.
 
+##### Round 5 — I1–I5 coaching and training scope, now closed ✅
+
+Added 2026-10-05. The interview-preparation and training scope (I1–I5) had no
+requirements in the original spec. Six new FRs (REQ-FR-058–063) close the gap:
+
+| Decision | What was missing | Requirement |
+|---|---|---|
+| I1 — text-only practice | No requirement stating practice is text-only with spoken practice deferred to Phase 5 | REQ-FR-058 |
+| I1 — practice bank isolation | No requirement separating practice questions from live employer content | REQ-FR-058 |
+| I2 — STAR rubric grading | No rubric-based feedback requirement; tier descriptions claimed "AI mentor" and "learning path" | REQ-FR-059 |
+| I3 — coaching data isolation | No requirement that practice answers are private and never enter ranking | REQ-FR-060 |
+| I4 — curated resources only | No requirement for external resource links instead of built content | REQ-FR-061 |
+| I4 — gap→resource→retake loop | No assessment-retake-with-resources flow | REQ-FR-063 |
+| I5 — coaching evaluation set | No test set for coaching quality and citation | REQ-FR-062 |
+
+**Status: closed.** All six FRs have Given/When/Then acceptance criteria in Arch Doc §4.1,
+new tables in Arch Doc §5.1 (`practice_questions`, `interview_coaching_sessions`,
+`scorecard_criteria`, `resources`, `attempt_resource_recommendations`), acceptance
+tests in Arch Doc §10 Phase 3, and six user stories (`US-071`–`US-076`) in §2.4.
+Tier descriptions in `prd.md` §15.1 and Complete Doc §C.14 updated: "AI mentor"
+→ "Curated training resources", no "learning path" claims.
+
 ### 2.5 Product backlog and priority
 
 **Complete.** Feature backlog per phase — Complete Doc §C.15 — plus per-phase acceptance
@@ -787,12 +821,12 @@ criteria in Arch Doc §10. The phase breakdown aligns with the backlog:
 | Phase | Weeks | Story points | Theme |
 |---|---|---|---|
 | 1 — Foundation | 1–3 | ~41 | Auth, profiles, jobs, job search (FR-042), applications, employer onboarding (no AI) |
-| 2 — AI Integration | 4–6 | ~49 | PII stripping, screening, rationale, bias audit, **override recording (FR-052)**, **reviewable hard filters (FR-029)** |
-| 3 — Candidate AI | 7–9 | ~50 | Assessments, **employer-required assessments (FR-051)**, coaching, journey mapping, messaging (FR-043), certifications |
-| 4 — Hardening | 10–12 | ~44 | Security, GDPR, monitoring, CI/CD, announcements |
+| 2 — AI Integration | 4–6 | ~62 | PII stripping (**expanded proxies, FR-057**), screening, rationale, bias audit, **override recording (FR-052)**, **reviewable hard filters (FR-029)**, **paid discovery separation (FR-053)**, **per-employer alias (FR-054)** |
+| 3 — Candidate AI | 7–9 | ~97 | Assessments (**integrity events, FR-055**), **employer-required assessments (FR-051)**, **text-only coaching (FR-058/059/060)**, **STAR rubric + scorecard criteria (FR-059)**, **curated resources + gap loop (FR-061/063)**, journey mapping, messaging (FR-043), certifications |
+| 4 — Hardening | 10–12 | ~49 | Security, GDPR, monitoring, CI/CD, announcements, **local payments (FR-056)** |
 | 5 — Advanced | 13+ | ~33 | i18n, billing (FR-048), WebSockets, skill ontology |
 
-**Total: ~217 story points**, matching the 52 stories in §2.4.
+**Total: ~260 story points**, matching the 63 stories in §2.4.
 
 *(Point figures are a planning estimate for the Gantt in §2.7, not an independent
 measurement — re-estimate at sprint planning. The authoritative task lists are
@@ -930,7 +964,7 @@ planning input, and it changes one thing: the *hours available per week*.
 | | Before | After |
 |---|---|---|
 | Capacity assumption | Single shift, 5 students, part-time around coursework | **Double shift** |
-| 217 points over 12 weeks | ~18 points/week, tight | More comfortable |
+| 260 points over 12 weeks | ~22 points/week, tight | More comfortable |
 | Schedule verdict | At risk | **No longer capacity-constrained** |
 
 **What this does *not* fix.** The 12-week plan starting 2026-10-05 originally ended
@@ -1016,7 +1050,7 @@ because the whole pitch is that FairFold does not make claims it cannot evidence
 |---|---|---|---|---|
 | **`ASM-001`** | The 52 requirements are the right scope for an MVP | Team judgement | Anyone who has used the product and found a missing capability | Cut `REQ-FR-050` first — it is the only requirement the team itself called optional |
 | **`ASM-002`** | The team sustains **double shifts** for the full 12 weeks without attrition or quality degradation | Stated by the team | End of Phase 2: are 5 people still on it, and is review debt rising? | **Re-scope, do not compress.** A cut scope updates `prd.md` §5.1 and the acceptance criteria in the same commit |
-| **`ASM-003`** | AI assistance raises delivery capacity for the 217 points | Stated by the team. *Plausible for boilerplate; unmeasured* | **End of Phase 1: points actually delivered.** If Phase 1 (41 points, 3 weeks) lands at or under schedule, the assumption holds | Drop the capacity assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
+| **`ASM-003`** | AI assistance raises delivery capacity for the 260 points | Stated by the team. *Plausible for boilerplate; unmeasured* | **End of Phase 1: points actually delivered.** If Phase 1 (41 points, 3 weeks) lands at or under schedule, the assumption holds | Drop the capacity assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
 
 > **Correction to an earlier draft of this table (2026-10-03).** `ASM-003` previously read
 > *"…**without reducing review capacity**"* and its basis column claimed *"the throughput
@@ -1161,12 +1195,15 @@ gantt
     section Phase 3 — Candidate AI
     Skill assessment system              :p3a, after m2, 4d
     Assessment UI + auto-scoring         :p3b, after p3a, 4d
-    Interview coaching                   :p3c, after m2, 4d
-    Journey mapping MVP (timeline)       :p3d, after m2, 5d
-    Skill evolution chart                :p3e, after p3d, 3d
-    Dynamic storytelling                 :p3f, after p3d, 3d
-    Candidate dashboard + match scores   :p3g, after p3b, 4d
-    Phase 3 deliverable                  :milestone, m3, after p3g, 0d
+    Interview coaching (text-only)       :p3c, after m2, 4d
+    STAR rubric feedback + scorecard criteria :p3d, after p3c, 5d
+    Coaching isolation + PII stripping   :p3e, after p3c, 2d
+    Resource links + assessment gap loop :p3f, after p3b, 4d
+    Journey mapping MVP (timeline)       :p3g, after m2, 5d
+    Skill evolution chart                :p3h, after p3g, 3d
+    Dynamic storytelling                 :p3i, after p3g, 3d
+    Candidate dashboard + match scores   :p3j, after p3b, 4d
+    Phase 3 deliverable                  :milestone, m3, after p3j, 0d
 
     section Phase 4 — Hardening
     Argon2 + MFA verification            :p4a, after m3, 3d
@@ -1790,7 +1827,7 @@ classDiagram
 
 ### 3.7 ER diagram
 
-Derived from the SQL schema in Arch Doc §5.1 (24 tables) and the Django models in
+Derived from the SQL schema in Arch Doc §5.1 (32 tables) and the Django models in
 Complete Doc §8.2 / §C.11.
 
 ```mermaid
@@ -1834,6 +1871,17 @@ erDiagram
 
     INTERVIEW_PACKS ||--o{ INTERVIEWS : "guides"
     INTERVIEWS ||--o{ INTERVIEW_FEEDBACK : "evaluated by"
+
+    SKILLS ||--o{ PRACTICE_QUESTIONS : "questions for"
+    SKILLS ||--o{ RESOURCES : "links to"
+    JOBS ||--o{ PRACTICE_QUESTIONS : "job-specific questions"
+    JOBS ||--o{ SCORECARD_CRITERIA : "has criteria (I2)"
+    CANDIDATE_PROFILES ||--o{ PRACTICE_QUESTIONS : "practice bank (I1)"
+    USERS ||--o{ RESOURCES : "curates (I4)"
+    ASSESSMENT_ATTEMPTS ||--o{ ATTEMPT_RESOURCE_RECOMMENDATIONS : "recommends"
+    RESOURCES ||--o{ ATTEMPT_RESOURCE_RECOMMENDATIONS : "recommended to"
+    CANDIDATE_PROFILES ||--o{ INTERVIEW_COACHING_SESSIONS : "coaching session (I1-I3)"
+    PRACTICE_QUESTIONS ||--o{ INTERVIEW_COACHING_SESSIONS : "answer to"
 
     USERS {
         uuid id PK
@@ -2127,13 +2175,72 @@ erDiagram
         uuid approved_by FK "nullable, SET NULL"
         varchar status "pending-approved-rejected-completed"
     }
+
+    PRACTICE_QUESTIONS {
+        uuid id PK
+        uuid job_id FK "nullable — NULL = generic practice question (I1)"
+        uuid skill_id FK
+        varchar practice_source "practice_bank | generated"
+        text question_text
+        jsonb star_criteria
+        uuid created_by FK "nullable, SET NULL"
+        boolean is_active
+        timestamptz created_at
+    }
+
+    INTERVIEW_COACHING_SESSIONS {
+        uuid id PK
+        uuid candidate_id FK
+        uuid practice_question_id FK
+        uuid job_id FK "context only; NOT joined to ranking (I3)"
+        text answer_text "PII-stripped before AI call (I3, D4)"
+        text answer_stripped
+        varchar star_rubric_version
+        jsonb feedback
+        varchar ai_model_used
+        integer helpfulness_rating "1-5 (I5)"
+        timestamptz created_at
+    }
+
+    RESOURCES {
+        uuid id PK
+        uuid skill_id FK
+        varchar title
+        varchar url
+        varchar cost "free | paid"
+        varchar language "ISO 639-1, default en"
+        varchar level "beginner | intermediate | advanced"
+        timestamptz reviewed_at
+        varchar status "active | broken | archived"
+        uuid curator_id FK "named curation owner [Planned] (I4)"
+        timestamptz created_at
+    }
+
+    SCORECARD_CRITERIA {
+        uuid id PK
+        uuid job_id FK "employer-published criteria, criteria only not questions (I2)"
+        varchar criterion
+        decimal weight
+        text description
+        varchar rubric_version
+        uuid created_by FK "nullable, SET NULL"
+        timestamptz created_at
+    }
+
+    ATTEMPT_RESOURCE_RECOMMENDATIONS {
+        uuid id PK
+        uuid attempt_id FK "nullable, SET NULL"
+        uuid resource_id FK "nullable, SET NULL"
+        boolean accepted
+        timestamptz recommended_at
+    }
 ```
 
 **Cardinality reading:** `||` = exactly one, `o|` = zero or one, `o{` = zero or many.
-All 24 tables and 32 relationships shown. The canonical SQL (Arch Doc §5.1) declares
-**35** foreign keys; the three not drawn are redundant self-references on `users` that
-would clutter the diagram without adding information — `USERS → CANDIDATE_PROFILES`,
-`USERS → EMPLOYER_PROFILES` and `USERS → APPLICATIONS.decided_by` are all already
+All 32 tables and 41 relationships shown. The canonical SQL (Arch Doc §5.1) declares
+**51** foreign keys; the 10 not drawn in the diagram are redundant or implied self-references
+that would clutter the diagram without adding information — `users → candidate_profiles`,
+`users → employer_profiles` and `users → applications.decided_by` are all already
 implied by a drawn relationship. PK/FK detail is carried in the attribute blocks.
 
 Note the three special cases:
@@ -2174,7 +2281,7 @@ with no separable half, so deleting a user's interview history is correct.
 Field-level definitions for the 10 entities that carry the interesting behaviour: the four
 lifecycle tables plus the five with non-obvious constraints or erasure semantics
 (`EMPLOYER_TEAM_MEMBERS`, `MESSAGES`, `JOB_ASSESSMENT_REQUIREMENTS`). Full SQL DDL:
-Arch Doc §5.1 (24 tables).
+Arch Doc §5.1 (32 tables, 51 foreign keys, 25 indexes).
 
 #### USERS
 
@@ -2597,9 +2704,9 @@ Section coverage of this document against the project specification. ✅ = compl
 | 5 | Solution, objectives, scope, users | ✅ | §1.5 |
 | **REQUIREMENTS & PLANNING** ||||
 | 6 | Requirement collection method | ✅ | §1.3 — **complete 2026-10-03**, tagged [Done]/[Illustrative]/[Planned]. Validation plan §1.3.4 remains [Planned] |
-| 7 | Functional requirements with IDs | ✅ | §2.2 (52 FRs — Arch Doc §4.1) |
+| 7 | Functional requirements with IDs | ✅ | §2.2 (63 FRs — Arch Doc §4.1) |
 | 8 | Measurable NFRs | ✅ | §2.3 (50 NFRs — Arch Doc §4.2) |
-| 9 | User stories, priority, backlog | ✅ | §2.4 (52 stories), §2.5 |
+| 9 | User stories, priority, backlog | ✅ | §2.4 (63 stories), §2.5 |
 | 10 | Five-way feasibility | ✅ | §2.6.1 – §2.6.5 |
 | 11 | Methodology, Gantt, roles, risk | ✅ | §2.7.1 – §2.7.4 |
 | **SYSTEM ANALYSIS & DESIGN** ||||
@@ -2659,10 +2766,10 @@ start building?* Nothing here repeats §2.4.1 or §1.3; it is the consolidated v
 
 | File | Role | Canonical for | Lines |
 |---|---|---|---|
-| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), migrations/seed (§C.8), team (§10.4) | 2310 |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 52 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2370 |
-| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1240 |
-| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML diagrams, Gantt, data dictionary, this readiness review | 2880 |
+| `FAIRFOLD_Complete_Project_Document.md` | **Canonical** | Vision, market, AI strategy, security architecture, pricing (§C.14), models (§C.11), API (§C.12), migrations/seed (§C.8), team (§10.4) | 2409 |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 63 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2563 |
+| `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1262 |
+| `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML diagrams, Gantt, data dictionary, this readiness review | 2986 |
 | `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 52 wireframes (18 S + 5 X + 29 W), build tooling (§11.2), deliverables checklist | 2455 |
 | `HISTORY.md` | Log | What was done, what is still open, and why | 1773 |
 | `README.md` | Entry point | Setup, project structure, the two standing warnings | 284 |
@@ -2677,10 +2784,10 @@ in the Arch Doc; the PRD table is a pointer, never the definition.
 |---|---|
 | Internal markdown links resolve | ✅ all, 0 dangling |
 | `REQ-FR-###` references point at a real requirement | ✅ 0 dangling across all 7 documents |
-| Every FR has at least one user story | ✅ 52/52 |
-| Story rows parse and sum | ✅ 52 stories, 217 points, 30 Must / 17 Should / 5 Could |
-| Duplicate FR rows | ✅ none — 52 rows, 52 unique IDs |
-| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 24 / 35 / 13 |
+| Every FR has at least one user story | ✅ 63/63 |
+| Story rows parse and sum | ✅ 63 stories, 260 points, 37 Must / 21 Should / 5 Could |
+| Duplicate FR rows | ✅ none — 63 rows, 63 unique IDs |
+||| `CREATE TABLE` / `REFERENCES` / `CREATE INDEX` in the SQL | ✅ 32 / 51 / 25 |
 | Mermaid diagrams parse | ✅ 5 of 5 |
 | `scripts/verify_docs.py` (added 2026-10-03, runs in CI) | ✅ all checks pass — counts, id contiguity, dangling refs, story arithmetic, links, anchors, naming, stale figures, placeholders, secrets, self-reported line counts |
 | `scripts/verify_bias_set.py` (added 2026-10-03, runs in CI) | ✅ **both versions** internally consistent — v1.0.0 (76 cases) and v1.0.1 (103), including the manifest SHA guard |
@@ -2774,7 +2881,7 @@ assumptions remain open and each has a test date rather than a hopeful tone:
 `ASM-001` (52 requirements is the right MVP scope — test at the end of Phase 1; if it
 fails, cut `REQ-FR-050` first), `ASM-002` (double shifts — test at the end of Phase 2; if
 it fails, re-scope rather than compress), and `ASM-003` (AI assistance raises capacity for
-217 points — test at the end of Phase 1, 41 points in 3 weeks). A specification that
+260 points — test at the end of Phase 1, 41 points in 3 weeks). A specification that
 claimed to have no open assumptions would be less useful than one that names them and says
 when each will be found out.
 
@@ -2811,7 +2918,7 @@ files — so "start development" is no longer a documentation exercise.
 
 | Group | Items | Blocks the build? |
 |---|---|---|
-| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); the 24 tables are DDL but no Django model exists yet; dark mode, Bengali UI, score-band calibration | No — these *are* Phases 1–3 |
+| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); the 32 tables are DDL but no Django model exists yet; dark mode, Bengali UI, score-band calibration, coaching evaluation set thresholds [Planned] | No — these *are* Phases 1–3 |
 
 > **Does "no Django model yet" block *starting* development? No — it blocks the app *running*.**
 > Writing code can begin immediately: `manage.py`, the four settings modules, the app packages,

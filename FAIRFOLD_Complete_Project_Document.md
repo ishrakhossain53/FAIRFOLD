@@ -431,7 +431,7 @@ Candidate submits resume PDF
 | **Resume/JD parsing** (extract skills, experience, education from text) | `openai/gpt-oss-20b:free` or `cohere/north-mini-code:free` | spaCy NER (offline, no API cost) | Structured extraction — needs good instruction-following |
 | **Candidate-job matching** (semantic similarity score 0-100) | `google/gemma-4-26b-a4b-it:free` | pgvector cosine similarity (no AI cost — pure vector math) | First try pgvector; use LLM for nuanced qualitative match explanation |
 | **Interview question generation** (structured Q pack per role) | `openrouter/free` router | Predefined question templates by role category | Template fallback ensures zero-cost when free tier is exhausted |
-| **Interview coaching feedback** (analyze candidate's practice answers) | `cohere/north-mini-code:free` | Rule-based feedback on keyword coverage | Coaching is a candidate-facing feature — keep it free |
+| **Interview coaching feedback** (analyze candidate's practice answers) | `cohere/north-mini-code:free` | Rule-based STAR rubric feedback | Coaching is a candidate-facing feature — keep it free |
 | **Journey Mapping — skill extraction** (find hidden skills in project descriptions) | `google/gemma-4-26b-a4b-it:free` | Pattern-based skill dictionary lookup | LLM catches non-obvious skills; dictionary catches obvious ones for free |
 | **Journey Mapping — career story generation** (dynamic narrative per job application) | `openrouter/free` router | Template-based narrative using extracted skills | Template fallback for high-volume scenarios |
 | **Bias audit** (check ranking rationale for biased language) | `cohere/north-mini-code:free` | Deterministic keyword check (flag terms like "culture fit" without evidence) | Bias audit is a compliance feature — runs offline/deterministic where possible |
@@ -565,7 +565,7 @@ Dashboard:
   │   ├─ Learning Trajectory (formal + informal skills applied)
   │   └─ Dynamic Storytelling (rewrites narrative per target job)
   ├─ Skill Assessments (take assessments, earn badges/certifications)
-  ├─ AI Interview Coaching (practice questions, get feedback)
+  ├─ AI Interview Coaching (text-only practice answers → STAR rubric feedback; no voice/facial analysis; spoken practice in Phase 5)
   └─ Applied Jobs (status tracker with AI rationale visible)
     │
     ▼
@@ -619,7 +619,7 @@ Screening Dashboard:
 Interview Stage:
   ├─ AI-generated structured interview pack (questions + scoring rubric)
   ├─ Interviewers score via structured form (reduces inconsistency)
-  └─ Candidate gets real-time coaching before interview
+  └─ Candidate gets real-time coaching before interview (Phase 5 WebSockets; Phase 3 is text-only)
     │
     ▼
 Offer Stage:
@@ -876,11 +876,16 @@ class AuditLogEntry(models.Model):
 
 - [ ] Skill assessment system: employer-created or platform-created skill tests
 - [ ] Assessment taking UI + auto-scoring (for technical: code sandbox via Piston API or similar)
-- [ ] AI interview coaching: candidate pastes practice answer → AI gives feedback on structure, content, missing points
+- [ ] **Text-only** AI interview coaching: candidate types practice answer → STAR rubric feedback (structure, content, missing points, cited candidate words); spoken practice deferred to Phase 5
+- [ ] Employer scorecard criteria (optional per job, criteria only not questions), versioned rubric shown to candidate
+- [ ] Coaching isolation: practice answers private to candidate, never enter match_score/ranking; practice answers PII-stripped (D4)
+- [ ] Curated resource links (no built content): Resource entity with curation owner + 90-day review, link-health check, free/low-bandwidth/Bangla-first curation criteria
+- [ ] Assessment gap → recommended resources → cooldown → retake → Verified badge loop
 - [ ] Journey Mapping MVP: parse resume → extract timeline events → render interactive timeline
 - [ ] Journey Mapping: skill evolution chart (which skills acquired when)
 - [ ] Journey Mapping: dynamic storytelling — generate a narrative summary optimized for a specific target job
 - [ ] Candidate dashboard: match scores for all applied jobs, visible AI rationale
+- [ ] Coaching evaluation set in `tests/coaching/` (rubric adherence, citation, no invented facts, no fluency bias); candidate helpfulness rating; thresholds [Planned]
 
 **Deliverable:** Candidate uploads resume, sees their career timeline, takes a Python skill assessment, gets AI coaching on "Tell me about yourself" for a specific job they applied to.
 
@@ -1016,7 +1021,7 @@ sphinx >= 8.2  # documentation generation
 
 - **Week 1-3:** Phase 1 — working Django app with job posting + application (no AI)
 - **Week 4-6:** Phase 2 — AI screening with OpenRouter free tier
-- **Week 7-9:** Phase 3 — candidate AI features (assessments, coaching, journey mapping MVP)
+- **Week 7-9:** Phase 3 — candidate AI features (assessments, text-only coaching with STAR rubric, resource links, journey mapping MVP)
 - **Week 10-12:** Phase 4 — security hardening, production deployment
 - **Week 13+:** Phase 5 — advanced features, billing, mobile
 
@@ -1697,6 +1702,62 @@ class DataDeletionRequest(models.Model):
     processed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, default="pending")  # pending, processing, completed
 ```
+```python
+# coaching/models.py — Interview practice, feedback & training resources (I1–I5, added 2026-10-05)
+class PracticeQuestion(models.Model):
+    """I1: Separate practice bank — no access to live employer assessment/interview content (I3)."""
+    job = models.ForeignKey("matching.Job", on_delete=models.CASCADE, null=True, blank=True, related_name="practice_questions")
+    skill = models.ForeignKey("matching.Skill", on_delete=models.SET_NULL, null=True)
+    practice_source = models.CharField(max_length=20, choices=[("practice_bank", "Practice Bank"), ("generated", "Generated")])
+    question_text = models.TextField()
+    star_criteria = models.JSONField(default=dict)  # {criterion: description}
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class InterviewCoachingSession(models.Model):
+    """I1: text-only practice answer. I2: STAR rubric feedback. I3: private to candidate, no FK to applications."""
+    candidate = models.ForeignKey(CandidateProfile, on_delete=models.CASCADE, related_name="coaching_sessions")
+    practice_question = models.ForeignKey(PracticeQuestion, on_delete=models.SET_NULL, null=True)
+    job = models.ForeignKey("matching.Job", on_delete=models.SET_NULL, null=True, related_name="+")  # context only
+    answer_text = models.TextField()       # PII-stripped before AI call (D4)
+    answer_stripped = models.TextField()   # stored anonymized copy
+    star_rubric_version = models.CharField(max_length=30)
+    feedback = models.JSONField(default=dict)  # {structure, content, missing_points, suggested_rewrite}
+    ai_model_used = models.CharField(max_length=100, blank=True)
+    helpfulness_rating = models.IntegerField(null=True, blank=True)  # 1-5 (I5)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class ScorecardCriteria(models.Model):
+    """I2: employer-published scorecard criteria per job (criteria only, never questions)."""
+    job = models.ForeignKey("matching.Job", on_delete=models.CASCADE, related_name="scorecard_criteria")
+    criterion = models.CharField(max_length=200)
+    weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.0)
+    description = models.TextField(blank=True)
+    rubric_version = models.CharField(max_length=30)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Resource(models.Model):
+    """I4: curated external resource links — no built content."""
+    title = models.CharField(max_length=300)
+    url = models.URLField(max_length=500)
+    skill = models.ForeignKey("matching.Skill", on_delete=models.SET_NULL, null=True)
+    cost = models.CharField(max_length=10, choices=[("free", "Free"), ("paid", "Paid")])
+    language = models.CharField(max_length=10, default="en")  # ISO 639-1
+    level = models.CharField(max_length=20, choices=[("beginner", "Beginner"), ("intermediate", "Intermediate"), ("advanced", "Advanced")], blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, default="active", choices=[("active", "Active"), ("broken", "Broken"), ("archived", "Archived")])
+    curator = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="curated_resources")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class AttemptResourceRecommendation(models.Model):
+    """I4: links an assessment attempt to recommended resources (assessment gap → resource → retake loop)."""
+    attempt = models.ForeignKey(AssessmentAttempt, on_delete=models.CASCADE, related_name="resource_recommendations")
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name="recommendations")
+    recommended_at = models.DateTimeField(auto_now_add=True)
+    accepted = models.BooleanField(default=False)
+```
 ```
 
 **Updated Entity Relationship Diagram:**
@@ -1707,13 +1768,15 @@ Users (1) ───(1)───< (N) CandidateProfile/EmployerProfile
    │                  ├──(1)───< (N) CandidateSkill ───(N)──> Skills
    │                  ├──(1)───< (N) CandidateResume
    │                  ├──(1)───< (N) Certification
-   │                  ├──(1)───< (N) CandidateSkill ───(N)──> Skills
    │                  ├──(1)───< (N) AssessmentAttempt ───(N)──> Assessments
+   │                  ├──(1)───< (N) AttemptResourceRecommendation ───(N)──> Resources (I4)
+   │                  ├──(1)───< (N) InterviewCoachingSession (I1-I3)
    │                  └──(1)───< (N) Applications ───(N)──> Jobs
    │                            │                       │
    │                            ├──(1)───< (N) InterviewFeedback
    │                            ├──(1)───< (N) Messages
    │                            └──(1)───< (N) Interviews ───(N)──> InterviewPacks ───(N)──> InterviewQuestions
+   │                            ├──(1)───< (N) ScorecardCriteria (I2)
    │
 EmployerProfile ───(1)───< (1) Subscription
                   ├──(1)───< (N) Jobs
@@ -1723,6 +1786,10 @@ EmployerProfile ───(1)───< (1) Subscription
 AuditLogEntry: actor_id → Users.id, resource_id → any entity
 Notification: recipient_id → Users.id
 DataExportRequest / DataDeletionRequest: user_id → Users.id
+PracticeQuestion: job_id → Jobs.id (optional), skill_id → Skills.id
+InterviewCoachingSession: candidate_id → CandidateProfile.id (no FK to applications)
+Resource: skill_id → Skills.id, curator_id → Users.id
+AttemptResourceRecommendation: attempt_id → AssessmentAttempt.id, resource_id → Resource.id
 ```
 
 ### C.12 API Endpoint Specification (supplements §7.3)
@@ -1946,6 +2013,25 @@ POST   /api/v1/admin/announcements/{id}/cancel/       # Cancel a scheduled/draft
 > subaddress from verification and password-reset mail, so a burst cannot rate-limit the
 > domain that account access depends on.
 
+#### Interview Coaching & Training Resource Endpoints (REQ-FR-058–063)
+
+```http
+POST   /api/v1/practice-questions/                 # List/create practice questions (admin)
+GET    /api/v1/practice-questions/                 # List available practice questions
+POST   /api/v1/coaching/sessions/                   # Submit practice answer → STAR rubric feedback
+GET    /api/v1/coaching/sessions/                   # List candidate's own sessions (private, I3)
+GET    /api/v1/jobs/{id}/scorecard-criteria/        # List employer-published scorecard criteria
+POST  /api/v1/jobs/{id}/scorecard-criteria/        # Publish/update scorecard criteria (I2)
+GET    /api/v1/resources/?skill={id}               # List curated resources for a skill (I4)
+POST  /api/v1/assessments/{id}/recommend-resources/  # Recommend resources for a failed attempt (I4)
+GET    /api/v1/assessments/{id}/retake-eligible/     # Check if cooldown has passed for retake (I4)
+POST  /api/v1/coaching/rate/                       # Submit candidate helpfulness rating (1-5, I5)
+```
+
+> Coaching sessions have NO foreign key to `applications` or `jobs` in the ranking path (I3).
+> The `job_id` on `interview_coaching_sessions` is context only and is excluded from any
+> query that touches `rank_applications()` or `match_score`.
+
 #### Administrative Endpoints
 ```http
 GET    /api/v1/admin/dashboard/                  # Admin dashboard stats
@@ -2005,8 +2091,8 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 |---|---|---|---|
 | **Free** | $0/mo | Basic profile, resume upload, apply to jobs, basic match scores, interview coaching (5 sessions/mo), journey mapping (basic) | 5 applications/day, 5 AI interactions/day |
 | **Essential** | $5/mo | All Free features + unlimited applications, 20 AI coaching sessions/mo, advanced journey mapping (skill evolution charts), priority in employer search | 50 AI interactions/day |
-| **Professional** | $20/mo | All Essential + unlimited AI coaching, career story generation per application, skill assessments (10/mo), interview pack builder, export journey as PDF | 200 AI interactions/day |
-| **Premium** | $50/mo | All Professional + personalized AI mentor, market salary insights, 50 skill assessments/mo, featured in employer search, custom resume templates | Unlimited |
+| **Professional** | $20/mo | All Essential + unlimited AI coaching (STAR rubric feedback), career story generation per application, skill assessments (10/mo), interview pack builder, export journey as PDF | 200 AI interactions/day |
+| **Premium** | $50/mo | All Professional + curated training resources, market salary insights, 50 skill assessments/mo, featured in employer search, custom resume templates | Unlimited |
 
 **Employer Tiers:**
 
@@ -2028,6 +2114,14 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 > `ai_quota_remaining INTEGER DEFAULT 50`. The schema was the tiebreaker: a default row
 > that no pricing table described is a plan nobody can explain to a customer. The Free
 > row is added here to match.
+
+> **Added 2026-10-05 (D2 — local payments).** All prices above are in **USD and are
+> reference only — unvalidated**. The MVP launches with **local payment providers
+> (bKash, SSLCommurz) in BDT**. BDT prices are **not yet set** (`[Planned: set after
+> validation]`) — no prices are invented. Stripe is deferred to **Phase 5**, conditional
+> on a foreign-entity setup. Whether Bangladesh-based businesses can obtain Stripe
+> processing is marked "To verify" (RSK-014). The `payments` table in Arch Doc §5.1
+> supports this via the `PaymentProvider` abstraction (REQ-FR-056).
 >
 > Note also that `prd.md` §15.2 described the free plan's limit as "**Trial**", but the
 > `subscriptions` table has **no expiry column**, so the schema does not support a trial
@@ -2059,12 +2153,18 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 - [ ] Audit entries logged for every AI scoring action
 
 **Phase 3 Acceptance Criteria:**
-- [ ] Candidate sees interactive career timeline from parsed resume
-- [ ] Skill evolution chart renders with Chart.js
-- [ ] Candidate can take a skill assessment and get auto-scored results
-- [ ] AI interview coaching provides structured feedback on practice answers
-- [ ] Dynamic storytelling generates a narrative optimized for a specific target job
-- [ ] Candidate sees match scores for all applied jobs
+|- [ ] Candidate sees interactive career timeline from parsed resume
+|- [ ] Skill evolution chart renders with Chart.js
+|- [ ] Candidate can take a skill assessment and get auto-scored results
+|- [ ] AI interview coaching provides STAR rubric feedback on text-only practice answers (no voice/facial analysis; spoken practice in Phase 5)
+|- [ ] Coaching feedback cites candidate's own words for each claim (evidence-cited)
+|- [ ] Employer scorecard criteria optional per job (criteria only, never questions); versioned rubric shown to candidate
+|- [ ] Practice answers private to candidate; coaching data never enters match_score/ranking
+|- [ ] Curated resource links shown for skill gaps; Resource entity with curation owner + 90-day review; link-health check
+|- [ ] Assessment gap → resource recommendation → cooldown → retake → Verified badge loop works
+|- [ ] Coaching evaluation set in `tests/coaching/` covers rubric adherence, citation, no invented facts, no fluency bias
+|- [ ] Dynamic storytelling generates a narrative optimized for a specific target job
+|- [ ] Candidate sees match scores for all applied jobs
 
 **Phase 4 Acceptance Criteria:**
 - [ ] MFA (TOTP) works for employer admin accounts
