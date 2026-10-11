@@ -8,7 +8,7 @@ Run from the repository root:
 Exits non-zero if any check fails, so it can be wired into CI. Every check is a
 fact about the documents that a reader could otherwise be misled by -- counts,
 identifiers, links -- never a judgement about wording. A specification that
-reports "217 story points" and "24 tables" in six places has to mean one thing by
+reports "260 story points" and "32 tables" in six places has to mean one thing by
 those numbers, and this is what keeps it meaning one thing.
 """
 
@@ -90,9 +90,9 @@ def check_counts(r: Result, docs: dict[str, str]) -> dict[str, int]:
         "no duplicate CREATE TABLE",
         f"{len(sql_tables)} tables",
     )
-    r.check(len(sql_tables) == 24, "24 CREATE TABLE statements", str(len(sql_tables)))
-    r.check(len(sql_fks) == 35, "35 foreign keys", str(len(sql_fks)))
-    r.check(len(sql_idx) == 13, "13 CREATE INDEX statements", str(len(sql_idx)))
+    r.check(len(sql_tables) == 32, "32 CREATE TABLE statements", str(len(sql_tables)))
+    r.check(len(sql_fks) == 51, "51 foreign keys", str(len(sql_fks)))
+    r.check(len(sql_idx) == 25, "25 CREATE INDEX statements", str(len(sql_idx)))
 
     counts = {
         "tables": len(sql_tables),
@@ -117,13 +117,13 @@ def check_counts(r: Result, docs: dict[str, str]) -> dict[str, int]:
             if not re.search(r"foreign\s+keys?|indexes", line, re.I):
                 continue  # not a schema sentence
             for m in re.finditer(r"(\d+)\s+(?:database\s+)?tables\b", line, re.I):
-                if int(m.group(1)) != 24:
+                if int(m.group(1)) != 32:
                     stale.append(f"{name}:{line_no} says {m.group(1)} tables")
             for m in re.finditer(r"(\d+)\s+foreign\s+keys?\b", line, re.I):
-                if int(m.group(1)) != 35:
+                if int(m.group(1)) != 51:
                     stale.append(f"{name}:{line_no} says {m.group(1)} foreign keys")
             for m in re.finditer(r"(\d+)\s+indexes\b", line, re.I):
-                if int(m.group(1)) != 13:
+                if int(m.group(1)) != 25:
                     stale.append(f"{name}:{line_no} says {m.group(1)} indexes")
     r.check(
         not stale,
@@ -135,7 +135,7 @@ def check_counts(r: Result, docs: dict[str, str]) -> dict[str, int]:
 
 # ------------------------------------------------- functional requirements
 
-FR_ROW = re.compile(r"^\|\s*(REQ-FR-\d{3})\s*\|", re.M)
+FR_ROW = re.compile(r"^\|+\s*(REQ-FR-\d{3})\s*\|", re.M)
 
 
 def check_frs(r: Result, docs: dict[str, str]) -> list[str]:
@@ -143,16 +143,16 @@ def check_frs(r: Result, docs: dict[str, str]) -> list[str]:
 
     arch = docs[ARCH]
     fr_rows = FR_ROW.findall(arch)
-    r.check(len(fr_rows) == 52, "52 FR rows in Arch Doc §4.1", str(len(fr_rows)))
+    r.check(len(fr_rows) == 63, "63 FR rows in Arch Doc §4.1", str(len(fr_rows)))
 
     dupes = [k for k, v in Counter(fr_rows).items() if v > 1]
     r.check(not dupes, "no duplicate FR rows", ", ".join(dupes) or "none")
 
     ids = sorted(set(fr_rows))
-    expected = [f"REQ-FR-{i:03d}" for i in range(1, 53)]
+    expected = [f"REQ-FR-{i:03d}" for i in range(1, 64)]
     r.check(
         ids == expected,
-        "FR ids are contiguous 001-052",
+        "FR ids are contiguous 001-063",
         (
             "missing " + ", ".join(set(expected) - set(ids))
             if set(expected) - set(ids)
@@ -232,7 +232,7 @@ def check_nfrs(r: Result, docs: dict[str, str]) -> None:
 
 # ------------------------------------------------------------------ stories
 
-US_ROW = re.compile(r"^\|\s*(US-\d+)\s*\|(.+)$", re.M)
+US_ROW = re.compile(r"^\|+\s*(US-\d+)\s*\|(.+)$", re.M)
 
 
 def check_stories(r: Result, docs: dict[str, str]) -> dict[str, int]:
@@ -244,7 +244,7 @@ def check_stories(r: Result, docs: dict[str, str]) -> dict[str, int]:
     # fewer pipes are not stories (US ids also appear in prose lines).
     stories = []
     for line in feas.splitlines():
-        m = re.match(r"^\|\s*(US-\d+)\s*\|", line)
+        m = re.match(r"^\|+\s*(US-\d+)\s*\|", line)
         if not m:
             continue
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -252,7 +252,7 @@ def check_stories(r: Result, docs: dict[str, str]) -> dict[str, int]:
             continue
         stories.append((m.group(1), cells))
 
-    r.check(len(stories) == 52, "52 story rows", str(len(stories)))
+    r.check(len(stories) == 63, "63 story rows", str(len(stories)))
 
     ids = [s[0] for s in stories]
     r.check(len(set(ids)) == len(ids), "no duplicate story ids")
@@ -274,9 +274,9 @@ def check_stories(r: Result, docs: dict[str, str]) -> dict[str, int]:
     r.check(
         not bad, "every story has an integer point value", ", ".join(bad) or "all parse"
     )
-    r.check(total == 217, "stories sum to 217 points", str(total))
-    r.check(priorities.get("Must") == 30, "30 Must", str(priorities.get("Must")))
-    r.check(priorities.get("Should") == 17, "17 Should", str(priorities.get("Should")))
+    r.check(total == 260, "stories sum to 260 points", str(total))
+    r.check(priorities.get("Must") == 37, "37 Must", str(priorities.get("Must")))
+    r.check(priorities.get("Should") == 21, "21 Should", str(priorities.get("Should")))
     r.check(priorities.get("Could") == 5, "5 Could", str(priorities.get("Could")))
 
     # Every FR must have at least one story.
@@ -284,12 +284,12 @@ def check_stories(r: Result, docs: dict[str, str]) -> dict[str, int]:
     for _, cells in stories:
         referenced.update(re.findall(r"FR-(\d{3})", cells[2]))
     uncovered = [
-        f"REQ-FR-{i:03d}" for i in range(1, 53) if f"{i:03d}" not in referenced
+        f"REQ-FR-{i:03d}" for i in range(1, 64) if f"{i:03d}" not in referenced
     ]
     r.check(
         not uncovered,
         "every FR has at least one story",
-        ", ".join(uncovered) or "52/52",
+        ", ".join(uncovered) or "63/63",
     )
 
     return {"stories": len(stories), "points": total}
@@ -421,11 +421,11 @@ def check_prose_counts(r: Result, docs: dict[str, str]) -> None:
     section("8. Prose figures that must agree")
 
     pairs = [
-        (r"\b52 (?:functional requirements|FRs)\b", "52 FRs"),
-        (r"\b217 (?:story )?points\b", "217 points"),
-        (r"\b24 tables\b", "24 tables"),
-        (r"\b35 foreign keys\b", "35 FKs"),
-        (r"\b13 (?:indexes|index statements)\b", "13 indexes"),
+        (r"\b63 (?:functional requirements|FRs)\b", "63 FRs"),
+        (r"\b260 (?:story )?points\b", "260 points"),
+        (r"\b32 tables\b", "32 tables"),
+        (r"\b51 foreign keys\b", "51 FKs"),
+        (r"\b25 (?:indexes|index statements)\b", "25 indexes"),
     ]
     for pattern, label in pairs:
         found = sum(len(re.findall(pattern, t)) for t in docs.values())
@@ -443,6 +443,20 @@ def check_prose_counts(r: Result, docs: dict[str, str]) -> None:
             r"2026-12-25.*(?:milestone|Phase 4 ends)|Phase 4 ends.*2026-12-25",
             "Phase 4 ending 25 December (moved to 24th)",
         ),
+        (r"\b52 (?:functional requirements|FRs)\b", "52 FRs (superseded by 63)"),
+        (r"\b24 tables\b", "24 tables (superseded by 32)"),
+        (r"\b35 foreign keys\b", "35 foreign keys (superseded by 44)"),
+        (r"\b13 (?:indexes|index statements)\b", "13 indexes (superseded by 23)"),
+        (r"\b217 (?:story )?points\b", "217 points (superseded by 260)"),
+        (r"\b52 stories?\b", "52 stories (superseded by 63)"),
+        (r"\b57 (?:functional requirements|FRs)\b", "57 FRs (superseded by 63)"),
+        (r"\b233 (?:story )?points\b", "233 points (superseded by 260)"),
+        (r"\b27 tables\b", "27 tables (superseded by 32)"),
+        (r"\b39 foreign keys\b", "39 FKs (superseded by 51)"),
+        (r"\b17 (?:indexes|index statements)\b", "17 indexes (superseded by 25)"),
+        (r"\b34 Must\b", "34 Must (superseded by 37)"),
+        (r"\b18 Should\b", "18 Should (superseded by 21)"),
+        (r"\b6 Could\b", "6 Could (superseded by 5)"),
     ]
     # A line that reports or corrects a stale figure is the record of the fix, not a
     # live claim. This list is the set of words that mark such a line -- "had missed"

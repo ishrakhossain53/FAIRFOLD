@@ -4,7 +4,7 @@ A running log of what has been done on this repository and what is still outstan
 Kept by hand; updated whenever a chunk of work lands.
 
 - **Repository:** `github.com/ishrakhossain53/FAIRFOLD` (private)
-- **Last updated:** 2026-10-04
+- **Last updated:** 2026-10-05
 - **Current branch:** `ishrakhossain53-patch-1`
 - **Project state:** documentation phase. No application code has been written yet.
 
@@ -38,13 +38,13 @@ blocked.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `FAIRFOLD_Complete_Project_Document.md` | 2309 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2369 | **Canonical** specification — ADRs, 52 functional requirements, 50 non-functional requirements, 24-table SQL schema, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1239 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `FAIRFOLD_Complete_Project_Document.md` | 2409 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2563 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
+| `prd.md` | 1262 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | `design.md` | 2454 | Supplement — UI design system, 62 page specifications, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2879 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+| `FAIRFOLD_Feasibility_and_Design.md` | 2986 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
-|| `.env.example` | 158 | Environment variables, all placeholders |
+|| `.env.example` | 157 | Environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -1512,6 +1512,30 @@ either secret is absent, rather than running the login step and failing the job.
 **To enable pushes:** add `DOCKERHUB_USER` and `DOCKERHUB_TOKEN` as repository
 secrets (Settings → Secrets and variables → Actions), then the build-and-push
 step will run automatically.
+
+---
+
+### 2.36 Interview preparation & training documentation (I1–I5) ✅
+
+Decisions I1–I5 (text-only practice, STAR rubric grading with cited feedback, coaching
+data isolation, curated resource links, coaching evaluation set) are now fully documented
+across the specification:
+
+- **5 new FRs** (`REQ-FR-058` through `REQ-FR-063`) and **6 new user stories** (`US-071`
+  through `US-076`) added to the Arch Doc §4.1 and Feasibility Doc §2.4.
+- **5 new tables** in Arch Doc §5.1: `practice_questions`, `interview_coaching_sessions`,
+  `scorecard_criteria`, `resources`, `attempt_resource_recommendations`.
+- Schema counts are now **32 tables, 51 foreign keys, 25 indexes** (was 27 / 39 / 17).
+- **63 functional requirements** in the Arch Doc (was 57).
+- **63 user stories / 260 story points**, MoSCoW **37 Must / 21 Should / 5 Could**.
+- Coaching isolation is enforced structurally: `interview_coaching_sessions` has **no FK**
+  to `applications` or `jobs`; coaching scores never enter `match_score`, ranking, or
+  shortlisting (I3). Acceptance test asserts no coaching table is JOINed to
+  `rank_applications()`.
+- Resources are reference-only links, never built content; link-health cron, named
+  curation owner, 90-day review cadence, and the gap→resource→retake→Verified badge loop
+  are all specified (I4).
+- `scripts/verify_docs.py` updated: all **63 checks pass**.
 
 ---
 

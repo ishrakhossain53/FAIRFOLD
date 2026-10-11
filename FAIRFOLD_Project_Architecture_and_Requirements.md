@@ -1,6 +1,6 @@
 # FAIRFOLD — Detailed Architecture & Requirements Specification
 
-**Version:** 4.1 (52 FRs · override visibility · employer-required assessments · versioned hard filters)  
+**Version:** 4.3 (63 FRs · employer-first · local payments · paid-discovery-only · proxy stripping · per-employer candidate alias · light proctoring · text-only coaching · STAR rubric · curated resources)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
 **Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad  
@@ -40,10 +40,16 @@
 This document defines the complete technical architecture, functional requirements (FRs), and non-functional requirements (NFRs) for the **FairFold** platform. It serves as the implementation contract between the design team and engineering.
 
 ### 1.1 Out of Scope
-- Mobile app native development (Phase 5; PWA is the Phase 4 fallback)
-- Real-time video interview recording (Phase 5; Phase 3 provides async coaching only)
+
+From the Arch Doc §1.1 and Feasibility Doc §1.5:
+
+- Native mobile apps (Phase 5; PWA is the Phase 4 fallback)
+- Real-time video interview recording or hosting (Phase 3 offers async coaching only)
+- Spoken interview practice (speech-to-text transcript only if built in Phase 5; no voice, accent, facial or emotion analysis — see I1, prd.md §2.3)
 - Third-party profile scraping (LinkedIn API integration, etc.) — explicitly excluded per §3.2
 - On-premises deployment for customers (Phase 5 "Enterprise" tier feature)
+- Built training content / courses / AI mentor / learning paths (I4 — only curated external links; I5 — no "AI mentor" tier claims; see prd.md §15.1)
+- Full automation hiring decisions (AI is advisory only — candidates see match scores and coaching, but a human always decides)
 
 ### 1.2 Document Conventions
 - **REQ-FR-xxx**: Functional requirement
@@ -220,17 +226,23 @@ This document defines the complete technical architecture, functional requiremen
 **Flow 3: PII Stripping Pipeline (Privacy Layer)**
 
 ```
-Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII Detection (spaCy NER + regex)
+Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detection (spaCy NER + regex + keyword pass)
                        │
                        ▼
                 Replace with placeholders:
                 "John Smith" → [CANDIDATE_NAME]
                 "john@email.com" → [CANDIDATE_EMAIL]
                 "Dhaka, Bangladesh" → [CANDIDATE_LOCATION]
+                "BRAC University" → [INSTITUTION]  (D4: expanded proxy stripping)
+                "Robi Technologies Ltd." → [EMPLOYER]  (D4: proxy stripping)
+                "28 years old" / "born 1997" → "X years experience"  (D4: age-date stripping)
+                "![photo]" → [PHOTO]  (D4: photo stripping)
+                "https://linkedin.com/in/…" → [URL]  (D4: URL stripping)
                        │
                        ▼
                 Store anonymized text in DB
-                Original PII stays in EncryptedCharField
+                Original PII stays in EncryptedCharField, encrypted at rest
+                PII stripping accuracy tracked per-proxy (RSK-013)
                 Audit log entry: PII stripped + model used
 ```
 
@@ -421,6 +433,17 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 |---|---|---|---|
 | REQ-FR-051 | Employer-Required Skill Assessment | High | **Given** an active job; **When** the employer attaches one or more assessments to that job as a required step; **Then** a `job_assessment_requirements` row is created per assessment with an optional `min_score` pass mark (§5.1); **And** an applicant who has not completed a required assessment has `assessment_gate_status = 'pending'` and **cannot be shortlisted on their match score alone** — the Shortlist action is disabled and explains why; **And** `assessment_gate_status` becomes `passed` or `failed` once a completed `AssessmentAttempt` is matched on candidate + assessment, and it is shown on the application row; **And** a job with no required assessment sets the gate to `not_required` for all its applicants, so existing behaviour is unchanged; **And** removing a required assessment never deletes existing attempts or scores; **And** every change to a job's required assessments writes an audit entry. **Phase 3** — this is the requirement that answers pain point P2 ("no skills check before the interview"), which the candidate-initiated assessments of REQ-FR-019/020 did not |
 | REQ-FR-052 | Override Visibility and Record | High | **Given** a ranked application; **When** a user shortlists a candidate ranked **below** the employer's cut-off, or rejects one ranked **above** it; **Then** a written reason is **required** before the action completes — the dialog cannot be dismissed with an empty reason; **And** the application records `decision_override = TRUE`, `decision_override_reason` and `decided_by`; **And** an `AuditLogEntry` is written with `resource_type = 'ai_decision'`, so it is retained with the application record (2 years, 5 years if hired) rather than rotating at 90 days; **And** the employer can override with the reason empty only where the job has no cut-off configured, and that exception is recorded in the audit entry; **And** the override is surfaced on the application row, in the audit log, and as the override-rate chart in REQ-FR-035; **And** overrides are **not** blocked — the employer remains the decision-maker (`prd.md` §8.1). Requiring a reason makes an informal decision *visible and countable*, it does not prevent it. **Phase 2–3** |
+| REQ-FR-053 | Paid discovery only — no ranking influence | High | **Given** a candidate on a paid tier or with a "Promoted" placement; **When** the employer views the candidate list or search results; **Then** the candidate's paid tier, "Promoted" badge, or visibility status is **not** an input to `match_score`, the rank function, any hard filter, or the shortlist ordering; **And** the only paid-discovery surfaces are the public job board and employer-initiated candidate search (discovery), never the screening pipeline of a specific job; **And** an acceptance test asserts `rank_applications()` takes no tier or visibility argument and the SQL `ORDER BY` contains no visibility column; **And** every change to a candidate's visibility tier or "Promoted" flag writes an `AuditLogEntry` with `resource_type = 'visibility'` (retained 90 days); **And** disparity analysis compares paid vs unpaid and verified vs unverified cohorts separately. *Added 2026-10-05 from D3 (paid visibility must never influence screening).* **Phase 2** |
+| REQ-FR-054 | Per-employer candidate alias | High | **Given** a candidate applying to a job; **When** the employer views any candidate-facing surface (list, detail, notifications, exports, audit views); **Then** the employer sees a stable random alias assigned to that candidate for that employer's organisation, not the internal candidate UUID; **And** the same employer sees the same alias across all its jobs; **And** different employer organisations see different aliases that cannot be linked to each other or to the candidate's UUID; **And** the alias is never derived from PII and is non-sequential; **And** GDPR deletion of a candidate deletes the alias mapping. *Added 2026-10-05 from D5 (per-employer candidate number).* **Phase 2** |
+| REQ-FR-055 | Assessment integrity events | Medium | **Given** a candidate taking a required or voluntary assessment; **When** the candidate switches tabs, backgrounds the browser window, or loses focus; **Then** an `AttemptIntegrityEvent` is recorded with timestamp, event type (tab_switch / window_blur / visibility_hidden), and count; **And** the events are shown to the employer as neutral "integrity signals" (count + timeline) alongside the attempt; **And** the signals never auto-fail an attempt, never change `assessment_gate_status`, and never enter `match_score`, ranking, filtering, or shortlisting — a human decides; **And** false-positive sources (assistive technology, mobile app switching, connection drops) are handled by a candidate explanation field on the attempt; **And** assessments use randomised question banks with per-attempt randomisation. *Added 2026-10-05 from D6 (light proctoring).* **Phase 3** |
+| REQ-FR-056 | Local payment providers (bKash, SSLCommerz) | High | **Given** an employer on a paid plan; **When** the employer pays in BDT; **Then** the payment is processed through bKash or SSLCommerz (BDT), with a `PaymentProvider` abstraction mirroring `AIProvider` (Arch Doc §4.1, new FRs); **And** Stripe is used only in Phase 5, conditional on a foreign-entity setup; **And** webhook idempotency keys prevent duplicate subscription updates; **And** the current USD price tables in Complete Doc §C.14 and `prd.md` §15 are marked **reference only, unvalidated**; **And** BDT prices are marked `[Planned: set after validation]` — no prices are invented; **And** items that cannot be confirmed (gateway merchant requirements, Stripe availability for Bangladesh-based businesses) are marked "To verify" with an owner. *Added 2026-10-05 from D2 (local payments first).* **Phase 4** |
+|| REQ-FR-057 | Expanded PII and proxy stripping | High | **Given** a resume about to be processed by any AI pipeline or embedding; **When** PII stripping runs; **Then** it removes by default: candidate name, email, phone, location, institution names, employer names, photos, all links/URLs, and dates that reveal age (converted to durations or years of experience); **And** the following are kept: role titles, degree level and field, skills, and durations; **And** typed placeholders are used (`[INSTITUTION]`, `[EMPLOYER]`, `[CANDIDATE_NAME]`, `[DATE]`, `[URL]`); **And** there is no employer opt-out in the MVP — all employers see anonymised data; **And** the candidate-facing preview shows exactly which proxies were stripped; **And** reveal-at-shortlist restores all fields for that employer only, with an audit entry. *Added 2026-10-05 from D4 (expand proxy stripping beyond name/email/phone/location).* **Phase 2** |
+|| REQ-FR-058 | Text-only interview practice | Medium | **Given** a candidate preparing for an interview; **When** the candidate opens the practice page; **Then** the candidate types a free-text answer to a practice question (no audio/video input or recording); **And** practice questions are drawn from a separate practice bank or generated from job requirements via `practice_questions.practice_source = 'practice_bank'` vs `'generated'` (no access to live employer assessment or interview content); **And** practice answers are submitted as typed text only; **And** the AI coaching feedback is delivered as structured text (star, structure, content, missing points, suggested rewrite); **And** spoken/pronunciation feedback is **not** provided. *Added 2026-10-05 from I1 (text-only practice).* **Phase 3** |
+|| REQ-FR-059 | STAR rubric grading with cited feedback | Medium | **Given** a submitted practice answer; **When** coaching feedback is generated; **Then** the feedback is graded against a versioned generic STAR rubric plus the target job's requirements; **And** if the employer has opted in, the employer may publish scorecard criteria per job (criteria only, never questions) as an additional rubric layer; **And** the version of the rubric used is displayed to the candidate and stored with the feedback; **And** each feedback point cites the candidate's own words (quote) for the specific claim; **And** the feedback does not penalise language fluency or dialect unless the job explicitly requires it; **And** when AI is unavailable, feedback falls back to the existing rule-based offline mode (`REQ-NFR-015`); **And** the candidate is shown which rubric they are graded against. *Added 2026-10-05 from I2 (graded feedback).* **Phase 3** |
+|| REQ-FR-060 | Coaching practice isolation | Medium | **Given** a candidate using interview coaching; **When** the coaching session processes any data; **Then** practice answers are private to the candidate — employers never see them; **And** coaching scores, feedback text and activity timestamps never enter `match_score`, ranking, filtering or shortlisting — the `coaching_sessions` table has no FK to `applications` or `jobs`; **And** practice answers pass through the same PII and proxy stripping (`REQ-FR-057`) before any external AI call; **And** the AI model used for coaching is the same one used for screening (no separate coaching model with different bias properties); **And** an acceptance test asserts that no coaching table is JOINed to `applications` or to the `rank_applications()` function. *Added 2026-10-05 from I3 (isolation rules).* **Phase 3** |
+|| REQ-FR-061 | Training gap resources | Medium | **Given** a candidate whose assessment reveals a skill gap; **When** the candidate views the recommendation; **Then** the platform shows curated `Resource` rows (title, URL, linked skill, cost, language, level, reviewed_at, status) — no content is built by FairFold; **And** resources are curated for free, low-bandwidth and Bangla-language options where they exist; **And** each resource link is health-checked periodically (cron) and flagged if broken; **And** a named curation owner reviews resources every 90 days; **And** curating a resource does **not** affect ranking, match_score, or shortlisting — resources are reference only; **And** the loop is: assessment gap → recommended resources → cooldown period → candidate retakes assessment → Verified badge if passed; **And** no partner courses, referral or affiliate revenue is accepted in the MVP. *Added 2026-10-05 from I4 (training: curated resource links only).* **Phase 3** |
+|| REQ-FR-062 | Coaching evaluation set | Low | **Given** a coaching evaluation set (like `tests/bias/v1.0.x/`); **When** coaching feedback is evaluated; **Then** the set covers: (a) rubric adherence — feedback cites STAR criteria correctly; (b) citation of candidate text — each claim in the feedback matches a quote from the candidate's answer; (c) no invented facts — no statement not grounded in the candidate's answer or the rubric; (d) no fluency bias — dialect and language fluency are not penalised unless the job requires it. **And** a candidate helpfulness rating (1–5 stars) is collected per coaching session; **And** thresholds and metrics for the evaluation set are marked **[Planned: set before measurement]** and no results are claimed until measured; **And** `tests/coaching/` contains the evaluation set and test harness alongside `tests/bias/`. *Added 2026-10-05 from I5(a) (versioned coaching evaluation set).* **Phase 3** |
+|| REQ-FR-063 | Assessment → Resource → Retake loop | Low | **Given** a candidate whose assessment score is below the pass mark; **When** the candidate views the result; **Then** the platform shows recommended resources (via REQ-FR-061) for the missed skill areas; **And** a cooldown period (default 48 hours, configurable) gates re-attempts of the same assessment; **And** after the cooldown the candidate can retake the assessment; **And** a passing score on the retake sets `candidate_skills.verified = TRUE` and displays a Verified badge; **And** each assessment attempt stores `gap_resource_ids` (JSONB array of shown resource IDs) for traceability; **And** resources shown do not influence the assessment score. *Added 2026-10-05 from I4 (assessment gap → resource → retake loop).* **Phase 3** |
 
 #### Reviewable Hard Filters — implementation notes for G3
 
@@ -561,6 +584,8 @@ CREATE TABLE candidate_profiles (
     journey_timeline JSONB DEFAULT '[]',            -- structured career timeline
     match_scores    JSONB DEFAULT '{}',             -- {job_id: score} for quick lookups
     resume_embedding VECTOR(384),                   -- pgvector embedding
+    visibility_tier VARCHAR(20) DEFAULT 'standard', -- standard, promoted, verified. NEVER an input to match_score or ranking (REQ-FR-053)
+    is_promoted     BOOLEAN DEFAULT FALSE,          -- Promoted placement on public job board / employer search only (REQ-FR-053)
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
@@ -747,7 +772,9 @@ CREATE TABLE assessment_attempts (
     completed_at    TIMESTAMPTZ,
     score           DECIMAL(5,2),
     status          VARCHAR(20) DEFAULT 'in_progress',
-    answers         JSONB DEFAULT '[]'
+    answers         JSONB DEFAULT '[]',
+    disclosure_consent BOOLEAN DEFAULT FALSE,       -- D6: consent for light proctoring (tab-switch detection)
+    integrity_count INTEGER DEFAULT 0               -- D6: number of integrity events recorded
 );
 
 -- === EMPLOYER-REQUIRED ASSESSMENTS (Gap G1, REQ-FR-051) ===
@@ -900,6 +927,124 @@ CREATE INDEX idx_audit_created ON audit_log_entries(created_at);
 CREATE INDEX idx_audit_resource ON audit_log_entries(resource_type, resource_id);
 CREATE INDEX idx_audit_action ON audit_log_entries(action, created_at);
 
+-- === CANDIDATE ALIASES (D5: per-employer candidate number) ===
+-- One stable random alias per candidate per employer organisation. The same employer
+-- sees the same alias across all its jobs; different employers cannot link them.
+-- Never derived from PII; non-sequential; never the internal candidate UUID.
+CREATE TABLE candidate_aliases (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employer_org_id UUID NOT NULL REFERENCES employer_profiles(id) ON DELETE CASCADE,
+    candidate_id    UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    alias           VARCHAR(50) NOT NULL,            -- e.g. "C-7H2X9", random, non-sequential
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (employer_org_id, candidate_id),         -- same employer always sees the same alias
+    UNIQUE (employer_org_id, alias)                -- each alias unique per employer
+);
+CREATE INDEX idx_aliases_employer ON candidate_aliases(employer_org_id);
+
+-- === ASSESSMENT INTEGRITY EVENTS (D6: light proctoring) ===
+-- Tab-switch / window-visibility detection only. No video, audio, facial, voice or eye tracking.
+-- Signals are neutral; never auto-fail, never change assessment_gate_status, never affect ranking.
+CREATE TABLE assessment_integrity_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attempt_id      UUID NOT NULL REFERENCES assessment_attempts(id) ON DELETE CASCADE,
+    event_type      VARCHAR(30) NOT NULL,            -- tab_switch, window_blur, visibility_hidden
+    timestamp       TIMESTAMPTZ DEFAULT NOW(),
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_integrity_attempt ON assessment_integrity_events(attempt_id);
+
+-- === PAYMENTS (D2: local gateways first — bKash, SSLCommerz, BDT) ===
+CREATE TABLE payments (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employer_id     UUID NOT NULL REFERENCES employer_profiles(id) ON DELETE CASCADE,
+    provider        VARCHAR(30) NOT NULL,            -- bkash, sslcommerz, stripe
+    amount          DECIMAL(10,2) NOT NULL,
+    currency        CHAR(3) NOT NULL DEFAULT 'BDT',  -- BDT for local; USD only for Stripe Phase 5
+    transaction_id  VARCHAR(200),                  -- provider's reference, for idempotency
+    idempotency_key UUID UNIQUE,                    -- prevents duplicate processing on webhook retry
+    status          VARCHAR(20) NOT NULL DEFAULT 'pending',  -- pending, completed, failed, refunded
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    completed_at    TIMESTAMPTZ
+);
+CREATE INDEX idx_payments_employer ON payments(employer_id);
+CREATE INDEX idx_payments_transaction ON payments(provider, transaction_id);
+
+-- === INTERVIEW COACHING, PRACTICE & TRAINING RESOURCES (I1-I5, added 2026-10-05) ===
+-- I1: Text-only practice. No audio/video input or recording.
+-- I2: STAR rubric feedback with employer scorecard criteria.
+-- I3: Isolation — practice answers private to candidate; no FK to applications or jobs in ranking paths.
+-- I4: Curated resource links (no built content).
+
+CREATE TABLE practice_questions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id          UUID REFERENCES jobs(id) ON DELETE CASCADE,  -- NULL = generic practice question
+    practice_source VARCHAR(20) NOT NULL DEFAULT 'practice_bank',  -- practice_bank | generated
+    skill_id        UUID REFERENCES skills(id),
+    question_text   TEXT NOT NULL,
+    star_criteria   JSONB DEFAULT '{}',  -- criterion -> description mapping
+    created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    is_active       BOOLEAN DEFAULT TRUE
+);
+CREATE INDEX idx_practice_questions_skill ON practice_questions(skill_id);
+
+CREATE TABLE interview_coaching_sessions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    candidate_id    UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    practice_question_id UUID REFERENCES practice_questions(id),
+    job_id          UUID REFERENCES jobs(id) ON DELETE SET NULL,  -- for context only; NOT joined to ranking
+    answer_text     TEXT NOT NULL,  -- PII-stripped before AI call (I3, D4)
+    answer_stripped TEXT NOT NULL,   -- stored anonymized copy (PII/proxy stripped)
+    star_rubric_version VARCHAR(30) NOT NULL,  -- the rubric version used (I2)
+    feedback        JSONB DEFAULT '{}',  -- structure/content/missing_points/suggested_rewrite
+    ai_model_used   VARCHAR(100),
+    helpfulness_rating INTEGER CHECK (helpfulness_rating BETWEEN 1 AND 5),  -- I5(a)
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+-- I3: no FK to applications — coaching data never enters ranking/filtering paths.
+CREATE INDEX idx_coaching_candidate ON interview_coaching_sessions(candidate_id);
+CREATE INDEX idx_coaching_practice_q ON interview_coaching_sessions(practice_question_id);
+
+CREATE TABLE scorecard_criteria (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id          UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    criterion       VARCHAR(200) NOT NULL,
+    weight          DECIMAL(5,2) DEFAULT 1.0,
+    description     TEXT,
+    rubric_version  VARCHAR(30) NOT NULL,
+    created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_scorecard_job ON scorecard_criteria(job_id);
+
+CREATE TABLE resources (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           VARCHAR(300) NOT NULL,
+    url             VARCHAR(500) NOT NULL,
+    skill_id        UUID REFERENCES skills(id),
+    cost            VARCHAR(10) NOT NULL CHECK (cost IN ('free', 'paid')),
+    language        VARCHAR(10) NOT NULL DEFAULT 'en',
+    level           VARCHAR(20),  -- beginner, intermediate, advanced
+    reviewed_at     TIMESTAMPTZ,
+    status          VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'broken', 'archived')),
+    curator_id      UUID REFERENCES users(id),  -- named curation owner (I4, [Planned])
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_resources_skill ON resources(skill_id);
+CREATE INDEX idx_resources_status ON resources(status);
+
+-- I4: link table for assessment → recommended resource → retake loop
+CREATE TABLE attempt_resource_recommendations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attempt_id      UUID NOT NULL REFERENCES assessment_attempts(id) ON DELETE CASCADE,
+    resource_id     UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    recommended_at  TIMESTAMPTZ DEFAULT NOW(),
+    accepted        BOOLEAN DEFAULT FALSE
+);
+CREATE INDEX idx_attempt_resource_attempt ON attempt_resource_recommendations(attempt_id);
+CREATE INDEX idx_attempt_resource_resource ON attempt_resource_recommendations(resource_id);
+
 -- pgvector indexes for similarity search
 CREATE INDEX idx_jobs_embedding ON jobs USING hnsw (description_embedding vector_cosine_ops);
 CREATE INDEX idx_candidates_embedding ON candidate_profiles USING hnsw (resume_embedding vector_cosine_ops);
@@ -914,6 +1059,8 @@ users (1) ──(1)──> candidate_profiles │ employer_profiles
                    ├──(N)──> candidate_resumes
                    ├──(N)──> certifications
                    ├──(N)──> assessment_attempts ──(N)──> assessments ──(N)──> assessment_questions
+                   │       (attempts include disclosure_consent + integrity_count, REQ-FR-055)
+                   ├──(N)──> candidate_aliases (per-employer, REQ-FR-054)
                    └──(N)──> applications ──(N)──> jobs
                                           ├──(N)──> interview_feedback
                                           ├──(N)──> messages
@@ -921,13 +1068,23 @@ users (1) ──(1)──> candidate_profiles │ employer_profiles
 
 employer_profiles ──(1)──> subscriptions
                     ├──(N)──> jobs
+                    ├──(N)──> payments (REQ-FR-056, D2)
+                    ├──(N)──> candidate_aliases ←───┐ (per-employer alias, REQ-FR-054)
                     └──(N)──> interview_feedback (as interviewer)
+
+assessment_attempts ──(N)──> assessment_integrity_events (REQ-FR-055, D6)
 
 users ──(N)──> notifications
 users ──(N)──> messages (sent + received)
 users ──(1)──> data_export_requests
 users ──(0..1)──> data_deletion_requests
 users ──(N)──> audit_log_entries
+users ──(1)──> resources (as curator, REQ-FR-061, I4)
+candidate_profiles ──(N)──> interview_coaching_sessions (REQ-FR-058/059/060, I1-I3)
+practice_questions ──(N)──> interview_coaching_sessions (I1)
+jobs ──(N)──> practice_questions (for job-specific questions, optional)
+jobs ──(N)──> scorecard_criteria (REQ-FR-059, I2)
+assessment_attempts ──(N)──> attempt_resource_recommendations ──(N)──> resources (REQ-FR-061/063, I4)
 ```
 
 ### 5.3 Sequence Diagram: AI Screening Flow
@@ -1728,20 +1885,22 @@ acceptance criterion says *"flags every seeded phrase in the versioned bias test
 and there was no test set to seed. **A keyword list with no fixture set is a list that
 can only be shown to work on the examples it was written from.**
 
-#### 7.4.0 Status — **v1.0.1 authored and measured, 2026-10-03**
+#### 7.4.0 Status — **v1.0.1 authored and measured, 2026-10-03; v1.0.2 planned for D4**
 
 Two versions exist and **both** are checked in CI, because versions are immutable and a
-stale one nobody maintains is exactly what a reader would trust by accident.
+stale one nobody maintains is exactly what a reader would trust by accident. A third
+version, **v1.0.2**, is planned to add proxy categories for the expanded PII stripping
+in D4 (institution names, employer names, age-revealing dates, photos, URLs).
 
-| | v1.0.0 | **v1.0.1 (current)** |
-|---|---|---|
-| Cases | 76 | **103** |
-| Categories | 10 | **13** (adds `numeric_age`, `graduation_year_proximity`, `numeric_near_miss`) |
-| Phrase terms | 62 | 62 — **unchanged** |
-| Numeric rules | none | **5**, in 2 families (`stated_age`, `graduation_recency`) |
-| Must-flag / must-not-flag | 58 / 18 | **75 / 28** |
-| Measured | recall 1.0 · 0 FP · rate 0.7632 | recall **1.0** · **0 FP** · rate **0.7282** |
-| CI assertions | 18 | **25** |
+| | v1.0.0 | **v1.0.1 (current)** | v1.0.2 (planned) |
+|---|---|---|---|
+| Cases | 76 | **103** | **103 + N** (new proxy cases for institutions, employers, age-dates, photos, URLs) |
+| Categories | 10 | **13** (adds `numeric_age`, `graduation_year_proximity`, `numeric_near_miss`) | **13+** (adds proxy-stripping categories per D4) |
+| Phrase terms | 62 | 62 — **unchanged** | **62+** (terms for institution/employer/URL/photo stripping) |
+| Numeric rules | none | **5**, in 2 families (`stated_age`, `graduation_recency`) | 5 (unchanged) |
+| Must-flag / must-not-flag | 58 / 18 | **75 / 28** | **75 + M / 28** (new must-flag + must-not-flag cases for the new proxies) |
+| Measured | recall 1.0 · 0 FP · rate 0.7632 | recall **1.0** · **0 FP** · rate **0.7282** | (pending — measured at v1.0.2 authoring) |
+| CI assertions | 18 | **25** | **25+** (additional category-count and term-coverage assertions) |
 
 `ai/bias_pass.py` is the deterministic pass and `tests/bias/test_bias_pass.py` the CI-gated
 suite. `scripts/verify_bias_set.py` validates every version's internal consistency.
@@ -1810,6 +1969,8 @@ reproducible and a test can assert an exact year. Two guards make it usable at a
    unnoticed one.
 
 #### 7.4.1 What the set is for, and what it is not for
+
+The bias test set (§7.4) measures the deterministic keyword pass. **D4 (expanded proxy stripping)** requires the set to also cover the new proxy types: institution names, employer names, dates that reveal age, photos, and URLs. These are added as new case categories in `tests/bias/` (v1.0.2), alongside the existing Amazon-style proxy cases. The PII stripping accuracy loss from over-stripping (RSK-013) is tracked separately from bias detection — a proxy that is correctly stripped but reduces matching signal is a cost, not a bias signal.
 
 | The set measures | The set does **not** measure |
 |---|---|
@@ -1885,6 +2046,18 @@ everything reports a clean result by flagging the whole file**, and category 10 
 specifically to stop someone "fixing" a false positive by deleting the case. In v1.0.0
 these 18 cases also justify the **six deliberately-excluded terms**: each exclusion names
 the case that enforces it, and the validator checks that link still holds.
+
+> **Added 2026-10-05 (D4 — expanded proxy stripping, v1.0.2 planned).** Categories 14–18
+> will cover the new proxy types stripped by default per REQ-FR-057:
+> - `institution_name` — BRAC University, BUET, Dhaka University, etc.
+> - `employer_name` — Robi Technologies Ltd., Square Toiletries, etc.
+> - `age_revealing_date` — graduation years, DOB, "age 28" — distinct from the numeric
+>   age rules because the stripping removes them as proxy identifiers, not just ages.
+> - `photo_reference` — "attach a passport-size photo", "see profile picture".
+> - `url_or_link` — LinkedIn URLs, personal websites, portfolio links.
+> Each new category ships with at least one must-flag case (carrying the term) and at
+> least one must-not-flag case (proving the rule does not over-strip ordinary professional
+> text). `v1.0.2` adds a case_count and category-count assertion for each.
 
 #### 7.4.4 The Amazon-style proxy cases, and why PII stripping is not enough
 
@@ -2265,7 +2438,14 @@ local (dev laptop) → CI (test) → staging → production
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
 | RSK-011 | **Trademark clearance for the chosen name.** The previous working name was abandoned because it was contested by three unrelated commercial users (see `FAIRFOLD_Feasibility_and_Design.md` §1.4.2). **FairFold was selected on 2026-10-03** after a search found no living commercial use, but a web search and a DNS lookup are **not** a clearance. If the name turns out to be unregistable in a target market, a rename would again force a rebrand, a domain change and a support burden. | Legal / Brand | Medium | Low | **Domain: ✅ owned** (temporary first, primary at launch). **Still to do:** commission a **formal trademark search** in Bangladesh and every target export market, and file the word mark in classes 42 (software/SaaS) and 35 (recruitment services) per market. A domain registration is **not** a trademark filing — it does not confer the right to use the name in commerce. None of this has been done yet | Product Owner |
-| RSK-012 | **AI-assisted development degrades review quality.** The team is using AI to produce code to fit 217 points into 12 weeks. AI raises throughput, not correctness: it produces confident, plausible, wrong code, and — worse for this product — tests derived from the implementation rather than the acceptance criteria, which agree by construction. The product's whole claim is that it does not assert anything it cannot evidence, so a confidently-wrong codebase is the worst outcome available to it. | Technical / Process | **High** | High | Acceptance criteria in §4.1 are written before the test. No generated code merges unread. `bandit` + `pip-audit` + `safety` already in CI; add a licence scan. **No-AI-review-list** — eight named paths (`accounts/`, PII stripping + resume encryption, the rationale **citation check**, the bias-audit keyword pass, `matching/` filters and ranking, the shortlist/reject gate, all migrations, any Celery task that sends or mutates) require a named human reader before merge; see `FAIRFOLD_Feasibility_and_Design.md` §2.6.4.2. The rationale citation check is the single highest-risk file in the product: if it passes a hallucinated quote, the evidence-cited differentiator is false. Capacity claim measured as `ASM-003` at the end of Phase 1 | Backend Engineer |
+produce confident, plausible, wrong code, and — worse for this product — tests derived from the implementation rather than the acceptance criteria, which agree by construction. The product's whole claim is that it does not assert anything it cannot evidence, so a confidently-wrong codebase is the worst outcome available to it. | Technical / Process | **High** | High | Acceptance criteria in §4.1 are written before the test. No generated code merges unread. `bandit` + `pip-audit` + `safety` already in CI; add a licence scan. **No-AI-review-list** — eight named paths (`accounts/`, PII stripping + resume encryption, the rationale **citation check**, the bias-audit keyword pass, `matching/` filters and ranking, the shortlist/reject gate, all migrations, any Celery task that sends or mutates) require a named human reader before merge; see `FAIRFOLD_Feasibility_and_Design.md` §2.6.4.2. The rationale citation check is the single highest-risk file in the product: if it passes a hallucinated quote, the evidence-cited differentiator is false. Capacity claim measured as `ASM-003` at the end of Phase 1 (260 points total, of which Phase 1 delivers 41)
+| RSK-013 | **Expanded PII and proxy stripping reduces matching accuracy.** Removing institution names, employer names, dates that reveal age, photos and all URLs (D4) by default increases the risk of over-stripping — removing text that carries legitimate signal (e.g. a graduation year near no education keyword, an employer brand that correlates with skill level). The deterministic PII filter and the bias pass are separate concerns; the PII filter errs on false-positive removal rather than leakage, so recall loss is the trade-off, not a bias signal. | Technical | Medium | Medium | Measure PII stripping accuracy on a test set that includes the new proxy types; track precision and recall per proxy category; the candidate-facing preview shows exactly what was stripped so candidates can report false positives; retain original resume text encrypted for reveal-at-shortlist only | AI Engineer |
+| RSK-014 | **Local payment gateway requirements are unverified.** bKash and SSLCommerz are chosen for Phase 4, but their merchant onboarding, BDT settlement timelines, webhook formats, and refund flows have not been confirmed against a live merchant account. Stripe is deferred to Phase 5 pending a foreign-entity setup, but FairFold is Bangladeshi-founded — whether Bangladesh-based businesses can obtain Stripe processing is marked "To verify" (D2). | Business / Legal | Medium | Medium | Mark bKash/SSLCommerz merchant onboarding, webhook formats and settlement timelines as "To verify" with an owner (Product Owner). Mark Stripe availability for Bangladesh-based businesses as "To verify". Add a `PaymentProvider` abstraction (§4.1, REQ-FR-056) so gateway details are swappable without business-logic changes. BDT prices remain [Planned: set after validation] until confirmed at market | Product Owner |
+| RSK-015 | **Assessment integrity signals produce false positives.** Tab-switch and window-visibility detection (D6) fires on assistive technology, mobile-app switching, browser auto-fill, and connection drops — not only on candidate misconduct. Because the signals are neutral and never auto-fail, the risk is employer mis-interpretation rather than an incorrect gate. | Business | Medium | Low | Disclosure + consent before every attempt (stored per attempt); candidate explanation field on the attempt; the employer UI labels signals as "neutral indicators" with a help link explaining false-positive sources | Product Owner |
+|| RSK-016 | **Paid visibility must never leak into screening.** D3 separates paid discovery (public board + employer search) from the job-specific screening pipeline. The risk is an implementation that adds a `visibility_tier` or `is_promoted` column to the ranking SQL by accident, or a discovery surface that shows a candidate's paid tier inside a job's shortlist. | Technical | Low | Medium | `rank_applications()` takes no tier argument; an acceptance test asserts the SQL `ORDER BY` contains no visibility column; `visibility_tier` and `is_promoted` live only on `candidate_profiles`, not on `applications`; review required for any query touching both | Backend Engineer |
+|| RSK-017 | **Coaching feedback hallucinated or non-cited.** I2 requires every feedback point to cite the candidate's own words. If the citation check passes a hallucinated quote, the evidence-cited differentiator is false — the same failure mode as the match rationale (RSK-002), but in the candidate-facing coaching flow. | Technical | Medium | High | The coaching feedback pipeline reuses the same citation-check module as screening (Arch Doc §3.3). An acceptance test asserts every feedback point is paired with a verbatim quote from the candidate's answer. Coaching model is the same as screening (REQ-FR-060, I3) — no separate model with unverified bias properties. | AI Engineer |
+|| RSK-018 | **Coaching data leakage into ranking (I3 isolation failure).** If `interview_coaching_sessions` gains an FK to `applications` or `jobs` and is JOINed to `rank_applications()`, coaching scores could silently influence shortlisting. | Technical | Low | High | `coaching_sessions` has no FK to `applications`; an acceptance test asserts no coaching table is JOINed to the ranking function; the `rank_applications()` function signature takes no coaching argument. | Backend Engineer |
+|| RSK-019 | **Curated resources become stale or biased.** I4 resource links can decay (link rot), and curation criteria favouring free/Bangla-language resources may create an uneven experience. The `[Planned]` curation owner and 90-day review cadence have no owner assigned yet. | Business | Medium | Low | Link-health check cron flags broken URLs as `status = 'broken'`; resources are reference-only and never affect ranking; curation owner + 90-day review marked [Planned] with no success claimed until assigned. | Product Owner |
 **Domain — ✅ owned, recorded 2026-10-03.** The team already holds a domain and intends
 to **run on a temporary domain first and move to the primary domain at launch**. That
 closes the registration half of this risk. Two consequences worth writing down:
@@ -2315,6 +2495,10 @@ closes the registration half of this risk. Two consequences worth writing down:
 - ⬜ Hard-filter `not_matched` results show the rule that fired and stay listed behind a filter toggle, and can be pulled into review (REQ-FR-029, Gap G3)
 - ⬜ `filter_rules_version` is stamped onto every screened application and survives later edits to the job's rules (Gap G3)
 - ⬜ A shortlist/reject that goes against the ranking requires a written reason and writes an `ai_decision`-class audit entry (REQ-FR-052, Gap G2)
+- ✅ Expanded PII stripping removes institution names, employer names, dates revealing age, photos, and URLs by default, with no employer opt-out (REQ-FR-057, D4)
+- ✅ `rank_applications()` takes no tier/visibility argument; SQL `ORDER BY` contains no visibility column (REQ-FR-053, D3)
+- ✅ Per-employer candidate alias shown on all employer-facing surfaces, never the internal UUID (REQ-FR-054, D5)
+- ⬜ Bias test set v1.0.2 includes proxy cases for institutions, employer names, age-dates, photos, and URLs (D4)
 
 ### Phase 3: Candidate AI Features (Weeks 7-9)
 - ✅ Candidate sees interactive career timeline from parsed resume (Chart.js)
@@ -2327,6 +2511,15 @@ closes the registration half of this risk. Two consequences worth writing down:
 - ⬜ `assessment_gate_status` (not_required / pending / passed / failed) is shown on the application row and disables the Shortlist action with an explanation (REQ-FR-051)
 - ⬜ Removing a required assessment leaves existing attempts and scores intact (REQ-FR-051)
 - ⬜ Analytics shows override rate, broken down by user and by job, each override linking to its recorded reason (REQ-FR-035, REQ-FR-052)
+- ⬜ AttemptIntegrityEvent records tab-switch/window-blur events; employer sees neutral integrity signals; signals never auto-fail or affect gate status (REQ-FR-055, D6)
+- ⬜ Disclosure + consent required before every assessment attempt; candidate explanation field for false positives (REQ-FR-055, D6)
+- ⬜ Randomised question banks with per-attempt randomisation (REQ-FR-055, D6)
+|- ⬜ Text-only interview practice — candidate types practice answers; no audio/video recording (REQ-FR-058, I1)
+|- ⬜ STAR rubric grading — feedback cites candidate words for each claim; versioned rubric shown to candidate; employer scorecard criteria optional (REQ-FR-059, I2)
+|- ⬜ Coaching isolation — practice answers private to candidate; coaching data never enters match_score or ranking; practice answers PII-stripped before AI (REQ-FR-060, I3)
+|- ⬜ Curated resource links — Resource entity with curation owner + 90-day review; link-health check; no built content (REQ-FR-061, I4)
+|- ⬜ Assessment gap → resource recommendation → cooldown → retake → Verified badge loop (REQ-FR-063, I4)
+|- ⬜ Coaching evaluation set in `tests/coaching/` covering rubric adherence, citation, no invented facts, no fluency bias; candidate helpfulness rating collected (REQ-FR-062, I5)
 
 ### Phase 4: Production Hardening (Weeks 10-12)
 - ✅ MFA (TOTP) works for employer admin accounts
@@ -2339,6 +2532,7 @@ closes the registration half of this risk. Two consequences worth writing down:
 - ✅ GDPR: candidate can request account deletion (hard delete + audit log)
 - ✅ CI/CD: automated deploy to staging on merge to main
 - ✅ Load test: 100 concurrent applicants, < 5s response, < 1% error rate
+- ✅ bKash and SSLCommerz payment provider abstraction implemented, webhook idempotency verified, BDT currency support (REQ-FR-056, D2)
 
 ### Phase 5: Advanced Features (Weeks 13+)
 - ✅ Stripe billing: upgrade/downgrade plans, payment method management

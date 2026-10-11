@@ -2,7 +2,7 @@
 
 **Product:** FairFold — AI-Powered, Explainable Recruitment Platform
 **Document type:** Product Requirements Document
-**Version:** 1.2 (52 FRs · all §19.2 items resolved · §1.2 real-world evidence · §3.4 requirement collection method)
+**Version:** 1.3 (63 FRs · D1-D7 applied · I1-I5 applied: text-only coaching, STAR rubric, isolation, resource links, evaluation set)
 **Date:** October 2026
 **Team:** Sardar Shehab (Full-Stack), Arnob Biswas Antu (Full-Stack), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX)
 **Status:** Ready for review
@@ -11,7 +11,7 @@
 > | Short name | File | Contributes |
 > |---|---|---|
 > | Complete Doc | `FAIRFOLD_Complete_Project_Document.md` | Product vision, market, AI strategy, security, roadmap, pricing |
-> | Arch Doc | `FAIRFOLD_Project_Architecture_and_Requirements.md` | ADRs, 52 FRs, 50 NFRs, schema, ops, risk register |
+> | Arch Doc | `FAIRFOLD_Project_Architecture_and_Requirements.md` | ADRs, 63 FRs (001-063), 50 NFRs, schema, ops, risk register |
 > | Feasibility Doc | `FAIRFOLD_Feasibility_and_Design.md` | Feasibility, user stories, diagrams, data dictionary, nav, a11y |
 >
 > Requirement IDs (`REQ-FR-###`, `REQ-NFR-###`, `REQ-SEC-###`, `REQ-COM-###`) are taken verbatim from the Arch Doc. Conflicts between source documents are listed in [Section 19](#19-open-questions-and-source-document-inconsistencies) rather than silently resolved.
@@ -179,6 +179,7 @@ From the Arch Doc §1.1 and Feasibility Doc §1.5:
 
 - Native mobile apps (PWA is the Phase 4/5 path)
 - Real-time video interview recording or hosting (Phase 3 offers async coaching only)
+- Spoken interview practice (speech-to-text only if built; no voice, accent, facial or emotion analysis; Phase 5+)
 - Third-party profile scraping (for example LinkedIn)
 - On-premises deployment for customers (Phase 5 Enterprise feature)
 - Payroll and background checks
@@ -394,6 +395,7 @@ say whether FairFold is registrable and enforceable there.
 | **1 — Foundation** | 1–3 | Auth, profiles, jobs, applications (no AI) | `docker-compose up` runs the full stack; employer posts a job, candidate applies with a resume, employer sees it |
 | **2 — AI Integration** | 4–6 | PII stripping, screening, rationale, bias audit | "Screen All" → $0.00 cost estimate → ranked candidates with evidence-cited rationale |
 | **3 — Candidate AI** | 7–9 | Assessments, coaching, journey mapping | Candidate sees timeline, takes an assessment, gets coaching, sees match scores |
+| **3 (coaching)** | 7–9 | Text-only interview practice, STAR rubric feedback, isolation, resource links | Candidate types practice answer → STAR-rubric feedback → recommended resources → cooldown → retake → Verified badge |
 | **4 — Hardening** | 10–12 | Security, GDPR, monitoring, CI/CD | Security checks passed, production deploy on a single VPS |
 | **5 — Advanced** | 13+ | i18n, Stripe billing, PWA, WebSockets, skill ontology | Optional; not required for MVP |
 
@@ -408,7 +410,7 @@ say whether FairFold is registrable and enforceable there.
 
 ### 5.3 MoSCoW Summary (from user stories)
 
-52 user stories, 217 story points: **30 Must, 17 Should, 5 Could**. See [Section 7](#7-functional-requirements) for the requirement-level priorities.
+63 user stories, 260 story points: **37 Must, 21 Should, 5 Could**. See [Section 7](#7-functional-requirements) for the requirement-level priorities.
 
 ---
 
@@ -566,11 +568,24 @@ real features with no requirement behind them; all are now in the Arch Doc §4.1
 | REQ-FR-045 | Employer company profile: `EmployerProfile` created at onboarding; a job cannot be activated until one exists | H | 1 |
 | REQ-FR-046 | Employer dashboard: pipeline KPIs, quota usage, bias-flagged applications for review; every KPI links to its list | M | 1 |
 | REQ-FR-047 | Employer team and roles: invite, re-role, remove across `employer_manager` / `employer_hr` / `interviewer`; the last `employer_hr` cannot be removed; audit entry per change | M | 1–4 |
-| REQ-FR-048 | Billing and plan: plan, usage, invoices; Stripe-hosted payment; subscription state updates on the **webhook**, not the browser redirect | M | 5 |
+|| REQ-FR-048 | Billing and plan: plan, usage, invoices; payment via bKash/SSLCommerz (BDT) with Stripe deferred to Phase 5; subscription state updates on the **webhook**, not the browser redirect | M | 5 |
+
+### 7.4c Interview Practice, Coaching & Training Resources
+
+Added 2026-10-05 (I1–I5: interview-preparation and training gap decisions).
+
+| ID | Requirement | Pri | Phase |
+|---|---|---|---|
+| REQ-FR-058 | Text-only interview practice: candidate types practice answers; STAR rubric feedback via AI; no audio/video recording or spoken practice (I1). Text only in MVP; spoken practice deferred to Phase 5 | M | 3 |
+| REQ-FR-059 | STAR rubric grading with cited feedback: feedback graded against versioned STAR rubric + job requirements; employer may publish scorecard criteria per job (criteria only); candidate sees which rubric they're graded against (I2) | M | 3 |
+| REQ-FR-060 | Coaching practice isolation: practice questions from a separate practice bank; practice answers private to candidate (never seen by employers); coaching scores never enter match_score/ranking/filtering; practice answers PII-stripped before AI (I3) | M | 3 |
+| REQ-FR-061 | Training gap resources: curated external `Resource` links (title, URL, skill, cost, language, level, reviewed_at, status); link-health check; named curation owner + 90-day review; no built content; resources never affect ranking (I4) | M | 3 |
+| REQ-FR-062 | Coaching evaluation set: versioned test set in `tests/coaching/` covering rubric adherence, citation, no invented facts, no fluency bias; candidate helpfulness rating; thresholds [Planned] (I5) | L | 3 |
+| REQ-FR-063 | Assessment → Resource → Retake loop: assessment gap → recommended resources → cooldown → retake → Verified badge (I4) | L | 3 |
 
 ### 7.5 User Story Coverage
 
-**52 user stories** (`US-001` to `US-065`) map onto the FRs above in Feasibility Doc §2.4.
+**63 user stories** (`US-001` to `US-070`) map onto the FRs above in Feasibility Doc §2.4.
 
 Three rounds of gaps were found and closed:
 - `US-023` (job search) and `US-050` (messaging) had no FR — now `REQ-FR-042` / `REQ-FR-043`
@@ -792,13 +807,19 @@ UNIQUE(job_id, candidate_id) on Application
 CHECK chk_override_has_reason on Application              (REQ-FR-052)
 ```
 
-**24 tables, 35 foreign keys.** Added 2026-10-03: `job_assessment_requirements`
+**32 tables, 51 foreign keys.** Added 2026-10-03: `job_assessment_requirements`
 (2 FKs), `applications.decided_by` (1 FK) and `announcements` (1 FK, for `REQ-FR-050`,
 which had no table at all — see Feasibility §2.4.1 round 4), then
 `data_deletion_requests.approved_by` (1 FK, added while writing the `gdpr/deletion/`
 endpoints — an erasure request that records no approver has no audit value).
 `employer_profiles.show_company_name` was also added, for the same reason: the public
 job endpoints need a stored per-employer choice rather than a guess.
+
+**Added 2026-10-05:** `candidate_aliases` (2 FKs, for REQ-FR-054),
+`assessment_integrity_events` (1 FK, for REQ-FR-055), `payments` (1 FK, for REQ-FR-056),
+and `visibility_tier`/`is_promoted` columns on `candidate_profiles` (REQ-FR-053).
+The PII stripping pipeline also now strips institution names, employer names,
+age-revealing dates, photos and URLs by default (REQ-FR-057).
 
 ### 11.3 Application Status Lifecycle
 
@@ -968,8 +989,8 @@ Canonical source: Complete Doc §C.14 (see Section 19 for the conflicting versio
 |---|---|---|---|
 | Free | $0 | Profile, resume upload, apply, basic match scores, 5 coaching sessions/mo, basic journey map | 5 applications/day, 5 AI interactions/day |
 | Essential | $5/mo | Unlimited applications, 20 coaching sessions/mo, advanced journey charts, priority in employer search | 50 AI interactions/day |
-| Professional | $20/mo | Unlimited coaching, per-application career story, 10 assessments/mo, interview pack builder, PDF export | 200 AI interactions/day |
-| Premium | $50/mo | AI mentor, salary insights, 50 assessments/mo, featured placement, resume templates | Unlimited |
+| Professional | $20/mo | Unlimited coaching (STAR rubric feedback), per-application career story, 10 assessments/mo, interview pack builder, PDF export | 200 AI interactions/day |
+| Premium | $50/mo | Curated training resources, salary insights, 50 assessments/mo, featured placement, resume templates | Unlimited |
 
 ### 15.2 Employer Tiers
 
@@ -1106,7 +1127,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 
 - **`ASM-002`** — the team sustains double shifts for the full 12 weeks without attrition
   or quality degradation. If it fails, **re-scope; do not compress.**
-- **`ASM-001`** — the 52 requirements are the right scope for an MVP. If it fails, cut
+- **`ASM-001`** — the 57 requirements are the right scope for an MVP. If it fails, cut
   `REQ-FR-050` first; it is the only requirement the team itself called optional.
 - **Phase 2 bias test set** — **✅ authored, implemented and measured 2026-10-03.** Two
   versions: `tests/bias/v1.0.0/` (76 cases, 10 categories) and **`tests/bias/v1.0.1/`
@@ -1121,7 +1142,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
   **no indication the check did not apply**), and `GAP-001` bare adjectives stay out of
   the term list (closed by decision, enforced in CI).** The set supports no disparity claim
   (§1.4.1 already withdraws that) and `manifest.json` says so in `does_not_support`.
-- **`ASM-003`** — AI assistance raises delivery capacity for the 217 points. *Plausible
+- **`ASM-003`** — AI assistance raises delivery capacity for the 260 points. *Plausible
   for boilerplate; unmeasured.* **Tested at the end of Phase 1** by points actually
   delivered against the 41-point, 3-week phase. If it fails, drop the capacity assumption
   and re-plan — **never** answer a schedule problem by reducing review. See **RSK-012**.
@@ -1159,7 +1180,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 |---|---|---|---|
 | 1 | **Candidate pricing** | Complete Doc: Professional $20 and Premium $50. Feasibility Doc: "Pro" $50 only. | **Resolved 2026-10-03 — Complete Doc is canonical** (§15.1): Free $0, Essential $5, Professional $20, Premium $50. The Feasibility Doc's "Pro" tier was the stale one and no longer appears. |
 | 2 | **Employer pricing** | Feasibility Doc omitted the Scale ($1,500) tier and listed a "Free" employer tier; Complete Doc §C.14 had no free employer row, but the `subscriptions` model defines one (`plan DEFAULT 'free'`, `max_jobs 3`, `ai_quota_remaining 50`). | **Resolved 2026-10-03 — Complete Doc is canonical** (§15.2), and §C.14 now carries the Free row to match the schema. Free is $0 / 3 jobs / 50 screens and is **not time-limited**: the schema has no trial-expiry column, so "Trial" was unsupported and was removed. |
-| 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | **Closed 2026-10-03** — promoted into the Arch Doc §4.1 as REQ-FR-042 and REQ-FR-043 (new *Job Discovery & Messaging* group). See also §19.1 item 5, closed the same day with REQ-FR-044–050, and §19.2 item 16 below. **Arch Doc now holds 52 FRs.** |
+| 3 | **Missing FRs** | Job search and messaging have use cases, models and stories but no FR. | **Closed 2026-10-03** — promoted into the Arch Doc §4.1 as REQ-FR-042 and REQ-FR-043 (new *Job Discovery & Messaging* group). See also §19.1 item 5, closed the same day with REQ-FR-044–050, and §19.2 item 16 below. **Arch Doc now holds 63 FRs (001-063).** |
 | 4 | **PII retention** | Complete Doc §5.2 says PII is encrypted at rest; Arch Doc Flow 3 says original PII "stays in EncryptedCharField" while anonymized text is stored. Where the original resume file and un-stripped text live, and who can see them, is not specified. | **Resolved 2026-10-03 — reveal at shortlist.** Employers see **anonymised text only** while screening. On shortlist the name and contact details become visible **to that employer only**, and the reveal writes an audit entry. The original resume file and un-stripped text stay encrypted at rest and are **never** sent to an external AI provider. Written into `REQ-FR-029` and `REQ-FR-030`. |
 | 5 | **Audit log retention vs. GDPR retention** | Audit logs rotate at 90 days (REQ-COM-008) while candidate data is retained 2 years and hired-employee data 5 years; AI-decision evidence may be needed longer than 90 days for AI Act accountability. | **Resolved 2026-10-03 — two retention classes.** `resource_type = 'access'` entries (who looked at what) rotate at 90 days and are operational only. Entries with `resource_type = 'ai_decision'` (every screening, rationale and bias check, per REQ-FR-030) are **retained with the application record** — 2 years, 5 years if hired. 90 days would have destroyed the only evidence that a hiring decision was unbiased. |
 | 6 | **Audit log key type** | `AuditLogEntry.resource_id` was `INTEGER` in the Feasibility Doc while core entities use `UUID` primary keys. | **Resolved 2026-10-03** — `UUID` in the Feasibility Doc class diagram, ER diagram and data dictionary, matching Arch Doc §5.1. The Arch Doc was already correct. |
@@ -1174,6 +1195,8 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 | 15 | **FR count disagreed with itself** | The header said "50 FRs" and §19.2 item 3 said 50, but the 2026-10-03 update note under *Source documents* said *"the Arch Doc now holds **43** FRs, not 41"* — a leftover from the same day's earlier count that was never updated when seven more requirements landed. | **Fixed 2026-10-03 (c).** The single stale note is replaced by three dated notes — (a) FR-042/043, (b) FR-044–050, (c) FR-051/052 — so each increment is auditable and the next one has an obvious place to go. Header, all three notes and item 3 now agree on **52**. |
 | 16 | **Requirements did not answer the original problem** | Found while tracing the Product Owner's own experience back to requirements (§3.4). Two of six pain points had **no requirement at all**: no employer-required skills check, and no record of a decision that overrode the ranking. Separately, a hard-filter `not_matched` result had no reason, no version and no route back — the shape of the *EEOC v. iTutorGroup* failure. | **Resolved 2026-10-03 — approved and implemented.** Gap **G1** → `REQ-FR-051` (High, Phase 3). Gap **G2** → `REQ-FR-052` (High, Phase 2–3) plus override rate on `REQ-FR-035`. Gap **G3** → amendment to `REQ-FR-029` plus `jobs.screening_config_version` and a `CHECK` constraint on overrides. New table `job_assessment_requirements`, 9 new columns, stories `US-063`–`US-065`. Analysis in Feasibility Doc §2.4.1. |
 | 17 | **The working name was contested** | "Match Minds" was in commercial use by at least two AI recruitment products and two unrelated software products, and was descriptive enough of what every ATS does to be hard to trademark. | **Resolved 2026-10-03 — renamed to FairFold.** Four candidates were screened (Feasibility Doc §1.4.2); FairFold had no living commercial use and `fairfold.com` / `fairfold.ai` returned no DNS record. The four `MATCH_MINDS_*.md` files were renamed and all internal links repaired. **Residual, now legal rather than naming:** a formal trademark search in Bangladesh and each target export market, domain registration, and filing in classes 42 and 35 — none done yet. Tracked as **RSK-011** at Medium/Low, §4.3. |
+| 18 | **Business-model revision (D1–D7)** | Employer-first launch, local payments (BDT), discovery-only paid visibility, expanded proxy stripping, per-employer candidate alias, light proctoring, spoken-interview deferral. | **Resolved 2026-10-05 — applied as final.** D1 (employer-first) was already reflected in §3.2 and the employer onboarding priority (US-057). D3 (paid discovery only) → `REQ-FR-053`, `visibility_tier`/`is_promoted` on `candidate_profiles`, no visibility input to ranking. D5 (per-employer alias) → `REQ-FR-054`, `candidate_aliases` table. D6 (light proctoring) → `REQ-FR-055`, `assessment_integrity_events` table, tab-switch/blur detection only, no video/audio/face/eye tracking, neutral signals never auto-fail. D2 (local payments) → `REQ-FR-056`, bKash + SSLCommerz (BDT) with `payments` table + `PaymentProvider` abstraction; Stripe deferred to Phase 5. D4 (expanded proxy stripping) → `REQ-FR-057`, institution names, employer names, age-dates, photos, URLs stripped by default with no employer opt-out; PII filter accuracy tracked separately from bias. I1–I5 (interview practice and training) → `REQ-FR-058`–`REQ-FR-063` in Arch Doc §4.1; new tables `practice_questions`, `interview_coaching_sessions`, `scorecard_criteria`, `resources`, `attempt_resource_recommendations` in Arch Doc §5.1; acceptance criteria in Arch Doc §10 Phase 3. I1 (text-only practice) → spoken practice deferred to Phase 5, recorded only as future scope, PRD amendment to §2.3 before implementation. I2 (graded feedback) → STAR rubric + job requirements + optional employer-published scorecard criteria (criteria only, never questions), rubric versioned, candidates see which rubric they are graded against. I3 (isolation) → practice questions from a separate practice bank, practice answers private to candidate, coaching scores never enter `match_score`/ranking/filter, practice answers pass through PII/proxy stripping. I4 (training) → no built content, curated resource links only, `Resource` entity (title, URL, skill, cost, language, level, reviewed_at, status), link-health check, curation owner + 90-day review cadence, assessment gap → recommended resources → cooldown → retake → Verified badge. I5 (defaults) → local currency BDT, low-bandwidth/free/Bengali-language resource preference, versioned coaching evaluation set in `tests/coaching/`, candidate helpfulness rating, all thresholds and curation-owner assignment marked [Planned; no results claimed]. |
+| 19 | **Interview coaching scope and tier claims.** The Premium tier listed "AI mentor" and the Complete Doc §C.14 had "learning path" and "AI mentor" claims; the Feasibility Doc §2.4.1 listed WebSocket live coaching and "personalized AI mentor" as Phase 5 features. I4 and I5 require no built training content, no AI mentor, and no learning path claims in tier descriptions. | **Resolved 2026-10-05.** `prd.md` §15.1 Premium tier now reads "Curated training resources" instead of "AI mentor"; no "learning path" or "AI mentor" claims in any tier description. Spoken practice and WebSocket coaching remain Phase 5 (`design.md` page #27 remains text-only with AI action, no WebSocket). Learning-trajectory suggestions remain Phase 5 per I5. No prices invented. |
 
 ---
 

@@ -713,7 +713,7 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy, **override rate by user and by job (each row links to its recorded reason)**, **not-matched vs pulled-into-review**; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 · **REQ-FR-052** | P4 |  | S17 |
 | 48 | **Messages** | Same as #31, grouped by job | List, thread | REQ-FR-043 | P3 |  | W08 |
 | 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 | P1–P4 |  | W14 |
-| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (Stripe-hosted) | Cards, meters | REQ-FR-048 | P5 |  | W15 |
+| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (bKash/SSLCommerz in BDT; Stripe in Phase 5) | Cards, meters | REQ-FR-048 | P5 |  | W15 |
 | 51 | **Company settings** | Company profile, security (MFA mandatory for HR admin), notifications, default AI model preference ("Auto (free)" / "Best available (paid)") | Tabs, radio cards | REQ-SEC-009 | P1–P4 |  | W16 |
 | 52 | **MFA setup** | QR code, manual key (copy), verify code field; recovery note | QR, OTP input | REQ-FR-005/006 | P4 |  | W17 |
 | 53 | **Data retention settings** | Retention period selectors per record type with plain-language impact; saves with audit entry | Form, alert | REQ-COM-005 | P4 |  | W18 |
@@ -2423,7 +2423,7 @@ employer's attention goes to the evidence rather than the number.
 |---|---|---|---|---|
 | 1 | Figma file with tokens (colour, type, spacing) matching Sections 3–5 | UI/UX | Before Phase 1 UI work | Drafted in design.md (tokens in §3–5 and §11.1); Figma file not started |
 | 2 | Component library (Sections 6–7) with all states | UI/UX | Phase 1 | Drafted in design.md (state sheet §6.6); Figma components not started |
-| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | **Complete for text wireframes** — §10.5: all 62 of62 pages, 48 wireframes (18 S + 5 X + 25 W), all 22 core-flow pages and all 18 required screens. Figma versions not started |
+| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | **Complete for text wireframes** — §10.5: all 62 of 62 pages, 52 wireframes (18 S + 5 X + 29 W), all 22 core-flow pages and all 18 required screens. Figma versions not started |
 | 4 | High-fidelity mobile (360px) and desktop (1280px) for core flow | UI/UX | Phase 1–2 | Not started |
 | 5 | Journey Map prototype incl. table alternative | UI/UX + Frontend | Phase 3 start | Wireframes drafted (S08: timeline, skills, story, table view); interactive prototype not started |
 | 6 | Accessibility annotations (heading levels, landmarks, focus order) on key pages | UI/UX | With hi-fi | Text annotations drafted per wireframe (§10.5); overlay annotations on hi-fi not started |
