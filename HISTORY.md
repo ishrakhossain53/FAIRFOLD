@@ -4,7 +4,7 @@ A running log of what has been done on this repository and what is still outstan
 Kept by hand; updated whenever a chunk of work lands.
 
 - **Repository:** `github.com/ishrakhossain53/FAIRFOLD` (private)
-- **Last updated:** 2026-10-05
+- **Last updated:** 2026-10-12
 - **Current branch:** `ishrakhossain53-patch-1`
 - **Project state:** documentation phase. No application code has been written yet.
 
@@ -38,35 +38,35 @@ blocked.
 
 | File | Lines | Role |
 | --- | ---: | --- |
-| `FAIRFOLD_Complete_Project_Document.md` | 2409 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+| `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2563 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1262 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 2454 | Supplement — UI design system, 62 page specifications, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
+| `prd.md` | 1264 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+| `design.md` | 2889 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 | `FAIRFOLD_Feasibility_and_Design.md` | 2986 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
 || `.env.example` | 157 | Environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
-**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34):
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions**):
 
-- **52 functional requirements**, `REQ-FR-001` … `REQ-FR-052` (Arch Doc §4.1)
+- **63 functional requirements**, `REQ-FR-001` … `REQ-FR-063` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
   `REQ-FR-044`–`050` were added (§2.14), then 50 until `REQ-FR-051`/`052` (§2.20)
 - **50 non-functional requirements** in Arch Doc §4.2, in five groups:
   `REQ-SEC-001`–`014` (14), `REQ-COM-001`–`009` (9), `REQ-NFR-001`–`018` (18),
   `REQ-NFR-019`–`023` (5, code quality), and four operational `REQ-NFOR-001`, `-002`, `-024`, `-025`.
   ⚠️ `REQ-NFR` and `REQ-NFOR` interleave — a naive `REQ-NF` regex conflates them. Use `REQ-NFR-[0-9]+`.
-- **24 database tables** in Arch Doc §5.1, with **35 foreign keys** declared (32 drawn in
+- **32 database tables** in Arch Doc §5.1, with **51 foreign keys** declared (38 drawn in
   the ER diagram; 3 redundant `users` self-references intentionally omitted). The count
   went 34 → 35 when `data_deletion_requests.approved_by` was added in §2.25. `MESSAGES` is
   the one table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
 - **10 AES-256-GCM encrypted fields** (PII at rest)
-- **52 user stories / 217 story points**, MoSCoW **30 Must / 17 Should / 5 Could** —
-  every one of the 52 FRs maps to at least one story. **Verified programmatically by
+- **63 user stories / 260 story points**, MoSCoW **37 Must / 21 Should / 5 Could** —
+  every one of the 63 FRs maps to at least one story. **Verified programmatically by
   `scripts/verify_docs.py`**, which runs in CI (§2.26)
-- **62 pages specified** in `design.md` §10; **36 have wireframes** (23 drawings), covering
-  all 18 required screens and all 22 core-flow pages; 53 of 62 pages carry a requirement ID
+- **78 pages specified** in `design.md` §10; **64 have wireframes** (32 drawings), covering
+  all 18 required screens and all 22 core-flow pages; 68 of 78 pages carry a requirement ID
 - 5 roadmap phases: Phases 1–4 = weeks 1–12 (MVP), Phase 5 = week 13+ (optional)
 
 ---
@@ -408,7 +408,7 @@ the other way:
 
 **Schema:** +1 table (`job_assessment_requirements`), +9 columns on `jobs` and
 `applications`, +1 `CHECK` constraint, +2 indexes. Counts updated: **23 tables, 33 FKs,
-52 FRs, 52 stories / 212 points** — all verified programmatically.
+52 FRs, 52 stories / 212 points** — all verified programmatically. **Superseded 2026-10-12: now 32 tables, 51 FKs, 63 FRs, 63 stories / 260 points.**
 
 **The housekeeping bug was real.** `prd.md` said "50 FRs" in the header and 50 in §19.2
 item 3, but the 2026-10-03 update note under *Source documents* still said *"now holds 43
@@ -617,7 +617,7 @@ partial cut cannot leave a phantom table.
 answer is §5 of the feasibility document. As of this commit:
 
 - **🔴 24 tables, 34 FKs, 13 indexes, 52 FRs, 52 stories / 217 points** — all
-  machine-verified, 5/5 Mermaid diagrams parse, 0 dangling references.
+  machine-verified, 5/5 Mermaid diagrams parse, 0 dangling references. **Superseded 2026-10-12: now 32 tables, 51 FKs, 63 FRs, 63 stories / 260 points.**
 - **One blocker left: the API list.** `REQ-FR-050`'s five endpoints were written today;
   `REQ-FR-042` (public browse/search), `REQ-FR-040/041` (GDPR export/delete), `REQ-FR-047`
   (teams) and `REQ-FR-049` (assessment authoring) are still unwritten. **That is ~90
@@ -737,7 +737,7 @@ is not an unfinished item.
 #### Standing numbers after this commit
 
 - **🔴 24 tables, 35 FKs, 13 indexes, 52 FRs, 52 stories / 217 points** — 30 Must / 17
-  Should / 5 Could. 5/5 Mermaid diagrams parse, 0 dangling `REQ-FR-` references.
+  Should / 5 Could. 5/5 Mermaid diagrams parse, 0 dangling `REQ-FR-` references. **Superseded 2026-10-12: now 35 tables, 41 FKs, 65 FRs, 64 stories / 237 points — 30 Must / 24 Should / 10 Could.**
 - **🟠 Blockers blocking the start of development: none.** Both first-hour blockers (the
   API list, the 25 December milestone) are closed.
 - **Five items still need a person, not a document:** trademark filing, the Phase 2 bias
@@ -1525,9 +1525,9 @@ across the specification:
   through `US-076`) added to the Arch Doc §4.1 and Feasibility Doc §2.4.
 - **5 new tables** in Arch Doc §5.1: `practice_questions`, `interview_coaching_sessions`,
   `scorecard_criteria`, `resources`, `attempt_resource_recommendations`.
-- Schema counts are now **32 tables, 51 foreign keys, 25 indexes** (was 27 / 39 / 17).
-- **63 functional requirements** in the Arch Doc (was 57).
-- **63 user stories / 260 story points**, MoSCoW **37 Must / 21 Should / 5 Could**.
+- Schema counts are now **32 tables, 51 foreign keys, 25 indexes** (was 27 / 39 / 17). **Superseded 2026-10-12: unchanged (32 tables, 51 FKs, 25 indexes) — no new tables added beyond payments table for D2; §2.31.**
+- **63 functional requirements** in the Arch Doc (was 57). **Superseded 2026-10-12: unchanged at 63 FRs (§2.31) — design.md pass added pages/wireframes but no new FRs.**
+- **63 user stories / 260 story points**, MoSCoW **37 Must / 21 Should / 5 Could**. **Superseded 2026-10-12: unchanged at 63 stories / 260 points, 37 Must / 21 Should / 5 Could (§2.31) — design.md pass added pages/wireframes but no new stories.**
 - Coaching isolation is enforced structurally: `interview_coaching_sessions` has **no FK**
   to `applications` or `jobs`; coaching scores never enter `match_score`, ranking, or
   shortlisting (I3). Acceptance test asserts no coaching table is JOINed to
@@ -1535,7 +1535,19 @@ across the specification:
 - Resources are reference-only links, never built content; link-health cron, named
   curation owner, 90-day review cadence, and the gap→resource→retake→Verified badge loop
   are all specified (I4).
-- `scripts/verify_docs.py` updated: all **63 checks pass**.
+- `scripts/verify_docs.py` updated: all **63 checks pass**. **Superseded 2026-10-12: now 67 checks (§2.31).**
+
+---
+
+### 2.31 Doc-consistency pass (2026-10-12) — PII, pricing, counts, payments ✅
+
+Following the design.md wireframe pass (§2.30), a consistency pass was run to fix regressions left after the 2026-10-05 business and interview revisions:
+
+- **PII stripping expanded.** `REQ-FR-011` amended in the Arch Doc §4.1, `prd.md` §7.1, the Feasibility Doc scenario S-2 and the Complete Doc §C.14. Stripping now covers proxies from `REQ-FR-057` (institution names, employer names, age-revealing dates, URLs, photos). All references marked "amended 2026-10-12".
+- **Pricing wording corrected.** Discovery-only visibility wording applied everywhere (was "priority in employer search" / "featured placement"); USD prices marked reference-only/unvalidated; BDT prices marked `[Planned: set after validation]`.
+- **Counts updated (current-state only):** 57 → 63 FRs, 24 → 32 tables, 35 → 51 FKs, 52 → 63 stories / 217 → 260 points (MoSCoW 37 Must / 21 Should / 5 Could), 62 → 78 pages, 52 → 64 wireframes. README line 38, the Arch Doc v4.4 header, the Feasibility Doc `ASM-001`, and the HISTORY.md "Key numbers of record" block all updated. Historical log entries left as written with "superseded" notes.
+- **Payment provider path.** bKash/SSLCommerz is the current path in BDT; Stripe deferred to Phase 5. README, `prd.md` §8.8 (encrypted-fields row), and the Complete Doc §C.14 all updated.
+- **New verifier checks** added to `scripts/verify_docs.py`: stale-count cross-checks, discovery-only pricing wording ban (except in dated notes), REQ-FR-011↔REQ-FR-057 linkage, design.md keyword checks, and wireframe coverage check.
 
 ---
 
@@ -1545,7 +1557,7 @@ across the specification:
 | --- | --- | --- |
 | **A** — Requirement collection method | ❌ blocking | ✅ **closed** — Feasibility §1.3, `prd.md` §3.4, tagged [Done]/[Illustrative]/[Planned] (§2.20). Validation plan stays **[Planned]** until actually run |
 | **B** — Real-world problem example | ❌ missing | ✅ **closed** — Amazon 2018 primary + iTutorGroup / HireVue / Mobley + 3 BD sources (§2.20). *Mobley* needs re-verification before public citation |
-| **C** — Wireframes | ❌ none at all | ✅ **complete for low fidelity** — 52 wireframes (18 `S` + 5 `X` + 29 `W`) covering **all 62 pages**, including the four screening-integrity components (§2.30). Figma and hi-fi still open |
+| **C** — Wireframes | ❌ none at all | ✅ **complete for low fidelity** — 52 wireframes (18 `S` + 5 `X` + 29 `W`) covering **all 62 pages**, including the four screening-integrity components (§2.30). Figma and hi-fi still open. **Superseded 2026-10-12: now 64 wireframes covering all 78 pages (§2.31).** |
 | **D** — GAP-1 / GAP-2 | ⚠️ documented, no FR | ✅ **closed** — `REQ-FR-042`/`043` in the Arch Doc |
 | **E** — Round-2 page gaps | *(not previously found)* | ✅ **closed** — `REQ-FR-044`–`050`, 7 stories added (§2.12, §2.13) |
 | **F** — Gantt dates | 🟡 ran backwards | ✅ **re-based** to kickoff 2026-10-05 (§2.16) |

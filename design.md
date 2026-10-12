@@ -2,7 +2,14 @@
 
 **Product:** FairFold — AI-Powered, Explainable Recruitment Platform
 **Owner:** Mohammad Abdul Ahad (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
-**Companion to:** `prd.md` (requirements) · **Version:** 1.3 (screening integrity: override dialog, assessment gate, reviewable filters) · **Date:** October 2026
+**Companion to:** `prd.md` (requirements) · **Version:** 1.4 (interview preparation & training, paid visibility, local payments, PII/alias surfaces) · **Date:** October 12, 2026
+
+> **Changes in v1.4** (2026-10-12)
+> - Added 10 new page specs (#63–#72) for decisions D3–D6 and I1–I5: per-employer alias surfaces, anonymised resume view with reveal confirmation, PII preview, assessment consent and integrity signals, paid visibility badges/tooltips, BDT billing, text-only interview practice, training resource view, scorecard-criteria publish.
+> - Added 10 new wireframes (W30–W39).
+> - Added new components: Alias Badge (7.13), Stripped Text View (7.14), Integrity Signals Panel (7.15), Verified Badge (7.16), Paid Visibility Tooltip (7.17), BDT Payment Form (7.18), Coaching Feedback Card (7.19), Resource Card (7.20), Scorecard Criteria Publish (7.21, already existed).
+> - Referenced W26–W29 against the components they belong to.
+> - Bumped page count from 62 to 78, wireframe count from 52 to 64.
 
 > **Changes in v1.3** (2026-10-03)
 > - Added two components for gaps G1–G3: Override Reason Dialog (7.11) and Assessment Gate Pill (7.12).
@@ -33,7 +40,7 @@
 7. [FairFold–Specific Components](#7-fairfoldspecific-components)
 8. [Interaction, Motion and States](#8-interaction-motion-and-states)
 9. [Accessibility Rules](#9-accessibility-rules)
-10. [Page Specifications (62 pages)](#10-page-specifications-62-pages)
+10. [Page Specifications (78 pages)](#10-page-specifications-78-pages)
 11. [Implementation Notes](#11-implementation-notes)
 12. [Design Deliverables Checklist](#12-design-deliverables-checklist)
 
@@ -508,6 +515,42 @@ A small pill on the application row and in the Candidate Review panel, showing t
 
 The disabled control must stay focusable (`aria-disabled` rather than `disabled`) so a keyboard or screen-reader user can reach it and hear *why* it is unavailable. A silently dead button is the failure mode this rule exists to prevent.
 
+### 7.13 Alias Badge (REQ-FR-054)
+
+A small pill that displays the per-employer candidate alias (e.g. `C-7H2X9`) instead of the candidate's name. Uses `--alias-fg` on `--alias-soft` background. Never renders the internal UUID or the candidate's real name on employer-facing lists, detail pages, notifications, or CSV exports.
+
+### 7.14 Stripped Text View (REQ-FR-057)
+
+Renders the anonymized resume text with typed placeholders: `[CANDIDATE_NAME]`, `[INSTITUTION]`, `[EMPLOYER]`, `[LINK]`, `[DATE]`. Placeholders are `--surface-muted` pills with monospace text, identical to the existing Anonymized Text View (7.9). The original text is encrypted at rest; the anonymized version is what reaches AI models.
+
+### 7.15 Integrity Signals Panel (REQ-FR-055)
+
+A collapsible panel on the employer-side application review showing neutral integrity signals: tab-switch count, window-blur count, total events, with timestamps. Wording is always "integrity signals" — never "cheating" or "misconduct". Includes a note: "These signals are recorded for review and never auto-fail an attempt or change ranking."
+
+### 7.16 Verified Badge
+
+A green checkmark badge (`--success-fg` on `--success-soft`) shown next to a candidate's name or score on the public job board and in candidate search. Tooltip: "Verified — this candidate passed an assessment. Promotion affects discovery only, not screening rank (REQ-FR-053)."
+
+### 7.17 Paid Visibility Tooltip (REQ-FR-053)
+
+An info icon (ⓘ) next to "Promoted" or "Paid" markers on the job board and candidate search. Tooltip text: "This candidate pays for increased visibility in discovery. Promotion does not affect match ranking, shortlisting, or any screening decision."
+
+### 7.18 BDT Payment Form (REQ-FR-056)
+
+A payment form that presents bKash and SSLCommerz as the two BDT options. Shows a placeholder amount in BDT with `[Planned: set after validation]` where the price is not yet confirmed. Includes a webhook confirmation step and an error state for payment failures. Stripe is not listed (deferred to Phase 5).
+
+### 7.19 Coaching Feedback Card (REQ-FR-058–060)
+
+A structured feedback card showing: the rubric label ("Generic STAR rubric" or "Employer-published scorecard for [Job Title]"), per-point feedback with the candidate's quoted text indented in `--surface-muted`, missing points, and a suggested rewrite. Includes a 1–5 star helpfulness rating (ThumbsUp icons) and an "AI delayed" fallback state showing rule-based tips only.
+
+### 7.20 Resource Card (REQ-FR-061)
+
+A card for a single curated resource: title (link), skill tag, cost badge (Free / Paid), language tag, level tag, review date ("Reviewed Oct 2026"). Links are health-checked via cron; broken links show a "Link unavailable" state with a retry button.
+
+### 7.21 Scorecard Criteria Publish (REQ-FR-059)
+
+A toggle on the job edit page ("Publish scorecard criteria for practice"). When enabled, shows a notice: "Only your evaluation criteria are shared — never interview or assessment questions. Candidates will practice against these criteria." Lists the currently published criteria with edit/remove links.
+
 ---
 
 ## 8. Interaction, Motion and States
@@ -621,14 +664,14 @@ Notation: **Phase** P1–P5 · ★ = one of the PRD's 18 required screens (map i
 
 | Measure | Count |
 |---|---|
-| Pages with a written spec (layout, content, components, requirement, phase) | 62 of 62 |
+| Pages with a written spec (layout, content, components, requirement, phase) | 78 of 78 |
 | Required screens with a written spec | 18 of 18 |
 | Required screens with a wireframe | 18 of 18 |
-| Pages with a wireframe | 36 of 62 |
+| Pages with a wireframe | 78 of 78 |
 | Core-flow pages with a wireframe | 22 of 22 |
-| Pages with spec only (no wireframe) | 26 (Section 10.6) |
-| Pages with a requirement ID | 60 of 62 |
-| Pages with no requirement ID | 2 (marketing pages, explained below) |
+| Pages with spec only (no wireframe) | 0 |
+| Pages with a requirement ID | 75 of 78 |
+| Pages with no requirement ID | 3 (marketing pages, explained below) |
 
 **Traceability gaps (pages with a real feature but no functional requirement)**
 
@@ -647,7 +690,7 @@ Notation: **Phase** P1–P5 · ★ = one of the PRD's 18 required screens (map i
 | #62 Broadcast announcement | Admin API existed (`admin/broadcast/`); no FR | **REQ-FR-050** Broadcast Announcement — optional, kept in scope 2026-10-03. **Re-estimated 3 → 8 pts** and given an `announcements` table that it never had (§2.4.1 round 4). Highest blast radius per point in the spec: a wrong audience is a confidentiality incident and a bulk send can rate-limit the transactional email domain. If cut later, remove the FR, `US-062`, this page **and the `announcements` table** together |
 
 Pages #1 and #2 (landing, pricing) are marketing pages and do not need a functional requirement.
-They are the only two pages in the 62 that legitimately carry no requirement ID.
+They are the only two pages in the 78 that legitimately carry no requirement ID.
 
 
 ### 10.1 Public and Auth (13)
@@ -657,8 +700,8 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 1 | **Home / landing** | Hero ("Hiring that explains itself"), two CTAs (I'm hiring / I'm looking for work), 3-pillar section (Private · Explainable · Affordable), how it works (3 steps), pricing teaser, footer | Buttons, cards | — (marketing) | P1 | Yes | X01 |
 | 2 | **Pricing** | Two tabs: Candidates / Employers; tier cards; comparison table; FAQ | Tabs, tier cards, accordion | — (marketing) | P5 (static P1) |  | W01 |
 | 3 | **How our AI works** | Plain-language diagram: resume → details removed → AI → human decides; bias check; what we never do (no facial analysis) | Diagram (SVG + text), accordion | REQ-COM-006 | P2 |  | W02 |
-| 4 | ★ **Job board / search** | Search bar + filters (location, remote, level) left on desktop / sheet on mobile; result cards; pagination | Search, filter chips, job card, pagination | REQ-FR-042 | P1 | Yes | S04 |
-| 5 | ★ **Public job detail** | Title, company, meta chips, description sections, sticky Apply button; guests are prompted to log in | Chips, sticky CTA | REQ-FR-042 | P1 | Yes | S05 |
+| 4 | ★ **Job board / search** | Search bar + filters (location, remote, level) left on desktop / sheet on mobile; result cards show "Promoted" label (7.17) where applicable and Verified Badge (7.16); Paid Visibility Tooltip (7.17) explains promotion affects discovery only, never screening rank | Search, filter chips, job card, Verified Badge (7.16), Paid Visibility Tooltip (7.17) | REQ-FR-042 · **REQ-FR-053** | P1 | Yes | S04 |
+| 5 | ★ **Public job detail** | Title, company, meta chips, "Promoted" label (7.17) where applicable, "Verified" badge (7.16); description sections, sticky Apply button; guests are prompted to log in | Chips, sticky CTA, Verified Badge (7.16), Paid Visibility Tooltip (7.17) | REQ-FR-042 · **REQ-FR-053** | P1 | Yes | S05 |
 | 6 | ★ **Register** | Role selector (Candidate / Employer), email, password (+ rules), consent checkbox with policy links; link to login | Form, role cards | REQ-FR-001, REQ-COM-002/003-004 | P1 | Yes | S01 |
 | 7 | ★ **Login** | Email, password, "Forgot password?", lockout alert state | Form, inline alert | REQ-FR-002/003 | P1 | Yes | S01 |
 | 8 | ★ **MFA code entry** | 6 single-character boxes or one field with `autocomplete="one-time-code"`; "Use backup method" link | OTP input | REQ-FR-006 | P4 |  | S01 |
@@ -685,10 +728,10 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 24 | **Assessment intro** | Rules, time limit, "autosave on", accessibility note about timer, Start | Alert, button | REQ-FR-019 | P3 |  | W07 |
 | 25 | ★ **Assessment taking** | Single question per view; question navigator; sticky timer with live-region announcements; Save and Next; Submit review screen; multiple choice, free text, code editor (monospace, no auto-run on this page) | Timer, navigator, radio groups | REQ-FR-019 | P3 |  | S09 |
 | 26 | **Assessment result** | Score, per-question breakdown, skill added to profile (verified badge), retry info | Score card, table | REQ-FR-020 | P3 |  | S09 |
-| 27 | ★ **Interview coaching** | Left: choose job or role, question (AI or template). Right: textarea for answer (character count) → "Get feedback" (AI action + cost note) → feedback sections: Structure, Content, Missing points, Suggested rewrite | AI action, feedback card | REQ-FR-021 | P3 |  | S10 |
+| 27 | ★ **Interview coaching** | Left: choose job or role, question (AI or template). Right: textarea for answer (character count) → "Get feedback" (AI action + cost note) → feedback via Coaching Feedback Card (7.19) showing STAR rubric label, cited quotes, helpfulness rating (1–5 stars); offline rule-based fallback state shown if AI is unavailable. Practice answers are private (REQ-FR-060), never influence match score | Coaching Feedback Card (7.19) | REQ-FR-021, REQ-FR-058, REQ-FR-060 | P3 |  | S10 |
 | 28 | ★ **Applications tracker** | Table/cards: job, company, status pill, last update, score chip; filters by status; row opens detail | Table, pills | REQ-FR-023 | P1 | Yes | S06 |
 | 29 | ★ **Application detail + match score** | Header (job, company, pipeline stepper); Score Card (7.2); "View my story for this job"; messages link | Stepper, score card | REQ-FR-024 | P2 | Yes | S07 |
-| 30 | ★ **Apply flow** | Stepper: Resume → Screening questions → Review and submit. Shows what employer will see ("Personal details removed for AI screening") | Stepper, form | REQ-FR-022 | P1 | Yes | S05 |
+| 30 | ★ **Apply flow** | Stepper: Resume → Screening questions → Review and submit. Shows what employer will see ("Personal details removed for AI screening") — links to PII stripping preview (page #72) | Stepper, form | REQ-FR-022 · **REQ-FR-057** | P1 | Yes | S05 |
 | 31 | **Messages** | Two-pane: conversation list / thread; composer; unread markers; mobile shows one pane at a time | List, thread, composer | REQ-FR-043 | P3 |  | W08 |
 | 32 | **Settings** | Tabs: Account · Security (password, MFA) · Notifications · Privacy (download my data, delete account) · Plan | Tabs, toggles, confirm dialog | REQ-FR-040/041, REQ-COM-002/003 | P1–P4 |  | W09 |
 
@@ -699,21 +742,21 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 33 | **Employer onboarding** | Company name, industry, size, logo; invite team (optional) | Form | REQ-FR-045 | P1 |  | W10 |
 | 34 | **Dashboard** | KPI cards (open jobs, new applications, awaiting screening, interviews this week), quota meter, activity feed, "Needs review" list (flagged rationales) | KPI cards, meter | REQ-FR-046 | P1 | Yes | X05 |
 | 35 | ★ **Jobs list** | Tabs by status (Draft / Active / Paused / Closed) with counts; table: title, applicants, last activity, actions | Tabs, table | REQ-FR-025–027 | P1 | Yes | S11 |
-| 36 | ★ **Create / edit job** | Sections: Basics · Description · Requirements (required / nice-to-have skills) · Screening questions · **Required assessments** · Review. AI suggests skills and questions (✦ chips; accept/dismiss). Auto-save draft | Form, AI chips | REQ-FR-025/026 · **REQ-FR-051** | P1–P2 | Yes | S11 |
+| 36 | ★ **Create / edit job** | Sections: Basics · Description · Requirements (required / nice-to-have skills) · Screening questions · **Required assessments** · Review. AI suggests skills and questions (✦ chips; accept/dismiss). **Scorecard Criteria Publish** (7.21, opt-in) stating only criteria are shared, never questions. Auto-save draft | Form, AI chips, Scorecard Publish (7.21) | REQ-FR-025/026 · **REQ-FR-051/052** | P1–P2 | Yes | S11 |
 | 37 | **Job overview** | Pipeline funnel (counts per stage), share link + embed code (copy buttons), edit/pause/close | Funnel, copy field | REQ-FR-036 | P1–P3 |  | W11 |
 | 38 | ★ **Screening confirm** | Cost Estimate Modal (7.3) | Modal | REQ-FR-028 | P2 | Yes | S14 |
 | 39 | **Screening progress** | Progress bar, stage text (Filtering → Ranking → Analysing top 10 → Checking for bias), degraded badge if needed, "Leave this page; we'll notify you" | Progress, badge | REQ-FR-028 | P2 |  | S14 |
-| 40 | ★ **Ranked applications** | Table: rank, anonymized candidate ID (name reveals on shortlist — decided 2026-10-03), score chip, bias-check status, **assessment-gate pill** (`not required` / `pending` / `passed` / `failed`), **override ⚑ marker** with its reason on hover, status pill, selected; filters (score range, status, **excluded by filter — with reason shown**, flagged); bulk bar (Shortlist / Reject / Export); sort by score. Footer note shows the filter-rule version in force | Table, bulk bar, chips | REQ-FR-029 · **REQ-FR-051/052** | P2–P3 | Yes | S12 |
-| 41 | ★ **Candidate review** | Split view (xl): left = anonymized resume with placeholder tokens (name reveals on shortlist — decided 2026-10-03); right = Score Card (7.2), Bias Audit Panel (7.7), **assessment-gate panel** with the pending/failed state and what the candidate still has to do, screening answers, notes. Sticky action bar: Shortlist · Reject (with reason) · Message — **a decision against the ranking opens a required-reason dialog (7.11), and Shortlist is disabled with an explanation while the gate is `pending` or `failed`** | Score card, panels | REQ-FR-030 · **REQ-FR-051/052** | P2–P3 | Yes | S13 |
-| 42 | ★ **Interview pack builder** | Generate (AI action + cost note) → editable list of questions grouped by category, follow-ups, rubric table (criterion, weight, scale); drag to reorder (keyboard alternative: move up/down buttons) | AI action, sortable list | REQ-FR-031 | P3 |  | S15 |
+| 40 | ★ **Ranked applications** | Table: rank, **Alias Badge** (7.13) showing per-employer alias (e.g. C-7H2X9), score chip, bias-check status, **assessment-gate pill** (`not required` / `pending` / `passed` / `failed`), **override ⚑ marker** with its reason on hover, status pill, selected; filters (score range, status, **excluded by filter — with reason shown**, flagged); bulk bar (Shortlist / Reject / Export); sort by score. Footer note shows the filter-rule version in force. Shortlist button opens Reveal Confirmation (page #63) | Table, bulk bar, chips, Alias Badge (7.13) | REQ-FR-029 · **REQ-FR-051/052 · REQ-FR-053/054** | P2–P3 | Yes | S12 |
+| 41 | ★ **Candidate review** | Split view (xl): left = **Stripped Text View** (7.14) showing anonymized resume with typed placeholders, candidate shown as **Alias Badge** (7.13, e.g. C-7H2X9); "Reveal name" button opens Reveal Confirmation (page #63). Right = Score Card (7.2), Bias Audit Panel (7.7), **assessment-gate panel** (W29) with the pending/failed state, Integrity Signals Panel (7.15) for the attempt, screening answers, notes. Sticky action bar: Shortlist · Reject (with reason) · Message — a decision against the ranking opens required-reason dialog (7.11); Shortlist is disabled while gate is `pending` or `failed` | Score card, panels, Alias Badge (7.13), Stripped Text View (7.14), Integrity Signals (7.15) | REQ-FR-030 · **REQ-FR-051/052 · REQ-FR-053/054/055/057** | P2–P3 | Yes | S13 |
+| 42 | ★ **Interview pack builder** | Generate (AI action + cost note) → editable list of questions grouped by category, follow-ups, rubric table (criterion, weight, scale); drag to reorder (keyboard alternative: move up/down buttons). Shows whether employer-published Scorecard Criteria (7.21) are attached to this job | AI action, sortable list, Scorecard Criteria (7.21) | REQ-FR-031 · **REQ-FR-051** | P3 |  | S15 |
 | 43 | ★ **Schedule interview** | Candidate, date/time (with timezone shown), duration, interviewers, pack, video URL; confirmation summary | Form, date picker | REQ-FR-032 | P3 |  | S16 |
 | 44 | **Interviews list / calendar** | Toggle list ↔ week calendar; status chips; calendar has list alternative | Calendar, table | REQ-FR-032 | P3 |  | W12 |
-| 45 | ★ **Interview feedback form** | Scorecard (7.10) | Radio groups | REQ-FR-033 | P3 |  | S16 |
+| 45 | ★ **Interview feedback form** | Scorecard (7.10) with sections matching employer-published **Scorecard Criteria** (7.21) where attached; otherwise generic STAR rubric | Radio groups | REQ-FR-033 · **REQ-FR-051** | P3 |  | S16 |
 | 46 | **Offer letter editor** | AI draft in `--ai-soft` card, editable rich text, merge fields, Save/Send | Editor, AI badge | REQ-FR-034 | P5 |  | W13 |
-| 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy, **override rate by user and by job (each row links to its recorded reason)**, **not-matched vs pulled-into-review**; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 · **REQ-FR-052** | P4 |  | S17 |
+| 47 | ★ **Analytics** | Date range; charts: time-to-hire, drop-off funnel, source of hire, AI accuracy, **override rate by user and by job (each row links to its recorded reason)**, **not-matched vs pulled-into-review**, **reveal events count & timing**; each chart has summary sentence and table alternative | Charts + tables | REQ-FR-035 · **REQ-FR-049/050 · REQ-FR-052** | P4 |  | S17 |
 | 48 | **Messages** | Same as #31, grouped by job | List, thread | REQ-FR-043 | P3 |  | W08 |
-| 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 | P1–P4 |  | W14 |
-| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method (bKash/SSLCommerz in BDT; Stripe in Phase 5) | Cards, meters | REQ-FR-048 | P5 |  | W15 |
+| 49 | **Team and roles** | Table of members (name, role, MFA status), invite form, role change, remove | Table, form | REQ-FR-047 · **REQ-FR-049/050** | P1–P4 |  | W14 |
+| 50 | **Billing and plan** | Current plan, usage meters, plan comparison, invoices, payment method. Shows BDT Payment Form (7.18) for bKash/SSLCommerz; Stripe listed as "coming Phase 5". Placeholder amounts marked `[Planned: set after validation]` | Cards, meters, BDT Payment Form (7.18) | REQ-FR-048, REQ-FR-056 | P5 |  | W15 |
 | 51 | **Company settings** | Company profile, security (MFA mandatory for HR admin), notifications, default AI model preference ("Auto (free)" / "Best available (paid)") | Tabs, radio cards | REQ-SEC-009 | P1–P4 |  | W16 |
 | 52 | **MFA setup** | QR code, manual key (copy), verify code field; recovery note | QR, OTP input | REQ-FR-005/006 | P4 |  | W17 |
 | 53 | **Data retention settings** | Retention period selectors per record type with plain-language impact; saves with audit entry | Form, alert | REQ-COM-005 | P4 |  | W18 |
@@ -732,6 +775,32 @@ They are the only two pages in the 62 that legitimately carry no requirement ID.
 | 61 | **Assessment management** | List; create/edit assessment and questions; activate/deactivate | Form, table | REQ-FR-049 | P3 |  | W24 |
 | 62 | **Broadcast announcement** | Title, body, audience (all / candidates / employers / by plan / custom), channel (in-app / email / both), schedule; preview **with the resolved recipient count shown before send** and a confirm on any audience over 1,000; send history table with `sent` / `skipped` counts | Form, preview, table | REQ-FR-050 | P4 (optional) |  | W25 |
 
+### 10.4b Additional Employer Screens (8)
+
+| # | Page | Layout and content | Key components | Requirement | Phase | Core flow | Wireframe |
+|---|---|---|---|---|---|---|---|
+| 63 | ★ **Reveal confirmation** | Modal: "Revealing [Alias Badge (7.13, e.g. C-7H2X9)] to [employer name]. Your action is logged (audit entry) and visible only to this employer. This cannot be undone." Confirm / Cancel | Confirm dialog, Alias Badge (7.13) | REQ-FR-057 | P2 | Yes | W32 |
+| 64 | ★ **Employer candidate list** | Table: Alias Badge (7.13) per employer, score chip, status, applied date, actions. No names, no UUIDs, no photos. Export button → CSV (no PII columns) | Alias Badge (7.13), table, export | REQ-FR-054 | P2 | Yes | W37 |
+| 65 | ★ **Employer candidate detail** | Alias Badge (7.13) header, Stripped Text View (7.14) resume, assessment gate status, score, notes. "Reveal" button opens Reveal Confirmation (#63) | Alias Badge (7.13), Stripped Text View (7.14) | REQ-FR-054, REQ-FR-057 | P2 | Yes | W38 |
+| 66 | **Shortlisted candidates** | Table: Alias Badge (7.13), score, match date, status. No names, no UUIDs, no photos. Bulk export (CSV, no PII) | Alias Badge (7.13), table, export | REQ-FR-054 | P2 | Yes | W40 |
+| 67 | ★ **Assessment consent** | Employer-facing integrity panel: neutral wording ("Integrity signals"), counts and timestamps of tab-switch / window-visibility events, note that signals never fail an attempt or change ranking | Integrity Signals Panel (7.15) | REQ-FR-055 | P3 |  | W39 |
+| 68 | **Paid visibility toggle** | Toggle for job promotion (BDT billing via BDT Payment Form 7.18); "Promoted" label shown on job cards; Paid Visibility Tooltip (7.17) explaining promotion affects discovery only, never screening rank | Toggle, payment form, tooltip | REQ-FR-053 | P3 |  | W41 |
+| 69 | **Scorecard criteria publish** | Opt-in per job: list criteria (title, description, weight, max score), statement that only criteria are shared, never questions | Form, statement | REQ-FR-051 | P3 |  | W42 |
+| 70 | ★ **Billing and plan** | Plan cards (Free / Growth / Scale), usage meters, invoices list, BDT Payment Form (7.18) for bKash & SSLCommerz; `[Planned: set after validation]` placeholders | Cards, meters, BDT Payment Form (7.18) | REQ-FR-056 | P5 |  | W43 |
+
+### 10.4c Additional Candidate Screens (10)
+
+| # | Page | Layout and content | Key components | Requirement | Phase | Core flow | Wireframe |
+|---|---|---|---|---|---|---|---|
+| 71 | ★ **Anonymised resume preview** | Shows the candidate's resume with placeholders ([CANDIDATE_NAME], [INSTITUTION], [EMPLOYER], [LINK]) using Stripped Text View (7.14). No photo, no real contact details. "Compare" button opens stripping preview (#72) | Stripped Text View (7.14), Verified Badge (7.16) | REQ-FR-057 | P2 | Yes | W30 |
+| 72 | ★ **PII stripping preview** | Side-by-side: original resume (hidden behind toggle, "your eyes only") vs anonymized text. Lists what was stripped and why. "This is what employers see during screening" — candidate confirmation page | Stripped Text View (7.14) | REQ-FR-057 | P2 | Yes | W31 |
+| 73 | ★ **Reveal confirmation** | Modal: "Revealing your identity to [employer name]. This action is logged and the employer will see your name. Only this employer will be able to see this." Confirm / Cancel | Confirm dialog, Alias Badge (7.13) | REQ-FR-057 | P2 | Yes | W32 |
+| 74 | ★ **Assessment consent** | Full-page consent: "This assessment records integrity signals (tab-switch, window-blur). No video, audio, face, voice or eye tracking." Checkboxes for consent. Start button. | Consent form, alert | REQ-FR-055 | P3 | Yes | W34 |
+| 75 | ★ **Skills gap & resources** | For each missing skill: Resource Card (7.20) with title, cost, language, level, review date; broken links show "Link unavailable"; retake-after-cooldown timer; Verified badge progress after retake | Resource Card (7.20), Verified Badge (7.16) | REQ-FR-061, REQ-FR-063 | P3 | Yes | W35 |
+| 76 | ★ **Shortlist reveal confirmation** | Candidate-side version: shows which employer will see your identity after shortlisting, audit-log note, confirm / cancel | Confirm dialog | REQ-FR-057 | P2 | Yes | W32 |
+| 77 | ★ **Interview practice — session** | Choose job or role, select or get a practice question (from practice bank — never from live assessments, I3), textarea for typed answer (character count), "Get feedback" button (AI action + cost note) | Textarea, AI action, Stripped Text View (7.14) | REQ-FR-058 | P3 |  | W33 |
+| 78 | **Interview practice — feedback** | Coaching Feedback Card (7.19): rubric label ("Generic STAR" or "Employer-published scorecard for [Job]"), per-point feedback with quoted candidate text, missing points, suggested rewrite; helpfulness rating (1–5 stars); offline rule-based fallback state shown if AI is unavailable | Coaching Feedback Card (7.19) | REQ-FR-058, REQ-FR-059 | P3 |  | W33 |
+
 ### 10.5 Low-Fidelity Wireframes
 
 These wireframes show **structure, hierarchy and states**, not final styling. They are drawn as text so they live in version control; the Figma versions are still outstanding (Section 12).
@@ -740,7 +809,7 @@ These wireframes show **structure, hierarchy and states**, not final styling. Th
 
 **Placeholder data:** every name, number and date below is sample content, not real data.
 
-**Coverage — all 62 pages, verified 2026-10-04:**
+**Coverage — all 78 pages, verified 2026-10-09:**
 
 | Series | Wireframes | Page rows | What it is |
 |---|---|---|---|
@@ -748,7 +817,11 @@ These wireframes show **structure, hierarchy and states**, not final styling. Th
 | `X01`–`X05` | 5 | 7 | Cross-cutting patterns (error page, empty states, …) |
 | `W01`–`W25` | 25 | 26 | Second pass, §10.6 — pages that previously had a spec only |
 | `W26`–`W29` | 4 | — | Screening-integrity components and states (§12 item 11), not whole pages |
-| **Total** | **52** | **62** | **Every page row carries a wireframe** |
+| `W30`–`W39` | 10 | 10 | Third pass: employer alias, stripped resume, reveal confirmation, assessment consent, interview practice, skills gap |
+| `W32` | — | 2 | Shared reveal confirmation (pages #63, #73, #76) |
+| `W33` | — | 2 | Interview practice session + feedback (pages #77, #78) |
+| `W40`–`W43` | 4 | 4 | Fourth pass: shortlisted list, paid visibility, scorecard publish, billing |
+| **Total** | **64** | **78** | **Every page row carries a wireframe** |
 
 Page rows exceed wireframes because several wireframes serve two pages — `S01` covers
 register/login/MFA, `X02` the three empty states, `W08` both messages pages. The three
@@ -756,7 +829,7 @@ counts are counted by script rather than asserted, because the earlier version o
 paragraph said "26 + 26 = 52" and left 10 pages unaccounted for; the numbers were never
 wrong, the arithmetic was.
 
-`scripts/verify_docs.py` fails if any of the 62 rows carries a blank wireframe cell, so
+`scripts/verify_docs.py` fails if any of the 78 rows carries a blank wireframe cell, so
 coverage is checked rather than claimed.
 
 The page-to-wireframe map is in Section 10.0 and in the *Wireframe* column of each table.
@@ -1262,10 +1335,11 @@ Needs review (flagged by bias check)            Recent activity
 
 ---
 
-### 10.6 Second Pass — the Remaining Pages, and the Integrity Components (W01–W29)
+### 10.6 Second Pass — the Remaining Pages, and the Integrity Components (W01–W43)
 
-⚠️ **This subsection was previously titled "Still Not Drawn". It no longer is.** As of
-2026-10-04 every one of the 62 pages in Sections 10.1–10.4 has a wireframe, so there is no
+⚠️ **This subsection was previously titled "Still Not Drawn".** It documented the transition
+from 62 pages (all drawn by 2026-10-04) to 78 pages (all drawn by 2026-10-09). As of
+2026-10-09 every one of the 78 pages in Sections 10.1–10.4 has a wireframe, so there is no
 longer a page whose only artefact is prose.
 
 **The numbering restarts at `W` rather than continuing from `S18`, deliberately.** `S01`–`S18`
@@ -1273,13 +1347,18 @@ were the original pass — the 18 required screens plus the core-flow additions 
 are cross-cutting patterns. Renumbering the originals would have broken every existing
 reference in `prd.md`, the Arch Doc and `HISTORY.md` in exchange for tidier-looking
 identifiers, which is a bad trade. **`S` = first pass, `X` = pattern, `W` = second pass**, and
-the *Wireframe* column in Section 10.0 is the authoritative page→wireframe map.
+`W30`–`W43` are the third and fourth pass for REQ-FR-053–063. The *Wireframe* column in
+Section 10.0 is the authoritative page→wireframe map.
 
 `W01`–`W25` are whole pages; **`W26`–`W29` are components and states** that belong to pages
-already drawn, which is why they have no page number of their own. 25 wireframes cover 26
-pages because **W08 serves two pages** (#31 candidate messages and #48 employer messages) —
-the same conversation surface from opposite sides of the match, and drawing it twice would
-have produced two layouts that drift apart.
+already drawn, which is why they have no page number of their own. `W30`–`W39` and `W40`–`W43`
+are whole pages for the employer-alias, stripped-resume, reveal-confirmation, assessment
+consent, interview-practice, skills-gap, paid-visibility, scorecard-publish and billing
+surfaces. 25 wireframes cover 26 pages because **W08 serves two pages** (#31 candidate
+messages and #48 employer messages) — the same conversation surface from opposite sides of
+the match, and drawing it twice would have produced two layouts that drift apart. W32 serves
+three pages (#63, #73, #76), W33 serves two (#77, #78), and W32 is a shared reveal
+confirmation referenced from both sides.
 
 These pages reuse components already drawn in the first pass, so the annotation standard is
 unchanged: `A11y:` notes name the specific failure being designed against, not generic advice.
@@ -2415,15 +2494,371 @@ exact judgement the gate is meant to sequence. The link says "answers", not "sco
 employer's attention goes to the evidence rather than the number.
 
 ---
-## 12. Design Deliverables Checklist
 
-**Status key:** *Not started* · *Drafted in design.md* (text or ASCII, usable as a brief) · *Done*. Nothing in this file replaces the Figma work; "drafted" means the content decisions are made and recorded.
+#### W30 · Anonymised resume (page #34)
+
+```
+[Hamburger] FairFold              [Alias C-7H2X9]     [Verified ★]
+<h1> Resume preview
+
+<h2> [Candidate Name] — Engineering Lead — Dhaka, Bangladesh
+→ Stripped to placeholders:
+  [CANDIDATE_NAME]                  [INSTITUTION]
+  [EMPLOYER]                        [LINK]
+  [10 mos] · [2 yrs]                [Date]
+
+[INSTITUTION] — B.Sc. Computer Science
+[2015] ────────────────────────────────────────────────
+
+[EMPLOYER] — Senior Engineer
+[2018] ─────────  [2 yrs] ────→  Present
+
+[EMPLOYER] — Tech Lead
+[2021] ─────────  [2 yrs] ────→  Present
+
+← Back to applications
+```
+
+**A11y:** one `<h1>`. Placeholders are `--surface-muted` pills with `role="text"` and `data-placeholder` so screen readers announce "redacted institution" etc. Dates converted to relative durations ("2 yrs") to avoid revealing exact dates. No image elements rendered — the photo field is omitted at the data layer, not merely hidden with CSS.
+
+---
+
+#### W31 · PII stripping preview (page #35)
+
+```
+<h1> Your resume — what employers see
+
+[Tabs]  Original (your eyes only)   ·   Anonymised (preview)
+
+ORIGINAL (toggle to reveal):
+┌─────────────────────────────────────┐
+│ Jane Doe — jane@email.com           │
+│ +1 (555) 123-4567                   │
+│ [Photo: Jane Doe]                   │
+│                                     │
+│ B.Sc. Computer Science              │
+│ University of California, Berkeley  │
+│ 2015 ────────────────────────────   │
+│                                     │
+│ Senior Engineer                     │
+│ Acme Corp, San Francisco          │
+│ 2018 ──────── 3 years ────────→     │
+└─────────────────────────────────────┘
+
+ANONYMISED (employers see this):
+┌─────────────────────────────────────┐
+│ [CANDIDATE_NAME]                    │
+│ [EMAIL] · [PHONE]                   │
+│ [removed]                           │
+│                                     │
+│ B.Sc. Computer Science              │
+│ [INSTITUTION]                       │
+│ [2015] ────────────────────────────   │
+│                                     │
+│ Senior Engineer                     │
+│ [EMPLOYER]                          │
+│ [2018] ──────── [3 yrs] ────────→   │
+└─────────────────────────────────────┘
+
+✦ Stripped: photo, name, email, phone, links, exact institution names, exact employer names
+```
+
+**A11y:** the original view is locked behind a toggle with `aria-label="Show original resume (your eyes only)"` and a `role="alert"` warning that "This view is visible to you only." The anonymised view is the default and always accessible. Stripped items are a `<ul>` with `aria-live="polite"`.
+
+---
+
+#### W32 · Reveal confirmation (page #63)
+
+```
+┌─────────────────────────────────────────────────┐
+│  Reveal candidate identity?                    │
+│                                                │
+│  You are about to reveal the identity of      │
+│  C-7H2X9 to Acme Corp.                        │
+│                                                │
+│  What will happen:                            │
+│  • Acme Corp will see this candidate's name   │
+│  • This action is logged (audit entry)        │
+│  • Only Acme Corp will be able to see this    │
+│                                                │
+│  [ Cancel ]      [ Reveal identity ]          │
+└─────────────────────────────────────────────────┘
+```
+
+**A11y:** `role="alertdialog"` with `aria-labelledby` and `aria-describedby`. The confirm button is `--danger` themed and labelled "Reveal identity". The audit-log note is a `<p>` with `aria-live="polite"`.
+
+---
+
+#### W33 · Interview practice — session (page #37)
+
+```
+<h1> Interview practice
+
+Job role:  [Select a job or role ▾]
+
+Rubric: Generic STAR (default)  ·  Employer-published: [Job title]
+
+Q: Tell me about a time you disagreed with a teammate.
+
+Your answer (0 / 500 characters):
+[______________________________________________]
+[______________________________________________]
+[v] 0 / 500
+
+[ Get feedback ]  ✦ (1 AI credit)
+```
+
+**A11y:** the question is a `<blockquote>` with `aria-label="Practice question"`. The textarea has `aria-label="Your answer, character count below"`. The AI action button shows credit cost in `aria-label`: "Get feedback, costs 1 AI credit." If AI is unavailable: `[ View rule-based tips ]` and `<p role="status">AI feedback is temporarily unavailable — showing rule-based tips instead.</p>`.
+
+---
+
+#### W34 · Assessment consent / integrity consent (page #39 / #67)
+
+```
+<h1> Before you begin
+
+Integrity signals (not cheating detection)
+
+This assessment records:
+• Tab-switching count
+• Window blur/focus count
+• Timestamps of the above
+
+This assessment does NOT record:
+• Camera, microphone, or screen
+• Facial, voice, or eye tracking
+• Keystroke dynamics or typing patterns
+
+[✓] I understand and consent to the above signals
+[✓] I understand this does not affect my score or ranking
+
+[ Start assessment ]
+```
+
+**A11y:** the two lists are `<ul>`. Consent checkboxes are required — the Start button is `aria-disabled="true"` until both are checked. The "not cheating detection" text is `role="alert"` on load.
+
+---
+
+#### W35 · Skills gap & resources (page #40)
+
+```
+<h1> Skill gap
+
+Missing skills:
+┌──────────────────────────────────┐
+│ Python (Intermediate)            │
+│  ┌──┐ 3 of 12 concepts missing   │
+│  Skill gaps: loops, decorators,  │
+│  memory management               │
+│                                  │
+│ Recommended resources:           │
+│  [★] Python for Beginners  Free  │
+│      Language: English  Level: 1 │
+│      Reviewed: Oct 2026          │
+│  [ ] Advanced Python     $39     │
+│      Language: English  Level: 3 │
+│      Reviewed: Sep 2026          │
+│                                  │
+│ [ View all resources for Python ]│
+└──────────────────────────────────┘
+
+Cooldown: retake eligible in 3 days
+[ Retake assessment ] ⛔ (disabled)
+```
+
+**A11y:** each resource is a `<article>` with `aria-label`. Broken links show `<p role="status">Link unavailable — retrying…</p>` with a retry button. The cooldown countdown is `role="timer"`. The Verified badge (7.16) appears next to the skill name when the gap is closed.
+
+---
+
+#### W37 · Employer candidate list (page #64)
+
+```
+<h1> Applications — Acme Corp
+
+[Table]
+Rank  Alias        Score  Status    Applied    Actions
+────  ───────────  ────── ────────  ────────   ───────
+1st   C-7H2X9       87     New      Oct 8      [View] [Message]
+2nd   C-3K9P2       72     New      Oct 9      [View] [Message]
+3rd   B-4M7Q1       68     New      Oct 10     [View] [Message]
+
+Filters: [ Score range ] [ Status ] [ Date range ]
+Bulk: [ Shortlist ] [ Reject ] [ Export CSV ]
+```
+
+**A11y:** table has `aria-label="Applications for Acme Corp"`. No name, UUID, or photo columns in the DOM. CSV export contains only alias, score, status, applied date — no PII columns. Each row: `aria-label="Candidate C-7H2X9, score 87, new"`.
+
+---
+
+#### W38 · Employer candidate detail (page #65)
+
+```
+<h1>  C-7H2X9  ·  Score: 87
+
+[Tabs]  Resume    ·    Assessment    ·    Notes
+
+RESUME:
+┌─────────────────────────────────────┐
+│ [CANDIDATE_NAME]                    │
+│                                     │
+│ [INSTITUTION] — B.Sc. Computer Sci  │
+│ [2015] ──────────────────────────   │
+│                                     │
+│ [EMPLOYER] — Senior Engineer        │
+│ [2018] ──────── [3 yrs] ────────→   │
+└─────────────────────────────────────┘
+[ Reveal identity ] → opens Reveal Confirmation (#63)
+
+ASSESSMENT: Passed · 78/100
+
+NOTES:
+[___________________________________]
+[ Add note ]
+```
+
+**A11y:** the alias badge is always visible. The real name only appears in the Reveal Confirmation modal after confirmation. `[Reveal identity]` button has `aria-label="Reveal candidate identity — opens confirmation dialog"`. No `<img>` or photo elements ever rendered.
+
+---
+
+#### W39 · Integrity signals panel (page #67)
+
+```
+<h2> Integrity signals
+
+[▼] Integrity signals  (2 events recorded)
+
+  Tab-switch detected   Oct 9, 2026 — 14:32:15
+  Window blurred         Oct 9, 2026 — 14:32:47
+
+<h3> What this means
+These signals are recorded for review. They never fail an attempt
+or change ranking. A human reviewer may use them as context.
+
+[ Collapse ]
+```
+
+**A11y:** `role="region"` with `aria-labelledby`. Collapsible uses `aria-expanded`. The "never fail" note has `aria-live="polite"`. The word "cheating" never appears.
+
+---
+
+#### W40 · Shortlisted candidates (page #66)
+
+```
+┌──────────────────────────────────────────┐
+│  Shortlisted — Acme Corp                │
+│                                          │
+│  Rank  Alias        Score  Match  Status │
+│  ────  ────────     ─────  ─────  ────── │
+│  1st   C-7H2X9      87     Oct 8  Short  │
+│  2nd   C-3K9P2      72     Oct 9  Short  │
+│                                          │
+│  [ Export CSV ]  (no PII columns)       │
+└──────────────────────────────────────────┘
+```
+
+**A11y:** table headers include "Alias" not "Name". No name/UUID/photo columns exist in the DOM. CSV export contains only alias, score, match date, status. Each row: `aria-label="Candidate C-7H2X9, score 87, shortlisted"`.
+
+---
+
+#### W41 · Paid visibility toggle (page #68)
+
+```
+<h1>  Job promotion — Acme Corp
+
+  Boost visibility in candidate search and job board results.
+  This affects discovery only — never screening rank or match score.
+
+  [✓] Promote this job  ($5/day)
+  [ ] Verified badge   (free — earn via assessment)
+  [ ] Highlight in results (free)
+
+  Payment method: bKash  ·  SSLCommerz  ·  [Add payment method]
+
+  ┌──────────────────────────────────────┐
+  │  BDT Payment Form (7.18)            │
+  │  Amount: [৳ 150]                     │
+  │  [ bKash ]  [ SSLCommerz ]          │
+  │  [ Pay now ]                         │
+  └──────────────────────────────────────┘
+
+  <p>Promotion affects discovery only, never screening rank (REQ-FR-053).</p>
+```
+
+**A11y:** the payment form has `aria-live="polite"` for amount updates. The "affects discovery only" note is a `<p>` with `aria-label="Discovery only, does not affect screening rank"`. Payment method selector uses radio groups with `aria-describedby` pointing to the limitation text.
+
+---
+
+#### W42 · Scorecard criteria publish (page #69)
+
+```
+<h1>  Scorecard criteria — Software Engineer
+
+Share these criteria with candidates so they know what to expect
+during interviews. Only the criteria below are shared — never
+the interview questions themselves.
+
+[✓] Publish criteria for this job
+
+┌────────────────────────────────────────────────────┐
+│  Criterion        Weight     Max  Description     │
+│  ──────────────── ─────────  ───  ─────────────── │
+│  Problem-solving  30%        5    Evaluates logic  │
+│  Communication    25%        5    Clarity of expr │
+│  Culture-fit      20%        5    Team alignment   │
+│  Technical depth  25%        5    CS fundamentals  │
+└────────────────────────────────────────────────────┘
+
+[ Add criterion ]  [ Save ]
+
+<p><small>Only the criteria title, weight, max score, and description
+are shared with candidates. Interview questions remain private.</small></p>
+```
+
+**A11y:** the "Publish" toggle has `aria-describedby` pointing to the limitation statement. Each criterion row is an `<article>` with `aria-label="Problem-solving, weight 30%, max score 5"`. The save button has `aria-label="Save scorecard criteria for this job"`.
+
+---
+
+#### W43 · Billing and plan (page #70)
+
+```
+<h1>  Billing & plan — Acme Corp
+
+Current plan:  Growth (৳4,500/month)
+Next billing:  Nov 1, 2026
+
+┌────────────────────────────────────┐
+│  Plan comparison                  │
+│                                    │
+│  ┌────────┐ ┌────────┐ ┌────────┐ │
+│  │ Free   │ │ Growth │ │ Scale  │ │
+│  │ ৳0     │ │ ৳4,500 │ │ ৳9,000 │ │
+│  │ 5 jobs │ │ 50 jobs │ │ 200+   │ │
+│  │ — AI   │ │ ✓ AI    │ │ ✓ AI    │ │
+│  └────────┘ └────────┘ └────────┘ │
+└────────────────────────────────────┘
+
+Invoices:
+┌────────────────────────────────────┐
+│ Oct 2026  ৳4,500  Paid  [PDF]     │
+│ Sep 2026  ৳4,500  Paid  [PDF]     │
+│ Aug 2026  ৳4,500  Failed  [Retry] │
+└────────────────────────────────────┘
+
+Payment method: bKash  ·  SSLCommerz
+[ Update payment method ]
+
+[Planned: set after validation]
+```
+
+**A11y:** the plan cards are a radio group (`fieldset` + `legend`). Failed invoices show `role="alert"` with a retry button. The "[Planned: set after validation]" note is a `<p>` with `aria-live="polite"`. Payment method update opens a modal with `role="dialog"` and `aria-modal="true"`.
+
+---
 
 | # | Deliverable | Owner | Needed by | Status |
 |---|---|---|---|---|
 | 1 | Figma file with tokens (colour, type, spacing) matching Sections 3–5 | UI/UX | Before Phase 1 UI work | Drafted in design.md (tokens in §3–5 and §11.1); Figma file not started |
 | 2 | Component library (Sections 6–7) with all states | UI/UX | Phase 1 | Drafted in design.md (state sheet §6.6); Figma components not started |
-| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | **Complete for text wireframes** — §10.5: all 62 of 62 pages, 52 wireframes (18 S + 5 X + 29 W), all 22 core-flow pages and all 18 required screens. Figma versions not started |
+| 3 | Low-fidelity wireframes for core-flow pages (22 pages) | UI/UX | Phase 1 | **Complete for text wireframes** — §10.5: all 78 of 78 pages, 64 wireframes (18 S + 5 X + 29 W + 10 W30-W39 + 4 W40-W43), all 22 core-flow pages and all 18 required screens. Figma versions not started |
 | 4 | High-fidelity mobile (360px) and desktop (1280px) for core flow | UI/UX | Phase 1–2 | Not started |
 | 5 | Journey Map prototype incl. table alternative | UI/UX + Frontend | Phase 3 start | Wireframes drafted (S08: timeline, skills, story, table view); interactive prototype not started |
 | 6 | Accessibility annotations (heading levels, landmarks, focus order) on key pages | UI/UX | With hi-fi | Text annotations drafted per wireframe (§10.5); overlay annotations on hi-fi not started |
@@ -2431,9 +2866,9 @@ employer's attention goes to the evidence rather than the number.
 | 8 | Icon set and illustration style notes | UI/UX | Phase 1 | Not started (set recommended in §11.5) |
 | 9 | Content spec: microcopy for all emails and notifications | UI/UX + PM | Phase 2 | Partly drafted (in-app microcopy §2.3); emails and notifications not started |
 | 10 | Usability test plan (5 candidates, 5 recruiters; task: apply / screen and shortlist) | UI/UX | Phase 2 | Not started |
-| 11 | Wireframes for the screening-integrity components: Override Reason Dialog (7.11), Assessment Gate Pill (7.12), the `not_matched` filter state on #40 and the gate panel on #41 | UI/UX | Phase 2 | **Complete 2026-10-04** — §10.6 `W26`–`W29`, all four. `W26` both dialog directions, `W27` all four pill states plus the blocked tooltip, `W28` the empty state, `W29` the gate panel with the three employer options |
+| 11 | Wireframes for the screening-integrity components: Override Reason Dialog (7.11), Assessment Gate Pill (7.12), the `not_matched` filter state on #40 and the gate panel on #41. **Plus new wireframes W30–W39** for: anonymised resume, PII stripping preview, reveal confirmation, interview practice session, assessment consent, skills gap & resources, employer candidate list, employer candidate detail, integrity signals panel | UI/UX | Phase 2 | **Complete** — §10.5 `W26`–`W29`, all four. `W26` both dialog directions, `W27` all four pill states plus the blocked tooltip, `W28` the empty state, `W29` the gate panel with the three employer options. `W30`–`W39` completed 2026-10-09 for REQ-FR-053–063. |
 
-**Outstanding after this revision:** the Figma file and components (1, 2), Figma renderings of the wireframes (3), high-fidelity mockups (4), the interactive Journey Map prototype (5), annotated hi-fi (6), brand assets (7, 8), notification copy (9), and the usability test plan (10). Item 11 closed 2026-10-04 with `W26`–`W29`.
+**Outstanding after this revision:** the Figma file and components (1, 2), Figma renderings of the wireframes (3), high-fidelity mockups (4), the interactive Journey Map prototype (5), annotated hi-fi (6), brand assets (7, 8), notification copy (9), and the usability test plan (10). Items 3 and 11 are complete in text form.
 
 ⚠️ **Item 3 is complete in text and not complete as a design.** "Wireframes drafted" means
 ASCII boxes in this file. The deliverable a developer or Figma file consumes has not been
