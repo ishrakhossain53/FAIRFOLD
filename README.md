@@ -16,7 +16,7 @@
 > per market. A web search, a DNS lookup and a domain registration are **not** a
 > trademark clearance. Tracked as **RSK-011** (Medium/Low).
 >
-> Because the host will change, keep `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe
+> Because the host will change, keep `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the bKash/SSLCommerz
 > webhook URL and the Sentry DSN in environment variables — the switch should be a config
 > edit, not a debugging session — and do not build SEO or email reputation against the
 > temporary host.
@@ -35,10 +35,10 @@
 | Document | Role | Covers |
 |---|---|---|
 | [FAIRFOLD_Complete_Project_Document.md](FAIRFOLD_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
-| [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 57 functional & 50 non-functional requirements, 27-table database schema, CI/CD, operations, risk register |
+| [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 63 functional & 50 non-functional requirements, 32-table database schema, CI/CD, operations, risk register |
 | [prd.md](prd.md) | **Canonical** | Product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | [FAIRFOLD_Feasibility_and_Design.md](FAIRFOLD_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
-| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 19 generic + 12 product components, 62 page specs, **52 wireframes covering all 62 pages**, frontend build tooling, implementation notes |
+| [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 7.13–7.21 product components, 78 page specs, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 | [HISTORY.md](HISTORY.md) | Log | What has been done on this repo and what is still outstanding |
 | [`validation/`](validation/) | Instrument | Consent form, interview guide, survey and results log for the §1.3.4 user validation — **built, never run** |
 

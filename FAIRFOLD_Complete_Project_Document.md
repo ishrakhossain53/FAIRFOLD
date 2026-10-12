@@ -308,7 +308,7 @@ This section is the most critical addition to the original document. Recruitment
 
 | Data Category | Protection |
 |---|---|
-| **PII (name, email, phone, address)** | Encrypted at rest using Django's `EncryptedField` (cryptography library, AES-256-GCM) via `django_encrypted_model_fields` (from `django_encrypted_model_fields.fields` import `EncryptedCharField`) — separate encryption key per deployment, stored in environment/secret manager, NOT in DB |
+| **PII (name, email, phone, address, payment provider IDs)** | Encrypted at rest using Django's `EncryptedField` (cryptography library, AES-256-GCM) via `django_encrypted_model_fields` (from `django_encrypted_model_fields.fields` import `EncryptedCharField`) — separate encryption key per deployment, stored in environment/secret manager, NOT in DB. Also covers payment-provider payment_method_id / charge_id (bKash, SSLCommerz; Stripe in Phase 5, amended 2026-10-12). |
 | **Resume/CV files** | Stored in S3-compatible storage with server-side encryption (SSE-S3 or SSE-KMS). Filenames are UUIDs with no semantic meaning. Files served only through authenticated, rate-limited Django views — never directly from S3. |
 | **Assessment answers** | Encrypted at rest. AI scoring uses anonymized content only (see 5.4). |
 | **Database** | PostgreSQL with `pgcrypto` for additional field-level encryption where Django encrypted fields aren't sufficient. Full database encryption at rest via filesystem/disk encryption (LUKS on Linux, or cloud provider disk encryption). |
@@ -334,9 +334,9 @@ Candidate submits resume PDF
         ▼
 ┌─────────────────────┐
 │  PII Stripping      │   ← Removes: name, email, phone, address,
-│  (pre-AI gate)      │      LinkedIn URL, photo references, ID numbers
-│  (deterministic     │      Keeps: skills, experience, education, projects
-│   regex + NER)      │
+│  (pre-AI gate)      │      LinkedIn URL, photo references, ID numbers,
+│  (deterministic     │      institution/employer names, age-revealing dates (per REQ-FR-057)
+│   regex + NER)      │      Keeps: skills, experience, education, projects
 └────────┬────────────┘
          │
          ▼
@@ -361,7 +361,7 @@ Candidate submits resume PDF
 ```
 
 **PII stripping implementation:**
-- Phase 1 (MVP): Deterministic regex + spaCy NER (free, offline) to identify and redact name, email, phone, location
+- Phase 1 (MVP): Deterministic regex + spaCy NER (free, offline) to identify and redact name, email, phone, location, institution/employer names, age-revealing dates, URLs (per REQ-FR-011, amended 2026-10-12, see REQ-FR-057)
 - Phase 2: LLM-based PII detection as a pre-processing step (still using free OpenRouter models, but a different, cheaper model for this specific task)
 
 **Why this matters legally and competitively:**
@@ -722,7 +722,7 @@ class EmployerProfile(models.Model):
     company_size = models.IntegerField(choices=COMPANY_SIZE_CHOICES, blank=True)
     billing_plan = models.CharField(max_length=20, default="free")  # free, starter, growth, enterprise
     billing_cycle = models.CharField(max_length=10, default="monthly")
-    stripe_customer_id = models.CharField(max_length=100, blank=True)  # if paid
+    stripe_customer_id = models.CharField(max_length=100, blank=True)  # Phase 5 (current: bKash/SSLCommerz payment_provider_id)
     created_at = models.DateTimeField(auto_now_add=True)
 
 class EmployerTeamMember(models.Model):
@@ -913,7 +913,7 @@ class AuditLogEntry(models.Model):
 - [ ] Impact visualization: extract numbers from resume text ("increased revenue by 40%", "managed team of 8")
 - [ ] Learning trajectory: suggest next skills based on career goals + market demand
 - [ ] Multi-language support (i18n) — critical for Bangladesh/emerging markets
-- [ ] Stripe integration: freemium billing, premium candidate subscriptions, employer plans
+- [ ] Stripe integration: **Phase 5** — freemium billing, premium candidate subscriptions, employer plans (current path: bKash/SSLCommerz in BDT)
 - [ ] Mobile-responsive PWA or React Native app
 - [ ] WebSockets for real-time interview coaching (candidate typing → AI responding live)
 
@@ -980,7 +980,7 @@ gunicorn >= 22.0  # WSGI server
 django-anymail >= 10.0  # Unified email backend (SendGrid, Resend, AWS SES)
 
 # Billing
-stripe >= 10.0  # Payment processing for freemium plans
+stripe >= 10.0  # Payment processing for freemium plans (Phase 5 only; current path is bKash/SSLCommerz)
 
 # Dev / CI
 pytest >= 8.0
@@ -1002,7 +1002,7 @@ sphinx >= 8.2  # documentation generation
 | Key | Purpose | Cost |
 |---|---|---|
 | **OpenRouter API key** | All AI calls (free tier covers development + early production) | Free |
-| **Stripe API keys** (test mode first, live later) | Billing for premium plans | Free (test mode) |
+| **Stripe API keys** (Phase 5) | Billing for premium plans (current path: bKash/SSLCommerz) | Free (test mode) |
 | **SendGrid / Resend / AWS SES API key** | Transactional emails (application confirmations, interview invites) | Free tier available (Resend: 3,000 emails/month free) |
 | **Sentry DSN** | Error tracking | Free (10K errors/month free) |
 
@@ -1674,6 +1674,7 @@ class Subscription(models.Model):
         ("growth", "Growth ($500/mo, 500 jobs, 5000 AI screens/mo)"),
         ("enterprise", "Enterprise ($5000/mo, unlimited)"),
     ])
+    # Payment provider references (current: bKash/SSLCommerz; Stripe in Phase 5)
     stripe_customer_id = EncryptedCharField(max_length=100, blank=True)
     stripe_subscription_id = EncryptedCharField(max_length=100, blank=True)
     current_period_end = models.DateTimeField()
@@ -2090,9 +2091,11 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 | Tier | Price | Features | Limits |
 |---|---|---|---|
 | **Free** | $0/mo | Basic profile, resume upload, apply to jobs, basic match scores, interview coaching (5 sessions/mo), journey mapping (basic) | 5 applications/day, 5 AI interactions/day |
-| **Essential** | $5/mo | All Free features + unlimited applications, 20 AI coaching sessions/mo, advanced journey mapping (skill evolution charts), priority in employer search | 50 AI interactions/day |
+| **Essential** | $5/mo | All Free features + unlimited applications, 20 AI coaching sessions/mo, advanced journey mapping (skill evolution charts), promoted on the job board and in candidate search; never affects screening rank | 50 AI interactions/day |
 | **Professional** | $20/mo | All Essential + unlimited AI coaching (STAR rubric feedback), career story generation per application, skill assessments (10/mo), interview pack builder, export journey as PDF | 200 AI interactions/day |
-| **Premium** | $50/mo | All Professional + curated training resources, market salary insights, 50 skill assessments/mo, featured in employer search, custom resume templates | Unlimited |
+| **Premium** | $50/mo | All Professional + curated training resources, market salary insights, 50 skill assessments/mo, promoted on the job board and in candidate search; never affects screening rank, custom resume templates | Unlimited |
+
+> **USD prices are reference only and unvalidated. BDT prices: [Planned — set after validation].]**
 
 **Employer Tiers:**
 
@@ -2143,7 +2146,7 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 - [ ] CI: lint, test, security scan all pass
 
 **Phase 2 Acceptance Criteria:**
-- [ ] PII stripping removes name/email/phone/location with 95%+ accuracy
+- [ ] PII stripping removes name/email/phone/location + proxies per REQ-FR-057 (institution names, employer names, age-revealing dates, URLs, photos) with 95%+ accuracy (REQ-FR-011, amended 2026-10-12)
 - [ ] Resume embeddings generated via sentence-transformers
 - [ ] pgvector cosine similarity returns ranked results in < 2 seconds for 100 candidates
 - [ ] LLM rationale generated for top 10 candidates per job

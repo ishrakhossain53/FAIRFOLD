@@ -492,6 +492,109 @@ def check_prose_counts(r: Result, docs: dict[str, str]) -> None:
     )
 
 
+# ----------------------------------------------------- pricing wording ban
+#
+# These strings imply paid tiers affect screening rank, which they must not.
+# They are allowed only inside dated historical notes (e.g. the 2026-10-05
+# business-model revision log in HISTORY.md).
+FORBIDDEN_PRICING_WORDS = (
+    "priority in employer search",
+    "featured placement",
+)
+
+
+def check_pricing_wording(r: Result, docs: dict[str, str]) -> None:
+    """Ensure paid-visibility wording is discovery-only, never screening-affecting.
+
+    Added 2026-10-12 after the business-model revision (D3) was applied in
+    REQ-FR-053. The strings "priority in employer search" and "featured placement"
+    imply that a paid tier changes how a candidate is ranked by employers, which
+    contradicts REQ-FR-053. They survive only inside dated historical notes.
+    """
+    section("8b. Pricing wording: discovery-only, never screening-affecting")
+    offenders = []
+    for name, text in docs.items():
+        for i, line in enumerate(text.splitlines(), 1):
+            low = line.lower()
+            for word in FORBIDDEN_PRICING_WORDS:
+                if word in low:
+                    # Exempt dated historical notes.
+                    if any(c in low for c in ("2026-", "superseded", "moved to", "was ", "previously", "corrected")):
+                        continue
+                    offenders.append(f"{name}:{i} contains '{word}'")
+    r.check(
+        not offenders,
+        "no 'priority in employer search' or 'featured placement' outside dated notes",
+        "; ".join(offenders) or "none found",
+    )
+
+
+# -------------------------------------------------- PII cross-reference
+
+def check_pii_crossref(r: Result, docs: dict[str, str]) -> None:
+    """REQ-FR-011 must reference REQ-FR-057.
+
+    Added 2026-10-12. REQ-FR-011 was amended to cover proxy stripping per
+    REQ-FR-057. Every document that states REQ-FR-011 must cross-reference it.
+    """
+    section("8c. REQ-FR-011 references REQ-FR-057")
+    missing = []
+    for name, text in docs.items():
+        for m in re.finditer(r"REQ-FR-011", text):
+            start = max(0, m.start() - 300)
+            end = min(len(text), m.end() + 300)
+            window = text[start:end]
+            if "REQ-FR-057" not in window:
+                line = text[: m.start()].count("\n") + 1
+                missing.append(f"{name}:{line} states REQ-FR-011 without REQ-FR-057 nearby")
+    r.check(
+        not missing,
+        "every REQ-FR-011 mention references REQ-FR-057",
+        "; ".join(missing) or "all cross-referenced",
+    )
+
+
+# -------------------------------------------------- design.md keywords
+
+def check_design_keywords(r: Result) -> None:
+    """design.md must mention key 2026-10-12 concepts."""
+    section("8d. design.md mentions key 2026-10-12 concepts")
+    design = (ROOT / DESIGN).read_text(encoding="utf-8")
+    required = [
+        ("candidate alias", "candidate alias"),
+        ("integrity consent", "integrity consent"),
+        ("Promoted", "'Promoted' paid-visibility label"),
+        ("reveal confirmation", "reveal confirmation"),
+    ]
+    for needle, label in required:
+        found = needle.lower() in design.lower()
+        r.check(
+            found,
+            f"design.md mentions {label}",
+            "found" if found else "MISSING",
+        )
+
+
+# -------------------------------------------------- wireframe coverage
+
+def check_wireframe_references(r: Result) -> None:
+    """Every defined wireframe must be referenced by a page row or inline."""
+    section("8e. Every wireframe is referenced or marked component-only")
+    design = (ROOT / DESIGN).read_text(encoding="utf-8")
+    defined = set(re.findall(r"^#### ([SWX]\d{2}) · ", design, re.M))
+    # Collect all wireframe ids referenced anywhere in the document.
+    referenced = set()
+    for line in design.splitlines():
+        for m in re.finditer(r"([SWX]\d{2})", line):
+            referenced.add(m.group(1))
+    unreferenced = sorted(defined - referenced)
+    r.check(
+        not unreferenced,
+        f"every wireframe is referenced ({len(defined)} defined, {len(referenced & defined)} referenced)",
+        f"unreferenced: {unreferenced}" if unreferenced else "all referenced",
+    )
+
+
 def check_placeholders(r: Result, docs: dict[str, str]) -> None:
     section("9. Placeholders")
 
@@ -635,8 +738,8 @@ def check_wireframes(r: Result) -> None:
 
     # Every page row in the §10.0 tables carries a wireframe reference in its last
     # column. A blank there is a page specified in prose and never drawn, which is
-    # exactly the state §10.6 used to describe for 26 pages -- so the claim "all
-    # 62 pages have a wireframe" has to be checked rather than asserted.
+    # exactly the state §10.6 used to describe for 0 pages -- so the claim "all
+    # 78 pages have a wireframe" has to be checked rather than asserted.
     pages: dict[int, str] = {}
     in_table = False
     for line in design.splitlines():
@@ -656,8 +759,8 @@ def check_wireframes(r: Result) -> None:
         pages[int(cells[0])] = cells[7]
 
     r.check(
-        len(pages) == 62,
-        f"62 page rows in design.md §10.0 (found {len(pages)})",
+        len(pages) == 78,
+        f"78 page rows in design.md §10.0 (found {len(pages)})",
         f"{len(pages)} found",
     )
 
@@ -665,7 +768,7 @@ def check_wireframes(r: Result) -> None:
     r.check(
         not blanks,
         "every page row names a wireframe",
-        f"no wireframe: pages {blanks}" if blanks else "all 62 named",
+        f"no wireframe: pages {blanks}" if blanks else "all 78 named",
     )
 
     # Every id referenced in a page row must have a matching `#### <id> ·` heading.
@@ -1110,6 +1213,10 @@ def main() -> int:
     check_referenced_files(r, docs)
     check_naming(r, docs)
     check_prose_counts(r, docs)
+    check_pricing_wording(r, docs)
+    check_pii_crossref(r, docs)
+    check_design_keywords(r)
+    check_wireframe_references(r)
     check_placeholders(r, docs)
     check_line_counts(r, docs)
     check_diagrams(r)

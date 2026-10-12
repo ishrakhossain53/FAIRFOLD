@@ -2,7 +2,7 @@
 
 **Product:** FairFold — AI-Powered, Explainable Recruitment Platform
 **Document type:** Product Requirements Document
-**Version:** 1.3 (63 FRs · D1-D7 applied · I1-I5 applied: text-only coaching, STAR rubric, isolation, resource links, evaluation set)
+**Version:** 1.4 (63 FRs · D1-D7 applied · I1-I5 applied: text-only coaching, STAR rubric, isolation, resource links, evaluation set)
 **Date:** October 2026
 **Team:** Sardar Shehab (Full-Stack), Arnob Biswas Antu (Full-Stack), Ishrak Hossain (Backend & AI), Mohammad Abdul Ahad (UI/UX)
 **Status:** Ready for review
@@ -248,7 +248,7 @@ requirements that already exist:
 
 | # | Pain point | Requirement | Covered? |
 |---|---|---|---|
-| P1 | Decided by who you knew, not what you could do | REQ-FR-011, REQ-FR-029 | Yes |
+| P1 | Decided by who you knew, not what you could do | REQ-FR-011 (incl. proxy stripping per REQ-FR-057), REQ-FR-029 | Yes |
 | P2 | No skills check before the interview | REQ-FR-019/020, REQ-FR-030 | Partly → **REQ-FR-051** (Gap G1) |
 | P3 | No explanation, no feedback | REQ-FR-024, REQ-FR-030 | Yes |
 | P4 | Nobody could challenge the outcome | REQ-COM-008, REQ-FR-039 | Yes |
@@ -373,7 +373,7 @@ High/High to **Medium/Low**, and it is now a legal task rather than a naming one
    recruitment services) in each market.
 
 **Two things the temporary-domain plan implies.** Every host-dependent value —
-`ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the Stripe webhook URL, the Sentry DSN,
+`ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, the bKash/SSLCommerz webhook URL (Stripe in Phase 5), the Sentry DSN,
 absolute URLs in emails — must live in environment variables so the switch is a config
 change and not a debugging session. And no SEO, email-sender reputation or social handle
 should be built against the temporary host: verification emails establish SPF/DKIM for
@@ -508,7 +508,7 @@ Priority: **H** = High, **M** = Medium, **L** = Low. Phase = first phase in whic
 |---|---|---|---|
 | REQ-FR-009 | Create candidate profile (title, bio, location, remote_ok) | H | 1 |
 | REQ-FR-010 | Resume upload straight from browser to S3 via presigned URL; Django stores only the key | H | 1 |
-| REQ-FR-011 | Strip PII from resume (name, email, phone, location → placeholders); store anonymized text; audit entry | H | 2 |
+| REQ-FR-011 | Strip PII from resume (name, email, phone, location + proxies per REQ-FR-057: institution/employer names, age-revealing dates, URLs, photos → typed placeholders); store anonymized text; audit entry. **Amended 2026-10-12** — cross-references REQ-FR-057 | H | 2 |
 | REQ-FR-012 | Extract resume text with pdfplumber; store anonymized | H | 2 |
 | REQ-FR-013 | Generate 384-dim resume embedding (sentence-transformers) into pgvector | H | 2 |
 | REQ-FR-014 | Add/edit/delete skills with level and source | H | 1 |
@@ -597,7 +597,7 @@ requirement*. Round 3 worked **inwards from the problem** and found *requirement
 not answer the problem that started the project* — a harder class of gap to see, because
 the document looks complete.
 
-FR↔story↔page traceability now holds for all 62 pages except #1 and #2 (landing, pricing),
+FR↔story↔page traceability now holds for all 78 pages except #1 and #2 (landing, pricing),
 which are marketing pages and correctly need no requirement.
 
 ---
@@ -742,7 +742,7 @@ Full list and measurement methods: Arch Doc §4.2 (50 NFRs). Condensed:
 
 | Area | Requirement |
 |---|---|
-| At rest | AES-256-GCM field encryption (location, first/last name, original filename, company name, Stripe IDs, credential ID, MFA secret); disk encryption; encrypted backups (30-day rolling) |
+| At rest | AES-256-GCM field encryption (location, first/last name, original filename, company name, payment-provider IDs [bKash/SSLCommerz current; Stripe Phase 5], credential ID, MFA secret); disk encryption; encrypted backups (30-day rolling) |
 | Files | S3-compatible storage with SSE; UUID filenames; served only via authenticated, rate-limited Django views (no direct S3 URLs); 10 MB max; MIME check (python-magic); ClamAV scan |
 | In transit | TLS 1.3 minimum; HSTS 1 year with preload; TLS to Redis/PostgreSQL where applicable |
 | Secrets | Env vars / Docker secrets / secret manager; never in code or git; key rotation every 90 days |
@@ -967,7 +967,7 @@ Portals are strictly separated by Django group permissions.
 
 1 Register/login (incl. MFA) · 2 Candidate onboarding/profile · 3 Resume upload with progress · 4 Job browse/search · 5 Job detail + apply · 6 Application tracker · 7 Match score + rationale · 8 Journey map · 9 Timed assessment · 10 Coaching feedback · 11 Employer job list/create/edit · 12 Ranked application list · 13 Candidate review (rationale + bias audit) · 14 Screening confirm + cost estimate · 15 Interview pack builder · 16 Scheduling + feedback form · 17 Analytics dashboard · 18 Admin users + audit log.
 
-**Low-fidelity wireframes are now delivered** for all 18 screens: `design.md` §10.5 draws 23 wireframes covering 36 of 62 pages, including every required screen and every core-flow page. High-fidelity mockups and the Figma file are still outstanding (`design.md` §12 items 1–4).
+**Low-fidelity wireframes are now delivered** for all 18 screens: `design.md` §10.5 draws 64 wireframes covering 78 of 78 pages, including every required screen and every core-flow page. High-fidelity mockups and the Figma file are still outstanding (`design.md` §12 items 1–4).
 
 ### 14.3 UX Rules
 
@@ -988,9 +988,11 @@ Canonical source: Complete Doc §C.14 (see Section 19 for the conflicting versio
 | Tier | Price | Highlights | Limits |
 |---|---|---|---|
 | Free | $0 | Profile, resume upload, apply, basic match scores, 5 coaching sessions/mo, basic journey map | 5 applications/day, 5 AI interactions/day |
-| Essential | $5/mo | Unlimited applications, 20 coaching sessions/mo, advanced journey charts, priority in employer search | 50 AI interactions/day |
+| Essential | $5/mo | Unlimited applications, 20 coaching sessions/mo, advanced journey charts, discovery-only visibility (promoted on the job board and in candidate search; never affects screening rank) | 50 AI interactions/day |
 | Professional | $20/mo | Unlimited coaching (STAR rubric feedback), per-application career story, 10 assessments/mo, interview pack builder, PDF export | 200 AI interactions/day |
-| Premium | $50/mo | Curated training resources, salary insights, 50 assessments/mo, featured placement, resume templates | Unlimited |
+| Premium | $50/mo | Curated training resources, salary insights, 50 assessments/mo, discovery-only visibility (promoted on the job board and in candidate search; never affects screening rank), resume templates | Unlimited |
+
+> **USD prices are reference only and unvalidated. BDT prices: [Planned — set after validation].]**
 
 ### 15.2 Employer Tiers
 
@@ -1236,7 +1238,7 @@ The product can go to public launch when all of the following hold:
 
 | Objective | Requirements | Verified by |
 |---|---|---|
-| O1 No PII to AI | REQ-FR-011, REQ-SEC-002, REQ-COM-001/009 | AI request-body inspection, audit log |
+| O1 No PII to AI | REQ-FR-011 (incl. proxy fields per REQ-FR-057, amended 2026-10-12), REQ-SEC-002, REQ-COM-001/009 | AI request-body inspection, audit log |
 | O2 Explainable ranking | REQ-FR-024, REQ-FR-029, REQ-FR-030 | Acceptance tests on rationale content |
 | O3 Auditable bias | REQ-COM-006/008, REQ-FR-039 | Audit entry per AI action; bias test set |
 | O4 Zero-cost AI | REQ-FR-028, REQ-NFR-015/017 | Cost-estimate tests, degradation tests |

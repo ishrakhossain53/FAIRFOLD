@@ -15,7 +15,7 @@ This file supplements — and does not replace — the specifications below:
 | `FAIRFOLD_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 63 FRs (001-063), 50 NFRs, 32 tables, 51 FKs, 25 indexes, SQL schema, ops | **Canonical** |
 | `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
-| `design.md` | UI design system, 62 page specs, 52 wireframes (18 S + 5 X + 29 W), implementation notes | Supplement |
+| `design.md` | UI design system, 78 page specs, 64 wireframes (18 S + 5 X + 29 W + 10 W30–W39 + 4 W40–W43), implementation notes | Supplement |
 | `FAIRFOLD_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
 
 **Functional requirements live in the Arch Doc §4.1.** `prd.md` proposes them and this
@@ -197,7 +197,7 @@ in the specification; those are now **Gap G1** and **Gap G2** in §2.4.1.
 
 | # | Pain point experienced | What it means for the product | Objective / requirement | Covered? |
 |---|---|---|---|---|
-| P1 | Selection was decided by **who you knew**, not what you could do | Screening must not see identity or connections | O1; REQ-FR-011 (PII stripping), REQ-FR-029 (anonymised list; name revealed only at shortlist) | **Yes** |
+| P1 | Selection was decided by **who you knew**, not what you could do | Screening must not see identity or connections | O1; REQ-FR-011 (PII + proxy stripping, amended 2026-10-12, see REQ-FR-057), REQ-FR-029 (anonymised list; name revealed only at shortlist) | **Yes** |
 | P2 | **No skills check** before the interview | Skill evidence must be part of the decision, not only a resume | O5; REQ-FR-019/020 (assessments), REQ-FR-030 (evidence-cited rationale) | **Partly** — assessments were candidate-initiated only. Now **REQ-FR-051** (Gap G1) |
 | P3 | **No explanation** for the outcome; no feedback | Candidate must be able to see why they were ranked | O2; REQ-FR-024 (match score + rationale), REQ-FR-030 | **Yes** |
 | P4 | **Nobody could challenge** the outcome afterwards | Decisions must leave an evidence trail | O3; REQ-COM-008 (append-only audit), REQ-FR-039 | **Yes** |
@@ -231,7 +231,7 @@ in industry. A mid-size company posts an entry-level role.
 **Scenario S-2 — the same role on FairFold (to-be).**
 
 1. Rafi uploads his resume. Name, photo, phone, address and university identifiers
-   are stripped before any AI sees it (REQ-FR-011).
+   are stripped before any AI sees it (REQ-FR-011, amended 2026-10-12 to include proxy fields per REQ-FR-057).
 2. The employer's HR officer clicks **Screen All**, sees the cost estimate
    ($0.00 on the free tier) and confirms (REQ-FR-028).
 3. Applicants are ranked by anonymised ID. Rafi's score carries evidence from his
@@ -660,7 +660,7 @@ implementation guesswork:
 ##### Round 2 — found by the page-level design audit, and now closed ✅
 
 The first pass worked from use cases and journeys. The second pass worked from
-`design.md` §10, which specifies all 62 pages and names the requirement behind each one.
+`design.md` §10, which specifies all 78 pages and names the requirement behind each one.
 That surfaced **7 further pages that built a real feature with no functional requirement
 behind them** — the same class of problem as GAP-1/GAP-2, but smaller and found later:
 
@@ -676,7 +676,7 @@ behind them** — the same class of problem as GAP-1/GAP-2, but smaller and foun
 
 **Status: closed.** All seven are now in Arch Doc §4.1 as a new *Employer Organisation,
 Billing & Content* group with Given/When/Then criteria, and each has a user story
-(`US-056`–`US-062`) in §2.4. FR↔story↔page traceability now holds across all 62 pages
+(`US-056`–`US-062`) in §2.4. FR↔story↔page traceability now holds across all 78 pages
 except the two marketing pages (#1 landing, #2 pricing), which correctly need no FR.
 
 Four conditions were written into the requirements rather than left to implementation guesswork:
@@ -1048,7 +1048,7 @@ because the whole pitch is that FairFold does not make claims it cannot evidence
 
 | ID | Assumption | Basis | **How it is tested** | If it fails |
 |---|---|---|---|---|
-| **`ASM-001`** | The 52 requirements are the right scope for an MVP | Team judgement | Anyone who has used the product and found a missing capability | Cut `REQ-FR-050` first — it is the only requirement the team itself called optional |
+| **`ASM-001`** | The 65 requirements are the right scope for an MVP | Team judgement | Anyone who has used the product and found a missing capability | Cut `REQ-FR-050` first — it is the only requirement the team itself called optional |
 | **`ASM-002`** | The team sustains **double shifts** for the full 12 weeks without attrition or quality degradation | Stated by the team | End of Phase 2: are 5 people still on it, and is review debt rising? | **Re-scope, do not compress.** A cut scope updates `prd.md` §5.1 and the acceptance criteria in the same commit |
 | **`ASM-003`** | AI assistance raises delivery capacity for the 260 points | Stated by the team. *Plausible for boilerplate; unmeasured* | **End of Phase 1: points actually delivered.** If Phase 1 (41 points, 3 weeks) lands at or under schedule, the assumption holds | Drop the capacity assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
 
@@ -2517,8 +2517,8 @@ denormalised copies exist where search performance matters (e.g.
 
 #### 3.9.1 Wireframes
 
-> **Status: complete for low fidelity.** `design.md` §10 specifies all 62 pages and
-> draws **23 wireframes** covering **36 of those 62 pages** — which includes **all 18**
+> **Status: complete for low fidelity.** `design.md` §10 specifies all 78 pages and
+> draws **64 wireframes** covering **all 78 of those pages** — which includes **all 18**
 > required screens and **all 22** core-flow pages. This section no longer needs any
 > visual assets to be complete.
 
@@ -2566,9 +2566,9 @@ as `design.md` §12 item 11.
 | Component state sheet (all states, text rendering) | §6.6 | ✅ complete |
 | State matrix, HTMX interaction patterns, error copy | §8 | ✅ complete |
 | 13 accessibility rules, WCAG 2.1 AA | §9 | ✅ complete |
-| 62 page specifications with FR, phase and core-flow flag | §10.0–10.4 | ✅ complete |
+| 78 page specifications with FR, phase and core-flow flag | §10.0–10.4 | ✅ complete |
 | Marker legend and page-to-wireframe map | §10.0 | ✅ complete |
-| 23 low-fi wireframes (36 of 62 pages) | §10.5 | ✅ complete |
+| 64 low-fi wireframes (all 78 pages) | §10.5 | ✅ complete |
 | Per-screen `A11y:` annotations inside each wireframe | §10.5 | ✅ complete |
 | CSS variables, Tailwind config, template tree, perf budget | §11 | ✅ complete |
 | Deliverables checklist with owners and status | §12 | 10 items, 7 drafted |
@@ -2770,7 +2770,7 @@ start building?* Nothing here repeats §2.4.1 or §1.3; it is the consolidated v
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` | **Canonical** | **All 63 FRs** (§4.1), 50 NFRs (§4.2), SQL schema (§5.1), risk register (§9), acceptance criteria (§10) | 2563 |
 | `prd.md` | **Canonical** | Objectives, metrics, AI requirements, phases, data model, API surface, monetization, open questions (§19) | 1262 |
 | `FAIRFOLD_Feasibility_and_Design.md` | Supplement | *This document* — feasibility, user stories, UML diagrams, Gantt, data dictionary, this readiness review | 2986 |
-| `design.md` | Supplement | Design tokens, 21 components, 62 page specs, 52 wireframes (18 S + 5 X + 29 W), build tooling (§11.2), deliverables checklist | 2455 |
+| `design.md` | Supplement | Design tokens, 21 components, 78 page specs, 64 wireframes (18 S + 5 X + 29 W + 10 W30–W39 + 4 W40–W43), build tooling (§11.2), deliverables checklist | 2889 |
 | `HISTORY.md` | Log | What was done, what is still open, and why | 1773 |
 | `README.md` | Entry point | Setup, project structure, the two standing warnings | 284 |
 
@@ -2878,7 +2878,7 @@ phase by design.
 
 **What is deliberately *not* settled, and why that is the honest position.** Three
 assumptions remain open and each has a test date rather than a hopeful tone:
-`ASM-001` (52 requirements is the right MVP scope — test at the end of Phase 1; if it
+`ASM-001` (65 requirements is the right MVP scope — test at the end of Phase 1; if it
 fails, cut `REQ-FR-050` first), `ASM-002` (double shifts — test at the end of Phase 2; if
 it fails, re-scope rather than compress), and `ASM-003` (AI assistance raises capacity for
 260 points — test at the end of Phase 1, 41 points in 3 weeks). A specification that
@@ -2939,8 +2939,8 @@ files — so "start development" is no longer a documentation exercise.
 | **Low-severity open** | `LIM-004` substring matching has no word boundaries | No |
 
 > **The wireframes are no longer on this list.** `design.md` §10.6 previously listed "26 pages
-> specified but not wireframed"; all **62** pages now carry a wireframe (52 in total: 18 `S`,
-> 5 `X`, 29 `W`), including the four screening-integrity components that had only specs.
+> specified but not wireframed"; all **78** pages now carry a wireframe (64 in total: 18 `S`,
+> 5 `X`, 29 `W`, 10 `W30–W39`, 4 `W40–W43`), including the four screening-integrity components that had only specs.
 > `scripts/verify_docs.py` §11 fails if any page row's wireframe cell is blank, so the claim
 > is checked rather than asserted. What is still outstanding is *Figma* and *hi-fi*, which
 > are `design.md` §12 items 1–4 — a different thing from having no wireframe.
@@ -2969,7 +2969,7 @@ files — so "start development" is no longer a documentation exercise.
 
 #### The one number that would change the verdict
 
-If `ASM-001` fails at the end of Phase 1 — 52 requirements is too much scope — the answer is
+If `ASM-001` fails at the end of Phase 1 — 65 requirements is too much scope — the answer is
 to cut `REQ-FR-050` first, and only that, because it is the sole requirement whose four
 artefacts are coupled by design. 217 → 209 points. Everything else in this document is
 either closed or scheduled against a phase.

@@ -1,6 +1,6 @@
 # FAIRFOLD — Detailed Architecture & Requirements Specification
 
-**Version:** 4.3 (63 FRs · employer-first · local payments · paid-discovery-only · proxy stripping · per-employer candidate alias · light proctoring · text-only coaching · STAR rubric · curated resources)  
+**Version:** 4.4 (63 FRs · employer-first · local payments · paid-discovery-only · proxy stripping · per-employer candidate alias · light proctoring · text-only coaching · STAR rubric · curated resources)  
 **Date:** September 2026  
 **Status:** Ready for Implementation  
 **Authors:** Sardar Shihab, Arnob Biswas Antu, Ishrak Hossain, Mohammad Abdul Ahad  
@@ -296,7 +296,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 | | django-otp | 1.7.3 | TOTP MFA (0.16.0 corrected 2026-10-04 — django-otp is on 1.x) |
 | | djangorestframework-simplejwt | 5.5.1 | JWT authentication (5.3.3 was corrected 2026-10-04 — it does not exist on PyPI) |
 | **Email** | django-anymail | 10.0+ | Unified email backend |
-| **Billing** | stripe | 10.0+ | Payment processing |
+| **Billing** | stripe (Phase 5) | 10.0+ | Payment processing (current path: bKash/SSLCommerz in BDT) |
 | **Monitoring** | sentry-sdk | 2.14+ | Error tracking |
 | | prometheus-client | 0.20+ | Metrics endpoint |
 | **Dev Tools** | pytest | 8.3+ | Testing framework |
@@ -337,7 +337,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 |---|---|---|---|
 | REQ-FR-009 | Candidate Profile Creation | High | **Given** registered candidate user; **When** user completes onboarding; **Then** CandidateProfile created with title, bio, location, remote_ok |
 | REQ-FR-010 | Resume Upload via Presigned URL | High | **Given** authenticated candidate; **When** candidate uploads file; **Then** frontend requests presigned URL from `/api/candidates/resumes/`; **And** file uploaded directly from browser to S3; **And** Django stores only the S3 key |
-| REQ-FR-011 | Resume PII Stripping | High | **Given** uploaded resume; **When** PII stripping pipeline runs; **Then** name/email/phone/location removed or replaced with placeholders; **And** anonymized text stored; **And** audit log entry created |
+| REQ-FR-011 | Resume PII Stripping | High | **Given** uploaded resume; **When** PII stripping pipeline runs; **Then** name/email/phone/location AND proxies per REQ-FR-057 (institution names, employer names, age-revealing dates, URLs/photos, links) removed or replaced with typed placeholders; **And** anonymized text stored; **And** audit log entry created. **Amended 2026-10-12** to cover REQ-FR-057 proxy stripping — see REQ-FR-057 |
 | REQ-FR-012 | Resume Text Extraction | High | **Given** PDF resume uploaded; **When** processing completes; **Then** full text extracted (pdfplumber); **And** stored in `extracted_text` field (anonymized) |
 | REQ-FR-013 | Resume Embedding Generation | High | **Given** extracted text; **When** embedding task runs; **Then** 384-dim vector generated via sentence-transformers; **And** stored in pgvector column `resume_embedding` |
 | REQ-FR-014 | Skill Management | High | **Given** candidate with skills; **When** candidate adds/edits/deletes skill; **Then** CandidateSkill record created/updated/deleted with level and source |
@@ -412,7 +412,7 @@ endpoint for team management (REQ-FR-047), assessment authoring (REQ-FR-049) or 
 | REQ-FR-045 | Employer Company Profile | High | **Given** registered user with the employer role; **When** completing onboarding; **Then** `EmployerProfile` created with company name (encrypted), industry and company size; **And** an employer cannot hold both the candidate and employer roles; **And** a job cannot be activated until a company profile exists |
 | REQ-FR-046 | Employer Dashboard | Medium | **Given** authenticated employer; **When** opening the dashboard; **Then** open job count, new applications, applications awaiting screening and interviews this week are shown; **And** quota usage is displayed against the current subscription; **And** applications flagged by the bias check are surfaced for human review; **And** every KPI links to the underlying list |
 | REQ-FR-047 | Employer Team and Roles | Medium | **Given** an employer with `employer_hr` role; **When** inviting, re-roling or removing a team member; **Then** `employer_manager`, `employer_hr` or `interviewer` role assigned from the defined set; **And** the last `employer_hr` cannot be removed or demoted, which would orphan the account; **And** an `employer_team_members` row is created or updated (§5.1); **And** an audit entry is written for every role change; **And** MFA is required before an invited member can act |
-| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the Stripe-hosted flow so no card data touches FAIRFOLD; **And** `Subscription` quota and job limits update on the Stripe webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
+| REQ-FR-048 | Billing and Plan Management | Medium | **Given** authenticated employer; **When** viewing billing; **Then** current plan, usage meters and invoice history shown; **And** plan changes are initiated through the bKash/SSLCommerz-hosted flow so no card data touches FAIRFOLD; **And** `Subscription` quota and job limits update on the payment-provider webhook, not on the browser redirect; **And** a webhook failure leaves the subscription unchanged rather than half-updated |
 | REQ-FR-049 | Assessment Management | Medium | **Given** admin user; **When** creating or editing an assessment; **Then** title, linked skill, difficulty, question count and time limit stored; **And** questions created, edited and reordered within the assessment; **And** deactivating an assessment hides it from new attempts without deleting existing `AssessmentAttempt` records; **And** an audit entry is written |
 | REQ-FR-050 | Broadcast Announcement | Low | **Given** admin user; **When** creating an announcement; **Then** title, body, audience, channel and schedule are captured in an `Announcement` row with a preview; **And** the announcement is delivered to the selected audience on schedule via Celery Beat; **And** an empty audience match sends nothing and is reported rather than silently succeeding; **And** the resolved audience size is shown **before** sending, because "empty" is only one of the two bad outcomes — see the five constraints below. **HARDENED 2026-10-03.** This is the highest blast-radius feature per story point in the specification, and the original criteria covered only the *empty*-audience case. Five conditions are now written into the requirement itself rather than left to implementation: **(1) Suppression list** — the audience is resolved at send time, not create time, and deleted, bounced and unsubscribed users are skipped and counted in `skipped_count`. Otherwise a scheduled announcement emails a hard-deleted account, contradicting `REQ-FR-041`. **(2) Audience-type confinement** — an `employers`-only announcement must never be readable by a candidate, and vice versa. A wrong audience is a confidentiality incident, not a UI bug, so the send task re-checks the recipient's role rather than trusting the stored filter. **(3) Transactional-email protection** — bulk sends are capped per hour and go through a **separate** sending domain/subaddress from verification and password-reset mail. A burst from the transactional path can get the sending domain rate-limited or blocked, which would break account access for every user; a marketing feature must not be able to do that. **(4) Idempotency** — `idempotency_key` is unique and set before the task runs, so a Celery retry cannot send the same announcement twice. **(5) Audit entry** on create, send and cancel. **KEPT — decided 2026-10-03.** The team confirmed: keep `REQ-FR-050`, **Phase 4 only, never a launch dependency.** The total stays **217 points** and Phase 4 stays **44**. Two conditions ride on that decision, and both are binding: **(a)** it must never become a launch blocker — if Phase 4 hardening is short, this is the thing that slips, not GDPR export or the load test; **(b)** the four artefacts stay coupled, so if it is ever cut later, `REQ-FR-050`, `US-062`, `design.md` page #62 **and** the `announcements` table go together in one change. The original estimate was 3 points, which was wrong: it was re-estimated at **8** on 2026-10-03 once the missing table and these five constraints were priced |
 
@@ -614,7 +614,7 @@ CREATE TABLE employer_profiles (
                                                       -- because "who is hiring" is itself information.
     billing_plan    VARCHAR(20) DEFAULT 'free',
     billing_cycle   VARCHAR(10) DEFAULT 'monthly',
-    stripe_customer_id TEXT ENCRYPTED,
+    stripe_customer_id TEXT ENCRYPTED,  -- Phase 5 (current: bKash/SSLCommerz payment_provider_id)
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -639,8 +639,8 @@ CREATE TABLE subscriptions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employer_id     UUID REFERENCES employer_profiles(id) ON DELETE CASCADE,
     plan            VARCHAR(20) DEFAULT 'free',
-    stripe_customer_id TEXT ENCRYPTED,
-    stripe_subscription_id TEXT ENCRYPTED,
+    stripe_customer_id TEXT ENCRYPTED,  -- Phase 5 (current: bKash/SSLCommerz payment_provider_id)
+    stripe_subscription_id TEXT ENCRYPTED,  -- Phase 5 (current: bKash/SSLCommerz)
     current_period_end TIMESTAMPTZ,
     ai_quota_remaining INTEGER DEFAULT 50,
     ai_quota_reset_date TIMESTAMPTZ,
@@ -2452,7 +2452,7 @@ closes the registration half of this risk. Two consequences worth writing down:
 
 - **Every environment variable and CI secret must be able to change host without a code
   change.** `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `SITE_ID`'s absolute URLs, the
-  Stripe webhook URL and the Sentry DSN are all host-bound. The temporary → primary
+  bKash/SSLCommerz webhook URL (Stripe in Phase 5) and the Sentry DSN are all host-bound. The temporary → primary
   switch is a deployment-config change, not a code change. If any of those values is
   hard-coded, the migration will be a debugging session rather than an edit.
 - **Do not build SEO, email reputation or social handles against the temporary domain.**
