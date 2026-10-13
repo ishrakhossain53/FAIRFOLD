@@ -4,7 +4,7 @@ A running log of what has been done on this repository and what is still outstan
 Kept by hand; updated whenever a chunk of work lands.
 
 - **Repository:** `github.com/ishrakhossain53/FAIRFOLD` (private)
-- **Last updated:** 2026-10-12
+- **Last updated:** 2026-10-13
 - **Current branch:** `ishrakhossain53-patch-1`
 - **Project state:** documentation phase. No application code has been written yet.
 
@@ -22,7 +22,7 @@ first source file is `ai/bias_pass.py`, added 2026-10-03 (§2.28), with
 **As of 2026-10-04 the tree is a runnable scaffold** (§2.30): `manage.py`, `config/` with four
 settings modules, eleven app packages, `core/` helpers, the `seed` command, the frontend build
 files, `pyproject.toml`, `bandit.yaml` and a pytest `conftest.py`. **No Django model exists yet** —
-the 24 tables are still DDL in Arch Doc §5.1 — so `migrate` creates zero tables and no endpoint
+the 32 tables are still DDL in Arch Doc §5.1 — so `migrate` creates zero tables and no endpoint
 responds. The value of the scaffold is that a first `manage.py check` tests import and config
 rather than starting from nothing.
 
@@ -41,14 +41,14 @@ blocked.
 | `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2563 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
 | `prd.md` | 1264 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 2889 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
+| `design.md` | 2895 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 | `FAIRFOLD_Feasibility_and_Design.md` | 2986 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
 || `.env.example` | 157 | Environment variables, all placeholders |
 | `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 | `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
-**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions**):
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions; re-verified 2026-10-13 after §2.37**):
 
 - **63 functional requirements**, `REQ-FR-001` … `REQ-FR-063` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
@@ -1535,7 +1535,7 @@ across the specification:
 - Resources are reference-only links, never built content; link-health cron, named
   curation owner, 90-day review cadence, and the gap→resource→retake→Verified badge loop
   are all specified (I4).
-- `scripts/verify_docs.py` updated: all **63 checks pass**. **Superseded 2026-10-12: now 67 checks (§2.31).**
+- `scripts/verify_docs.py` updated: all **63 checks pass**. **Superseded 2026-10-12: now 67 checks (§2.31).** **Superseded 2026-10-13: now 70 checks (§2.37) — added W-number gap detection, ASM-001 count match, and employer-surface name-visibility ban.**
 
 ---
 
@@ -1548,6 +1548,14 @@ Following the design.md wireframe pass (§2.30), a consistency pass was run to f
 - **Counts updated (current-state only):** 57 → 63 FRs, 24 → 32 tables, 35 → 51 FKs, 52 → 63 stories / 217 → 260 points (MoSCoW 37 Must / 21 Should / 5 Could), 62 → 78 pages, 52 → 64 wireframes. README line 38, the Arch Doc v4.4 header, the Feasibility Doc `ASM-001`, and the HISTORY.md "Key numbers of record" block all updated. Historical log entries left as written with "superseded" notes.
 - **Payment provider path.** bKash/SSLCommerz is the current path in BDT; Stripe deferred to Phase 5. README, `prd.md` §8.8 (encrypted-fields row), and the Complete Doc §C.14 all updated.
 - **New verifier checks** added to `scripts/verify_docs.py`: stale-count cross-checks, discovery-only pricing wording ban (except in dated notes), REQ-FR-011↔REQ-FR-057 linkage, design.md keyword checks, and wireframe coverage check.
+
+### 2.37 Doc-consistency pass (2026-10-13) — FR count, Verified badge, W36 gap, header ✅
+
+- **FR count corrected.** `ASM-001` in the Feasibility Doc stated "65 requirements" but there are 63 FRs (`REQ-FR-001`–`REQ-FR-063`). Corrected all three references (lines 1051, 2881, 2972) to "63 requirements". Phase 1 test wording updated to "End of Phase 1: a developer who has not touched the codebase reviews every screen."
+- **Verified Badge repositioned.** `design.md` §7.16 rewritten so the badge appears next to the candidate ALIAS (REQ-FR-054), never a name or photo. Removed the claim that it appears on the public job board (which lists jobs, not candidates). The badge now appears on the candidate's own profile and in employer candidate search results. Job-board "Verified" markers clarified as company-identity checks.
+- **W36 gap explained.** `design.md` now includes a dated note (2026-10-13) explaining that W36 is intentionally unused — reserved for the "candidate self-scheduling" wireframe deferred to Phase 3 per `prd.md` §5.1.
+- **HISTORY.md updated.** "Last updated" → 2026-10-13; new §2.37 section added.
+- **New verifier checks added** for W-number gap detection, ASM-001 count match, and employer-facing surface name-visibility ban.
 
 ---
 
