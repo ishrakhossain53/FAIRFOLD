@@ -1048,7 +1048,7 @@ because the whole pitch is that FairFold does not make claims it cannot evidence
 
 | ID | Assumption | Basis | **How it is tested** | If it fails |
 |---|---|---|---|---|
-| **`ASM-001`** | The 65 requirements are the right scope for an MVP | Team judgement | Anyone who has used the product and found a missing capability | Cut `REQ-FR-050` first — it is the only requirement the team itself called optional |
+| **`ASM-001`** | The 63 requirements are the right scope for an MVP | Team judgement | End of Phase 1: a developer who has not touched the codebase reviews every screen | Cut `REQ-FR-050` first — it is the only requirement the team itself called optional |
 | **`ASM-002`** | The team sustains **double shifts** for the full 12 weeks without attrition or quality degradation | Stated by the team | End of Phase 2: are 5 people still on it, and is review debt rising? | **Re-scope, do not compress.** A cut scope updates `prd.md` §5.1 and the acceptance criteria in the same commit |
 | **`ASM-003`** | AI assistance raises delivery capacity for the 260 points | Stated by the team. *Plausible for boilerplate; unmeasured* | **End of Phase 1: points actually delivered.** If Phase 1 (41 points, 3 weeks) lands at or under schedule, the assumption holds | Drop the capacity assumption and re-plan. **Never** answer by reducing review — that converts a schedule problem into a correctness problem |
 
@@ -2878,7 +2878,7 @@ phase by design.
 
 **What is deliberately *not* settled, and why that is the honest position.** Three
 assumptions remain open and each has a test date rather than a hopeful tone:
-`ASM-001` (65 requirements is the right MVP scope — test at the end of Phase 1; if it
+`ASM-001` (63 requirements is the right MVP scope — test at the end of Phase 1; if it
 fails, cut `REQ-FR-050` first), `ASM-002` (double shifts — test at the end of Phase 2; if
 it fails, re-scope rather than compress), and `ASM-003` (AI assistance raises capacity for
 260 points — test at the end of Phase 1, 41 points in 3 weeks). A specification that
@@ -2969,7 +2969,7 @@ files — so "start development" is no longer a documentation exercise.
 
 #### The one number that would change the verdict
 
-If `ASM-001` fails at the end of Phase 1 — 65 requirements is too much scope — the answer is
+If `ASM-001` fails at the end of Phase 1 — 63 requirements is too much scope — the answer is
 to cut `REQ-FR-050` first, and only that, because it is the sole requirement whose four
 artefacts are coupled by design. 217 → 209 points. Everything else in this document is
 either closed or scheduled against a phase.

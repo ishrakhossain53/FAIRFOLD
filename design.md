@@ -2,7 +2,11 @@
 
 **Product:** FairFold — AI-Powered, Explainable Recruitment Platform
 **Owner:** Mohammad Abdul Ahad (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
-**Companion to:** `prd.md` (requirements) · **Version:** 1.4 (interview preparation & training, paid visibility, local payments, PII/alias surfaces) · **Date:** October 12, 2026
+**Companion to:** `prd.md` (requirements) · **Version:** 1.5 (Verified Badge repositioning, W36 note) · **Date:** October 13, 2026
+
+> **Changes in v1.5** (2026-10-13)
+> - Verified Badge (§7.16) repositioned: appears next to candidate ALIAS only (REQ-FR-054), not on the public job board (which lists jobs, not candidates). Company "Verified" badge on job board clarified as an employer-identity check.
+> - W36 noted as intentionally unused (reserved for candidate self-scheduling, deferred to Phase 3 per `prd.md` §5.1).
 
 > **Changes in v1.4** (2026-10-12)
 > - Added 10 new page specs (#63–#72) for decisions D3–D6 and I1–I5: per-employer alias surfaces, anonymised resume view with reveal confirmation, PII preview, assessment consent and integrity signals, paid visibility badges/tooltips, BDT billing, text-only interview practice, training resource view, scorecard-criteria publish.
@@ -529,7 +533,7 @@ A collapsible panel on the employer-side application review showing neutral inte
 
 ### 7.16 Verified Badge
 
-A green checkmark badge (`--success-fg` on `--success-soft`) shown next to a candidate's name or score on the public job board and in candidate search. Tooltip: "Verified — this candidate passed an assessment. Promotion affects discovery only, not screening rank (REQ-FR-053)."
+A green checkmark badge (`--success-fg` on `--success-soft`) next to the candidate ALIAS (REQ-FR-054) on the candidate's own profile view and in employer candidate search results. The public job board lists jobs, not candidates — the Verified Badge does not appear there. Tooltip: "Verified — this candidate passed an assessment. Verification affects discovery only, not screening rank (REQ-FR-039).".
 
 ### 7.17 Paid Visibility Tooltip (REQ-FR-053)
 
@@ -700,7 +704,7 @@ They are the only two pages in the 78 that legitimately carry no requirement ID.
 | 1 | **Home / landing** | Hero ("Hiring that explains itself"), two CTAs (I'm hiring / I'm looking for work), 3-pillar section (Private · Explainable · Affordable), how it works (3 steps), pricing teaser, footer | Buttons, cards | — (marketing) | P1 | Yes | X01 |
 | 2 | **Pricing** | Two tabs: Candidates / Employers; tier cards; comparison table; FAQ | Tabs, tier cards, accordion | — (marketing) | P5 (static P1) |  | W01 |
 | 3 | **How our AI works** | Plain-language diagram: resume → details removed → AI → human decides; bias check; what we never do (no facial analysis) | Diagram (SVG + text), accordion | REQ-COM-006 | P2 |  | W02 |
-| 4 | ★ **Job board / search** | Search bar + filters (location, remote, level) left on desktop / sheet on mobile; result cards show "Promoted" label (7.17) where applicable and Verified Badge (7.16); Paid Visibility Tooltip (7.17) explains promotion affects discovery only, never screening rank | Search, filter chips, job card, Verified Badge (7.16), Paid Visibility Tooltip (7.17) | REQ-FR-042 · **REQ-FR-053** | P1 | Yes | S04 |
+| 4 | ★ **Job board / search** | Search bar + filters (location, remote, level) left on desktop / sheet on mobile; result cards show "Promoted" label (7.17) where applicable and company Verified badge (employer identity check, not candidate Verified Badge 7.16); Paid Visibility Tooltip (7.17) explains promotion affects discovery only, never screening rank | Search, filter chips, job card, Paid Visibility Tooltip (7.17) | REQ-FR-042 · **REQ-FR-053** | P1 | Yes | S04 |
 | 5 | ★ **Public job detail** | Title, company, meta chips, "Promoted" label (7.17) where applicable, "Verified" badge (7.16); description sections, sticky Apply button; guests are prompted to log in | Chips, sticky CTA, Verified Badge (7.16), Paid Visibility Tooltip (7.17) | REQ-FR-042 · **REQ-FR-053** | P1 | Yes | S05 |
 | 6 | ★ **Register** | Role selector (Candidate / Employer), email, password (+ rules), consent checkbox with policy links; link to login | Form, role cards | REQ-FR-001, REQ-COM-002/003-004 | P1 | Yes | S01 |
 | 7 | ★ **Login** | Email, password, "Forgot password?", lockout alert state | Form, inline alert | REQ-FR-002/003 | P1 | Yes | S01 |
@@ -817,7 +821,7 @@ These wireframes show **structure, hierarchy and states**, not final styling. Th
 | `X01`–`X05` | 5 | 7 | Cross-cutting patterns (error page, empty states, …) |
 | `W01`–`W25` | 25 | 26 | Second pass, §10.6 — pages that previously had a spec only |
 | `W26`–`W29` | 4 | — | Screening-integrity components and states (§12 item 11), not whole pages |
-| `W30`–`W39` | 10 | 10 | Third pass: employer alias, stripped resume, reveal confirmation, assessment consent, interview practice, skills gap |
+| `W30`–`W39` | 10 | 10 | Third pass: employer alias, stripped resume, reveal confirmation, assessment consent, interview practice, skills gap. W36 is reserved (deferred to Phase 3, see note below) |
 | `W32` | — | 2 | Shared reveal confirmation (pages #63, #73, #76) |
 | `W33` | — | 2 | Interview practice session + feedback (pages #77, #78) |
 | `W40`–`W43` | 4 | 4 | Fourth pass: shortlisted list, paid visibility, scorecard publish, billing |
@@ -2669,6 +2673,8 @@ Cooldown: retake eligible in 3 days
 **A11y:** each resource is a `<article>` with `aria-label`. Broken links show `<p role="status">Link unavailable — retrying…</p>` with a retry button. The cooldown countdown is `role="timer"`. The Verified badge (7.16) appears next to the skill name when the gap is closed.
 
 ---
+
+> **Note (2026-10-13):** W36 is intentionally unused. The "candidate self-scheduling" wireframe was planned for the employer-confirmation step but is deferred to Phase 3 per `prd.md` §5.1 (the "interview scheduling" backlog item). It will occupy W36 when drawn — the number is reserved to preserve the W30–W39 grouping for third-pass employer-integrity surfaces.
 
 #### W37 · Employer candidate list (page #64)
 

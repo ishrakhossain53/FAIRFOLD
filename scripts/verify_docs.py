@@ -595,6 +595,113 @@ def check_wireframe_references(r: Result) -> None:
     )
 
 
+
+# -------------------------------------------------- W-number gaps
+
+def check_w_number_gaps(r: Result) -> None:
+    """W-numbers in design.md must not have unexplained gaps.
+
+    Added 2026-10-13. W36 was skipped (W35 -> W37) -- either the missing
+    wireframe must be added or a dated note must explain the gap.
+    """
+    section("8f. W-number gaps explained")
+    design = (ROOT / DESIGN).read_text(encoding="utf-8")
+    defined = set(re.findall(r"^#### W(\d{2}) · ", design, re.M))
+    if not defined:
+        r.check(True, "no W-numbered wireframes found", "none")
+        return
+    nums = sorted(int(n) for n in defined)
+    expected_range = list(range(nums[0], nums[-1] + 1))
+    gaps = sorted(set(expected_range) - set(nums))
+    if gaps:
+        gap_strs = [f"W{g:02d}" for g in gaps]
+        missing_notes = []
+        for g in gaps:
+            g_token = f"W{g:02d}"
+            if g_token not in design:
+                missing_notes.append(g_token)
+            elif not re.search(
+                rf"W{g:02d}.*unused|W{g:02d}.*reserved|W{g:02d}.*deferred|intentionally unreferenced.*W{g:02d}|W{g:02d}.*planned|W{g:02d}.*Phase 3", design, re.I,
+            ):
+                missing_notes.append(g_token)
+        r.check(
+            not missing_notes,
+            f"unexplained W-number gaps ({"; ".join(gap_strs)}) have dated notes",
+            f"missing notes: {missing_notes}" if missing_notes else "all explained",
+        )
+    else:
+        r.check(True, "no W-number gaps", f"W{nums[0]:02d}-W{nums[-1]:02d} contiguous")
+
+
+# -------------------------------------------------- ASM-001 count
+
+def check_asm001_count(r: Result, docs: dict[str, str]) -> None:
+    """ASM-001's stated requirement count must equal the current FR count.
+
+    Added 2026-10-13. The Feasibility Doc must not state a stale FR count next to
+    ASM-001.
+    """
+    section("8g. ASM-001 stated requirement count matches current FR count")
+    feas = docs[FEAS]
+    fr_count = len(set(re.findall(r"REQ-FR-\d{3}", docs[ARCH])))
+    mismatches = []
+    for m in re.finditer(r"ASM-001", feas):
+        line_no = feas[: m.start()].count("\n") + 1
+        line = feas.splitlines()[line_no - 1]
+        for nm in re.finditer(r"(\d+)\s+requirements?\b", line, re.I):
+            stated = int(nm.group(1))
+            if stated != fr_count:
+                mismatches.append(
+                    f"FEAS:{line_no} ASM-001 says {stated} requirements, but there are {fr_count} FRs"
+                )
+    r.check(
+        not mismatches,
+        f"ASM-001 requirement count == {fr_count} FRs",
+        "; ".join(mismatches) or "all match",
+    )
+
+
+# -------------------------------------------------- employer-facing surface names
+
+def check_employer_surface_no_names(r: Result, docs: dict[str, str]) -> None:
+    """No employer-facing surface description places Verified, Promoted, or a
+    score beside 'name' (as opposed to alias).
+
+    Added 2026-10-13 after the Verified Badge repositioning. Employer-facing
+    surfaces must show identity markers only beside the candidate ALIAS.
+    """
+    section("8h. No Verified/Promoted/score beside name on employer surfaces")
+    offenders = []
+    patterns = [
+        (r"verified[^.]*?name", "Verified beside name"),
+        (r"promoted[^.]*?name", "Promoted beside name"),
+        (r"score[^.]*?name[^.]*employer|employer[^.]*score[^.]*?name", "score beside name in employer surface"),
+    ]
+    for fname in (DESIGN, PRD, ARCH):
+        text = docs[fname]
+        lines = text.splitlines()
+        for i, line in enumerate(lines, 1):
+            low = line.lower()
+            for pat, label in patterns:
+                if re.search(pat, low, re.I | re.S):
+                    offenders.append(f"{fname}:{i} {label}")
+    # Exempt lines that explicitly say 'not a name' or 'alias' nearby, or are
+    # historical notes.
+    real = []
+    for off in offenders:
+        fname, rest = off.split(":", 1)
+        line_no = int(rest.strip().split()[0])
+        line = docs[fname].splitlines()[line_no - 1].lower()
+        if any(c in line for c in ("not a name", "alias", "not name", "2026-", "superseded", "corrected", "was ")):
+            continue
+        real.append(off)
+    r.check(
+        not real,
+        "no employer-facing surface describes Verified/Promoted/score beside name",
+        "; ".join(real) or "clean",
+    )
+
+
 def check_placeholders(r: Result, docs: dict[str, str]) -> None:
     section("9. Placeholders")
 
@@ -1217,6 +1324,9 @@ def main() -> int:
     check_pii_crossref(r, docs)
     check_design_keywords(r)
     check_wireframe_references(r)
+    check_w_number_gaps(r)
+    check_asm001_count(r, docs)
+    check_employer_surface_no_names(r, docs)
     check_placeholders(r, docs)
     check_line_counts(r, docs)
     check_diagrams(r)
