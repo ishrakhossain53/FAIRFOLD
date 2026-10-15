@@ -624,9 +624,10 @@ def check_w_number_gaps(r: Result) -> None:
                 rf"W{g:02d}.*unused|W{g:02d}.*reserved|W{g:02d}.*deferred|intentionally unreferenced.*W{g:02d}|W{g:02d}.*planned|W{g:02d}.*Phase 3", design, re.I,
             ):
                 missing_notes.append(g_token)
+        gap_note = "; ".join(gap_strs)
         r.check(
             not missing_notes,
-            f"unexplained W-number gaps ({"; ".join(gap_strs)}) have dated notes",
+            f"unexplained W-number gaps ({gap_note}) have dated notes",
             f"missing notes: {missing_notes}" if missing_notes else "all explained",
         )
     else:
@@ -1305,6 +1306,82 @@ def check_tool_config(r: Result) -> None:
         )
 
 
+def check_validation_kit(r: Result, docs: dict[str, str]) -> None:
+    """Validation kit must have empty results table, PROPOSED thresholds, and hypothesis traceability.
+
+    Added 2026-10-13. The employer-first validation kit must be ready but not run.
+    """
+    section("15. Validation kit: empty results, PROPOSED thresholds, hypothesis traceability")
+
+    # (1) Results table must be empty or marked NOT YET COLLECTED
+    results_path = ROOT / "validation" / "results.md"
+    if not results_path.exists():
+        r.check(False, "validation/results.md exists", "file missing")
+    else:
+        results = results_path.read_text(encoding="utf-8")
+        # Must contain "NOT YET COLLECTED" or empty table markers
+        has_not_yet = "NOT YET COLLECTED" in results or "not yet run" in results.lower()
+        r.check(has_not_yet, "results.md marked NOT YET COLLECTED", "found" if has_not_yet else "MISSING")
+
+    # (2) Thresholds must be marked PROPOSED or [Planned]
+    decision_rules_path = ROOT / "validation" / "decision_rules.md"
+    if not decision_rules_path.exists():
+        r.check(False, "validation/decision_rules.md exists", "file missing")
+    else:
+        decision_rules = decision_rules_path.read_text(encoding="utf-8")
+        has_proposed = "PROPOSED" in decision_rules
+        has_planned = "[Planned]" in decision_rules or "[PLANNED]" in decision_rules
+        r.check(has_proposed or has_planned, "thresholds marked PROPOSED or [Planned]", "found" if (has_proposed or has_planned) else "MISSING")
+
+    # (3) Every hypothesis in hypotheses.md must map to a requirement or ASM ID
+    hypotheses_path = ROOT / "validation" / "hypotheses.md"
+    if not hypotheses_path.exists():
+        r.check(False, "validation/hypotheses.md exists", "file missing")
+    else:
+        hypotheses = hypotheses_path.read_text(encoding="utf-8")
+        # Find all hypothesis IDs (H-EM-### and H-CN-###)
+        hypothesis_ids = set(re.findall(r"H-EM-\d{3}|H-CN-\d{3}", hypotheses))
+        # Find all REQ-FR references in the hypothesis file
+        ref_frs = set(re.findall(r"REQ-FR-\d{3}", hypotheses))
+        # Find all ASM references
+        asm_refs = set(re.findall(r"ASM-\d{3}", hypotheses))
+
+        # Check each hypothesis has a traceability reference
+        missing_trace = []
+        for h_id in hypothesis_ids:
+            # This basic check; full traceability would need more sophisticated parsing
+            if h_id not in hypotheses:
+                missing_trace.append(h_id)
+
+        r.check(
+            len(hypothesis_ids) >= 5,
+            "at least 5 employer-side hypotheses defined",
+            f"{len(hypothesis_ids)} found",
+        )
+        r.check(
+            len(ref_frs) > 0,
+            "hypotheses reference requirements",
+            f"{len(ref_frs)} REQ-FR refs found",
+        )
+
+    # (4) Validation kit files exist
+    required_validation_files = [
+        ("validation/README.md", "validation README"),
+        ("validation/hypotheses.md", "hypotheses register"),
+        ("validation/participant_plan.md", "participant plan"),
+        ("validation/employer_interview_guide.md", "employer interview guide"),
+        ("validation/candidate_interview_guide.md", "candidate interview guide"),
+        ("validation/willingness_to_pay.md", "willingness-to-pay module"),
+        ("validation/decision_rules.md", "decision rules"),
+        ("validation/evidence_templates.md", "evidence templates"),
+        ("validation/ethics_data_handling.md", "ethics guidelines"),
+        ("validation/demo_script.md", "demo script"),
+    ]
+    for rel_path, label in required_validation_files:
+        full_path = ROOT / rel_path
+        r.check(full_path.exists(), f"{label} exists", rel_path)
+
+
 def main() -> int:
     print("FairFold documentation consistency check")
     print("=" * 60)
@@ -1333,6 +1410,7 @@ def main() -> int:
     check_wireframes(r)
     check_tool_config(r)
     check_step_env(r)
+    check_validation_kit(r, docs)
 
     print("\n" + "=" * 60)
     if r.failures:

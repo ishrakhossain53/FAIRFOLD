@@ -40,7 +40,7 @@
 | [FAIRFOLD_Feasibility_and_Design.md](FAIRFOLD_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
 | [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 7.13–7.21 product components, 78 page specs, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 | [HISTORY.md](HISTORY.md) | Log | What has been done on this repo and what is still outstanding |
-| [`validation/`](validation/) | Instrument | Consent form, interview guide, survey and results log for the §1.3.4 user validation — **built, never run** |
+| [`validation/`](validation/) | Instrument | Consent form, interview guide, survey and results log for the §1.3.4 user validation — **kit prepared 2026-10-13, study not yet run** |
 
 **Start here:** `prd.md` if you want the product, `FAIRFOLD_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.
 

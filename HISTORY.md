@@ -36,17 +36,18 @@ impossible. Correcting it because "I couldn't" is a stronger and more misleading
 than "I didn't", and the difference matters when someone reads this to decide what is
 blocked.
 
-| File | Lines | Role |
-| --- | ---: | --- |
-| `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2563 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1264 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 2895 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2986 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+|| File | Lines | Role |
+|| --- | --- | --- |
+|| `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2563 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
+|| `prd.md` | 1275 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+|| `design.md` | 2895 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
+|| `FAIRFOLD_Feasibility_and_Design.md` | 2967 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 283 | Project overview, documentation index, setup |
-|| `.env.example` | 157 | Environment variables, all placeholders |
-| `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
-| `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
+
+| `.env.example` | 158 | Environment variables, all placeholders |
+|| `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
+|| `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
 **Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions; re-verified 2026-10-13 after §2.37**):
 
@@ -1488,7 +1489,19 @@ by **Mohammad Abdul Ahad**, the remaining UI/UX Designer. Concretely:
 | File | Change |
 |---|---|
 | `prd.md` §2, §17.2 | Team line reduced from 5 to 4; Fahad's row removed; Mohammad's row absorbs wireframes, employer dashboard UX, and journey-map design |
-| `design.md` §1 | Co-owner removed; Mohammad Abdul Ahad is sole owner |
+|| `design.md` §1 | Co-owner removed; Mohammad Abdul Ahad is sole owner |
+
+---
+
+### 2.28 Employer-first validation kit prepared ✅
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+
+---
+
+### 2.36 Update: prd.md PRD release criteria added Phase 3 validation gate
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
 | `FAIRFOLD_Complete_Project_Document.md` §2, §C.6 | Team line reduced from 5 to 4; Fahad's row removed; Mohammad's row absorbs wireframes |
 | `FAIRFOLD_Feasibility_and_Design.md` §2.7.3, §10.4, §2.7.4 | Team row updated (4); conflict table §9 updated to record the reversion; all "5-person" prose references corrected to "4-person" |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` §1 | Authors list reduced from 5 to 4 |
@@ -1814,3 +1827,58 @@ f342dd0  docs: re-base the Gantt, close two schema holes, and decide the open qu
 
 Upstream `main` also contains merge commits `18d5713` (PR #6), `bc47ae0` (PR #7) and
 `ed05fef` (PR #8), which fold the earlier branch work into `main`.
+
+---
+
+### 2.28 Employer-first validation kit prepared ✅
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+
+---
+
+### 2.36 Update: prd.md PRD release criteria added Phase 3 validation gate
+
+The validation study plan §1.3.4 was built but never run. Creating an employer-first validation kit to allow the founder to run recruiter interviews and decide go/adjust/stop before Phase 3 is built.
+
+**What was created:**
+
+- `validation/hypotheses.md` — 8 hypotheses (H-EM-001 to H-CAN-003) with evidence needed and disconfirming evidence
+- `validation/participant_plan.md` — Recruitment plan for 5–6 recruiters, 3–5 candidates
+- `validation/employer_interview_guide.md` — 45-minute interview protocol for recruiters
+- `validation/willingness_to_pay.md` — Price sensitivity questionnaire (bdst method)
+- `validation/pre_commitment_ask.md` — Ladder of commitments protocol (score ≥ stated interest)
+- `validation/candidate_interview_guide.md` — 20-minute candidate protocol
+- `validation/evidence_templates.md` — Note template, coding scheme, results table
+- `validation/decision_rules.md` — Go/adjust/stop thresholds (PROPOSED, lock date 2026-10-20)
+- `validation/ethics_data_handling.md` — Ethics protocol, GDPR principles, synthetic data spec
+- `validation/demo_script.md` — Wireframe walkthrough, synthetic resume dataset
+
+**What was updated:**
+
+- README.md: "built, never run" → "kit prepared 2026-10-13, study not yet run"
+- prd.md §19: Linked hypotheses to validation kit; marked inferred claims to be validated
+
+**Status:** ✅ Kit is ready. Interviews not yet run. Founder must confirm decision thresholds before 2026-10-20.
+
+**Next steps:**
+
+1. Founder confirms thresholds in decision_rules.md
+2. Select target companies for recruitment
+3. Begin interviews
+4. Update results.md with actual data
+5. Retag §1.3.4 activities from [Planned] to [Done] when complete
+
+---
+
+---
+
+### 2.28 Employer-first validation kit prepared ✅
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+
+---
+
+### 2.36 Update: prd.md PRD release criteria added Phase 3 validation gate
+
+Created the validation instrument at validation/ to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register, participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+
