@@ -4,9 +4,11 @@ A running log of what has been done on this repository and what is still outstan
 Kept by hand; updated whenever a chunk of work lands.
 
 - **Repository:** `github.com/ishrakhossain53/FAIRFOLD` (private)
-- **Last updated:** 2026-10-13
-- **Current branch:** `ishrakhossain53-patch-1`
-- **Project state:** documentation phase. No application code has been written yet.
+- **Last updated:** 2026-10-16
+- **Current branch:** `v3`
+- **Project state:** runnable locally and **executed** — the Docker stack boots end to end
+  (§2.38). Still a scaffold: no Django model exists, so `migrate` creates zero tables and the
+  product does not yet do anything. See §1.
 
 ---
 
@@ -29,6 +31,16 @@ rather than starting from nothing.
 ⚠️ **It has not been executed.** Django is not installed in the environment where it was
 written, so "the scaffold is correct" is unverified until CI runs `manage.py check`.
 
+✅ **Correction 2026-10-16: it has now been executed.** The stack was built and run cold on
+Docker 29.8.2 — `docker compose down -v`, then `up -d --wait` against an empty database —
+and again from a fresh-clone emulation (`cp .env.example .env`, generated keys, no pre-existing
+volumes). All six services reached healthy, `migrate` ran from an empty database, `seed`
+populated it, `collectstatic` collected 159 files, gunicorn served on `0.0.0.0:8000`, and every
+key endpoint returned 200. Seven defects blocked that and are fixed in `d4b4ef3` (§2.38); four
+of them left the container reporting **healthy** while the application was unreachable, so the
+Docker healthcheck alone was not evidence that anything worked. The build instructions are now
+step-by-step in `README.md`.
+
 **Correction 2026-10-04:** an earlier revision of this section said the same about **Docker**,
 implying Docker was also unavailable. **It is not** — Docker 29.8.2 is installed here. The
 real reason nothing was built is that building was **out of scope for that task**, not
@@ -39,17 +51,17 @@ blocked.
 || File | Lines | Role |
 || --- | --- | --- |
 || `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2563 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
+|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2618 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
 || `prd.md` | 1275 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-|| `design.md` | 2895 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
-|| `FAIRFOLD_Feasibility_and_Design.md` | 2967 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+|| `design.md` | 2914 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
+|| `FAIRFOLD_Feasibility_and_Design.md` | 2978 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 420 | Project overview, documentation index, setup |
 
 | `.env.example` | 159 | Environment variables, all placeholders |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
-**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions; re-verified 2026-10-13 after §2.37**):
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions; re-verified 2026-10-13 after §2.37; re-verified 2026-10-16 after §2.38**):
 
 - **63 functional requirements**, `REQ-FR-001` … `REQ-FR-063` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
@@ -1572,6 +1584,77 @@ Following the design.md wireframe pass (§2.30), a consistency pass was run to f
 
 ---
 
+### 2.38 The stack runs — seven fixes, and four healthchecks that meant nothing (2026-10-16) ✅
+
+The scaffold had never been executed (§1). It has now: built and run cold on Docker 29.8.2
+against an empty database, then re-run from a fresh-clone emulation (`cp .env.example .env`,
+generated keys, no pre-existing volumes). Seven defects prevented it. Each is fixed at its
+cause, and each comment left in the code says *why*.
+
+- **gunicorn ran with no arguments.** `docker-compose.yml` passed its command as a YAML *block
+  scalar*: every flag on its own line, nothing continuing the command. The shell therefore ran
+  `exec gunicorn config.wsgi:application` **alone**. gunicorn bound its default
+  `127.0.0.1:8000`, so `ports: 8000:8000` forwarded to a socket that was not listening, and the
+  flag lines never executed because `exec` had already replaced the shell. It failed in the most
+  misleading way available: the container was **healthy**, because the image healthcheck curls
+  `localhost:8000` *inside* the container, where gunicorn was in fact listening. Every flag now
+  ends in a backslash and the entrypoint runs under `set -e`.
+- **Nothing collected the static files.** `staticfiles/` is a named volume mounted over an empty
+  directory in the image, and `collectstatic` had never run inside the container, so
+  `/static/css/tailwind.css` was a 404 and every page rendered unstyled. It is now a step in the
+  entrypoint — the only place the volume is visible, which is also why archiving it at image
+  build time would not have helped.
+- **`SENTRY_DSN` was required by Compose, but only production requires it.** It was
+  `${SENTRY_DSN:?…}` while `.env.example` leaves the value empty, so the README's own first
+  command — `cp .env.example .env && docker compose up` — died on an interpolation error before a
+  single container started. It is now `${SENTRY_DSN:-}`: production asserts the DSN, development
+  does not.
+- **Celery beat crash-looped forever.** `celerybeat-schedule` defaults to the working directory
+  `/app`, which is root-owned while the container runs as the non-root app user. The write raised
+  `EACCES`, beat exited 1, and `restart: unless-stopped` restarted it into the same failure — a
+  loop that never scheduled a task and that `docker compose ps` showed only as "restarting". The
+  service now passes `--schedule=/app/run/celerybeat-schedule` into a `beat_data` volume, and the
+  image creates and chowns `/app/run`.
+- **The vendored JS was never built.** `/static/js/htmx.min.js` and `/static/js/chart.min.js` are
+  gitignored outputs of `npm run build`, but `build` only compiled Tailwind — nothing produced
+  them, so they were absent from the image and every `hx-*` interaction silently did nothing.
+  `package.json` now has a `vendor` script, `build` runs it before `build:css`, and the Dockerfile
+  copies `static/js/` forward from the assets stage (design.md §11.2).
+- **`/api/v1/` returned 500.** `ApiRootView` applied `method_decorator(never_cache)` to a plain
+  method of a class-based view, which raises `AttributeError` on every request. It now decorates
+  `dispatch`.
+- **`config.settings.local` ignored the environment.** `ALLOWED_HOSTS` and
+  `CSRF_TRUSTED_ORIGINS` were hard-coded there, so editing them in `.env` changed nothing even
+  though `.env.example` documents them. Both now read from the environment, with the previous
+  literals as defaults.
+
+**Read the healthchecks carefully.** Four of the seven left the container reporting *healthy*:
+the published port was dead while the internal probe passed; a static 404 does not fail a probe;
+a missing script is a silent no-op; and beat's crash loop was hidden by `restart: unless-stopped`.
+A green `docker compose ps` was not evidence the application worked — the only trustworthy check
+was to request each endpoint and read the response.
+
+**`README.md` rewritten** as a step-by-step local setup from a fresh clone (six steps, from
+`git clone` to `docker compose up -d --wait` and the seed command), with a troubleshooting table.
+Build/test/format commands and the "there is no `config/settings/test.py`" rationale moved into
+the Development section.
+
+**Verification:** 115 tests pass; `flake8`, `isort`, `mypy`, `verify_docs.py` and
+`verify_bias_set.py` clean; cold restart and fresh-clone emulation both reach six healthy
+services with zero restarts.
+
+**Documentation brought into line with it:** Arch Doc §6.1 / §6.2 record the Compose and
+Dockerfile divergences above; Arch Doc §3.4 no longer lists HTMX `1.18` (a version that does not
+exist — §2.30); the Complete Doc §C.7 corrects `SENTRY_DSN` and records that
+`config.settings.local` now reads `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` from the environment;
+design.md §11.2 shows the real `build` script and the corrected HTMX / Chart.js versions; both
+canonical docs' `docker compose up -d db` examples are corrected to `postgres`, which is the
+service actually declared; and the Feasibility Doc §5 item 4 — "the scaffold is not a running
+system" — now records that `manage.py check` and a first `docker compose up` both pass, while
+keeping the substance: no model exists, so nothing about the product itself is verified yet.
+
+---
+
 ## 3. Gap status
 
 | Gap | Original state | Now |
@@ -1778,6 +1861,19 @@ scaffold booting. The design can start immediately and in parallel with backend 
 
 The user pushes manually; `git fetch` / `ls-remote` cannot be verified from this
 environment (no GitHub credentials). Confirm on GitHub before assuming anything is synced.
+
+**State on 2026-10-16:** branch `v3` is **three commits ahead of `origin/v3`** and none is
+pushed — `0909c23 v3 - updated` (earlier work), `d4b4ef3 bug fixes` (§2.38), and the
+documentation commit that follows it (the markdown changes described at the end of §2.38). A push
+was attempted from this environment and rejected (`No anonymous write access`): there is no `gh`,
+no credential helper, no `~/.netrc`, no `~/.git-credentials` and no `~/.ssh` here, so the push has
+to be run by hand:
+
+```bash
+git push origin v3
+```
+
+Beyond those three commits the working tree is clean.
 
 ---
 

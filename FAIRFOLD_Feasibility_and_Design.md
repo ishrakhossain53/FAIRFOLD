@@ -2948,6 +2948,17 @@ files — so "start development" is no longer a documentation exercise.
    correct" as an unverified claim until `manage.py check` and a first `docker compose up`
    both pass.**
 
+   ✅ **Updated 2026-10-16: both now pass.** The stack was built and run cold — `docker compose
+   down -v` then `up -d --wait` against an empty database — and again from a fresh-clone
+   emulation. `manage.py check` reports *"System check identified no issues"*; `migrate` runs to
+   completion; `collectstatic` collects 159 files; gunicorn serves on `0.0.0.0:8000`; and the key
+   endpoints return 200. Seven defects blocked that and are fixed in `d4b4ef3` (`HISTORY.md`
+   §2.38); four of them left the container reporting **healthy** while the application was
+   unreachable, so a green `docker compose ps` was never evidence of anything.
+   **The substance of this item is unchanged:** no Django model exists, so `migrate` still creates
+   none of the 32 product tables and no product endpoint does anything. "The scaffold is correct"
+   is now a verified claim; "the application works" is not, and will not be until the first model.
+
 #### The one number that would change the verdict
 
 If `ASM-001` fails at the end of Phase 1 — 63 requirements is too much scope — the answer is
