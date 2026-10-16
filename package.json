@@ -15,7 +15,7 @@
     "check-budget": "gzip -c static/css/tailwind.css | wc -c | awk '{ if ($1 >= 30720) { print \"tailwind.css is \" $1 \" bytes gzipped, budget is 30720\"; exit 1 } }'"
   },
   "devDependencies": {
-    "tailwindcss": "3.4.17"
+    "tailwindcss": "4.3.3"
   },
   "dependencies": {
     "chart.js": "4.4.9",
