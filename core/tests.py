@@ -1,7 +1,13 @@
-"""Shared utilities, middleware, security and cross-cutting models.
+"""Shared utilities, middleware, security and cross-cutting models."""
 
-Tests live in `tests/<app>/` rather than here, so that `pytest tests/` collects
-them and the `--cov=.` target in the CI workflow matches the directory pytest
-actually reads. An empty `tests.py` inside an app is a file pytest collects and
-reports zero tests from, which looks like coverage.
-"""
+from django.test import TestCase
+from django.urls import reverse
+
+
+class HomePageTests(TestCase):
+    def test_homepage_renders(self):
+        response = self.client.get(reverse("core:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "FairFold")
+        self.assertContains(response, "AI-powered")

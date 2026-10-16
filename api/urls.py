@@ -13,6 +13,7 @@ read.
 from __future__ import annotations
 
 from django.urls import include, path
+from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
@@ -43,6 +44,13 @@ class ApiRootSerializer(serializers.Serializer):
     domains = serializers.DictField(child=serializers.CharField())
 
 
+# never_cache is applied to `dispatch`, not to `get`. On a class-based view a
+# bare @never_cache on the method wraps the unbound function, so DRF's call
+# `handler(request, ...)` passes the view instance where the decorator expects
+# the HttpRequest and every request to /api/v1/ raises TypeError ("never_cache
+# didn't receive an HttpRequest"). Decorating at the class also covers the
+# `router.APIRootView` use below, which a URL-level decorator would miss.
+@method_decorator(never_cache, name="dispatch")
 class ApiRootView(APIView):
     """Unauthenticated API index listing the mounted domains.
 
@@ -63,7 +71,6 @@ class ApiRootView(APIView):
             "model names, no field-level detail."
         ),
     )
-    @never_cache
     def get(self, request) -> Response:
         return Response(
             {

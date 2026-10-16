@@ -20,12 +20,19 @@ test.
 # a star import, and F405 here would otherwise mask a genuine NameError if the
 # star import were ever removed.
 from config.settings.base import *  # noqa: F401,F403
-from config.settings.base import LOGGING, env, env_bool
+from config.settings.base import LOGGING, env, env_bool, env_list
 
 DEBUG = env_bool("DEBUG", default=True)
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
+# Read from the environment, with the previous hardcoded values as defaults.
+# They used to be literal lists, which silently ignored the ALLOWED_HOSTS and
+# CSRF_TRUSTED_ORIGINS .env.example documents for local access -- so reaching the
+# stack by its LAN address returned 400 regardless of what .env said.
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", default="localhost,127.0.0.1,[::1]")
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    default="http://localhost:8000,http://127.0.0.1:8000",
+)
 
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False

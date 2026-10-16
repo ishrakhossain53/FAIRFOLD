@@ -43,9 +43,9 @@ blocked.
 || `prd.md` | 1275 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 || `design.md` | 2895 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 || `FAIRFOLD_Feasibility_and_Design.md` | 2967 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 283 | Project overview, documentation index, setup |
+| `README.md` | 420 | Project overview, documentation index, setup |
 
-| `.env.example` | 158 | Environment variables, all placeholders |
+| `.env.example` | 159 | Environment variables, all placeholders |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
