@@ -249,51 +249,32 @@ in industry. A mid-size company posts an entry-level role.
 
 #### 1.3.4 Validation plan — **[Planned]**
 
-Not run. Recorded now so the sample size, channel and questions are fixed **before**
+**Employer-first validation kit:** `validation/README.md` through `validation/demo_script.md`.  
+Each assumption is registered in `validation/hypotheses.md` with IDs `H-EM-###` and traceability to `REQ-FR-###` / `ASM-###`.
+
+**Not run.** Recorded now so the sample size, channel and questions are fixed **before**
 anyone collects data, and so nobody can later describe a result that was never
 collected. The aim is a small honest evidence base, not a large study.
 
 | Activity | Who | Size (suggested) | Output | Status |
 |---|---|---|---|---|
-| Candidate interviews (20–30 min) | Recent graduates and early-career job seekers in Bangladesh | 8–10 | Themes on referral-driven hiring, feedback, skills checks | **[Planned]** |
-| Recruiter / hiring-manager interviews | HR staff at SMEs and startups | 5–6 | How they screen today; volume; tools; tolerance for AI; willingness to override | **[Planned]** |
-| Short survey | Job seekers | 30+ responses | Share reporting referral influence; share ever given a skills test; share ever given feedback | **[Planned]** |
-| Concept test of S-2 against the wireframes (`design.md` §10.5) | Both groups | 5–8 sessions | Reaction to the anonymised list, the cost estimate and the shortlist reveal | **[Planned]** |
+| Candidate interviews (20–30 min) | Recent graduates and early-career job seekers in Bangladesh | 3–5 | Reaction to PII stripping preview, alias use, tab-switch consent, text coaching | **[Planned]** |
+| Recruiter / hiring-manager interviews | HR staff at SMEs and startups (mix of sizes) | 5–6 | How they screen today; volume; time; tools; tolerance for AI; willingness to override | **[Planned]** |
+| Employer short screener | Employers posting jobs | 3–5 | Would they accept anonymised screening? Price sensitivity | **[Planned]** |
+| Willingness-to-pay study | Recruiters | 5–6 | Joanne Pedersen price sensitivity: too cheap / bargain / getting expensive / too expensive | **[Planned]** |
+| Demo walkthrough with wireframes | Candidates + employers | 5–8 sessions | Reaction to anonymised list (W37), reveal confirmation (W32), AI explanations (W39) | **[Planned]** |
 
-**Interview guide — candidates (core questions).**
-
-1. Tell me about the last role you applied for. What happened after you submitted?
-2. Did anyone test your skills before deciding on an interview? How?
-3. Did you ever feel the outcome depended on who you knew? What made you think so?
-4. Did you receive any explanation or feedback? What would you have wanted?
-5. Would you trust a score that shows evidence from your own resume? What would
-   make you distrust it?
-
-**Interview guide — recruiters (core questions).**
-
-1. Walk me through how you screened the last role you filled. How many applicants,
-   how much time?
-2. How often is a candidate suggested internally? What do you do with that
-   suggestion?
-3. Do you test skills before interviews? Why or why not?
-4. What would make you comfortable letting software rank applicants? What would
-   make you refuse?
-5. If you wanted to shortlist someone ranked low, would you accept having to
-   record a reason?
-
-**Survey (job seekers, 5 minutes).**
-
-1. In the last 2 years, how many roles did you apply for? (number)
-2. For how many were you given a skills test before an interview? (number)
-3. For how many did you receive any feedback after rejection? (number)
-4. "Who you know mattered more than what you could do" in my experience. (1–5 agree)
-5. I would apply through a platform that hides my name during screening. (1–5)
-6. I would trust a ranking if it showed evidence from my own resume. (1–5)
-
-**Recording results.** When this has actually run, add a table to §1.3 with the
-real counts, retag each row **[Done]**, and cite those counts in place of the §1.2.2
-local evidence. **Do not publish percentages from a sample this small as market
-facts** — present them as "of N participants".
+**Hypothesis IDs and traceability:**  
+| ID | Assumption | REQ-FR | ASM |
+|---|---|---|---|
+| H-EM-001 | Employers want anonymised screening | REQ-FR-054 | ASM-2.1 |
+| H-EM-002 | Employers accept alias-only view until shortlist | REQ-FR-053 | ASM-2.3 |
+| H-EM-003 | Hiring managers trust AI explanations | REQ-FR-049 | ASM-2.2 |
+| H-EM-004 | Assessment gating is acceptable | REQ-FR-052 | ASM-2.4 |
+| H-EM-005 | Recruiters will pay for Starter tier | REQ-FR-056 | ASM-2.5 |
+| H-CN-001 | Job seekers accept proxy stripping | REQ-FR-057 | - |
+| H-CN-002 | Job seekers accept tab-switch monitoring | REQ-FR-055 | - |
+| H-CN-003 | Text coaching adds value | REQ-FR-058–063 | - |
 
 #### 1.3.5 What the other requirements came from
 
@@ -2966,6 +2947,17 @@ files — so "start development" is no longer a documentation exercise.
    exist as files but have likewise **never been built or executed**. **Treat "the scaffold is
    correct" as an unverified claim until `manage.py check` and a first `docker compose up`
    both pass.**
+
+   ✅ **Updated 2026-10-16: both now pass.** The stack was built and run cold — `docker compose
+   down -v` then `up -d --wait` against an empty database — and again from a fresh-clone
+   emulation. `manage.py check` reports *"System check identified no issues"*; `migrate` runs to
+   completion; `collectstatic` collects 159 files; gunicorn serves on `0.0.0.0:8000`; and the key
+   endpoints return 200. Seven defects blocked that and are fixed in `d4b4ef3` (`HISTORY.md`
+   §2.38); four of them left the container reporting **healthy** while the application was
+   unreachable, so a green `docker compose ps` was never evidence of anything.
+   **The substance of this item is unchanged:** no Django model exists, so `migrate` still creates
+   none of the 32 product tables and no product endpoint does anything. "The scaffold is correct"
+   is now a verified claim; "the application works" is not, and will not be until the first model.
 
 #### The one number that would change the verdict
 

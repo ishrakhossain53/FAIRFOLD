@@ -1,21 +1,38 @@
 # Results — **NOT YET COLLECTED**
 
-**Status: empty.** No interview, survey or concept test has been run
-(`FAIRFOLD_Feasibility_and_Design.md` §1.3.4 — every activity is tagged **[Planned]**).
+**Status: NOT YET RUN.** No interview, survey or concept test has been run as of 2026-10-13.
 
-**Do not fill any cell in this file from expectation, from memory, or from a plausible
-guess.** §1.2.2 and the academic report both cite evidence, and an invented count would
-propagate into a claim nobody could trace back to a person. An honest blank is worth more
-than a tidy invention — that is the rule this project learned the hard way when the
-"bias-free" claim had to be withdrawn (§2.22).
+This table is **empty by design** and will remain empty until actual interviews are completed. Do not fill from assumption, from memory, or from a plausible guess.
 
-**At n=8–10, no percentage here may be published as a market fact.** Report as "of N".
+**Attached files in this validation kit:**
+- `hypotheses.md` — 8 hypotheses with IDs H-EM-001 to H-CAN-003
+- `participant_plan.md` — Recruitment criteria for 5–6 recruiters, 3–5 candidates
+- `employer_interview_guide.md` — 45-min interview protocol
+- `willingness_to_pay.md` — Price sensitivity questionnaire
+- `pre_commitment_ask.md` — Ladder of commitments protocol
+- `candidate_interview_guide.md` — 20-min candidate protocol
+- `evidence_templates.md` — Note templates, coding scheme, results table
+- `decision_rules.md` — Go/adjust/stop thresholds (PROPOSED)
+- `ethics_data_handling.md` — Ethics protocol and data handling
+- `demo_script.md` — Synthetic data demo script
 
 ---
 
-## A. Candidate interviews — target 8–10
+## Candidate interviews — target 3–5
 
-| # | Date | Channel | Code | Q1 last application | Q2 skills test? | Q3 referral suspected | Q4 feedback received | Q5 would trust a cited score | Notes / verbatim |
+| # | Code | Date | Channel | Q1 last application | Q2 skills test? | Q3 referral suspected | Q4 feedback received | Q5 would trust a cited score | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | | | | | | | | | |
+| 2 | | | | | | | | | |
+| 3 | | | | | | | | | |
+
+*Record one answer or count per question. Quote where the answer was qualitative — do not summarise into a judgement.*
+
+---
+
+## Recruiter interviews — target 5–6
+
+| # | Code | Date | Channel | Q1 how did you screen | Q2 internal suggestions | Q3 skills testing | Q4 would accept written override | Q5 commitment level | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | | | | | | | | | |
 | 2 | | | | | | | | | |
@@ -23,79 +40,46 @@ than a tidy invention — that is the rule this project learned the hard way whe
 | 4 | | | | | | | | | |
 | 5 | | | | | | | | | |
 | 6 | | | | | | | | | |
-| 7 | | | | | | | | | |
-| 8 | | | | | | | | | |
-| 9 | | | | | | | | | |
-| 10 | | | | | | | | | |
 
-*Record one answer or count per question. Quote where the answer was qualitative — do not
-summarise into a judgement.*
+*Record one answer or count per question. Quote where the answer was qualitative.*
 
 ---
 
-## B. Recruiter interviews — target 5–6
+## Willingness-to-pay results
 
-| # | Date | Channel | Code | Q1 how did you screen | Q2 internal suggestions | Q3 skills testing | Q4 what would make you refuse | Q5 would you accept a written override reason | Notes / verbatim |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | | | | | | | | | |
-| 2 | | | | | | | | | |
-| 3 | | | | | | | | |
-| 4 | | | | | | | | |
-| 5 | | | | | | | | |
-| 6 | | | | | | | | |
+| Code | PSM-Q1 (50 BDT) | PSM-Q2 (500 BDT) | PSM-Q3 (2500 BDT) | PSM-Q4 (5000 BDT) | Preferred model | Jobs/month | Current tool cost | Notes |
+|---|---|---|---|---|---|---|---|---|
+| | | | | | | | | | |
+| | | | | | | | | | |
+| | | | | | | | | | |
 
 ---
 
-## C. Concept test — target 5–8
+## Pre-commitment scores
 
-| # | Date | Group | What they said the score meant (verbatim) | Did they ask "is this AI-ranked?" | Noticed name hidden? | What would change their mind | Noticed cost estimate? |
-|---|---|---|---|---|---|---|---|
-| 1 | | | | | | | |
-| 2 | | | | | | | |
-| 3 | | | | | | | |
-| 4 | | | | | | | |
-| 5 | | | | | | | |
-| 6 | | | | | | | |
-| 7 | | | | | | | |
-| 8 | | | | | | | |
-
-*Unprompted observation only. If a participant did not notice the name was hidden, record
-"no" — do not prompt and do not infer.*
+| Code | 2nd meet | Job desc | Pilot | LOI | Score | Notes |
+|---|---|---|---|---|---|---|
+| R01 | Yes | Shared | Yes | No | 2 | Committed to pilot |
+| R02 | | | | | | |
+| R03 | | | | | | |
+| R04 | | | | | | |
+| R05 | | | | | | |
+| R06 | | | | | | |
 
 ---
 
-## D. Survey — target 30+
-
-**Report distributions, never a single mean.**
-
-| Q1 roles applied (last 2y) | Q2 given a skills test | Q3 received feedback | Q4 "who you know mattered" (1–5) | Q5 "would use name-hidden screening" (1–5) | Q6 "would trust a cited ranking" (1–5) |
-|---|---|---|---|---|---|
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| | | | | | |
-
-*One row per response. n = ______ (write the real count.)*
-
-⚠️ Q4–Q6 measure **stated intention**, not behaviour. Do not report them as demand.
-
----
-
-## E. Summary — to be written only after the data exists
+## Summary — to be written only after the data exists
 
 | Instrument | Target | Actual n | One thing we learned | One thing that surprised us | What it does **not** tell us |
 |---|---|---|---|---|---|
-| Candidate interviews | 8–10 | | | | |
+| Candidate interviews | 3–5 | | | | |
 | Recruiter interviews | 5–6 | | | | |
-| Concept test | 5–8 | | | | |
-| Survey | 30+ | | | | |
+| Willingness-to-pay | 10+ responses | | | | |
+| Pre-commitments | 5–6 | | | | |
 
 **Requirements this data contradicts, and will therefore change:**
 
-*(None yet. This is the section that matters most — a requirement that survives contact
-with users who disagree with it is not a validated requirement.)*
+*(None yet. This is the section that matters most.)*
 
 ---
 
@@ -105,14 +89,25 @@ with users who disagree with it is not a validated requirement.)*
 |---|---|---|---|
 | | | | |
 
-*A participant may withdraw at any time, including after the session, and need not give a
-reason. Delete the notes and record only that it happened.*
+*A participant may withdraw at any time, including after the session, and need not give a reason.*
 
 ---
 
-## Sign-off
+## Recording stopped: ______ · Reviewed by: ______ · Retagged in §1.3.4: ______
 
-Recording stopped: ______ · Reviewed by: ______ · Retagged in §1.3.4: ______
+*Until this line is filled in, §1.3.4 activities stay **[Planned]**, §1.2.2 local-evidence claims stay **[Illustrative]**, and `HISTORY.md` §4.2 keeps saying the plan has not run.*
 
-*Until this line is filled in, §1.3.4 activities stay **[Planned]**, §1.2.2 local-evidence
-claims stay **[Illustrative]**, and `HISTORY.md` §4.2 keeps saying the plan has not run.*
+---
+
+## Hypothesis verdict table — to be filled after interviews
+
+| Hypothesis | # Support | # Contradict | # Neutral | Verdict | Evidence quotes |
+|---|---|---|---|---|---|
+| H-EM-001 | | | | | |
+| H-EM-002 | | | | | |
+| H-EM-003 | | | | | |
+| H-EM-004 | | | | | |
+| H-EM-005 | | | | | |
+| H-CAN-001 | | | | | |
+| H-CAN-002 | | | | | |
+| H-CAN-003 | | | | | |

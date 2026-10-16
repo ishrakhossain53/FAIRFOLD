@@ -40,7 +40,7 @@
 | [FAIRFOLD_Feasibility_and_Design.md](FAIRFOLD_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
 | [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 7.13–7.21 product components, 78 page specs, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 | [HISTORY.md](HISTORY.md) | Log | What has been done on this repo and what is still outstanding |
-| [`validation/`](validation/) | Instrument | Consent form, interview guide, survey and results log for the §1.3.4 user validation — **built, never run** |
+| [`validation/`](validation/) | Instrument | Consent form, interview guide, survey and results log for the §1.3.4 user validation — **kit prepared 2026-10-13, study not yet run** |
 
 **Start here:** `prd.md` if you want the product, `FAIRFOLD_Project_Architecture_and_Requirements.md` if you want to build it, `HISTORY.md` if you want to know where things stand.
 
@@ -55,54 +55,141 @@ auditable** — by employers *and* candidates:
 - **Enables explainable AI** - candidates and recruiters see why matches were scored
 - **Runs on free-tier AI** (OpenRouter's free models)
 
-## Quick Start
+## Quick Start — local setup from a fresh clone
+
+Everything the application needs runs in containers: PostgreSQL 17 + pgvector, Redis,
+ClamAV, Django, the Celery worker and Celery beat. The six steps below are the whole of
+it.
 
 ### Prerequisites
 
-- Docker + Docker Compose
-- Python 3.12+
-- PostgreSQL 17+ with pgvector extension
-- Redis 7+ (server) / Redis 5+ (Python client)
+- **Docker Engine 24+ with the Compose v2 plugin** — check with `docker compose version`
+- **Git**
+- **Python 3.12+** — needed only to generate the secret keys (step 2) and to run the test
+  suite on the host. Node 20+ is needed only if you rebuild the frontend assets by hand
+  (see [Frontend assets](#frontend-assets)).
 
-### Setup
+You do **not** need PostgreSQL, Redis or ClamAV installed on the host. Not installing
+them locally is what `docker-compose.yml` exists to avoid.
 
-1. **Clone and configure environment:**
-   ```bash
-   cp .env.example .env
-   python scripts/generate_secret_key.py --write-env   # fills in the secret keys
-   # Then edit .env with your own settings
-   ```
+### 1. Clone the repository
 
-   `.env.example` documents every variable (see Complete Project Document §C.7).
-   The generator writes cryptographically strong `DJANGO_SECRET_KEY` and
-   `ENCRYPTION_KEY` values so you never invent weak secrets by hand.
+```bash
+git clone https://github.com/ishrakhossain53/FAIRFOLD.git
+cd FAIRFOLD
+```
 
-2. **Start the stack:**
-   ```bash
-   docker compose up -d --wait
-   ```
+### 2. Create `.env` and generate the two secrets
 
-3. **Initialize database:**
-   ```bash
-   docker compose exec django python manage.py migrate
-   docker compose exec django python manage.py seed
-   ```
+```bash
+cp .env.example .env
+python3 scripts/generate_secret_key.py --write-env
+```
 
-   `seed` loads the reference data a fresh database needs before serving a request: the
-   four Django role groups and the 68-skill taxonomy. It also validates the score bands,
-   countries and industries in `core/reference.py` and **warns that the bands are
-   uncalibrated** — `design.md` §3.4 calls them provisional pending a calibrated model, so
-   do not present them as measured.
+`--write-env` replaces the `change-me…` placeholders in `.env` with a fresh 512-bit
+`DJANGO_SECRET_KEY` and a Fernet-format `ENCRYPTION_KEY`. Both are read on every boot and
+the application refuses to start with either one missing, so this step is not optional.
 
-4. **Create superuser:**
-   ```bash
-   docker compose exec django python manage.py createsuperuser
-   ```
+- `.env` is gitignored; `.env.example` is the committed template. Never put a real secret
+  in `.env.example`.
+- No Python on the host? Run the same script in a throwaway container. `--user` keeps the
+  written `.env` owned by you rather than by root:
+  ```bash
+  docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w python:3.12-slim \
+    python scripts/generate_secret_key.py --write-env
+  ```
+- **Optional — AI features.** Set `OPENROUTER_API_KEY` in `.env` to use real models. Left
+  empty, the app falls back to `OfflineFallbackProvider`, which returns deterministic
+  non-AI responses, so every page still renders.
+- **Optional — error tracking.** `SENTRY_DSN` may stay empty locally. Only
+  `config.settings.production` requires it.
 
-5. **Access the application:**
-   - Django admin: http://localhost:8000/django-admin/
-   - API: http://localhost:8000/api/v1/
-   - Health check: http://localhost:8000/health/
+### 3. Start the stack
+
+```bash
+docker compose up -d --wait
+```
+
+This builds the image and starts `postgres`, `redis`, `clamav`, `django`, `celery` and
+`celery-beat`. On **every** start the `django` container:
+
+1. applies migrations (`manage.py migrate`),
+2. loads reference data (`manage.py seed` — role groups, skills, countries, industries,
+   score bands; it warns that the bands are **uncalibrated**, per `design.md` §3.4),
+3. collects static files (`manage.py collectstatic`), and only then
+4. starts gunicorn on `0.0.0.0:8000`.
+
+`--wait` returns once every health check passes, so a completed command means the stack is
+ready to use. The first run takes a few minutes: pip installs PyTorch (CPU wheels), spaCy
+and the rest, and ClamAV downloads its signature database on first boot.
+
+You never run `migrate` or `seed` by hand to get started — the container entrypoint does
+both. They are re-run safely on every restart (both are idempotent).
+
+### 4. Verify it is up
+
+```bash
+docker compose ps                     # every service Up, the health-checked ones healthy
+curl -s localhost:8000/health/ready/  # {"status": "ok", "checks": {"database": "ok", "cache": "ok"}}
+```
+
+Then open **http://localhost:8000/**.
+
+| URL | What it is |
+|---|---|
+| http://localhost:8000/ | Landing page |
+| http://localhost:8000/django-admin/ | Django admin (needs step 5) |
+| http://localhost:8000/api/v1/ | API index |
+| http://localhost:8000/api/docs/ | OpenAPI UI (`DEBUG` only) |
+| http://localhost:8000/api/schema/ | OpenAPI schema |
+| http://localhost:8000/health/ | Liveness probe |
+| http://localhost:8000/health/ready/ | Readiness — reports database and cache |
+
+### 5. Create an admin user (optional)
+
+There is no login UI yet, so `createsuperuser` is how you reach the admin.
+
+```bash
+docker compose exec django python manage.py createsuperuser
+```
+
+### 6. Day-to-day commands
+
+```bash
+docker compose logs -f django      # follow the application log
+docker compose logs -f celery      # follow the worker
+docker compose ps                  # what is running
+docker compose restart django      # restart one service
+docker compose down                # stop the stack, KEEP the database volume
+docker compose down -v             # stop and DELETE the database (a clean slate)
+docker compose up -d --build       # rebuild the image after a code change
+```
+
+> **Source changes need a rebuild.** The application code is copied into the image, not
+> bind-mounted, so editing a `.py` or `.html` file changes nothing until
+> `docker compose up -d --build`. Note that `down -v` deletes resume files and the
+> collected static files too, not just the database.
+
+### Troubleshooting
+
+- **`error while interpolating … required variable … is missing a value`** — `.env` is
+  absent or incomplete. Run `cp .env.example .env` first; `DB_PASSWORD`,
+  `DJANGO_SECRET_KEY`, `ENCRYPTION_KEY`, `EMAIL_BACKEND_URL` and `DEFAULT_FROM_EMAIL` must
+  each have a value.
+- **A port is already in use (8000, 5432, 6379, 3310)** — another stack, or a host
+  PostgreSQL/Redis, owns it. Change `DJANGO_PORT` / `POSTGRES_PORT` / `REDIS_PORT` /
+  `CLAMD_PORT` in `.env`, or stop the other process.
+- **`django` is healthy but the browser cannot connect** — confirm the bind address:
+  `docker compose logs django | grep "Listening at"` must report `0.0.0.0:8000`. If it
+  reports `127.0.0.1:8000`, gunicorn lost its arguments and the published port is dead.
+- **The page is unstyled, or HTMX does nothing** — static files were not collected or the
+  vendored JS is missing:
+  ```bash
+  docker compose exec django python manage.py collectstatic --noinput
+  curl -I localhost:8000/static/js/htmx.min.js
+  ```
+- **An upload is rejected because ClamAV is unreachable** — this is deliberate; the scan
+  fails closed. Wait for `docker compose ps` to show `clamav` as healthy.
 
 ## Project Structure
 
@@ -139,13 +226,14 @@ fairfold/
 
 templates/              # base.html + errors/{403,404,500}.html
 static/css/             # tokens.css (from design.md §3–§5), tailwind.src.css, tailwind.css (built)
+static/js/              # htmx.min.js + chart.min.js (vendored by `npm run build`, not committed)
 tests/
 ├── conftest.py           # Django setup; degrades gracefully when Django is absent
 └── bias/                 # versioned bias test set — v1.0.0 (76) + v1.0.1 (103 cases); spec in Arch Doc §7.4
 
 docker-compose.yml
 Dockerfile
-package.json            # Tailwind 3.4 · HTMX 1.18 · Chart.js 4.4 (build-time only)
+package.json            # Tailwind 3.4 · HTMX 1.9 · Chart.js 4.4 (build-time only)
 tailwind.config.js      # maps design tokens onto utility names
 pyproject.toml          # black · isort · mypy · pytest config
 bandit.yaml             # bandit skips, each with its reason
@@ -232,33 +320,82 @@ scripts/
 
 ## Development
 
-### Running Tests
+### Running tests
+
+Tests do **not** run inside the runtime image — `pytest` is a development dependency and
+is deliberately not installed there. Create a virtualenv on the host and point it at the
+containers from step 3, which publish their ports.
+
 ```bash
-# Local — needs PostgreSQL + pgvector (no SQLite fallback; see above)
-pip install -r requirements.txt -r requirements-dev.txt
-pytest tests/ -v
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 
-# The bias pass alone needs NO database and NO Django
-pytest tests/bias/ -v
+# PostgreSQL, Redis and ClamAV come from `docker compose up -d`.
+export DJANGO_SETTINGS_MODULE=config.settings.ci
+export DJANGO_SECRET_KEY=test-only-not-a-real-key
+export ENCRYPTION_KEY=test-only-fernet-placeholder-0000000000=
+export DB_PASSWORD=devpassword
+export DB_HOST=127.0.0.1
+export REDIS_URL=redis://127.0.0.1:6379/0
+export CELERY_BROKER_URL=redis://127.0.0.1:6379/0
+export CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/1
+export CLAMD_HOST=127.0.0.1
 
-# Docker
-docker compose exec -T django pytest tests/ -v
+.venv/bin/pytest tests/ -v
 ```
 
-### Verifying the documentation
+> **Do not `source .env` for this.** `.env` sets `DEBUG=True`, and
+> `tests/core/test_production_settings.py` asserts that `config.settings.production`
+> refuses to load with `DEBUG` on — so a sourced `.env` fails those tests for a reason
+> that has nothing to do with the code.
+
+The bias pass needs no database, no Django and no settings module:
+
 ```bash
-python3 scripts/verify_docs.py       # counts, ids, links, line counts, wireframe coverage
-python3 scripts/verify_bias_set.py   # every bias fixture version's internal consistency
+.venv/bin/pytest tests/bias/ -v
 ```
 
-### Running Migrations
+### Lint, types, security and docs checks (what CI runs)
+
 ```bash
-docker compose exec -T django python manage.py makemigrations
+.venv/bin/flake8 config/ core/ accounts/ candidates/ employers/ matching/ \
+  assessments/ interviews/ notifications/ api/ journey/ ai/ \
+  --max-line-length=120 --extend-exclude='*/migrations/*'
+.venv/bin/black --check .
+.venv/bin/isort --check-only .
+.venv/bin/mypy config/ core/ accounts/ candidates/ employers/ matching/ ai/ \
+  --ignore-missing-imports
+.venv/bin/bandit -r . -c bandit.yaml -s B104,B105,B106,B107,B108,B311,B403
+
+.venv/bin/python scripts/verify_docs.py       # counts, ids, links, line counts, wireframes
+.venv/bin/python scripts/verify_bias_set.py   # bias fixture consistency
+```
+
+### Frontend assets
+
+`static/css/tailwind.css` and `static/js/{htmx,chart}.min.js` are **generated, not
+committed** (`.gitignore` keeps them out). The Docker image builds them in its `node`
+stage, so a container build needs nothing extra. Build them on the host only if you want
+the stylesheet without rebuilding the image:
+
+```bash
+npm ci                 # or `npm install` if package-lock.json is missing
+npm run build          # vendors htmx + Chart.js into static/js/, then compiles Tailwind
+npm run watch          # Tailwind only, in watch mode
+npm run check-budget   # fails if tailwind.css exceeds the 30 KB gzipped budget
+```
+
+`npm run build` is two steps: `npm run vendor` copies HTMX and Chart.js out of
+`node_modules` into `static/js/` (they are served from our own origin — the CSP allows no
+third-party script host), then `npm run build:css` compiles Tailwind. Running only
+`build:css` leaves the pages unstyled-by-JS: htmx.min.js 404s and every `hx-*` element is
+inert.
+
+### Migrations and Django shell
+
+```bash
+docker compose exec django python manage.py makemigrations
 docker compose exec django python manage.py migrate
-```
-
-### Opening Django Shell
-```bash
 docker compose exec django python manage.py shell
 ```
 

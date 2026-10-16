@@ -243,6 +243,19 @@ employer and no individual is named anywhere in this document.
 observation. Employer-side needs are *inferred* from the candidate-side view and from
 published market analysis; they have **not** been validated with employers.
 
+**Validation plan — [Planned], not run.** The validation kit (`validation/`) fixes the sample size,
+channels and questions **in advance** so no result can be claimed before collection:
+
+- Employer interviews: 5–6 recruiters (HR generalists + hiring managers)
+- Candidate interviews: 3–5 job seekers
+- Willingness-to-pay survey: price sensitivity questions
+- Pre-commitment ladder: measure stated interest vs. real commitment
+
+**Hypotheses to validate:** See `validation/hypotheses.md` — each claim is tagged with REQ-FR / ASM IDs.
+Full guidelines are in `validation/employer_interview_guide.md`, `validation/candidate_interview_guide.md`,
+and `validation/willingness_to_pay.md`. Decision thresholds are in `validation/decision_rules.md` (PROPOSED).
+When validations run, real counts replace this disclosure and related claims become [Done].
+
 **Traceability.** Six pain points from that experience map onto objectives and
 requirements that already exist:
 
@@ -256,21 +269,15 @@ requirements that already exist:
 | P6 | Thin resume, strong self-taught skills | REQ-FR-016–018 | Yes |
 
 P5 is the one that mattered most and was completely unaddressed: anonymised ranking
-is worthless if the ranking can be quietly ignored. P2 was partly addressed — the
-assessments were candidate-initiated, so an employer could still shortlist on a
-resume with no skill evidence at all.
-
-**Validation plan — [Planned], not run.** Fixed now so no result can be claimed
-before it is collected: 8–10 candidate interviews, 5–6 recruiter interviews, a
-30+ response survey, and 5–8 concept tests against the wireframes. Full guides and
-survey items are in Feasibility Doc §1.3.4. When it runs, the real counts replace
-this section's honesty disclaimer and nothing else changes.
+is worthless if the ranking can be quietly ignored.
 
 **The rest of the requirements.** Not everything came from a user, and saying so is
 the point. REQ-FR-001–008 are security best practice; 009–024 come from competitor
 gaps and are **not validated with candidates**; 025–036 come from competitor
 shortfalls and are **not validated with recruiters**; 037–041 are legal requirements
 (GDPR, EU AI Act); 042–052 come from the traceability audit and gaps G1–G3.
+
+---
 
 ---
 
@@ -1215,6 +1222,10 @@ The product can go to public launch when all of the following hold:
 7. axe-core reports no critical violations; Journey Map and analytics have text alternatives.
 8. Load test: 100 concurrent applicants, < 5 s response, < 1% error rate.
 9. Open questions 1–3 in Section 19.1 are closed.
+10. **Phase 3 employer validation criteria met:** See `validation/decision_rules.md`.
+    - All employer-side hypotheses (H-EM-001 to H-EM-005) must reach their "Go" threshold.
+    - At least 5 recruiter interviews completed with ≥80% support for key hypotheses.
+    - Willingness-to-pay validation shows viable price tier (Starter ≤1000 BDT acceptable to majority).
 
 ---
 

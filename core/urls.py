@@ -7,8 +7,27 @@ The database has its own readiness check in `docker-compose.yml`.
 """
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render
 from django.urls import path
 from django.views.decorators.cache import never_cache
+
+
+@never_cache
+def home(request: HttpRequest) -> HttpResponse:
+    """Minimal landing page for local development verification."""
+    return render(request, "home.html", {"title": "FairFold Demo"})
+
+
+@never_cache
+def demo_api(request: HttpRequest) -> JsonResponse:
+    """Tiny backend endpoint to confirm frontend and backend are connected."""
+    return JsonResponse(
+        {
+            "status": "ok",
+            "message": "FairFold backend is responding.",
+            "app": "FairFold",
+        }
+    )
 
 
 @never_cache
@@ -54,6 +73,8 @@ def ready(request: HttpRequest) -> JsonResponse:
 app_name = "core"
 
 urlpatterns = [
+    path("", home, name="home"),
+    path("api/demo/", demo_api, name="demo-api"),
     path("health/", health, name="health"),
     path("health/ready/", ready, name="health-ready"),
 ]

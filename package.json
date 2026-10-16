@@ -8,7 +8,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --minify",
+    "vendor": "mkdir -p static/js && cp node_modules/htmx.org/dist/htmx.min.js static/js/htmx.min.js && cp node_modules/chart.js/dist/chart.umd.js static/js/chart.min.js",
+    "build:css": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --minify",
+    "build": "npm run vendor && npm run build:css",
     "watch": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --watch",
     "check-budget": "gzip -c static/css/tailwind.css | wc -c | awk '{ if ($1 >= 30720) { print \"tailwind.css is \" $1 \" bytes gzipped, budget is 30720\"; exit 1 } }'"
   },

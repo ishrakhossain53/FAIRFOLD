@@ -1384,9 +1384,9 @@ jobs:
 | `STRIPE_SECRET_KEY` | No (Phase 5) | — | Stripe secret key for billing |
 | `STRIPE_WEBHOOK_SECRET` | No (Phase 5) | — | Webhook signing secret |
 | `EMAIL_BACKEND_URL` | Yes | — | SMTP or API endpoint for transactional emails |
-| `SENTRY_DSN` | Yes | — | Sentry error tracking DSN |
-| `ALLOWED_HOSTS` | Yes | `localhost` | Comma-separated list of hosts |
-| `CSRF_TRUSTED_ORIGINS` | Yes | — | Comma-separated list of trusted origins |
+| `SENTRY_DSN` | Yes (production) | — | Sentry error tracking DSN. **Optional in local development** (corrected 2026-10-16): only `config.settings.production` requires it, so `docker-compose.yml` passes it as `${SENTRY_DSN:-}` and an empty value is not an error until production |
+| `ALLOWED_HOSTS` | Yes | `localhost,127.0.0.1` | Comma-separated list of hosts. Read by `config.settings.local` **and** `base` (corrected 2026-10-16 — `local.py` previously hard-coded its own list and ignored the environment) |
+| `CSRF_TRUSTED_ORIGINS` | Yes | — | Comma-separated list of trusted origins. Also read by `config.settings.local` since 2026-10-16, with the `http://localhost:8000` default |
 | `AWS_ACCESS_KEY_ID` | No (S3) | — | S3-compatible storage access key |
 | `AWS_SECRET_ACCESS_KEY` | No (S3) | — | S3-compatible storage secret key |
 | `AWS_STORAGE_BUCKET_NAME` | No (S3) | — | S3 bucket name |
@@ -2069,7 +2069,7 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 > module **cannot run the application** — it would fail at the first migration.
 >
 > The corrected rule, applied to every reference below:
-> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d db`.
+> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d postgres`. (Corrected 2026-10-16: the service in `docker-compose.yml` is named `postgres`, not `db`; `docker compose up -d db` fails with "no such service".)
 > - **`test.py`** → in-memory SQLite is acceptable **only** for pure unit tests that
 >   touch no `VectorField`. Anything touching `matching/`, `candidates/` embeddings or
 >   `employers/` screening needs the Postgres test database.

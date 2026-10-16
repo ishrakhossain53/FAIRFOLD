@@ -1,27 +1,64 @@
-# Validation instrument — `FAIRFOLD_Feasibility_and_Design.md` §1.3.4
+# Validation instrument — Employer-first kit (prepared 2026-10-13)
 
-This directory holds the **instrument** for the requirement-validation plan: the
-consent form, the recording sheets, the survey, and an empty results table.
+This directory holds the **employer-first validation kit** for requirement-validation:
+consent forms, interview guides, willingness-to-pay module, and the results table.
+
+---
 
 ## ⚠️ Nothing here has been collected
 
-**No interview, survey or concept test has been run.** `results.md` is empty by design
+**Study not yet run.** `validation/results.md` is empty by design
 and every cell is marked. Do not fill any of it from memory, from assumption, or from
 "what we would expect" — an invented finding is worse than no finding, because §1.2.2
 and the academic report both cite evidence, and a fabricated count would propagate into
 a claim nobody can trace back to a person.
 
-The plan fixes the sample size, the channel and the questions **before** anyone collects
+The kit fixes the sample size, the channel and the questions **before** anyone collects
 data, so that nobody can later describe a result that was never collected. Keeping that
 promise is the entire reason this directory exists.
+
+---
+
+## Hypotesis Register
+
+**Purpose.** Each validation activity tests an employer-side assumption that gates Phase 3
+build. The register is in `validation/hypotheses.md`.
+
+**Assumption IDs (employer-side).**  
+| ID | Assumption | Requirement | ASM entry |
+|---|---|---|---|
+| H-EM-001 | Employers want anonymised screening | REQ-FR-054 | ASM-2.1 |
+| H-EM-002 | Employers accept alias-only view until shortlist | REQ-FR-053 | ASM-2.3 |
+| H-EM-003 | Hiring managers trust AI shortlist explanations | REQ-FR-049 | ASM-2.2 |
+| H-EM-004 | Assessment gating is acceptable | REQ-FR-052 | ASM-2.4 |
+| H-EM-005 | Recruiters will pay for the service (Starter tier) | REQ-FR-056 | ASM-2.5 |
+
+**Candidate-side assumptions.**  
+| ID | Assumption |
+|---|---|
+| H-CN-001 | Job seekers accept proxy stripping |
+| H-CN-002 | Job seekers accept tab-switch monitoring |
+| H-CN-003 | Text coaching adds value |
+
+---
 
 ## What is in here
 
 | File | What it is | Who uses it |
 |---|---|---|
-| `consent_form.md` | Printed and signed before any session | The participant |
-| `instruments.md` | Interview guides, the concept-test script, the survey | The interviewer |
-| `results.md` | The recording sheet, **empty** | The person who ran the sessions |
+| `hypotheses.md` | Central register of all assumptions to test | Researcher |
+| `participant_plan.md` | Screener, recruiting channels, consent script | Interviewer |
+| `employer_interview_guide.md` | 45-minute guide for recruiters | Interviewer |
+| `candidate_interview_guide.md` | 20-minute guide for job seekers | Interviewer |
+| `willingness_to_pay.md` | Joanne Pedersen price sensitivity table | Interviewer |
+| `pre_commitment_ask.md` | Ladder of real commitments | Interviewer |
+| `decision_rules.md` | Success thresholds and gate rules | Founder |
+| `evidence_templates.md` | Note template, coding scheme, results table | Interviewer |
+| `ethics_data_handling.md` | Consent, storage, anonymisation | Researcher |
+| `demo_script.md` | Walkthrough without real PII | Interviewer |
+| `results.md` | The recording sheet, **empty** | The person who ran sessions |
+
+---
 
 ## Rules for whoever runs this
 
@@ -34,7 +71,7 @@ promise is the entire reason this directory exists.
 4. **Do not lead.** The guides are ordered so the leading questions come last. Do not
    add a fifth "but wouldn't you agree…" — that is the single easiest way to turn this
    exercise into confirmation of the PRD.
-5. **Do not run past the stated sample sizes.** 8–10 candidates, 5–6 recruiters. Beyond
+5. **Do not run past the stated sample sizes.** 3–5 candidates, 5–6 recruiters. Beyond
    that the material stops being themes and starts being a dataset nobody has time to
    analyse, and a half-analysed set of 20 interviews is worth less than a complete set
    of 9.
@@ -42,23 +79,23 @@ promise is the entire reason this directory exists.
    point, including after the session. Delete them and note the withdrawal in
    `results.md` without recording why.
 
+---
+
 ## Sample sizes are small, and that is deliberate
 
-The target is a small honest evidence base, not a study. At n=9 candidates, **no
+Target is a small honest evidence base, not a study. At n=5 recruiters, **no
 percentage from this exercise may be published as a market fact.** Report as "of N
-participants". Anything else turns eight conversations into a statistic, which is the
+participants". Anything else turns five conversations into a statistic, which is the
 mistake this project has already had to correct once — the withdrawn "bias-free" claim
 (`HISTORY.md` §2.22) began as an unmeasured assertion.
+
+---
 
 ## After it runs
 
 1. Fill `results.md` — counts and quotes only.
-2. In `FAIRFOLD_Feasibility_and_Design.md` §1.3.4, retag each activity **[Done]** and
-   cite the real counts.
-3. In §1.2.2, replace any **[Illustrative]** local-evidence claim with the measured one —
-   or leave it tagged if the new data does not cover it.
-4. Update `HISTORY.md` §4.2, which currently says this plan is **[Planned], not a
-   blocker**.
-
-If the data contradicts a requirement, **the requirement changes**, not the reading of
-the data. That is the whole reason this is recorded before collection rather than after.
+2. In `HISTORY.md`, add a section citing the real counts.
+3. In `prd.md` §19, replace **[Planned]** tags with measured values where data supports them,
+   or delete unsupported assertions.
+4. If data contradicts a requirement, **the requirement changes**, not the reading of
+   the data. That is the whole reason this is recorded before collection rather than after.

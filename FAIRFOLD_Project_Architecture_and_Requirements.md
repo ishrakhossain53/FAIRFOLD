@@ -251,13 +251,13 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 | Layer | Technology | Version | Rationale |
 |---|---|---|---|
 | **Frontend** | Django Templates | ships with Django 5.2 | Single framework, faster MVP |
-| | HTMX | 1.18+ | SPA-like interactivity without separate frontend |
+| | HTMX | 1.9 | SPA-like interactivity without separate frontend |
 | | TailwindCSS | 3.4 | Rapid UI development |
 | | Django-HTMX | 1.0+ | HTMX ↔ Django integration |
 | | Chart.js | 4.4 | Journey mapping visualization |
 | **Build Tooling** | Node.js | 20 LTS | **Build-time only.** Runs the Tailwind CLI and nothing else — there is no SPA, no bundler and no `node_modules` in the production image. Added 2026-10-03 (gap O): the frontend stack was named but no toolchain was specified, so "build Tailwind to a static CSS file" (`design.md` §11.2) was an instruction with no way to execute it |
-| | Tailwind CSS CLI | 3.4 | `npm run build` → `static/css/tailwind.css`, compiled from `tailwind.config.js` and the tokens in `design.md` §3–§5 |
-| | HTMX (npm) | 1.18 | Vendored to `static/js/htmx.min.js` so the CSP does not need a third-party script host |
+| | Tailwind CSS CLI | 3.4 | `npm run build` → `static/css/tailwind.css`, compiled from `tailwind.config.js` and the tokens in `design.md` §3–§5. Since 2026-10-16 the same script runs `npm run vendor` first, copying the two JS bundles below into `static/js/` |
+| | HTMX (npm) | 1.9 | Vendored to `static/js/htmx.min.js` by `npm run vendor`, so the CSP does not need a third-party script host. Version corrected 2026-10-16 — this row said `1.18`, which does not exist on npm (`HISTORY.md` §2.30) |
 | | Chart.js (npm) | 4.4 | Vendored the same way; loaded only on Journey Map and Analytics pages (`design.md` §11.4) |
 | **Backend** | Django | 5.2+ | LTS — production-proven (Instagram, Pinterest) |
 | | Django REST Framework | 3.17.2 | API layer for the DRF endpoints; pinned in `requirements.txt`. Raised from 3.15.1 to clear PYSEC-2026-1304/-3827/-3828 |
@@ -1180,6 +1180,40 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 > and email jobs that were already accepted; and `celery` / `celery-beat` **disable** the image
 > healthcheck, which otherwise probes an HTTP endpoint neither container serves and reports a
 > permanently unhealthy worker.
+>
+> **Four more divergences, added 2026-10-16 — all found by running the stack, none by reading
+> it.** Each one left the container reporting *healthy* while the application was unusable, so
+> the health status was not evidence of anything:
+>
+> - **The published port was dead.** The entrypoint ran `gunicorn` out of a YAML *block scalar*,
+>   where each flag sat on its own line and nothing continued the command. The shell therefore
+>   ran `exec gunicorn config.wsgi:application` **alone**; gunicorn fell back to its default
+>   `127.0.0.1:8000` bind, `ports: 8000:8000` reached nothing, and the flag lines never executed
+>   because `exec` had already replaced the shell — the Dockerfile's probe only ever curled
+>   *inside* the container, so it passed. Every flag now ends in a backslash and the entrypoint
+>   runs under `set -e`.
+> - **`collectstatic` runs in the entrypoint.** `staticfiles/` is a named volume that starts
+>   empty, so the `DEBUG` static view had nothing to serve: `/static/css/tailwind.css` was a 404
+>   and every page rendered unstyled.
+> - **`SENTRY_DSN` is optional here.** Only `config.settings.production` requires a DSN, and
+>   `.env.example` leaves the value empty — but declaring it `${SENTRY_DSN:?…}` meant
+>   `cp .env.example .env && docker compose up` died on an interpolation error before any
+>   container started. It is now `${SENTRY_DSN:-}`; a missing Sentry DSN is a production
+>   assertion, not a development one.
+> - **`celery-beat` is given a writable schedule.** `celerybeat-schedule` defaults to the
+>   working directory `/app`, which is root-owned while the container runs as `fairfold`. The
+>   write raised `EACCES`, beat exited 1, and `restart: unless-stopped` turned that into an
+>   endless crash loop with no scheduled task ever running. The service now passes
+>   `--schedule=/app/run/celerybeat-schedule`, writes it to a `beat_data` volume, and `/app/run`
+>   is created and chowned in the image (Arch Doc §6.2).
+>
+> The built file also runs **gunicorn** rather than `runserver`, sets
+> `DJANGO_SETTINGS_MODULE=config.settings.local` explicitly, and mounts `static_data` for the
+> collected static files. It has **no `nginx` service** and **no `.:/app` bind mount**; both
+> appear in the block below as specification and are not in the file. It also has no **`flower`**
+> service, which is specified in §3.4 and in the Phase 1 acceptance criteria (§10) but is not in
+> the block below either — so its absence is consistent with the specification, not a divergence
+> from it. See [`README.md`](README.md) for the commands that actually work.
 
 ```yaml
 # docker-compose.yml
@@ -1312,7 +1346,12 @@ volumes:
   media_data:
 ```
 
-> **Container names:** every service sets an explicit `container_name`, so the containers can be addressed by a stable name regardless of the Compose project directory. This is what the README's `docker exec -it fairfold-django ...` commands rely on.
+> **Container names:** the block below sets an explicit `container_name` for each service, so
+> containers can be addressed by a stable name regardless of the Compose project directory.
+> The built file does not: it sets `name: fairfold`, so Compose names the containers
+> `fairfold-<service>-1` and the addressable identity is the **service name** —
+> `docker compose exec django …` — which is what the README's commands use. The table below is
+> the naming the specification intends; check `docker compose ps` for what is actually running.
 
 | Service | Container name | Port |
 |---|---|---|
@@ -1335,6 +1374,22 @@ volumes:
 > fails on the first resume upload; and the app runs as a non-root user with `media/` and
 > `staticfiles/` pre-chowned, so a deploy does not fail on a root-owned file left by the last
 > one.
+>
+> **Three more, added 2026-10-16** (found with the Compose corrections in §6.1):
+>
+> - **The vendored JS is copied forward from the assets stage.** The block below copies the whole
+>   built `static/` directory; the real file copies `static/css/tailwind.css` and, separately,
+>   `static/js/`. That second copy is not optional: `static/js/` is gitignored and produced by
+>   `npm run build` **inside** the assets stage, so `COPY static/ ./static/` — which copies the
+>   working tree — cannot supply it. Without the line, `/static/js/htmx.min.js` is a 404 and
+>   every `hx-*` interaction in the product does nothing.
+> - **`/app/run` is created and chowned** alongside `media/` and `staticfiles/`. Celery beat
+>   writes its schedule there; a root-owned `/app` made the write fail with `EACCES` and the
+>   container restart forever (Arch Doc §6.1, `celery-beat`).
+> - **`collectstatic` is not a build step.** The block below runs it during the image build; the
+>   real image does not. `STATIC_ROOT` is a Compose volume mounted over the image's
+>   `staticfiles/`, so anything collected at build time is hidden by the empty volume. It runs
+>   in the container entrypoint instead, where the volume is mounted.
 
 ```dockerfile
 # ---- Stage 1: frontend build (ADDED 2026-10-03, gap O) ----
@@ -2203,7 +2258,7 @@ The document references settings separation into:
 > module **cannot run the application** — it would fail at the first migration.
 >
 > The corrected rule, applied to every reference below:
-> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d db`.
+> - **Local dev** → PostgreSQL 17 + pgvector via `docker compose up -d postgres`. (Until 2026-10-16 this said `db`, which is not a service in `docker-compose.yml` — the service is `postgres`.)
 > - **`test.py`** → in-memory SQLite is acceptable **only** for pure unit tests that
 >   touch no `VectorField`. Anything touching `matching/`, `candidates/` embeddings or
 >   `employers/` screening needs the Postgres test database.

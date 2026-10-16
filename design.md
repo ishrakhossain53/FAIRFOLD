@@ -2201,18 +2201,28 @@ a throwaway Docker stage (Arch Doc §6.2), so Node never reaches the runtime ima
   "name": "fairfold-assets",
   "private": true,
   "scripts": {
-    "build": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --minify",
-    "watch": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --watch"
+    "vendor": "mkdir -p static/js && cp node_modules/htmx.org/dist/htmx.min.js static/js/htmx.min.js && cp node_modules/chart.js/dist/chart.umd.js static/js/chart.min.js",
+    "build:css": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --minify",
+    "build": "npm run vendor && npm run build:css",
+    "watch": "tailwindcss -i ./static/css/tailwind.src.css -o ./static/css/tailwind.css --watch",
+    "check-budget": "gzip -c static/css/tailwind.css | wc -c | awk '{ if ($1 >= 30720) { print \"tailwind.css is \" $1 \" bytes gzipped, budget is 30720\"; exit 1 } }'"
   },
   "devDependencies": {
     "tailwindcss": "3.4.17"
   },
   "dependencies": {
-    "htmx.org": "1.18.0",
-    "chart.js": "4.4.7"
+    "htmx.org": "1.9.12",
+    "chart.js": "4.4.9"
   }
 }
 ```
+
+> **Corrected 2026-10-16: the `build` script and two versions.** The block previously showed only
+> the Tailwind compile, and pinned `htmx.org@1.18.0` / `chart.js@4.4.7`. `htmx.org@1.18.0` does
+> not exist on npm (HISTORY.md §2.30 records the check that caught it) and `chart.js` is on
+> 4.4.9. The old `build` script did **not** vendor HTMX or Chart.js at all, so `static/js/` was
+> never produced (see below). The block now shows the file's real `scripts` and versions: the
+> vendoring step, the split Tailwind compile, and the 30 KB gzip budget CI asserts.
 
 `tailwind.src.css` is the entry point and carries only three `@apply`-free lines: the
 `@tailwind base/components/utilities` directives and an `@import` of
@@ -2223,6 +2233,15 @@ those variables, so there is exactly one place a colour is defined.
 `htmx.org` and `chart.js` are vendored into `static/js/` rather than loaded from a CDN,
 because the Content-Security-Policy in the Complete Doc does not allow third-party script
 hosts. Chart.js is loaded only on the Journey Map and Analytics pages (§11.4).
+
+**Vendoring is a build step, not a hand copy** (clarified 2026-10-16). `npm run vendor` copies
+`htmx.org/dist/htmx.min.js` and `chart.js/dist/chart.umd.js` into `static/js/`, and
+`npm run build` runs it before the Tailwind compile. Both files are gitignored, so nothing in
+a fresh checkout supplies them and a `build` that skipped the copy produced a page whose
+layouts were correct and whose HTMX interactions silently did nothing — HTMX drives every
+`hx-*` element, and a 404 on `htmx.min.js` is not an error any page reports. Chart.js ships
+no `.min.js` in its UMD build, so the already-minified `chart.umd.js` is what lands as
+`static/js/chart.min.js`.
 
 ```js
 // tailwind.config.js

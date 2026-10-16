@@ -4,9 +4,11 @@ A running log of what has been done on this repository and what is still outstan
 Kept by hand; updated whenever a chunk of work lands.
 
 - **Repository:** `github.com/ishrakhossain53/FAIRFOLD` (private)
-- **Last updated:** 2026-10-13
-- **Current branch:** `ishrakhossain53-patch-1`
-- **Project state:** documentation phase. No application code has been written yet.
+- **Last updated:** 2026-10-16
+- **Current branch:** `v3`
+- **Project state:** runnable locally and **executed** — the Docker stack boots end to end
+  (§2.38). Still a scaffold: no Django model exists, so `migrate` creates zero tables and the
+  product does not yet do anything. See §1.
 
 ---
 
@@ -29,6 +31,16 @@ rather than starting from nothing.
 ⚠️ **It has not been executed.** Django is not installed in the environment where it was
 written, so "the scaffold is correct" is unverified until CI runs `manage.py check`.
 
+✅ **Correction 2026-10-16: it has now been executed.** The stack was built and run cold on
+Docker 29.8.2 — `docker compose down -v`, then `up -d --wait` against an empty database —
+and again from a fresh-clone emulation (`cp .env.example .env`, generated keys, no pre-existing
+volumes). All six services reached healthy, `migrate` ran from an empty database, `seed`
+populated it, `collectstatic` collected 159 files, gunicorn served on `0.0.0.0:8000`, and every
+key endpoint returned 200. Seven defects blocked that and are fixed in `d4b4ef3` (§2.38); four
+of them left the container reporting **healthy** while the application was unreachable, so the
+Docker healthcheck alone was not evidence that anything worked. The build instructions are now
+step-by-step in `README.md`.
+
 **Correction 2026-10-04:** an earlier revision of this section said the same about **Docker**,
 implying Docker was also unavailable. **It is not** — Docker 29.8.2 is installed here. The
 real reason nothing was built is that building was **out of scope for that task**, not
@@ -36,19 +48,20 @@ impossible. Correcting it because "I couldn't" is a stronger and more misleading
 than "I didn't", and the difference matters when someone reads this to decide what is
 blocked.
 
-| File | Lines | Role |
-| --- | ---: | --- |
-| `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2563 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
-| `prd.md` | 1264 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
-| `design.md` | 2895 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
-| `FAIRFOLD_Feasibility_and_Design.md` | 2986 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 283 | Project overview, documentation index, setup |
-|| `.env.example` | 157 | Environment variables, all placeholders |
-| `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
-| `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
+|| File | Lines | Role |
+|| --- | --- | --- |
+|| `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2618 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
+|| `prd.md` | 1275 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+|| `design.md` | 2914 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
+|| `FAIRFOLD_Feasibility_and_Design.md` | 2978 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+| `README.md` | 420 | Project overview, documentation index, setup |
 
-**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions; re-verified 2026-10-13 after §2.37**):
+| `.env.example` | 159 | Environment variables, all placeholders |
+|| `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
+|| `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
+
+**Key numbers of record** (verified 2026-10-03, re-verified after §2.20, §2.23, §2.24, §2.25, and §2.34 — **updated 2026-10-12 after §2.25 and §2.26 additions; re-verified 2026-10-13 after §2.37; re-verified 2026-10-16 after §2.38**):
 
 - **63 functional requirements**, `REQ-FR-001` … `REQ-FR-063` (Arch Doc §4.1)
   — was 41 until `REQ-FR-042`/`043` were added (§2.8), then 43 until
@@ -1488,7 +1501,19 @@ by **Mohammad Abdul Ahad**, the remaining UI/UX Designer. Concretely:
 | File | Change |
 |---|---|
 | `prd.md` §2, §17.2 | Team line reduced from 5 to 4; Fahad's row removed; Mohammad's row absorbs wireframes, employer dashboard UX, and journey-map design |
-| `design.md` §1 | Co-owner removed; Mohammad Abdul Ahad is sole owner |
+|| `design.md` §1 | Co-owner removed; Mohammad Abdul Ahad is sole owner |
+
+---
+
+### 2.28 Employer-first validation kit prepared ✅
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+
+---
+
+### 2.36 Update: prd.md PRD release criteria added Phase 3 validation gate
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
 | `FAIRFOLD_Complete_Project_Document.md` §2, §C.6 | Team line reduced from 5 to 4; Fahad's row removed; Mohammad's row absorbs wireframes |
 | `FAIRFOLD_Feasibility_and_Design.md` §2.7.3, §10.4, §2.7.4 | Team row updated (4); conflict table §9 updated to record the reversion; all "5-person" prose references corrected to "4-person" |
 | `FAIRFOLD_Project_Architecture_and_Requirements.md` §1 | Authors list reduced from 5 to 4 |
@@ -1556,6 +1581,77 @@ Following the design.md wireframe pass (§2.30), a consistency pass was run to f
 - **W36 gap explained.** `design.md` now includes a dated note (2026-10-13) explaining that W36 is intentionally unused — reserved for the "candidate self-scheduling" wireframe deferred to Phase 3 per `prd.md` §5.1.
 - **HISTORY.md updated.** "Last updated" → 2026-10-13; new §2.37 section added.
 - **New verifier checks added** for W-number gap detection, ASM-001 count match, and employer-facing surface name-visibility ban.
+
+---
+
+### 2.38 The stack runs — seven fixes, and four healthchecks that meant nothing (2026-10-16) ✅
+
+The scaffold had never been executed (§1). It has now: built and run cold on Docker 29.8.2
+against an empty database, then re-run from a fresh-clone emulation (`cp .env.example .env`,
+generated keys, no pre-existing volumes). Seven defects prevented it. Each is fixed at its
+cause, and each comment left in the code says *why*.
+
+- **gunicorn ran with no arguments.** `docker-compose.yml` passed its command as a YAML *block
+  scalar*: every flag on its own line, nothing continuing the command. The shell therefore ran
+  `exec gunicorn config.wsgi:application` **alone**. gunicorn bound its default
+  `127.0.0.1:8000`, so `ports: 8000:8000` forwarded to a socket that was not listening, and the
+  flag lines never executed because `exec` had already replaced the shell. It failed in the most
+  misleading way available: the container was **healthy**, because the image healthcheck curls
+  `localhost:8000` *inside* the container, where gunicorn was in fact listening. Every flag now
+  ends in a backslash and the entrypoint runs under `set -e`.
+- **Nothing collected the static files.** `staticfiles/` is a named volume mounted over an empty
+  directory in the image, and `collectstatic` had never run inside the container, so
+  `/static/css/tailwind.css` was a 404 and every page rendered unstyled. It is now a step in the
+  entrypoint — the only place the volume is visible, which is also why archiving it at image
+  build time would not have helped.
+- **`SENTRY_DSN` was required by Compose, but only production requires it.** It was
+  `${SENTRY_DSN:?…}` while `.env.example` leaves the value empty, so the README's own first
+  command — `cp .env.example .env && docker compose up` — died on an interpolation error before a
+  single container started. It is now `${SENTRY_DSN:-}`: production asserts the DSN, development
+  does not.
+- **Celery beat crash-looped forever.** `celerybeat-schedule` defaults to the working directory
+  `/app`, which is root-owned while the container runs as the non-root app user. The write raised
+  `EACCES`, beat exited 1, and `restart: unless-stopped` restarted it into the same failure — a
+  loop that never scheduled a task and that `docker compose ps` showed only as "restarting". The
+  service now passes `--schedule=/app/run/celerybeat-schedule` into a `beat_data` volume, and the
+  image creates and chowns `/app/run`.
+- **The vendored JS was never built.** `/static/js/htmx.min.js` and `/static/js/chart.min.js` are
+  gitignored outputs of `npm run build`, but `build` only compiled Tailwind — nothing produced
+  them, so they were absent from the image and every `hx-*` interaction silently did nothing.
+  `package.json` now has a `vendor` script, `build` runs it before `build:css`, and the Dockerfile
+  copies `static/js/` forward from the assets stage (design.md §11.2).
+- **`/api/v1/` returned 500.** `ApiRootView` applied `method_decorator(never_cache)` to a plain
+  method of a class-based view, which raises `AttributeError` on every request. It now decorates
+  `dispatch`.
+- **`config.settings.local` ignored the environment.** `ALLOWED_HOSTS` and
+  `CSRF_TRUSTED_ORIGINS` were hard-coded there, so editing them in `.env` changed nothing even
+  though `.env.example` documents them. Both now read from the environment, with the previous
+  literals as defaults.
+
+**Read the healthchecks carefully.** Four of the seven left the container reporting *healthy*:
+the published port was dead while the internal probe passed; a static 404 does not fail a probe;
+a missing script is a silent no-op; and beat's crash loop was hidden by `restart: unless-stopped`.
+A green `docker compose ps` was not evidence the application worked — the only trustworthy check
+was to request each endpoint and read the response.
+
+**`README.md` rewritten** as a step-by-step local setup from a fresh clone (six steps, from
+`git clone` to `docker compose up -d --wait` and the seed command), with a troubleshooting table.
+Build/test/format commands and the "there is no `config/settings/test.py`" rationale moved into
+the Development section.
+
+**Verification:** 115 tests pass; `flake8`, `isort`, `mypy`, `verify_docs.py` and
+`verify_bias_set.py` clean; cold restart and fresh-clone emulation both reach six healthy
+services with zero restarts.
+
+**Documentation brought into line with it:** Arch Doc §6.1 / §6.2 record the Compose and
+Dockerfile divergences above; Arch Doc §3.4 no longer lists HTMX `1.18` (a version that does not
+exist — §2.30); the Complete Doc §C.7 corrects `SENTRY_DSN` and records that
+`config.settings.local` now reads `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` from the environment;
+design.md §11.2 shows the real `build` script and the corrected HTMX / Chart.js versions; both
+canonical docs' `docker compose up -d db` examples are corrected to `postgres`, which is the
+service actually declared; and the Feasibility Doc §5 item 4 — "the scaffold is not a running
+system" — now records that `manage.py check` and a first `docker compose up` both pass, while
+keeping the substance: no model exists, so nothing about the product itself is verified yet.
 
 ---
 
@@ -1766,6 +1862,13 @@ scaffold booting. The design can start immediately and in parallel with backend 
 The user pushes manually; `git fetch` / `ls-remote` cannot be verified from this
 environment (no GitHub credentials). Confirm on GitHub before assuming anything is synced.
 
+**State on 2026-10-16:** ✅ **`origin/v3` is in sync with local `v3`.** The local-run fixes
+(`0909c23 v3 - updated`, `d4b4ef3 bug fixes`, §2.38) and this documentation pass were pushed
+together as `d4b4ef3..c6ebb5c  v3 -> v3`. The first attempt from this environment was rejected
+(`No anonymous write access` — no `gh`, no credential helper, no `~/.netrc`, no
+`~/.git-credentials`, no `~/.ssh`); after credentials were configured by hand the retry
+succeeded. No unpushed commit remains.
+
 ---
 
 ## 5. Conventions worth remembering
@@ -1814,3 +1917,58 @@ f342dd0  docs: re-base the Gantt, close two schema holes, and decide the open qu
 
 Upstream `main` also contains merge commits `18d5713` (PR #6), `bc47ae0` (PR #7) and
 `ed05fef` (PR #8), which fold the earlier branch work into `main`.
+
+---
+
+### 2.28 Employer-first validation kit prepared ✅
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+
+---
+
+### 2.36 Update: prd.md PRD release criteria added Phase 3 validation gate
+
+The validation study plan §1.3.4 was built but never run. Creating an employer-first validation kit to allow the founder to run recruiter interviews and decide go/adjust/stop before Phase 3 is built.
+
+**What was created:**
+
+- `validation/hypotheses.md` — 8 hypotheses (H-EM-001 to H-CAN-003) with evidence needed and disconfirming evidence
+- `validation/participant_plan.md` — Recruitment plan for 5–6 recruiters, 3–5 candidates
+- `validation/employer_interview_guide.md` — 45-minute interview protocol for recruiters
+- `validation/willingness_to_pay.md` — Price sensitivity questionnaire (bdst method)
+- `validation/pre_commitment_ask.md` — Ladder of commitments protocol (score ≥ stated interest)
+- `validation/candidate_interview_guide.md` — 20-minute candidate protocol
+- `validation/evidence_templates.md` — Note template, coding scheme, results table
+- `validation/decision_rules.md` — Go/adjust/stop thresholds (PROPOSED, lock date 2026-10-20)
+- `validation/ethics_data_handling.md` — Ethics protocol, GDPR principles, synthetic data spec
+- `validation/demo_script.md` — Wireframe walkthrough, synthetic resume dataset
+
+**What was updated:**
+
+- README.md: "built, never run" → "kit prepared 2026-10-13, study not yet run"
+- prd.md §19: Linked hypotheses to validation kit; marked inferred claims to be validated
+
+**Status:** ✅ Kit is ready. Interviews not yet run. Founder must confirm decision thresholds before 2026-10-20.
+
+**Next steps:**
+
+1. Founder confirms thresholds in decision_rules.md
+2. Select target companies for recruitment
+3. Begin interviews
+4. Update results.md with actual data
+5. Retag §1.3.4 activities from [Planned] to [Done] when complete
+
+---
+
+---
+
+### 2.28 Employer-first validation kit prepared ✅
+
+Created the employer-first validation instrument in `validation/` to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register (H-EM-001 to H-EM-005), participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+
+---
+
+### 2.36 Update: prd.md PRD release criteria added Phase 3 validation gate
+
+Created the validation instrument at validation/ to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register, participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
+

@@ -69,11 +69,9 @@ COPY requirements.txt ./
 # `--extra-index-url` in requirements.txt points at the PyTorch CPU wheel index.
 # Without it pip resolves the CUDA build, which is several gigabytes and
 # contradicts the 2-4 vCPU assumption in the feasibility study.
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install -r requirements.txt
+RUN pip install --prefix=/install -r requirements.txt
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install gunicorn
+RUN pip install --prefix=/install gunicorn
 
 
 # ------------------------------------------------------------------------------
@@ -94,9 +92,9 @@ WORKDIR /app
 # Both are OS packages, not pip packages. Installing them via pip alone produces an
 # image that starts and then fails on the first upload.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libmagic1 \
-        clamav-daemon \
-        curl \
+    libmagic1 \
+    clamav-daemon \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # A non-root user. `useradd` needs the `--no-log-init` form here because the slim
@@ -107,6 +105,13 @@ RUN groupadd --system --gid 1000 fairfold \
 COPY --from=builder /install /usr/local
 
 COPY --from=assets /app/static/css/tailwind.css ./static/css/tailwind.css
+
+# Vendored JS from the assets stage. `static/js/` is gitignored -- it is produced
+# by `npm run vendor` inside the assets stage -- so it exists in no checkout and
+# the `COPY static/` below cannot provide it. Without this line every page loads
+# /static/js/htmx.min.js, gets a 404, and every hx-* interaction silently does
+# nothing: the page looks fine and the buttons are inert.
+COPY --from=assets /app/static/js/ ./static/js/
 
 # The application source is copied AFTER the dependency layer, so a source change
 # does not invalidate the pip install above.
@@ -131,8 +136,13 @@ COPY scripts/ ./scripts/
 # Writable by the app user only. `media/` holds resume files; a container running
 # as root leaves any file it writes owned by root, and the next deploy then fails
 # on a permission error that looks like a disk problem.
-RUN mkdir -p /app/media /app/staticfiles \
-    && chown -R fairfold:fairfold /app/media /app/staticfiles
+#
+# `run/` holds the Celery beat schedule. Beat writes it relative to the working
+# directory by default, which is /app -- owned by root, so the write fails with
+# EACCES and the container restarts forever. See the `celery-beat` service in
+# docker-compose.yml, which points --schedule at this directory.
+RUN mkdir -p /app/media /app/staticfiles /app/run \
+    && chown -R fairfold:fairfold /app/media /app/staticfiles /app/run
 
 USER fairfold
 
@@ -150,10 +160,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 # CPU-bound. `--forwarded-allow-ips` matches the proxy header settings, so
 # SECURE_PROXY_SSL_HEADER is honoured rather than ignored.
 CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "3", \
-     "--timeout", "120", \
-     "--graceful-timeout", "30", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "--forwarded-allow-ips", "*"]
+    "--bind", "0.0.0.0:8000", \
+    "--workers", "3", \
+    "--timeout", "120", \
+    "--graceful-timeout", "30", \
+    "--access-logfile", "-", \
+    "--error-logfile", "-", \
+    "--forwarded-allow-ips", "*"]

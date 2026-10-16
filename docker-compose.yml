@@ -22,6 +22,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-fairfold}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required — see .env.example}
@@ -90,17 +92,39 @@ services:
       dockerfile: Dockerfile
       target: runtime
     restart: unless-stopped
-    command: >
-      sh -c "python manage.py migrate --noinput
-             && python manage.py seed
-             && gunicorn config.wsgi:application
-                --bind 0.0.0.0:8000 --workers 3 --timeout 120
-                --access-logfile - --error-logfile -
-                --forwarded-allow-ips '*'"
+    env_file:
+      - .env
+    command:
+      - sh
+      - -c
+      - |
+          # A YAML block scalar keeps newlines, so each gunicorn option MUST end
+          # in a backslash. Without them the shell runs `exec gunicorn
+          # config.wsgi:application` alone -- gunicorn falls back to its default
+          # 127.0.0.1:8000 bind, the published port reaches nothing, and the
+          # remaining lines are commands that never run because exec already
+          # replaced the shell. The container still reports healthy, because the
+          # Dockerfile probe curls localhost inside the container.
+          set -e
+          python manage.py migrate --noinput
+          python manage.py seed
+          # DEBUG builds local.py, which serves /static/ from STATIC_ROOT through
+          # config/urls.py. STATIC_ROOT is a mounted volume that starts empty, so
+          # without this every stylesheet request is a 404 and the site renders
+          # unstyled.
+          python manage.py collectstatic --noinput
+          exec gunicorn config.wsgi:application \
+            --bind 0.0.0.0:8000 \
+            --workers 3 \
+            --timeout 120 \
+            --access-logfile - \
+            --error-logfile - \
+            --forwarded-allow-ips '*'
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.local
       DATABASE_URL: postgresql://${POSTGRES_USER:-fairfold}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-fairfold_dev}
       DB_HOST: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       # A SEPARATE Redis database from the broker. A FLUSHDB on one must never
@@ -116,7 +140,11 @@ services:
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:8000}
       EMAIL_BACKEND_URL: ${EMAIL_BACKEND_URL:?EMAIL_BACKEND_URL is required}
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?DEFAULT_FROM_EMAIL is required}
-      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN is required}
+      # Optional here on purpose: only production.py requires a DSN, and
+      # .env.example leaves it empty for local development. Making it mandatory
+      # in Compose means `cp .env.example .env && docker compose up` dies on an
+      # interpolation error before the stack ever starts.
+      SENTRY_DSN: ${SENTRY_DSN:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     ports:
       - "${DJANGO_PORT:-8000}:8000"
@@ -146,14 +174,17 @@ services:
       dockerfile: Dockerfile
       target: runtime
     restart: unless-stopped
+    env_file:
+      - .env
     # --concurrency=2: the queue is AI calls and email, both network-bound, so
     # more workers buy latency rather than throughput while each holds a database
     # connection open.
     command: celery -A config worker --loglevel=INFO --concurrency=2
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.local
       DATABASE_URL: postgresql://${POSTGRES_USER:-fairfold}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-fairfold_dev}
       DB_HOST: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -162,7 +193,8 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN is required}
+      # Optional locally — see the `django` service above.
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - media_data:/app/media
     # The image's HEALTHCHECK curls http://localhost:8000/health/. This container
@@ -189,17 +221,30 @@ services:
       dockerfile: Dockerfile
       target: runtime
     restart: unless-stopped
+    env_file:
+      - .env
     # Exactly ONE beat container. Two schedulers fire every scheduled task twice,
     # which for a retention sweep means deleting twice and for an email means
     # sending twice.
-    command: celery -A config beat --loglevel=INFO
+    #
+    # --schedule is explicit because the runtime image runs as `fairfold` (uid
+    # 1000) while /app is owned by root: beat's default write of
+    # ./celerybeat-schedule fails with EACCES, exits 1, and `restart:
+    # unless-stopped` turns that into an endless crash loop with no scheduled
+    # task ever running. /app/run is created and chowned in the Dockerfile.
+    command: celery -A config beat --loglevel=INFO --schedule=/app/run/celerybeat-schedule
+    # The schedule file records each task's last run. Without a volume it is
+    # discarded on every recreate, and beat re-fires everything on first tick.
+    volumes:
+      - beat_data:/app/run
     # No HTTP server here either — see the `celery` service above.
     healthcheck:
       disable: true
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.local
       DATABASE_URL: postgresql://${POSTGRES_USER:-fairfold}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-fairfold_dev}
       DB_HOST: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
@@ -213,3 +258,5 @@ volumes:
   redis_data:
   media_data:
   static_data:
+  # Celery beat's schedule file. See the `celery-beat` service.
+  beat_data:
