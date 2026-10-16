@@ -1862,18 +1862,12 @@ scaffold booting. The design can start immediately and in parallel with backend 
 The user pushes manually; `git fetch` / `ls-remote` cannot be verified from this
 environment (no GitHub credentials). Confirm on GitHub before assuming anything is synced.
 
-**State on 2026-10-16:** branch `v3` is **three commits ahead of `origin/v3`** and none is
-pushed — `0909c23 v3 - updated` (earlier work), `d4b4ef3 bug fixes` (§2.38), and the
-documentation commit that follows it (the markdown changes described at the end of §2.38). A push
-was attempted from this environment and rejected (`No anonymous write access`): there is no `gh`,
-no credential helper, no `~/.netrc`, no `~/.git-credentials` and no `~/.ssh` here, so the push has
-to be run by hand:
-
-```bash
-git push origin v3
-```
-
-Beyond those three commits the working tree is clean.
+**State on 2026-10-16:** ✅ **`origin/v3` is in sync with local `v3`.** The local-run fixes
+(`0909c23 v3 - updated`, `d4b4ef3 bug fixes`, §2.38) and this documentation pass were pushed
+together as `d4b4ef3..c6ebb5c  v3 -> v3`. The first attempt from this environment was rejected
+(`No anonymous write access` — no `gh`, no credential helper, no `~/.netrc`, no
+`~/.git-credentials`, no `~/.ssh`); after credentials were configured by hand the retry
+succeeded. No unpushed commit remains.
 
 ---
 
