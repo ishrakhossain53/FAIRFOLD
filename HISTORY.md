@@ -1972,3 +1972,48 @@ Created the employer-first validation instrument in `validation/` to test employ
 
 Created the validation instrument at validation/ to test employer-side assumptions about anonymised screening, alias-only shortlisting, AI explanation trust, assessment gating, candidate proxy stripping, and tab-switch proctoring. Includes hypotheses register, participant plan, interview guides, WTP module, pre-commitment ladder, decision rules, and ethics guidelines. All thresholds marked PROPOSED. Study not yet run.
 
+---
+
+## 7. Batch log
+
+### Batch 0.1: Reconcile repo state against HISTORY.md (2026-10-19)
+
+Read-only audit. The only file written is `docs/AUDIT.md` (plus this entry and the progress
+lines). No code was changed; nothing was committed.
+
+**What was verified against the code (not from a zip):**
+
+- Branch is `0.0-ready-to-began` (`0335ecb`), one commit ahead of `v3` (`7a7a6d9`). `v3` is
+  4 commits ahead of local `main` (`6aaf7aa`) and 0 behind; `origin/main` (`e40f0fc`) already
+  contains the `0.0-ready-to-began` work, and this working tree is byte-identical to `origin/main`.
+  So the "zip named `main`" matches the current tree, while §1's "current branch is `v3`" is an
+  ancestor.
+- **Three models exist**, not zero: `accounts.User`, `core.AuditLogEntry`, `core.Skill`, each with
+  a migration (`accounts/0001`, `core/0001`). The database holds `users`, `skills`,
+  `audit_log_entries`. §1's "no Django model exists" is corrected by this batch (the source text is
+  left as written; this entry is the correction).
+- Full suite: **115 passed** (`pytest tests/ -q`, `DEBUG` unset); `tests/bias/` alone: **40 passed**.
+  With the shell's ambient `DEBUG=True`, 14 `test_production_settings.py` tests fail — an environment
+  artefact, not a code failure. Confirms §2.38's count.
+- `manage.py check` → no issues; `manage.py makemigrations --check --dry-run` → "No changes detected".
+- Endpoints probed inside the running container: `/`, `/api/demo/`, `/health/`, `/health/ready/`,
+  `/api/v1/` → 200; the six mounted API prefixes → 401 (empty routers); `/api/v1/jobs/`,
+  `/api/v1/gdpr/` and every §C.12 endpoint → 404.
+
+**Commands run** (all from the repo root; see `docs/AUDIT.md` §"How this was verified" for settings
+and env): `manage.py check`, `manage.py makemigrations --check --dry-run`,
+`docker exec fairfold-postgres-1 psql … "\dt"`, `pytest tests/ -q`, `pytest tests/bias/ -q`,
+`scripts/verify_docs.py`, `scripts/verify_bias_set.py`, and `docker exec … curl` over the endpoint list.
+
+**Disagreements recorded** (full detail in `docs/AUDIT.md`): HISTORY's no-model/`v3` claims; the
+`employer_admin`↔`employer_manager` role-name split (code vs REQ-FR-047/DDL, and doc-vs-doc);
+JWT access 30 min vs REQ-FR-002's 15 min; rotation+blacklist vs REQ-FR-007 (and
+`token_blacklist` not installed for REQ-FR-008); `users` field names (`date_joined`, no
+`created_at`/`updated_at`/`mfa_secret`); the API index advertising unmounted `jobs`/`gdpr`; and the
+un-run `core/tests.py` test.
+
+**Known limitations of this entry.** It is an audit: no acceptance criterion is demonstrated, so no
+TRACEABILITY status was promoted to `done`. Live remote sync (`git fetch`/`ls-remote`) was not
+attempted — no credentials — so the branch comparison is local-ref-only. Docker and the database were
+already running; the stack was not rebuilt cold.
+
