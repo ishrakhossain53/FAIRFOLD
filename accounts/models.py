@@ -25,7 +25,7 @@ data-migration strategy in Complete Doc §C.8 exists would create rows that the
 rotation procedure cannot read. Plain `CharField` for now, with the DDL's intent
 recorded in the migration that will switch it.
 
-**Roles are not a field.** `employer_admin`, `employer_hr`, `interviewer` and
+**Roles are not a field.** `employer_manager`, `employer_hr`, `interviewer` and
 `candidate` are Django **groups**, seeded from `core/fixtures/groups.json`, and
 checked with `has_perm`. A `role` column would be a second source of truth that
 drifts from the permission tables, and `REQ-FR-047`'s last-admin rule would then
@@ -48,7 +48,7 @@ from django.utils import timezone
 # The four documented roles. Declared here so a test can assert the fixture set
 # matches, rather than the names being spelled out in a dozen test files. The
 # authoritative definitions live in core/fixtures/groups.json.
-ROLES = ("candidate", "employer_hr", "employer_admin", "interviewer")
+ROLES = ("candidate", "employer_hr", "employer_manager", "interviewer")
 
 
 class UserManager(BaseUserManager["User"]):
@@ -168,8 +168,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_employer(self) -> bool:
-        return self.has_role("employer_admin") or self.has_role("employer_hr")
+        return self.has_role("employer_manager") or self.has_role("employer_hr")
 
     @property
     def is_employer_admin(self) -> bool:
-        return self.has_role("employer_admin")
+        return self.has_role("employer_manager")
