@@ -10,7 +10,7 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 
 - [x] 0.1 Reconcile repo state against HISTORY.md . 2026-10-19: verified against the real repo on branch `0.0-ready-to-began`; 3 models + 2 migrations confirmed (`manage.py check` clean, no migration drift), **115/115 tests pass** with `DEBUG` unset, endpoints probed (see docs/AUDIT.md)
 - [x] 0.2 Baseline run (Docker, tests, lint, docs checks) . 2026-10-19: `docker compose up -d --wait`, `manage.py check`, `pytest tests/ -v`, docs checks, and endpoint probes all succeeded; 115/115 tests passed, with only the documented pre-existing formatter/Bandit compatibility warnings
-- [~] 0.3 Requirements traceability table . pre-filled by assistant (see docs/TRACEABILITY.md); verify, then fill in statuses as batches finish
+- [ ] 0.3 Requirements traceability table (pending my test output)
 - [ ] 0.4 Propose decisions D-1 to D-8 (no code)
 - [ ] 0.5 Apply the accepted decisions to specs and settings
 

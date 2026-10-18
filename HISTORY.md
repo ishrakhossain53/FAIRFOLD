@@ -2048,3 +2048,28 @@ Python 3.14 runtime (`B107` profile error). The batch itself is still a read-onl
 
 **Git state:** branch `0.2-Baseline-run-passed` was created locally and pushed to `origin` with tracking configured; the remote branch exists and is synced to the current local branch metadata.
 
+### Batch 0.3: Requirements traceability table (2026-10-19)
+
+Rewrote `docs/TRACEABILITY.md` as the batch requires: one row per FR (63 rows, 63 distinct ids) with
+priority, phase, owning app, the API route from Complete Doc §C.12, the table from Arch Doc §5.1,
+status and evidence path, plus a blank "Planned batch" column. Added an NFR-group table (REQ-SEC 14,
+REQ-COM 9, REQ-NFR 23, REQ-NFOR 4 = 50) with phase and verification method, and a section on the
+`prd.md` §20 release criteria and the Phase 3 validation gate in `validation/decision_rules.md`. No
+requirement text was changed.
+
+**Sources read (not pasted):** Arch Doc §4.1 (FR table + group headings), §4.2 (NFR table), §5.1
+(32 CREATE TABLE), §7.2 (test layout), §10 (phase acceptance criteria); Complete Doc §C.12 (API
+list); `prd.md` §5.1, §12.3, §20, §21.2; `validation/decision_rules.md`; `docs/ROADMAP.md`.
+
+**Commands run and results:**
+
+- `grep -c 'REQ-FR-0' docs/TRACEABILITY.md` → 63; distinct ids 63; FR rows 63.
+- `.venv/bin/python scripts/verify_docs.py` → exit 0, no FAIL (it does not read `docs/TRACEABILITY.md`).
+
+**Known limitations.** No acceptance criterion is demonstrated by a test, so no FR status is `done`
+and PROGRESS line 0.3 stays unchecked. Four FRs are `partial` on pre-existing code only
+(FR-003, FR-015, FR-030, FR-039). `docs/DECISIONS.md` does not exist yet (it is batch 0.4), so the
+D-series items are cited from `docs/ROADMAP.md` instead. Four §C.12 route gaps (apply, offers,
+employer dashboard, billing/payments) and the missing coaching-app owner are recorded as gap notes,
+not fixed here. Python/`pytest` were not run for this batch: it is a docs change with no code.
+
