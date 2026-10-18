@@ -8,7 +8,7 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 
 ## Phase 0: Reconcile, baseline, decide
 
-- [~] 0.1 Reconcile repo state against HISTORY.md . pre-filled by assistant from the uploaded zip (see docs/AUDIT.md); verify against your real repo and branch
+- [x] 0.1 Reconcile repo state against HISTORY.md . 2026-10-19: verified against the real repo on branch `0.0-ready-to-began`; 3 models + 2 migrations confirmed (`manage.py check` clean, no migration drift), **115/115 tests pass** with `DEBUG` unset, endpoints probed (see docs/AUDIT.md)
 - [ ] 0.2 Baseline run (Docker, tests, lint, docs checks)
 - [~] 0.3 Requirements traceability table . pre-filled by assistant (see docs/TRACEABILITY.md); verify, then fill in statuses as batches finish
 - [ ] 0.4 Propose decisions D-1 to D-8 (no code)
