@@ -12,7 +12,7 @@ and the evidence path. Non-functional requirements are summarised as groups belo
 | Phase | The requirement's own acceptance text where it names a phase; otherwise Arch Doc §10 acceptance criteria and `prd.md` §5.1 |
 | Owning app | The Django app named in `prd.md` §12.3 that owns the model or service. The HTTP layer itself is the `api` app |
 | API endpoint(s) | Complete Doc §C.12. Where §C.12 has no route for the requirement, the cell says so instead of inventing one |
-| DB table(s) | Arch Doc §5.1 DDL (32 `CREATE TABLE` statements) |
+| DB table(s) | Arch Doc §5.1 DDL (33 `CREATE TABLE` statements) |
 | Status | `not started` / `partial` / `done`. `done` only when every acceptance criterion is shown by a passing test |
 | Evidence path | A real file in the repository today. Blank for `not started` |
 | Planned batch | Left blank on purpose; filled when a batch is scheduled. The schedule itself lives in `docs/ROADMAP.md` |
@@ -26,13 +26,13 @@ table must not be used to satisfy the §4.1 row-count check — that check reads
 
 | FR | Requirement | Priority | Phase | Owning app | API endpoint(s) (Complete Doc §C.12) | DB table(s) (Arch Doc §5.1) | Status | Evidence path | Planned batch |
 |---|---|---|---|---|---|---|---|---|---|
-| REQ-FR-001 | User Registration | High | 1 | accounts | POST /api/v1/auth/register/ | users | not started |  |  |
-| REQ-FR-002 | User Login | High | 1 | accounts | POST /api/v1/auth/login/ | users | not started |  |  |
+| REQ-FR-001 | User Registration | High | 1 | accounts | POST /api/v1/auth/register/; POST /api/v1/auth/verify-email/; POST /api/v1/auth/verify-email/resend/ | users | not started |  |  |
+| REQ-FR-002 | User Login | High | 1 | accounts | POST /api/v1/auth/login/ | users | partial | config/settings/base.py — SIMPLE_JWT now 15-min access / 7-day refresh + token_blacklist (D-7); no login service or test yet |  |
 | REQ-FR-003 | Account Lockout | High | 1 | accounts | POST /api/v1/auth/login/ | users | partial | accounts/models.py — `User.failed_login_attempts`, `locked_until`, `is_locked()`; no login service or test yet |  |
 | REQ-FR-004 | Password Recovery | High | 1 | accounts | POST /api/v1/auth/password/reset/; POST /api/v1/auth/password/reset/confirm/ | users | not started |  |  |
 | REQ-FR-005 | MFA Enable | Medium | 4 | accounts | POST /api/v1/auth/mfa/enable/ | users | not started |  |  |
 | REQ-FR-006 | MFA Verification | Medium | 4 | accounts | POST /api/v1/auth/mfa/verify/ | users | not started |  |  |
-| REQ-FR-007 | JWT Token Refresh | High | 1 | accounts | POST /api/v1/auth/refresh/ | users | not started |  |  |
+| REQ-FR-007 | JWT Token Refresh | High | 1 | accounts | POST /api/v1/auth/refresh/ | users | partial | config/settings/base.py — ROTATE_REFRESH_TOKENS + BLACKLIST_AFTER_ROTATION with token_blacklist installed (D-7); REQ-FR-007 amended so rotation invalidates the old token; no refresh endpoint or test yet |  |
 | REQ-FR-008 | JWT Token Revocation | Medium | 1 | accounts | POST /api/v1/auth/logout/ | users | not started |  |  |
 | REQ-FR-009 | Candidate Profile Creation | High | 1 | candidates | GET /api/v1/candidates/me/; PATCH /api/v1/candidates/me/ | candidate_profiles | not started |  |  |
 | REQ-FR-010 | Resume Upload via Presigned URL | High | 1 | candidates | POST /api/v1/candidates/resumes/; GET /api/v1/candidates/resumes/{id}/ | candidate_resumes | not started |  |  |
@@ -67,7 +67,7 @@ table must not be used to satisfy the §4.1 row-count check — that check reads
 | REQ-FR-039 | Audit Log Search | High | 3 | core | GET /api/v1/admin/audit-log/ | audit_log_entries | partial | core.AuditLogEntry model and migration exist; no search logic, filtering or CSV export |  |
 | REQ-FR-040 | Data Export (GDPR) | High | 4 | core | POST /api/v1/gdpr/export/; GET /api/v1/gdpr/export/{id}/; GET /api/v1/gdpr/export/{id}/download/ | data_export_requests | not started |  |  |
 | REQ-FR-041 | Account Deletion (GDPR) | High | 4 | core | POST /api/v1/gdpr/deletion/; GET /api/v1/gdpr/deletion/{id}/; POST /api/v1/gdpr/deletion/{id}/cancel/ | data_deletion_requests | not started |  |  |
-| REQ-FR-042 | Job Browse and Search | High | 1 | employers | GET /api/v1/jobs/public/; GET /api/v1/jobs/public/{id}/ | jobs; employer_profiles (`show_company_name`) | not started |  |  |
+| REQ-FR-042 | Job Browse and Search | High | 1 | employers | GET /api/v1/jobs/public/; GET /api/v1/jobs/public/{id}/ | jobs; job_skills (D-6c); employer_profiles (`show_company_name`) | not started |  |  |
 | REQ-FR-043 | Candidate–Employer Messaging | Medium | 3 | notifications | GET /api/v1/messages/; POST /api/v1/messages/; GET /api/v1/notifications/ | messages; notifications | not started |  |  |
 | REQ-FR-044 | Certification Management | Medium | 3 | candidates | GET /api/v1/candidates/certifications/; POST /api/v1/candidates/certifications/ | certifications | not started |  |  |
 | REQ-FR-045 | Employer Company Profile | High | 1 | employers | GET /api/v1/employers/me/; PATCH /api/v1/employers/me/ | employer_profiles | not started |  |  |
@@ -135,8 +135,9 @@ employer dashboard) are not gated by it.
 1. **Apply route absent from §C.12.** FR-022 (Job Application) needs a candidate-facing create route.
    §C.12 lists only `GET /api/v1/candidates/applications/` and `.../{id}/`; there is no `POST`. Batch
    1.36 ("Apply to a job API") is scheduled to build it. The endpoint must be added to the API list
-   first (spec-first), as the Arch Doc §4.1 note already requires. Same class of gap as D-3
-   (email-verification endpoints).
+   first (spec-first), as the Arch Doc §4.1 note already requires. Unlike D-3 (email-verification
+   endpoints), which batch 0.5 resolved by adding `verify-email/` and `verify-email/resend/` to
+   §C.12, this one is still open.
 2. **Offer Generation has no backing object.** FR-034 names an AI-drafted offer letter, but §5.1 has
    no offer table and §C.12 has no route. Needs a spec decision before it can be built.
 3. **Employer dashboard, billing and payments have no §C.12 route** (FR-046, FR-048, FR-056). The

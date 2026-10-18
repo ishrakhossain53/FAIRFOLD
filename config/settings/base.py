@@ -147,6 +147,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "django_celery_beat",
+    # D-7: SimpleJWT's blacklist app is what makes BLACKLIST_AFTER_ROTATION and
+    # logout revocation (REQ-FR-008) do anything. Without it both are inert.
+    "rest_framework_simplejwt.token_blacklist",
     # FairFold — project first, then apps in dependency order.
     "core",
     "accounts",
@@ -395,7 +398,9 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    # D-7: REQ-FR-002/007 and prd.md §10.1 pin the access token at 15 minutes and
+    # the refresh token at 7 days, with rotation invalidating the previous token.
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,

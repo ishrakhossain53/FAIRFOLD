@@ -1799,13 +1799,13 @@ sits next to the button, not in a modal that gets dismissed without reading.
 │ <h1> Team                          [+ Invite a colleague] │
 ├────────────────────────────────────────────────────────────┤
 │ Name            Role          MFA      Joined      Action  │
-│ Samira Haque   employer_admin ✔       12 Mar 2026  [Role ▾]│
+│ Samira Haque   employer_manager ✔     12 Mar 2026  [Role ▾]│
 │ Rafi Islam     employer_hr    ✔       04 Apr 2026  [Role ▾]│
 │ Nabila Hasan   interviewer    ✖       02 Jun 2026  [Role ▾]│
 │ Toma Akter     employer_hr    ✖       pending      [Revoke] │
 │                                                             │
 │ ⚑ Nabila cannot act until she sets up MFA.                 │
-│ ⚑ You are the only employer_admin. Removing or demoting      │
+│ ⚑ You are the only employer_hr. Removing or demoting         │
 │    yourself would leave nobody able to post a job or invite  │
 │    a colleague, and only database access could undo it.     │
 ├────────────────────────────────────────────────────────────┤
@@ -1817,7 +1817,7 @@ sits next to the button, not in a modal that gets dismissed without reading.
 **A11y:** the members table uses `<th scope="col">` and `<th scope="row">` for the name;
 role is a `<select>` per row with an accessible name that includes the member's name
 ("Role for Samira Haque"), because a bare "Role" repeated down a column is unusable out
-of context. MFA status is text plus a mark, never the mark alone. The last-`employer_admin`
+of context. MFA status is text plus a mark, never the mark alone. The last-`employer_hr`
 warning appears **on the row itself** while it is true, not only after a failed request —
 the Complete Doc enforces it in the serializer inside the same transaction, and this makes
 the rule visible before anyone tries to break it.

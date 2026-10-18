@@ -19,7 +19,7 @@
     "model": "auth.group",
     "pk": 3,
     "fields": {
-      "name": "employer_admin",
+      "name": "employer_manager",
       "permissions": []
     }
   },
