@@ -11,15 +11,19 @@ conflicts that need no decision are listed at the end under Observations.
 How to answer: tick one option per decision, or write your own. Batch 0.5 applies the accepted
 answers; it does not start until every `[ ]` below is answered.
 
+> **Partial answers recorded 2026-10-19.** Only D-2, D-3, D-6(a)–(c) and D-7 were accepted, and
+> batch 0.5 applied exactly those. The remaining decisions (D-1, D-4, D-5, D-6(d)–(e), D-8–D-12)
+> are still open and are not applied.
+
 | ID | Question | Recommendation | Files that change | Your answer |
 |---|---|---|---|---|
 | D-1 | Sessions or JWT for the HTMX template pages? | Sessions for pages, JWT for `/api/v1/`, one shared service | `accounts/services.py` (new), `accounts/views.py`, `accounts/urls.py` | [ ] |
-| D-2 | Which role vocabulary, and which role is protected as "last one"? | Adopt the requirement names: `employer_manager`, and protect the last `employer_hr` | `core/fixtures/groups.json`, `accounts/models.py`, `seed.py`, `employers/__init__.py`, specs | [ ] |
-| D-3 | Add email-verification endpoints to §C.12? | Yes: `verify-email/` + `verify-email/resend/`, stateless signed token (no new table) | Complete Doc §C.12, `prd.md` §13, `docs/TRACEABILITY.md` | [ ] |
+| D-2 | Which role vocabulary, and which role is protected as "last one"? | Adopt the requirement names: `employer_manager`, and protect the last `employer_hr` | `core/fixtures/groups.json`, `accounts/models.py`, `seed.py`, `employers/__init__.py`, specs | [x] **B** — `employer_manager`, protect the last `employer_hr`. Applied to `groups.json`, `seed.py` ROLES and the specs; `accounts/models.py` / `employers/__init__.py` deferred to the code batch. |
+| D-3 | Add email-verification endpoints to §C.12? | Yes: `verify-email/` + `verify-email/resend/`, stateless signed token (no new table) | Complete Doc §C.12, `prd.md` §13, `docs/TRACEABILITY.md` | [x] **A** — two endpoints, stateless signed token, no new table. |
 | D-4 | Build the per-employer alias in Phase 1? | Yes, pull it forward (batch 1.35) | `candidates/` alias service + tests, `docs/TRACEABILITY.md` | [ ] |
 | D-5 | Encrypt the PII columns now or in Phase 4? | Encrypt from creation, with the §C.8.2 `key_version` rotation plan | `accounts/models.py` + migration, new models, Complete Doc §C.8 | [ ] |
-| D-6 | Close the five §5.1 schema holes now? | Yes, amend §5.1 first, then build; five sub-choices below | Arch Doc §5.1/§5.2, several models + migrations | [ ] |
-| D-7 | JWT lifetimes and refresh semantics | 15-min access; enable `token_blacklist`; rotation invalidates the old token | `config/settings/base.py`, Arch Doc REQ-FR-007 | [ ] |
+| D-6 | Close the five §5.1 schema holes now? | Yes, amend §5.1 first, then build; five sub-choices below | Arch Doc §5.1/§5.2, several models + migrations | [x] **(a)** resume `status` column, **(b)** screening state as `applications` columns (no new table), **(c)** new `job_skills` join table. **(d)/(e)** deferred. |
+| D-7 | JWT lifetimes and refresh semantics | 15-min access; enable `token_blacklist`; rotation invalidates the old token | `config/settings/base.py`, Arch Doc REQ-FR-007 | [x] **A** — 15-min access; `token_blacklist` installed; REQ-FR-007 amended to "rotation invalidates the old token". |
 | D-8 | Which branch is truth, `main` or `v3`? | `origin/main` (the default branch; it contains `v3`) | none (process); `HISTORY.md` §4.9 note | [ ] |
 | D-9 | Password hasher: Argon2id required, code uses the default | Add `PASSWORD_HASHERS` with Argon2id first | `config/settings/base.py`, `accounts/models.py` comment | [ ] |
 | D-10 | Production still emails via the console backend | Set `EMAIL_BACKEND` to an Anymail backend | `config/settings/production.py`, `.env.example` | [ ] |

@@ -328,7 +328,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 | REQ-FR-004 | Password Recovery | High | **Given** user requests password reset; **When** valid email provided; **Then** password reset email sent with 1-hour expiry token link |
 | REQ-FR-005 | MFA Enable | Medium | **Given** authenticated user; **When** user submits MFA enable request; **Then** TOTP secret generated, QR code displayed, `mfa_secret` stored encrypted |
 | REQ-FR-006 | MFA Verification | Medium | **Given** MFA enabled and user has authenticator app; **When** user submits 6-digit TOTP code; **Then** code verified against stored secret, `mfa_enabled=True` set |
-| REQ-FR-007 | JWT Token Refresh | High | **Given** valid refresh token not expired; **When** user calls refresh endpoint; **Then** new access token issued, old refresh token remains valid until 7 days |
+| REQ-FR-007 | JWT Token Refresh | High | **Given** a valid unexpired refresh token; **When** the user calls the refresh endpoint; **Then** a new access token (15 min) and a rotated refresh token (7 days) are issued; **And** the previous refresh token is blacklisted immediately, so rotation invalidates it (D-7, REQ-FR-008) |
 | REQ-FR-008 | JWT Token Revocation | Medium | **Given** expired or revoked refresh token; **When** user calls logout; **Then** refresh token added to blacklist, subsequent use returns 401 |
 
 #### Candidate Portal
@@ -599,7 +599,12 @@ CREATE TABLE candidate_resumes (
     mime_type       VARCHAR(100),
     extracted_text  TEXT,                          -- PII-stripped text
     raw_text_hash   VARCHAR(64),                    -- for deduplication
-    created_at      TIMESTAMPTZ DEFAULT NOW()
+    -- D-6(a): upload -> extract -> embed is a pipeline with states (REQ-FR-010/012/013);
+    -- without a status column the UI cannot tell "uploaded, unprocessed" from a failure.
+    status          VARCHAR(20) DEFAULT 'uploaded', -- uploaded, processing, extracted, embedded, failed
+    processed_at    TIMESTAMPTZ,                    -- last successful extraction + embedding
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT ck_resume_status CHECK (status IN ('uploaded','processing','extracted','embedded','failed'))
 );
 
 -- === EMPLOYER PROFILES ===
@@ -673,6 +678,21 @@ CREATE TABLE jobs (
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- === JOB SKILLS (D-6(c), REQ-FR-042) ===
+-- A job's skills, so "keyword search over title, description and skills" is a
+-- queryable, indexable join rather than a JSONB scan. candidate_skills is the
+-- candidate-side counterpart; this is the job-side one.
+CREATE TABLE job_skills (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id          UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    skill_id        UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+    required        BOOLEAN DEFAULT TRUE,           -- required vs nice-to-have
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(job_id, skill_id)
+);
+CREATE INDEX idx_job_skills_job ON job_skills(job_id);
+CREATE INDEX idx_job_skills_skill ON job_skills(skill_id);
+
 CREATE TABLE applications (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_id          UUID REFERENCES jobs(id) ON DELETE CASCADE,
@@ -681,6 +701,12 @@ CREATE TABLE applications (
     match_score     INTEGER,                       -- 0-100 from AI
     match_rationale TEXT,                          -- AI-generated explanation
     ai_model_used   VARCHAR(100),
+    -- D-6(b): the "Screen All" batch (REQ-FR-028) runs per application, so its
+    -- progress and retry state live on the row rather than in a separate table.
+    screening_status     VARCHAR(20) DEFAULT 'not_screened', -- not_screened, queued, running, completed, failed
+    screening_attempts   INTEGER DEFAULT 0,                  -- retry counter for a failed run
+    screening_started_at TIMESTAMPTZ,                        -- when the current run started
+    screening_error      TEXT,                               -- failure reason; PII-free
     screened_at     TIMESTAMPTZ,
     shortlisted_at  TIMESTAMPTZ,
     -- Gap G3: the stage-1 hard filter records what it excluded and under which
@@ -698,7 +724,8 @@ CREATE TABLE applications (
     -- A recorded override must always carry a reason. Enforced in the database, not only in the form.
     CONSTRAINT chk_override_has_reason CHECK (
         decision_override = FALSE OR (decision_override_reason IS NOT NULL AND length(btrim(decision_override_reason)) > 0)
-    )
+    ),
+    CONSTRAINT ck_screening_status CHECK (screening_status IN ('not_screened','queued','running','completed','failed'))
 );
 
 CREATE INDEX idx_applications_gate ON applications(assessment_gate_status);
@@ -1084,6 +1111,7 @@ candidate_profiles ──(N)──> interview_coaching_sessions (REQ-FR-058/059/
 practice_questions ──(N)──> interview_coaching_sessions (I1)
 jobs ──(N)──> practice_questions (for job-specific questions, optional)
 jobs ──(N)──> scorecard_criteria (REQ-FR-059, I2)
+jobs ──(N)──> job_skills ──(N)──> skills (REQ-FR-042, keyed so job search can filter on skills)
 assessment_attempts ──(N)──> attempt_resource_recommendations ──(N)──> resources (REQ-FR-061/063, I4)
 ```
 

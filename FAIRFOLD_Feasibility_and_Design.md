@@ -13,7 +13,7 @@ This file supplements — and does not replace — the specifications below:
 | Document | Role | Status |
 |---|---|---|
 | `FAIRFOLD_Complete_Project_Document.md` | Product, market, AI strategy, security, roadmap | **Canonical** |
-| `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 63 FRs (001-063), 50 NFRs, 32 tables, 51 FKs, 25 indexes, SQL schema, ops | **Canonical** |
+| `FAIRFOLD_Project_Architecture_and_Requirements.md` | Architecture, 63 FRs (001-063), 50 NFRs, 33 tables, 53 FKs, 27 indexes, SQL schema, ops | **Canonical** |
 | `prd.md` | Product requirements, phases, FR list, AI requirements, release criteria | **Canonical** |
 | `design.md` | UI design system, 78 page specs, 64 wireframes (18 S + 5 X + 29 W + 10 W30–W39 + 4 W40–W43), implementation notes | Supplement |
 | `FAIRFOLD_Feasibility_and_Design.md` (this file) | Feasibility, user stories, formal diagrams, Gantt | Supplement |
@@ -1585,6 +1585,13 @@ classDiagram
         +is_open() bool
     }
 
+    class JobSkill {
+        +UUID id
+        +UUID job_id
+        +UUID skill_id
+        +bool required
+    }
+
     class Application {
         +UUID id
         +UUID job_id
@@ -1593,6 +1600,8 @@ classDiagram
         +int match_score
         +str match_rationale
         +str ai_model_used
+        +str screening_status
+        +int screening_attempts
         +datetime screened_at
         +datetime shortlisted_at
         +shortlist() void
@@ -1607,6 +1616,8 @@ classDiagram
         +str mime_type
         +str extracted_text
         +str raw_text_hash
+        +str status
+        +datetime processed_at
     }
 
     class Skill {
@@ -1808,7 +1819,7 @@ classDiagram
 
 ### 3.7 ER diagram
 
-Derived from the SQL schema in Arch Doc §5.1 (32 tables) and the Django models in
+Derived from the SQL schema in Arch Doc §5.1 (33 tables) and the Django models in
 Complete Doc §8.2 / §C.11.
 
 ```mermaid
@@ -1833,6 +1844,7 @@ erDiagram
 
     SKILLS ||--o{ CANDIDATE_SKILLS : "canonicalises"
     SKILLS ||--o{ ASSESSMENTS : "assesses"
+    SKILLS ||--o{ JOB_SKILLS : "required by jobs (FR-042)"
 
     ASSESSMENTS ||--o{ ASSESSMENT_QUESTIONS : "contains"
     ASSESSMENTS ||--o{ ASSESSMENT_ATTEMPTS : "attempted in"
@@ -1846,6 +1858,7 @@ erDiagram
     JOBS ||--o{ APPLICATIONS : "receives"
     JOBS ||--o{ INTERVIEW_PACKS : "has"
     JOBS ||--o{ JOB_ASSESSMENT_REQUIREMENTS : "requires"
+    JOBS ||--o{ JOB_SKILLS : "requires skills (FR-042)"
 
     APPLICATIONS ||--o{ INTERVIEWS : "schedules"
     APPLICATIONS ||--o{ MESSAGES : "exchanges"
@@ -1904,6 +1917,8 @@ erDiagram
         varchar mime_type
         text extracted_text "PII-stripped"
         varchar raw_text_hash "dedup"
+        varchar status "uploaded-processing-extracted-embedded-failed"
+        timestamptz processed_at
         timestamptz created_at
     }
 
@@ -1969,6 +1984,8 @@ erDiagram
         integer match_score "0-100 from AI"
         text match_rationale "evidence-cited"
         varchar ai_model_used
+        varchar screening_status "FR-028: not_screened-queued-running-completed-failed"
+        integer screening_attempts "FR-028 retry counter"
         timestamptz screened_at
         timestamptz shortlisted_at
         text not_matched_reason "G3: which filter fired"
@@ -1997,6 +2014,14 @@ erDiagram
         decimal years_experience
         varchar source "resume_parse-self_reported-assessment-journey_map"
         boolean verified
+        timestamptz created_at
+    }
+
+    JOB_SKILLS {
+        uuid id PK
+        uuid job_id FK
+        uuid skill_id FK
+        boolean required "required vs nice-to-have"
         timestamptz created_at
     }
 
@@ -2218,8 +2243,8 @@ erDiagram
 ```
 
 **Cardinality reading:** `||` = exactly one, `o|` = zero or one, `o{` = zero or many.
-All 32 tables and 41 relationships shown. The canonical SQL (Arch Doc §5.1) declares
-**51** foreign keys; the 10 not drawn in the diagram are redundant or implied self-references
+All 33 tables and 43 relationships shown. The canonical SQL (Arch Doc §5.1) declares
+**53** foreign keys; the 10 not drawn in the diagram are redundant or implied self-references
 that would clutter the diagram without adding information — `users → candidate_profiles`,
 `users → employer_profiles` and `users → applications.decided_by` are all already
 implied by a drawn relationship. PK/FK detail is carried in the attribute blocks.
@@ -2262,7 +2287,7 @@ with no separable half, so deleting a user's interview history is correct.
 Field-level definitions for the 10 entities that carry the interesting behaviour: the four
 lifecycle tables plus the five with non-obvious constraints or erasure semantics
 (`EMPLOYER_TEAM_MEMBERS`, `MESSAGES`, `JOB_ASSESSMENT_REQUIREMENTS`). Full SQL DDL:
-Arch Doc §5.1 (32 tables, 51 foreign keys, 25 indexes).
+Arch Doc §5.1 (33 tables, 53 foreign keys, 27 indexes).
 
 #### USERS
 
@@ -2335,6 +2360,10 @@ Arch Doc §5.1 (32 tables, 51 foreign keys, 25 indexes).
 | match_score | INTEGER | | YES | — | — | 0–100, from AI |
 | match_rationale | TEXT | | YES | — | — | Evidence-cited explanation |
 | ai_model_used | VARCHAR(100) | | YES | — | — | Provenance for audit |
+| screening_status | VARCHAR(20) | | NO | `'not_screened'` | — | **D-6(b) / REQ-FR-028** per-application state of the "Screen All" batch: `not_screened`, `queued`, `running`, `completed`, `failed` |
+| screening_attempts | INTEGER | | NO | `0` | — | Retry counter for a failed run |
+| screening_started_at | TIMESTAMPTZ | | YES | — | — | When the current run started |
+| screening_error | TEXT | | YES | — | — | Failure reason; PII-free |
 | screened_at | TIMESTAMPTZ | | YES | — | — | Screening completion time |
 | shortlisted_at | TIMESTAMPTZ | | YES | — | — | Shortlist decision time |
 | not_matched_reason | TEXT | | YES | — | — | **G3** which hard-filter rule fired, e.g. `experience_level` |
@@ -2357,6 +2386,10 @@ Arch Doc §5.1 (32 tables, 51 foreign keys, 25 indexes).
 > points P2 and P5 of the Product Owner's own hiring experience (§1.3.2). Before this,
 > the platform could rank fairly and still have the real decision made informally and
 > invisibly — which is the exact failure that started the project.
+>
+> **Added 2026-10-19 (D-6(b)):** the four `screening_*` columns above carry the state of
+> the per-application "Screen All" batch (REQ-FR-028). Progress and retry live on the row
+> rather than in a separate run table, so no table count changes for it.
 
 #### JOB_ASSESSMENT_REQUIREMENTS
 
@@ -2899,7 +2932,7 @@ files — so "start development" is no longer a documentation exercise.
 
 | Group | Items | Blocks the build? |
 |---|---|---|
-| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); the 32 tables are DDL but no Django model exists yet; dark mode, Bengali UI, score-band calibration, coaching evaluation set thresholds [Planned] | No — these *are* Phases 1–3 |
+| **Build work** | 7 open acceptance criteria in Arch §10 (`REQ-FR-029`, `REQ-FR-035`, `REQ-FR-051`, `REQ-FR-052` surfaces); the 33 tables are DDL but no Django model exists yet; dark mode, Bengali UI, score-band calibration, coaching evaluation set thresholds [Planned] | No — these *are* Phases 1–3 |
 
 > **Does "no Django model yet" block *starting* development? No — it blocks the app *running*.**
 > Writing code can begin immediately: `manage.py`, the four settings modules, the app packages,

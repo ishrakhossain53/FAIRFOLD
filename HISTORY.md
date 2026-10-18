@@ -24,7 +24,7 @@ first source file is `ai/bias_pass.py`, added 2026-10-03 (§2.28), with
 **As of 2026-10-04 the tree is a runnable scaffold** (§2.30): `manage.py`, `config/` with four
 settings modules, eleven app packages, `core/` helpers, the `seed` command, the frontend build
 files, `pyproject.toml`, `bandit.yaml` and a pytest `conftest.py`. **No Django model exists yet** —
-the 32 tables are still DDL in Arch Doc §5.1 — so `migrate` creates zero tables and no endpoint
+the 33 tables are still DDL in Arch Doc §5.1 — so `migrate` creates zero tables and no endpoint
 responds. The value of the scaffold is that a first `manage.py check` tests import and config
 rather than starting from nothing.
 
@@ -50,11 +50,11 @@ blocked.
 
 || File | Lines | Role |
 || --- | --- | --- |
-|| `FAIRFOLD_Complete_Project_Document.md` | 2412 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2618 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 32-table SQL schema, 51 foreign keys, 25 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
-|| `prd.md` | 1275 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
+|| `FAIRFOLD_Complete_Project_Document.md` | 2433 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2646 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 33-table SQL schema, 53 foreign keys, 27 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
+|| `prd.md` | 1282 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 || `design.md` | 2914 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
-|| `FAIRFOLD_Feasibility_and_Design.md` | 2978 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
+|| `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 420 | Project overview, documentation index, setup |
 
 | `.env.example` | 159 | Environment variables, all placeholders |
@@ -70,9 +70,10 @@ blocked.
   `REQ-SEC-001`–`014` (14), `REQ-COM-001`–`009` (9), `REQ-NFR-001`–`018` (18),
   `REQ-NFR-019`–`023` (5, code quality), and four operational `REQ-NFOR-001`, `-002`, `-024`, `-025`.
   ⚠️ `REQ-NFR` and `REQ-NFOR` interleave — a naive `REQ-NF` regex conflates them. Use `REQ-NFR-[0-9]+`.
-- **32 database tables** in Arch Doc §5.1, with **51 foreign keys** declared (38 drawn in
-  the ER diagram; 3 redundant `users` self-references intentionally omitted). The count
-  went 34 → 35 when `data_deletion_requests.approved_by` was added in §2.25. `MESSAGES` is
+- **33 database tables** in Arch Doc §5.1, with **53 foreign keys** declared (43 drawn in
+  the ER diagram; the other 10 are implied self-references intentionally omitted). The count
+  went 34 → 35 when `data_deletion_requests.approved_by` was added in §2.25, and 51 → 53 when
+  `job_skills` was added in batch 0.5 (D-6c). `MESSAGES` is
   the one table whose FKs are `SET NULL` rather than `CASCADE` — see §2.17
 - **10 AES-256-GCM encrypted fields** (PII at rest)
 - **63 user stories / 260 story points**, MoSCoW **37 Must / 21 Should / 5 Could** —
@@ -2072,4 +2073,52 @@ and PROGRESS line 0.3 stays unchecked. Four FRs are `partial` on pre-existing co
 D-series items are cited from `docs/ROADMAP.md` instead. Four §C.12 route gaps (apply, offers,
 employer dashboard, billing/payments) and the missing coaching-app owner are recorded as gap notes,
 not fixed here. Python/`pytest` were not run for this batch: it is a docs change with no code.
+
+### Batch 0.5: Apply the accepted decisions to specs and settings (2026-10-19)
+
+Applied D-2, D-3, D-6(a)–(c) and D-7 — the only decisions accepted in `docs/DECISIONS.md`. Spec-first:
+the canonical docs were amended, then the settings/fixtures that must agree. No model, view or UI code
+was written, and nothing was committed.
+
+**D-2 — role vocabulary.** Adopt the requirement names. `core/fixtures/groups.json` and
+`core/management/commands/seed.py` `ROLES` now say `employer_manager` and protect the last `employer_hr`;
+the Complete Doc RBAC row and §C.8.3, `prd.md` §10.1 and `design.md` (members table + last-role warning)
+were corrected to match REQ-FR-047. `accounts/models.py` and `employers/__init__.py` still say
+`employer_admin`; renaming them is a code change, deferred (see limitations).
+
+**D-3 — email verification.** Added `POST /api/v1/auth/verify-email/` and
+`POST /api/v1/auth/verify-email/resend/` (stateless signed token, no new table) to Complete Doc §C.12,
+`prd.md` §13 and the FR-001 row of `docs/TRACEABILITY.md`.
+
+**D-6 — §5.1 schema holes.** (a) `candidate_resumes.status` + `processed_at` (REQ-FR-010/012/013);
+(b) `applications.screening_status` / `screening_attempts` / `screening_started_at` / `screening_error`
+— per-application state, no new table (REQ-FR-028); (c) a new `job_skills` join table with two FKs and
+two indexes (REQ-FR-042). The table count moved 32 → 33, FKs 51 → 53, indexes 25 → 27, reconciled in
+Arch Doc §5.1/§5.2, Complete Doc §8.2, `prd.md` §11, the Feasibility Doc §3.6–§3.8 and
+`scripts/verify_docs.py`.
+
+**D-7 — JWT.** `config/settings/base.py`: access token 30 → 15 minutes, and
+`rest_framework_simplejwt.token_blacklist` added to `INSTALLED_APPS`; REQ-FR-007 amended so rotation
+invalidates the previous refresh token (matching `prd.md` §10.1).
+
+**Commands run and results:**
+
+- `.venv/bin/python scripts/verify_docs.py` → exit 0, all checks passed (33 tables, 53 FKs, 27 indexes).
+- `.venv/bin/python scripts/verify_bias_set.py` → exit 0, 2 versions internally consistent.
+- `manage.py check` → "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` → "No changes detected" (the `token_blacklist` app ships its own migrations).
+- `.venv/bin/pytest tests/ -q` with `DEBUG` unset → **115 passed**; with the shell's ambient `DEBUG=True`, 14 `test_production_settings.py` tests fail — the same environment artefact recorded in batch 0.1.
+- `black --check`, `isort --check-only` and `flake8` on the two changed Python files → clean.
+
+**HISTORY corrections made by this entry.** The documentation-set table line counts (§1) and the
+"Key numbers of record" table/FK counts were updated to the post-0.5 files. No other HISTORY entry was
+edited.
+
+**Known limitations.** `accounts/models.py:51` `ROLES` and its `has_role("employer_admin")` checks, and
+the `employers/__init__.py` comment, still use the old role name, so the specs/fixture now lead the code;
+there are no `tests/accounts` yet. This was the agreed scope for this docs-only batch and must be closed
+in the code batch that builds the auth service. `docs/AUDIT.md` and `docs/BASELINE.md` are dated snapshots
+of the pre-0.5 tree and were left unedited — their "32 tables" describes that state. No acceptance
+criterion is demonstrated by a new test, so no TRACEABILITY status is promoted to `done` (FR-002/007 are
+`partial`).
 

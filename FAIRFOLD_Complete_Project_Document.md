@@ -300,7 +300,7 @@ This section is the most critical addition to the original document. Recruitment
 | **Session auth** | Django session framework with secure cookies (HttpOnly, Secure, SameSite=Lax) |
 | **API token auth** | DRF `TokenAuthentication` with 256-bit random tokens, rotated on password change. Short-lived JWT (15-min access, 7-day refresh) for mobile/SPA. |
 | **MFA** | TOTP (time-based one-time password) via `django-otp` — required for employer admin accounts, optional for candidates |
-| **RBAC** | Django Groups + custom permission system: `admin`, `employer_hr`, `employer_manager`, `interviewer`, `candidate`, `guest` |
+| **RBAC** | Django Groups + custom permission system: `candidate`, `employer_hr`, `employer_manager`, `interviewer` (`admin` is `is_staff`/`is_superuser`; `guest` is simply unauthenticated — neither is a group) |
 | **Account lockdown** | After 5 failed login attempts → 15-min cooldown; after 10 → email verification required to unlock |
 | **Password policy** | Minimum 12 characters, breached-password check against HaveIBeenPwned API (k-anonymity, no password sent) |
 
@@ -712,6 +712,9 @@ class CandidateResume(models.Model):
     mime_type = models.CharField(max_length=100)
     extracted_text = models.TextField(blank=True)  # PII-stripped text
     raw_text_hash = models.CharField(max_length=64)  # for dedup
+    # D-6(a) / REQ-FR-010/012/013: upload -> extract -> embed
+    status = models.CharField(max_length=20, default="uploaded")  # uploaded, processing, extracted, embedded, failed
+    processed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 # employers/models.py
@@ -762,6 +765,17 @@ class Job(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+class JobSkill(models.Model):
+    """A skill a job requires. D-6(c) / REQ-FR-042: job search filters over title,
+    description *and skills*, so this is a queryable join rather than a JSONB column."""
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="job_skills")
+    skill = models.ForeignKey("candidates.Skill", on_delete=models.CASCADE, related_name="required_by_jobs")
+    required = models.BooleanField(default=True)  # required vs nice-to-have
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("job", "skill")]
+
 class Application(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="applications")
     candidate = models.ForeignKey(CandidateProfile, on_delete=models.CASCADE, related_name="applications")
@@ -769,6 +783,11 @@ class Application(models.Model):
     match_score = models.IntegerField(null=True, blank=True)  # 0-100 from AI
     match_rationale = models.TextField(blank=True)  # AI-generated explanation
     ai_model_used = models.CharField(max_length=100, blank=True)
+    # D-6(b) / REQ-FR-028: per-application state of the "Screen All" batch run
+    screening_status = models.CharField(max_length=20, default="not_screened")  # not_screened, queued, running, completed, failed
+    screening_attempts = models.PositiveIntegerField(default=0)  # retry counter
+    screening_started_at = models.DateTimeField(null=True, blank=True)
+    screening_error = models.TextField(blank=True)  # PII-free failure reason
     screened_at = models.DateTimeField(null=True, blank=True)
     shortlisted_at = models.DateTimeField(null=True, blank=True)
 
@@ -1446,7 +1465,7 @@ idempotent on `loaddata`:
 
 | Seed | Table | Source | Why it cannot be left empty |
 |---|---|---|---|
-| Django auth groups | `auth_group` | `core/fixtures/groups.json` | Role checks (`employer_hr`, `employer_admin`, `interviewer`) run on every permission test. Hard-coded role strings in Python would be a second source of truth |
+| Django auth groups | `auth_group` | `core/fixtures/groups.json` | Role checks (`employer_hr`, `employer_manager`, `interviewer`) run on every permission test. Hard-coded role strings in Python would be a second source of truth |
 | Skill taxonomy | `skills` | `core/fixtures/skills.json` | Stage-1 matching filters on `skills`; a candidate with no recognised skills cannot be scored, and the bias audit compares categories that come from this table |
 | Score bands | **no table** — see note | `core/reference.py` (`SCORE_BANDS`) | `design.md` §3.4 bands are "proposed" and explicitly need a calibrated model, so they are **provisional and owned by one file** |
 | Countries / industries | **no table** — see note | `core/reference.py` (`COUNTRIES`, `INDUSTRIES`) | Job filters and forms fail on an empty select |
@@ -1798,6 +1817,8 @@ AttemptResourceRecommendation: attempt_id → AssessmentAttempt.id, resource_id 
 #### Authentication & User Management
 ```http
 POST   /api/v1/auth/register/                    # Register new user (email, password, role)
+POST   /api/v1/auth/verify-email/                # Verify email with the signed token from the link (REQ-FR-001)
+POST   /api/v1/auth/verify-email/resend/         # Resend the verification email (REQ-FR-001)
 POST   /api/v1/auth/login/                       # Login, return JWT access + refresh tokens
 POST   /api/v1/auth/refresh/                     # Refresh JWT access token
 POST   /api/v1/auth/logout/                      # Revoke refresh token

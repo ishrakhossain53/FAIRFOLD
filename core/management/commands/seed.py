@@ -42,7 +42,7 @@ FIXTURES = ["groups", "skills"]
 
 # The four roles from the Arch Doc. Kept as module constants so a test can assert
 # the set matches, rather than spelling them out in a dozen test files.
-ROLES = ["candidate", "employer_hr", "employer_admin", "interviewer"]
+ROLES = ["candidate", "employer_hr", "employer_manager", "interviewer"]
 
 
 class Command(BaseCommand):
