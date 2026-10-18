@@ -2017,3 +2017,34 @@ TRACEABILITY status was promoted to `done`. Live remote sync (`git fetch`/`ls-re
 attempted — no credentials — so the branch comparison is local-ref-only. Docker and the database were
 already running; the stack was not rebuilt cold.
 
+### Batch 0.2: Baseline run and branch sync (2026-10-19)
+
+Documented the repo baseline run with exact commands and real outputs in `docs/BASELINE.md`.
+This batch verified the Docker stack, Django checks, migration/seed path, full pytest run,
+docs validation, and endpoint probes without changing application code.
+
+**What was verified:**
+
+- `docker compose up -d --wait` → healthy stack on the local Docker environment
+- `manage.py check` → no issues
+- `manage.py makemigrations --check --dry-run` → no drift
+- `manage.py migrate --noinput` against a throwaway DB → OK
+- `manage.py seed` → successful seed output
+- `pytest tests/ -v` → **115 passed in 2.86s**
+- `scripts/verify_docs.py` and `scripts/verify_bias_set.py` → both passed
+- `/health/`, `/health/ready/`, `/api/v1/` and related routes returned expected 200 responses
+
+**Commands run:** `docker compose up -d --wait`, `unset DEBUG`, `export DJANGO_SETTINGS_MODULE=config.settings.ci`,
+`.venv/bin/python manage.py check`, `.venv/bin/python manage.py makemigrations --check --dry-run`,
+`.venv/bin/python manage.py migrate --noinput`, `.venv/bin/python manage.py seed`,
+`.venv/bin/pytest tests/ -v`, `.venv/bin/flake8 ...`, `.venv/bin/black --check .`,
+`.venv/bin/isort --check-only .`, `.venv/bin/mypy ...`, `.venv/bin/bandit -r . ...`,
+`.venv/bin/pip-audit -r requirements.txt`, `.venv/bin/python scripts/verify_docs.py`,
+`.venv/bin/python scripts/verify_bias_set.py`.
+
+**Known limitations:** the formatter check and Bandit are environment-specific pre-existing issues:
+`black --check .` reports one file would be reformatted, and `bandit` is incompatible with the host
+Python 3.14 runtime (`B107` profile error). The batch itself is still a read-only verification pass.
+
+**Git state:** branch `0.2-Baseline-run-passed` was created locally and pushed to `origin` with tracking configured; the remote branch exists and is synced to the current local branch metadata.
+
