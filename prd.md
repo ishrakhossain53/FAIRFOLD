@@ -500,7 +500,7 @@ Priority: **H** = High, **M** = Medium, **L** = Low. Phase = first phase in whic
 
 | ID | Requirement | Pri | Phase |
 |---|---|---|---|
-| REQ-FR-001 | Register with email, password, role; verification email sent; `email_verified=False` until verified | H | 1 |
+| REQ-FR-001 | Register with email, password, first/last name, role; verification email sent; `email_verified=False` until verified | H | 1 |
 | REQ-FR-002 | Login returns JWT access (15 min) + refresh (7 days); failed-attempt counter resets | H | 1 |
 | REQ-FR-003 | Lock account for 15 min after 5 consecutive failed logins | H | 1 |
 | REQ-FR-004 | Password reset via emailed link with 1-hour expiry | H | 1 |

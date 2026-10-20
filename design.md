@@ -706,7 +706,7 @@ They are the only two pages in the 78 that legitimately carry no requirement ID.
 | 3 | **How our AI works** | Plain-language diagram: resume → details removed → AI → human decides; bias check; what we never do (no facial analysis) | Diagram (SVG + text), accordion | REQ-COM-006 | P2 |  | W02 |
 | 4 | ★ **Job board / search** | Search bar + filters (location, remote, level) left on desktop / sheet on mobile; result cards show "Promoted" label (7.17) where applicable and company Verified badge (employer identity check, not candidate Verified Badge 7.16); Paid Visibility Tooltip (7.17) explains promotion affects discovery only, never screening rank | Search, filter chips, job card, Paid Visibility Tooltip (7.17) | REQ-FR-042 · **REQ-FR-053** | P1 | Yes | S04 |
 | 5 | ★ **Public job detail** | Title, company, meta chips, "Promoted" label (7.17) where applicable, "Verified" badge (7.16); description sections, sticky Apply button; guests are prompted to log in | Chips, sticky CTA, Verified Badge (7.16), Paid Visibility Tooltip (7.17) | REQ-FR-042 · **REQ-FR-053** | P1 | Yes | S05 |
-| 6 | ★ **Register** | Role selector (Candidate / Employer), email, password (+ rules), consent checkbox with policy links; link to login | Form, role cards | REQ-FR-001, REQ-COM-002/003-004 | P1 | Yes | S01 |
+| 6 | ★ **Register** | Role selector (Candidate / Employer), first name, last name, email, password (+ rules), consent checkbox with policy links; link to login | Form, role cards | REQ-FR-001, REQ-COM-002/003-004 | P1 | Yes | S01 |
 | 7 | ★ **Login** | Email, password, "Forgot password?", lockout alert state | Form, inline alert | REQ-FR-002/003 | P1 | Yes | S01 |
 | 8 | ★ **MFA code entry** | 6 single-character boxes or one field with `autocomplete="one-time-code"`; "Use backup method" link | OTP input | REQ-FR-006 | P4 |  | S01 |
 | 9 | **Forgot password** | Email field; generic confirmation ("If this email exists…") | Form | REQ-FR-004 | P1 | Yes | X02 |
@@ -853,6 +853,10 @@ REGISTER (#6)                              LOGIN (#7)
 │ │(•) Looking│ │( ) Hiring │ │           │ Password (required)         │
 │ │  for work │ │           │ │           │ [______________] [Show]     │
 │ └───────────┘ └───────────┘ │           │ Forgot password?            │
+│ First name (required)       │           │                             │
+│ [_______________________]   │           │                             │
+│ Last name (required)        │           │                             │
+│ [_______________________]   │           │                             │
 │ Email (required)            │           │ [         Log in         ]  │
 │ [_______________________]   │           │ No account? Register        │
 │ Password (required)         │           └─────────────────────────────┘
@@ -865,7 +869,7 @@ REGISTER (#6)                              LOGIN (#7)
 │ Have an account? Log in     │   └──────────────────┘
 └─────────────────────────────┘
 ```
-**A11y:** one `<h1>`; role cards are a `fieldset` + `legend` radio group; visible labels; error summary at top with links to fields; `autocomplete="email" / "new-password" / "current-password" / "one-time-code"`; lockout is `role="alert"` and announced once (not every second); consent checkbox must be unchecked by default.
+**A11y:** one `<h1>`; role cards are a `fieldset` + `legend` radio group; visible labels; error summary at top with links to fields; `autocomplete="given-name" / "family-name" / "email" / "new-password" / "current-password" / "one-time-code"`; lockout is `role="alert"` and announced once (not every second); consent checkbox must be unchecked by default.
 
 ---
 

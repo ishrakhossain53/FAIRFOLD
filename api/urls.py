@@ -77,6 +77,9 @@ class ApiRootView(APIView):
                 "version": "v1",
                 "documentation": "/api/docs/",
                 "domains": {
+                    # §C.12 puts the auth routes under `auth/`, not under the
+                    # accounts app's own prefix; both are owned by accounts.
+                    "auth": "/api/v1/auth/",
                     "accounts": "/api/v1/accounts/",
                     "candidates": "/api/v1/candidates/",
                     "employers": "/api/v1/employers/",
@@ -97,6 +100,10 @@ router.APIRootView = ApiRootView
 
 urlpatterns = [
     path("", ApiRootView.as_view(), name="api-root"),
+    # §C.12 puts registration and email verification under `/api/v1/auth/`.
+    # `accounts.api_urls` stays mounted at `accounts/` for the profile routes
+    # that land later; the two prefixes must not share one module.
+    path("auth/", include("accounts.auth_urls")),
     # Mounted app by app as each app's viewsets land. An empty include() mounts a
     # prefix with nothing beneath it, which 404s every URL the frontend calls.
     path("accounts/", include("accounts.api_urls")),

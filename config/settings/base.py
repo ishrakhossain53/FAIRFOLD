@@ -172,6 +172,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Exposes `request.htmx` for the registration/verification pages (batch 1.6).
+    # It is what turns "is this an HTMX request" into a typed answer instead of a
+    # header comparison in every view.
+    "django_htmx.middleware.HtmxMiddleware",
     "core.middleware.RequestIDMiddleware",
 ]
 
@@ -432,6 +436,14 @@ REST_FRAMEWORK = {
         "ai_action": env("THROTTLE_AI_ACTION", "20/hour"),
         "login": env("THROTTLE_LOGIN", "10/minute"),
         "screening": env("THROTTLE_SCREENING", "30/hour"),
+        # Batch 1.5. Complete Doc §5.5 gives one rate for unauthenticated
+        # traffic -- 100 requests/hour -- and does not name a separate one for
+        # signup. Using that documented figure avoids inventing a number; the
+        # per-account resend cooldown (45 s) is the finer limit that actually
+        # stops a verification-email flood. Verification and resend share a
+        # scope because both are anonymous and both are the same attack surface.
+        "register": env("THROTTLE_REGISTER", "100/hour"),
+        "verify_email": env("THROTTLE_VERIFY_EMAIL", "100/hour"),
     },
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
 }

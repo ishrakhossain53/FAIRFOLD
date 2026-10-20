@@ -1,0 +1,34 @@
+{% comment %}
+One field: label, help text (always rendered), control, error text (present but
+`hidden` when there is no error).
+
+The `<p id="...-error">` exists even without an error so the control's static
+`aria-describedby` always points at a real element; a screen reader only reads it
+once it loses `hidden`. Building the attribute per-request is impossible in a
+template without a custom widget, and omitting it when there is an error is the
+more damaging failure (design.md §6.2, §9).
+{% endcomment %}
+<div>
+  <label for="{{ field.id_for_label }}" class="block text-body-sm font-medium text-ink">
+    {{ field.label }}{% if field.field.required %} <span class="font-normal text-ink-3">(required)</span>{% endif %}
+  </label>
+
+  {% if field.help_text %}
+  <p id="{{ field.id_for_label }}-help" class="mt-1 text-body-sm text-ink-3">{{ field.help_text }}</p>
+  {% endif %}
+
+  <div class="mt-1{% if field.name == 'password' %} relative{% endif %}">
+    {{ field }}
+    {% if field.name == 'password' %}
+    <button type="button" data-toggle-password="{{ field.id_for_label }}"
+            aria-controls="{{ field.id_for_label }}" aria-pressed="false" hidden
+            class="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm px-2 py-1 text-body-sm font-medium text-primary-strong underline">
+      Show
+    </button>
+    {% endif %}
+  </div>
+
+  <p id="{{ field.id_for_label }}-error" class="mt-1 text-body-sm text-danger"{% if not field.errors %} hidden{% endif %}>
+    {% if field.errors %}<span aria-hidden="true">✖</span> {{ field.errors.0 }}{% endif %}
+  </p>
+</div>

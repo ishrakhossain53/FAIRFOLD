@@ -322,7 +322,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 
 | ID | Requirement | Priority | Acceptance Criteria |
 |---|---|---|---|
-| REQ-FR-001 | User Registration | High | **Given** unverified email; **When** user submits registration form with valid email/password/role; **Then** account created, verification email sent, `email_verified=False` |
+| REQ-FR-001 | User Registration | High | **Given** no account; **When** user submits registration form with valid email/password/first name/last name/role; **Then** account created, verification email sent, `email_verified=False` |
 | REQ-FR-002 | User Login | High | **Given** verified user with correct credentials; **When** user submits login; **Then** JWT access (15 min) + refresh (7 day) tokens returned; **And** `failed_login_attempts` reset to 0 |
 | REQ-FR-003 | Account Lockout | High | **Given** user has 5 consecutive failed login attempts; **When** 6th attempt occurs; **Then** account locked for 15 min; **And** `locked_until` set to current time + 15 min |
 | REQ-FR-004 | Password Recovery | High | **Given** user requests password reset; **When** valid email provided; **Then** password reset email sent with 1-hour expiry token link |

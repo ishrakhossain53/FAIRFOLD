@@ -20,8 +20,8 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [ ] 1.2 Role helpers, permission classes, role-exclusivity (pending my test output)
 - [ ] 1.3 Registration service
 - [ ] 1.4 Email verification tokens and email task (pending my test output)
-- [ ] 1.5 Registration and verification API
-- [ ] 1.6 Registration and verification UI
+- [x] 1.5 Registration and verification API (2026-10-20, 101 targeted + 363 full suite passed)
+- [x] 1.6 Registration and verification UI (2026-10-20, 101 targeted + 363 full suite passed)
 - [ ] 1.7 Login service with lockout
 - [ ] 1.8 JWT login, refresh, logout and revocation API
 - [ ] 1.9 Login, logout and access-denied UI

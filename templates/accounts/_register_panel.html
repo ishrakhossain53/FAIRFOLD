@@ -1,0 +1,100 @@
+<div id="register-panel">
+{% comment %}
+The summary is the first thing in the panel and links to each field that failed.
+`role="alert"` because it appears after a submit the user already made; focus is
+moved here by the page script (design.md §6.2, §8.3).
+{% endcomment %}
+  {% if form.errors %}
+  <div id="error-summary" tabindex="-1" role="alert"
+       class="mb-6 rounded-md border border-danger bg-danger-soft p-4">
+    <h2 class="text-h4 font-semibold text-danger-ink">There is a problem with your details</h2>
+    <ul class="mt-2 list-inside list-disc space-y-1 text-body-sm text-danger-ink">
+      {% for error in form.non_field_errors %}
+      <li>{{ error }}</li>
+      {% endfor %}
+      {% for field in form %}
+      {% if field.errors %}
+      <li><a class="underline" href="#id_{{ field.name }}">{{ field.label }}</a></li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% comment %}
+  `novalidate` so the server-rendered summary is the one set of error copy
+  (design.md §6.2). Browser bubbles would be a second, differently worded set,
+  and they would stop the POST before the summary could render.
+  {% endcomment %}
+  <form method="post" action="{% url 'accounts_public:register' %}"
+        hx-post="{% url 'accounts_public:register' %}"
+        hx-target="#register-panel" hx-swap="outerHTML" novalidate
+        class="space-y-5 rounded-md border border-border bg-surface p-6 shadow-card">
+    {% csrf_token %}
+
+    {% comment %}
+    A RadioSelect gives its inputs `id_role_0`, `id_role_1`… but no id for the
+    group, so the error summary's "I am…" link would point at nothing. The
+    fieldset is the group, and `tabindex="-1"` lets it take focus from the link
+    (design.md §6.2: links from the summary go to the field).
+    {% endcomment %}
+    <fieldset id="id_role" tabindex="-1">
+      <legend class="text-body-sm font-medium text-ink">{{ form.role.label }}</legend>
+      <div class="mt-2 grid gap-2 sm:grid-cols-2">
+        {% for radio in form.role %}
+        <label class="flex cursor-pointer items-center gap-3 rounded-md border border-border-input bg-surface px-4 py-3 text-body text-ink">
+          {{ radio.tag }}
+          <span>{{ radio.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <p id="id_role-error" class="mt-1 text-body-sm text-danger"{% if not form.role.errors %} hidden{% endif %}>
+        {% if form.role.errors %}<span aria-hidden="true">✖</span> {{ form.role.errors.0 }}{% endif %}
+      </p>
+    </fieldset>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% include "accounts/_field.html" with field=form.first_name %}
+      {% include "accounts/_field.html" with field=form.last_name %}
+    </div>
+
+    {% include "accounts/_field.html" with field=form.email %}
+    {% include "accounts/_field.html" with field=form.password %}
+
+    <div>
+      <div class="flex items-start gap-3">
+        {{ form.consent }}
+        <label for="{{ form.consent.id_for_label }}" class="text-body-sm text-ink">
+          I accept the <a href="/privacy/" class="underline">Privacy Policy</a> and
+          <a href="/terms/" class="underline">Terms</a>.
+        </label>
+      </div>
+      <p id="id_consent-error" class="mt-1 text-body-sm text-danger"{% if not form.consent.errors %} hidden{% endif %}>
+        {% if form.consent.errors %}<span aria-hidden="true">✖</span> {{ form.consent.errors.0 }}{% endif %}
+      </p>
+    </div>
+
+    <button type="submit"
+            class="inline-flex h-touch w-full items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong sm:w-auto">
+      Create account
+    </button>
+  </form>
+</div>
+
+<script>
+  // Show/hide is an enhancement: the button is `hidden` in the markup and only
+  // revealed here, so a JS-disabled page has no dead control. Re-runs after each
+  // HTMX swap because the panel is replaced, which removes the old listeners.
+  document.querySelectorAll('[data-toggle-password]').forEach(function (button) {
+    var input = document.getElementById(button.getAttribute('data-toggle-password'));
+    if (!input) { return; }
+    button.hidden = false;
+    button.addEventListener('click', function () {
+      var showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      button.textContent = showing ? 'Show' : 'Hide';
+      button.setAttribute('aria-pressed', showing ? 'false' : 'true');
+      input.focus();
+    });
+  });
+</script>
