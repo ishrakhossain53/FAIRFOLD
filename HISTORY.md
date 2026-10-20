@@ -2123,6 +2123,42 @@ criterion is demonstrated by a new test, so no TRACEABILITY status is promoted t
 `partial`).
 
 
+### Batch 1.1: User model characterization tests (2026-10-20)
+
+**Entry reconstructed 2026-10-20.** This batch was implemented and committed as `032505f` but appended no
+`## 7. Batch log` entry, and `docs/PROGRESS.md` was left unchecked. The text below is written from the
+committed code plus a fresh re-run of its tests, not from a contemporaneous record.
+
+**What changed.**
+
+- `tests/accounts/test_user_model.py` (new, 29 tests) — pins `create_user`/`create_superuser` (email
+  lower-casing, unusable password when none is given, active/staff/superuser defaults, empty email
+  refused, explicit false superuser flags refused), duplicate email including a different case,
+  `is_locked()` for `None`/future/past/exact-boundary/in-memory values, `has_role` and the
+  `is_candidate`/`is_employer`/`is_employer_admin` properties, `__str__` returning the email and never
+  the names, the UUID primary key and `USERNAME_FIELD`/`db_table`, `ROLES` against
+  `core/fixtures/groups.json`, and the documented direct-`create()` bypass (no lower-casing; two rows
+  differing only in case can coexist).
+- `accounts/models.py` — **bug fixed and reported separately:** `ROLES` and the role properties still
+  used the pre-D-2 name `employer_admin`, while the fixture already held `employer_manager` (the drift
+  recorded in batch 0.5). The new fixture-comparison test fails against that pair; the commit changed
+  `ROLES`, `is_employer` and `is_employer_admin` to `employer_manager`. No column or table change, so
+  there is no migration.
+
+**Commands run (2026-10-20 re-run; `DEBUG` unset, `config.settings.ci`).**
+
+- `.venv/bin/pytest tests/accounts/test_user_model.py -q` → **29 passed**.
+- `.venv/bin/python manage.py check` → "System check identified no issues (0 silenced)."
+- `.venv/bin/python manage.py makemigrations --check --dry-run` → "No changes detected".
+
+**Known limitations.** The direct-`create()` case-sensitivity test documents a wart rather than fixing
+it: `email` is `unique=True`, and PostgreSQL compares that index case-sensitively, so only the
+manager's lower-casing prevents duplicate addresses. A case-insensitive database constraint would be a
+schema/spec decision and was not taken here. `first_name`/`last_name` remain plain `CharField`s although
+the DDL marks them ENCRYPTED, and the DDL's `mfa_secret`, `created_at` and `updated_at` are not modelled
+(pre-existing; recorded in `accounts/models.py`).
+
+
 ### Batch 1.2: Role helpers, permission classes, role-exclusivity (2026-10-20)
 
 Implemented the role layer on top of the batch 1.1 characterization tests. Nothing was committed.
@@ -2182,6 +2218,56 @@ still says "last-`employer_admin`" and `core/management/commands/seed.py` keeps 
 both noted as observations rather than changed here. `docs/PROGRESS.md` line 1.1 also remains
 unchecked even though `tests/accounts/test_user_model.py` passes (29 tests); its tracking was not
 updated by that batch.
+
+### Batch 1.3: Registration service (2026-10-20)
+
+**Entry reconstructed 2026-10-20.** This batch was committed as `1044225` but appended no
+`## 7. Batch log` entry, and `docs/PROGRESS.md` was left unchecked. The text below is written from the
+committed code plus a fresh re-run of its tests, not from a contemporaneous record.
+
+**What changed.**
+
+- `accounts/services.py` — `register_user(email, password, first_name, last_name, role)` (REQ-FR-001).
+  It normalises the address exactly as `UserManager` stores it (strip, lowercase the whole address),
+  validates it with `validate_email`, runs every `AUTH_PASSWORD_VALIDATORS` entry with a provisional
+  user so the name/email-similarity rule applies, and creates the account with
+  `User.objects.create_user` so the password is hashed and `email_verified` stays `False`.
+  `SELF_ASSIGNABLE_ROLES = ("candidate", "employer_hr")` is the signup split from design.md page 6;
+  `employer_manager` is a later promotion and `interviewer` an invitation (REQ-FR-047), so both raise
+  `RoleNotSelfAssignableError`. The user, the `assign_role` membership and one `AuditLogEntry`
+  (`action="user_registered"`, `details={"role": role}`) are written in one transaction, so a missing
+  seeded group or failed audit insert leaves no half-created account. A duplicate address returns
+  `None` instead of raising, so the future API can answer identically to success and avoid becoming an
+  account-enumeration oracle; an `IntegrityError` from the unique index is absorbed only when the
+  address is confirmed taken.
+- `config/settings/base.py` — `PASSWORD_HASHERS` pinned explicitly with
+  `Argon2PasswordHasher` first (REQ-SEC-001). `ci.py`/`local.py` override it with MD5 for speed, so the
+  pin is asserted against `config.settings.base` directly.
+- `accounts/models.py` — comment corrected from `settings.AUTH_PASSWORD_HASHERS` to
+  `settings.PASSWORD_HASHERS`; no behaviour change.
+- `tests/accounts/test_registration.py` (new, 34 tests) — success for both self-assignable roles;
+  unverified account; hashed password; email strip/lower-case; malformed/missing email; duplicate
+  (including different case and a duplicate that appears after the pre-check); weak, numeric, common
+  and name-similar passwords; empty password; forbidden roles (`employer_manager`, `interviewer`,
+  `admin`, the form label `employer`, empty, wrong case); transaction rollback on a failed role
+  assignment and on a missing seeded group; exactly one audit entry that holds no email or name.
+- `tests/accounts/test_password_hashing.py` (new, 3 tests) — base settings try Argon2 first, the
+  hasher is Argon2**id** (`argon2.low_level.Type.ID`), and CI keeps its MD5 override.
+
+**Commands run (2026-10-20 re-run; `DEBUG` unset, `config.settings.ci`).**
+
+- `.venv/bin/pytest tests/accounts/test_registration.py -q` → **34 passed**.
+- `.venv/bin/pytest tests/accounts/test_password_hashing.py -q` → **3 passed**.
+- `.venv/bin/python manage.py check` → "System check identified no issues (0 silenced)."
+- `.venv/bin/python manage.py makemigrations --check --dry-run` → "No changes detected".
+
+**Known limitations.** The HTTP endpoint, forms and verification email are out of scope for this batch;
+the views that call `register_user` and queue the email landed in 1.5/1.6. The audit entry records the
+role only — consent is required by the form but not stored (Arch Doc §5.1 has no column). Email
+uniqueness is still enforced only by the manager's lower-casing plus a case-sensitive unique index (see
+batch 1.1). The similarity validator's provisional user is never saved, which is intentional but means
+an update path must repeat the check.
+
 
 ### Batch 1.4: Email verification tokens and email task (2026-10-20)
 
@@ -2534,3 +2620,57 @@ REQ-FR-001 to `done` on the strength of the run recorded above: 101 passed acros
 and `verify_docs.py` exit 0. Nothing was committed. The two "evidence of record"
 parentheticals above were corrected to record this waiver instead of implying a
 maintainer paste that did not happen.
+
+### Batch 1.1-1.4: tracking reconciliation (2026-10-20)
+
+Documentation-only pass. The code and tests for batches 1.1-1.4 were already implemented and committed
+(`032505f`, `613f0eb`, `1044225`, `1a0ced9`); what was missing was the bookkeeping, not the work. The
+maintainer instructed that the four batches be checked and marked complete in `docs/PROGRESS.md`.
+
+**What changed.**
+
+- `docs/PROGRESS.md` — 1.1-1.4 changed from `[ ]` (1.2/1.4 still said "pending my test output") to
+  `[x]`, each with the date and its targeted test count.
+- `HISTORY.md` — added the missing `Batch 1.1` and `Batch 1.3` entries above. Both are explicitly marked
+  as reconstructed from the commits and a fresh test run, because the batches wrote no entry at the
+  time. This entry records the reconciliation itself.
+- `docs/TRACEABILITY.md` — evidence cells for REQ-FR-003, REQ-FR-038 and REQ-FR-045 now name the tests
+  that demonstrate the implemented part. No status was invented: REQ-FR-003, REQ-FR-038 and REQ-FR-045
+  stay `partial` because their remaining acceptance criteria (5-attempt lockout/login service, admin
+  user management, `EmployerProfile` onboarding and activation guard) are still unbuilt. REQ-FR-001 was
+  already `done` from batches 1.3-1.6.
+- No Python, template, fixture, migration or settings file was touched.
+
+**Commands run** (`DEBUG` unset, PostgreSQL/Redis from Compose, `config.settings.ci`).
+
+- `.venv/bin/pytest tests/accounts/test_user_model.py tests/accounts/test_role_assignment.py tests/accounts/test_permissions.py tests/accounts/test_registration.py tests/accounts/test_email_verification.py tests/accounts/test_password_hashing.py -q` → **147 passed**.
+- Per file: `test_user_model.py` 29, `test_role_assignment.py` 19, `test_permissions.py` 36,
+  `test_registration.py` 34, `test_email_verification.py` 26, `test_password_hashing.py` 3.
+- `.venv/bin/pytest tests/ -q` → **363 passed**, 16 pre-existing drf-spectacular deprecation warnings.
+- `.venv/bin/python manage.py check` → "System check identified no issues (0 silenced)."
+- `.venv/bin/python manage.py makemigrations --check --dry-run` → "No changes detected" (plus the
+  pre-existing `fairfold_test`-does-not-exist RuntimeWarning from the migration-history probe).
+- `.venv/bin/flake8 accounts/ tests/accounts/ --max-line-length=120 --extend-exclude='*/migrations/*'`
+  → exit 0; `black --check accounts/ tests/accounts/` → 25 files unchanged; `isort --check-only` on the
+  same paths → no errors (3 files skipped by project config).
+- `.venv/bin/python scripts/verify_docs.py` → exit 0 (33 tables, 53 FKs, 27 indexes asserted).
+
+**Acceptance.** The maintainer waived rule 9 for this reconciliation exactly as for batches 1.5/1.6,
+instructing that the batches be marked complete without a separate pasted run. The `[x]` marks rest on
+the run recorded above, which the agent executed in this repository. Nothing was committed or pushed.
+
+**Known limitations / open items.**
+
+- The permission classes in `accounts/permissions.py` decide on group membership through the `is_*`
+  model properties, not `has_perm`, because `core/fixtures/groups.json` seeds the groups with
+  `"permissions": []` and the docs define roles without permission codenames. Adding codenames would be
+  a spec change and needs a decision before any `has_perm`-based check is introduced.
+- `config/settings/production.py` validates `EMAIL_BACKEND_URL` and sets `ANYMAIL`, but never sets
+  `EMAIL_BACKEND` to an `anymail.backends.*` class, so production still inherits the console backend
+  from `base.py`. Which ESP backend to pin (the stored URL has no scheme that identifies a provider) is
+  a decision, so it was not guessed here. Recorded as an observation, not fixed.
+- The concurrent-write races in `assign_role` and `verify_email` are guarded with
+  `select_for_update()` but not exercised by a concurrency test.
+- `tests/accounts/test_user_model.py` pins the case-sensitive unique index as a known wart; changing it
+  is a schema decision.
+
