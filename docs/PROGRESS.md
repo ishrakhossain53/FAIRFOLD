@@ -16,10 +16,10 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 
 ## Phase 1: Core recruitment platform (no AI)
 
-- [ ] 1.1 User model characterization tests
-- [ ] 1.2 Role helpers, permission classes, role-exclusivity (pending my test output)
-- [ ] 1.3 Registration service
-- [ ] 1.4 Email verification tokens and email task (pending my test output)
+- [x] 1.1 User model characterization tests (2026-10-20, 29 passed in tests/accounts/test_user_model.py)
+- [x] 1.2 Role helpers, permission classes, role-exclusivity (2026-10-20, 19 role-assignment + 36 permission tests passed; 16/16 role-matrix pairs covered)
+- [x] 1.3 Registration service (2026-10-20, 34 registration + 3 password-hasher tests passed)
+- [x] 1.4 Email verification tokens and email task (2026-10-20, 26 tests passed; 147 passed across batches 1.1-1.4)
 - [x] 1.5 Registration and verification API (2026-10-20, 101 targeted + 363 full suite passed)
 - [x] 1.6 Registration and verification UI (2026-10-20, 101 targeted + 363 full suite passed)
 - [ ] 1.7 Login service with lockout
