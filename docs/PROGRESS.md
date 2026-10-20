@@ -19,7 +19,7 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [ ] 1.1 User model characterization tests
 - [ ] 1.2 Role helpers, permission classes, role-exclusivity (pending my test output)
 - [ ] 1.3 Registration service
-- [ ] 1.4 Email verification tokens and email task
+- [ ] 1.4 Email verification tokens and email task (pending my test output)
 - [ ] 1.5 Registration and verification API
 - [ ] 1.6 Registration and verification UI
 - [ ] 1.7 Login service with lockout

@@ -26,8 +26,8 @@ table must not be used to satisfy the §4.1 row-count check — that check reads
 
 | FR | Requirement | Priority | Phase | Owning app | API endpoint(s) (Complete Doc §C.12) | DB table(s) (Arch Doc §5.1) | Status | Evidence path | Planned batch |
 |---|---|---|---|---|---|---|---|---|---|
-| REQ-FR-001 | User Registration | High | 1 | accounts | POST /api/v1/auth/register/; POST /api/v1/auth/verify-email/; POST /api/v1/auth/verify-email/resend/ | users | not started |  |  |
-| REQ-FR-002 | User Login | High | 1 | accounts | POST /api/v1/auth/login/ | users | partial | config/settings/base.py — SIMPLE_JWT now 15-min access / 7-day refresh + token_blacklist (D-7); no login service or test yet |  |
+| REQ-FR-001 | User Registration | High | 1 | accounts | POST /api/v1/auth/register/; POST /api/v1/auth/verify-email/; POST /api/v1/auth/verify-email/resend/ | users | partial | accounts/services.py — `register_user` (batch 1.3), `make_verification_token`/`verify_email`/`resend_verification_email` (1.4); accounts/tasks.py — `send_verification_email`; tests/accounts/test_registration.py, tests/accounts/test_email_verification.py. Missing: the three endpoints (batch 1.5), the pages (1.6), and the registration path calling `queue_verification_email` |  |
+| REQ-FR-002 | User Login | High | 1 | accounts | POST /api/v1/auth/login/ | users | partial | config/settings/base.py — SIMPLE_JWT now 15-min access / 7-day refresh + token_blacklist (D-7); accounts/services.py — `verify_email` flips `email_verified` exactly once (1.4); no login service or test yet |  |
 | REQ-FR-003 | Account Lockout | High | 1 | accounts | POST /api/v1/auth/login/ | users | partial | accounts/models.py — `User.failed_login_attempts`, `locked_until`, `is_locked()`; no login service or test yet |  |
 | REQ-FR-004 | Password Recovery | High | 1 | accounts | POST /api/v1/auth/password/reset/; POST /api/v1/auth/password/reset/confirm/ | users | not started |  |  |
 | REQ-FR-005 | MFA Enable | Medium | 4 | accounts | POST /api/v1/auth/mfa/enable/ | users | not started |  |  |
