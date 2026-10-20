@@ -45,10 +45,29 @@ from django.contrib.auth.models import (
 from django.db import models
 from django.utils import timezone
 
-# The four documented roles. Declared here so a test can assert the fixture set
-# matches, rather than the names being spelled out in a dozen test files. The
-# authoritative definitions live in core/fixtures/groups.json.
-ROLES = ("candidate", "employer_hr", "employer_manager", "interviewer")
+# The four documented roles (decision D-2). Declared here so a test can assert the
+# fixture set matches, rather than the names being spelled out in a dozen test
+# files. The authoritative definitions live in core/fixtures/groups.json.
+CANDIDATE_ROLE = "candidate"
+EMPLOYER_HR_ROLE = "employer_hr"
+# D-2 renamed the employer-admin role to `employer_manager`. `User.is_employer_admin`
+# keeps its pre-D-2 name because characterization tests and callers use it; the
+# group it checks is the requirement's.
+EMPLOYER_MANAGER_ROLE = "employer_manager"
+INTERVIEWER_ROLE = "interviewer"
+
+ROLES = (
+    CANDIDATE_ROLE,
+    EMPLOYER_HR_ROLE,
+    EMPLOYER_MANAGER_ROLE,
+    INTERVIEWER_ROLE,
+)
+
+# The employer side of REQ-FR-045's mutual-exclusion rule. `interviewer` is not
+# here: REQ-FR-047 defines it as an employer-team role, not as "an employer" for
+# the purpose of that rule, so including it would reject a combination the
+# requirements do not forbid.
+EMPLOYER_ROLES = (EMPLOYER_HR_ROLE, EMPLOYER_MANAGER_ROLE)
 
 
 class UserManager(BaseUserManager["User"]):
@@ -164,12 +183,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_candidate(self) -> bool:
-        return self.has_role("candidate")
+        return self.has_role(CANDIDATE_ROLE)
 
     @property
     def is_employer(self) -> bool:
-        return self.has_role("employer_manager") or self.has_role("employer_hr")
+        return any(self.has_role(role) for role in EMPLOYER_ROLES)
 
     @property
     def is_employer_admin(self) -> bool:
-        return self.has_role("employer_manager")
+        # Pre-D-2 name, requirement role (see EMPLOYER_MANAGER_ROLE).
+        return self.has_role(EMPLOYER_MANAGER_ROLE)
