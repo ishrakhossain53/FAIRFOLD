@@ -356,6 +356,28 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "noreply@fairfold.local")
 DEFAULT_FROM_EMAIL_NAME = "FairFold"
 
+# Where the verification link points (design.md page #11). The template route is
+# built in batch 1.6, so this default is a placeholder until that route exists;
+# it is a setting because a Celery task has no request to build an absolute URI
+# from and because the host differs per environment.
+EMAIL_VERIFICATION_URL = env(
+    "EMAIL_VERIFICATION_URL", "http://localhost:8000/verify-email/"
+)
+
+# design.md X02 shows the resend button as "available in 0:45", so the cooldown
+# is 45 seconds. It lives in the cache, not the database: a resend check must
+# not be able to take the users table down.
+EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = int(
+    env("EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS", "45")
+)
+
+# REQ-FR-001 requires an expiring link but does not state a lifetime. 24 hours is
+# the default; it is a setting so the policy can be changed without editing the
+# signing code, and short enough that a leaked mailbox does not stay useful.
+EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS = int(
+    env("EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS", "86400")
+)
+
 
 # ---------------------------------------------------------------------------
 # Internationalisation

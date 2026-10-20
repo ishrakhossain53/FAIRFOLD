@@ -30,15 +30,28 @@ group-as-role design is meant to avoid.
 
 Assignment is idempotent: adding a role the user already holds is a no-op, so a
 retried invitation-acceptance request does not fail.
+
+The third concern is **email verification** (REQ-FR-001, decision D-3). The
+token is a `TimestampSigner` signature over the encoded user id, not a database
+row and not the id itself. Verification flips `email_verified` exactly once,
+under a row lock, so a link opened twice (or in two tabs) cannot succeed twice.
+Resending is throttled per user through the cache, not the database: the cooldown
+must not be able to take the `users` table down, and it expires by itself.
 """
 
 from __future__ import annotations
 
+import uuid
+
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from accounts.models import (
     CANDIDATE_ROLE,
@@ -240,3 +253,182 @@ def register_user(
         raise
 
     return user
+
+
+# ---------------------------------------------------------------------------
+# Email verification (REQ-FR-001, decision D-3)
+# ---------------------------------------------------------------------------
+
+# A distinct salt, not the default. `SECRET_KEY` signs every `signing` use in the
+# project, so without a namespace a password-reset token (batch 1.10) could be
+# replayed here as a verification token. The salt is a constant, not a secret:
+# changing it invalidates every outstanding link, which is the intended way to
+# revoke them all at once.
+VERIFICATION_TOKEN_SALT = "accounts.email_verification"
+
+# Prefix of the per-user cooldown key. Exposed because a test deletes one user's
+# key to simulate the window passing; a test that rebuilt the string itself
+# would keep passing after the service changed it.
+RESEND_THROTTLE_KEY_PREFIX = "email-verification:resend"
+
+
+class VerificationError(ValueError):
+    """A verification link could not be used.
+
+    A `ValueError` so the batch 1.5 view can map it to a 400 without importing a
+    service-specific type, while callers that need a distinct response (an
+    already-verified click, say) can still catch the subclass.
+
+    Messages never contain the token, the user id or the email. This text can
+    reach a log line and an API error body, and the token is a bearer credential.
+    """
+
+
+class VerificationTokenExpired(VerificationError):
+    """The signature is genuine but older than the configured lifetime."""
+
+
+class InvalidVerificationToken(VerificationError):
+    """The token is malformed, tampered with, or names no user."""
+
+
+class EmailAlreadyVerified(VerificationError):
+    """A usable token was presented for an account that is already verified.
+
+    Kept separate from `InvalidVerificationToken` so batch 1.5 can show the
+    success state (design.md page #11) instead of "this link is invalid".
+    """
+
+
+def resend_throttle_cache_key(user: User) -> str:
+    """Cache key for `user`'s resend cooldown.
+
+    Per user, not per address: the caller already holds the account, and a
+    lookup by email here would turn the resend view into an enumeration oracle.
+    """
+    return f"{RESEND_THROTTLE_KEY_PREFIX}:{user.pk}"
+
+
+def make_verification_token(user: User) -> str:
+    """Return a signed, expiring token for `user` (REQ-FR-001, D-3).
+
+    The token is **not** the user id. The id is base64-encoded first, then signed
+    with a timestamp and an HMAC, so the literal id is not readable in the link
+    and the value cannot be guessed, edited or replayed after the lifetime in
+    `EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS`. Using the raw id would make every
+    account verifiable by anyone who could guess one. The encoding is not
+    secrecy — the signature is what stops tampering — it keeps internal ids out
+    of mail logs, browser history and referrer headers.
+
+    The clock starts when the token is created, which is why the sending task
+    generates it rather than the caller: a queued task must not spend the link's
+    lifetime waiting in the broker.
+    """
+    payload = urlsafe_base64_encode(str(user.pk).encode())
+    return TimestampSigner(salt=VERIFICATION_TOKEN_SALT).sign(payload)
+
+
+def verify_email(token: str) -> User:
+    """Mark the token's account as verified and return it.
+
+    Exactly once: the row is locked and re-read inside the transaction, so two
+    requests with the same link cannot both flip the flag. The second one raises
+    `EmailAlreadyVerified`.
+
+    Raises:
+        VerificationTokenExpired: the signature is older than the configured
+            lifetime.
+        InvalidVerificationToken: the token is malformed, tampered with, or the
+            account no longer exists. One error for all three: telling an
+            anonymous caller which one it was helps nobody legitimate.
+        EmailAlreadyVerified: the account was already verified, by this token or
+            another one.
+    """
+    if not isinstance(token, str) or not token.strip():
+        raise InvalidVerificationToken("A verification token is required.")
+
+    try:
+        signed_user_id = TimestampSigner(salt=VERIFICATION_TOKEN_SALT).unsign(
+            token.strip(),
+            max_age=settings.EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS,
+        )
+    except SignatureExpired as exc:
+        raise VerificationTokenExpired(
+            "This verification link has expired. Request a new one."
+        ) from exc
+    except BadSignature as exc:
+        raise InvalidVerificationToken("This verification link is invalid.") from exc
+
+    try:
+        user_id = uuid.UUID(urlsafe_base64_decode(signed_user_id).decode())
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise InvalidVerificationToken("This verification link is invalid.") from exc
+
+    try:
+        with transaction.atomic():
+            user = User.objects.select_for_update().get(pk=user_id)
+            if user.email_verified:
+                raise EmailAlreadyVerified("This email address is already verified.")
+            user.email_verified = True
+            user.save(update_fields=["email_verified"])
+    except User.DoesNotExist as exc:
+        raise InvalidVerificationToken("This verification link is invalid.") from exc
+
+    return user
+
+
+def _dispatch_verification_email(user: User) -> None:
+    """Queue the task for after the surrounding transaction commits.
+
+    The task looks the user up by id. Dispatching inside `register_user`'s
+    transaction would race the commit: a worker can pick the task up before the
+    row is visible, find nothing, and drop the only verification email. In
+    autocommit, `on_commit` runs the callback immediately.
+    """
+    # Imported here, not at module scope: `accounts.tasks` imports the token
+    # helper from this module.
+    from accounts.tasks import send_verification_email
+
+    user_id = str(user.pk)
+    transaction.on_commit(lambda: send_verification_email.delay(user_id))
+
+
+def queue_verification_email(user: User) -> None:
+    """Send the first verification email and start the resend cooldown.
+
+    Registration calls this once, after the account exists. Starting the
+    cooldown here is what makes design.md X02's "available in 0:45" true on the
+    pending page: without it the first click would send a second email at once.
+    """
+    cache.add(
+        resend_throttle_cache_key(user),
+        1,
+        timeout=settings.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
+    )
+    _dispatch_verification_email(user)
+
+
+def resend_verification_email(user: User) -> bool:
+    """Queue another verification email unless the cooldown is running.
+
+    Returns True when a send was queued. False means the account is already
+    verified, is inactive, or is inside its cooldown. Batch 1.5 must answer all
+    three identically, so the boolean is for tests, not for an error body.
+
+    `cache.add` is the throttle: it sets the key only if it is absent, atomically,
+    so two concurrent resends cannot both pass the check the way a
+    `get`-then-`set` would. The key is written before dispatch on purpose -- a
+    provider outage must not turn into a retry loop.
+    """
+    if user.email_verified or not user.is_active:
+        return False
+
+    if not cache.add(
+        resend_throttle_cache_key(user),
+        1,
+        timeout=settings.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
+    ):
+        return False
+
+    _dispatch_verification_email(user)
+    return True

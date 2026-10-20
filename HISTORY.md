@@ -57,7 +57,7 @@ blocked.
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 420 | Project overview, documentation index, setup |
 
-| `.env.example` | 159 | Environment variables, all placeholders |
+| `.env.example` | 168 | Environment variables, all placeholders |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -2182,3 +2182,75 @@ still says "last-`employer_admin`" and `core/management/commands/seed.py` keeps 
 both noted as observations rather than changed here. `docs/PROGRESS.md` line 1.1 also remains
 unchecked even though `tests/accounts/test_user_model.py` passes (29 tests); its tracking was not
 updated by that batch.
+
+### Batch 1.4: Email verification tokens and email task (2026-10-20)
+
+Implemented the stateless verification token, the sending task and the resend throttle. No endpoints
+or templates (out of scope). Nothing was committed.
+
+**What changed.**
+
+- `accounts/services.py` — new verification section (REQ-FR-001, decision D-3). `make_verification_token`
+  signs `urlsafe_base64(<user id>)` with `django.core.signing.TimestampSigner` under the dedicated salt
+  `accounts.email_verification`; the token therefore carries a timestamp and an HMAC, and the literal
+  user id is not readable in the link. `verify_email(token)` unsigns with
+  `settings.EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS`, decodes the id, then flips `email_verified` under
+  `select_for_update()` inside one transaction. Expired tokens raise `VerificationTokenExpired`,
+  tampered/malformed/unknown-account tokens raise `InvalidVerificationToken`, and a second use (or a
+  fresh token for an already-verified account) raises `EmailAlreadyVerified`; all three are
+  `ValueError` subclasses and their messages never contain the token, id or email. `queue_verification_email`
+  starts the per-user cooldown and dispatches through `transaction.on_commit`, so a worker cannot run
+  before the user row commits. `resend_verification_email` is throttled with `cache.add` on
+  `email-verification:resend:<user id>`, which is atomic in Redis; the key is written before dispatch so
+  a provider outage does not become a retry loop.
+- `accounts/tasks.py` — `send_verification_email(user_id)` (`@shared_task(ignore_result=True)`) looks the
+  account up by id, skips missing/malformed/verified/inactive accounts, generates a fresh token at send
+  time, URL-quotes it into `settings.EMAIL_VERIFICATION_URL`, and sends one plain-text email through the
+  configured backend. It takes an id, not an address, so the broker payload holds no PII; it returns
+  nothing so the token cannot leak into a Celery result.
+- `config/settings/base.py` — `EMAIL_VERIFICATION_URL` (placeholder `http://localhost:8000/verify-email/`
+  until the batch 1.6 route exists), `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` (45, from design.md X02
+  "available in 0:45") and `EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS` (24 h default; REQ-FR-001 does not
+  state a lifetime). No `CREATE TABLE` change: D-3 chose the stateless token, so the 33-table DDL is
+  untouched and there is no migration.
+- `.env.example` — the three new variables, documented.
+- `tests/accounts/test_email_verification.py` (new, 26 tests) — valid token; literal-id-is-not-a-token;
+  second use; fresh token for a verified account; expired (signing clock patched, not slept); tampered;
+  malformed/empty; deleted account; one email in `mailoutbox` with a working link; no email for verified,
+  inactive, malformed-id or unknown-id; first resend; in-cooldown resend; cooldown expiry; per-user
+  isolation; verified account; signup starts the cooldown; resend reaches the outbox; dispatch is
+  deferred to `transaction.on_commit`. The resend class uses `django_db(transaction=True)` because the
+  default TestCase wrapping never commits and `on_commit` would never run.
+
+**Commands run and results.**
+
+- `pytest tests/accounts/test_email_verification.py -q` → **26 passed**.
+- `pytest tests/accounts/ -q` → **147 passed**.
+- `pytest tests/ -q` with `DEBUG` unset → **262 passed**.
+- `manage.py check` → "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` → "No changes detected" (same pre-existing
+  `fairfold_test` does-not-exist RuntimeWarning as batch 1.2; no model change).
+- `flake8 accounts/ tests/accounts/ config/ --max-line-length=120 --extend-exclude='*/migrations/*'`
+  → exit 0.
+- `black --check accounts/ tests/accounts/ config/settings/base.py` → clean;
+  `isort --check-only ...` → clean (3 files skipped by project config).
+- `mypy accounts/ --ignore-missing-imports` → "Success: no issues found in 12 source files".
+- First full run without unsetting the ambient `DEBUG=True` produced 14 failures in
+  `tests/core/test_production_settings.py` (production settings correctly refused `DEBUG=True`). That is
+  the environment warning from AGENTS.md, not a code failure; rerunning with `DEBUG` unset gave 262 passed.
+
+**Docs.** `docs/PROGRESS.md` line 1.4 is `(pending my test output)` — not `[x]` until the maintainer
+pastes their own run. `docs/TRACEABILITY.md`: REQ-FR-001 moved `not started` → `partial`, REQ-FR-002
+stays `partial` with the new verification evidence; the missing endpoints/UI/login are named in the cells.
+One older HISTORY line was edited to correct a fact: the file table near the top now says
+`.env.example` is 168 lines (was 159), because this batch added nine lines and `verify_docs.py` asserts
+that count.
+
+**Known limitations.** The token lifetime (24 h) and the verification page path are not stated in the
+docs; both are settings with defaults that should be confirmed before batch 1.6. `queue_verification_email`
+is not called from `register_user` yet — batch 1.5 wires it, and if the broker is down the non-robust
+`on_commit` callback will raise after the account is committed. There is no test for two concurrent
+verifications (the row lock is reasoned, not exercised) and no test that a real worker consumes the task
+from Redis (Celery is deliberately not eager in CI). `config/settings/production.py` still never sets
+`EMAIL_BACKEND` to an anymail backend, so production would inherit the console backend even though
+`EMAIL_BACKEND_URL` is required; pre-existing, out of scope, recorded as an observation.
