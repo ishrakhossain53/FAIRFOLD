@@ -166,6 +166,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Batch 1.13: Django 5.2 has no CSP support, and the documented policy lived
+    # only in the Nginx config. Setting it here makes it part of the tested
+    # response surface.
+    "core.middleware.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -290,6 +294,26 @@ X_FRAME_OPTIONS = "DENY"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 SECURE_REFERRER_POLICY = "same-origin"
+
+# Content-Security-Policy (REQ-SEC-010, batch 1.13). Set by
+# `core.middleware.ContentSecurityPolicyMiddleware`, not only by the edge: the
+# canonical docs configured it in Nginx, and a deployment without that proxy
+# shipped no CSP at all.
+#
+# Self-hosted only. `base.html` loads the compiled Tailwind file and the vendored
+# htmx from /static/, and design.md §11.2 says the CDN is not a production
+# fallback, so no third-party script host appears here. `'unsafe-inline'` is
+# still required by the two inline <script> blocks (base.html and home.html) and
+# by inline style attributes; replacing it with a per-response nonce is a
+# separate change with its own template edits.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "connect-src 'self'; "
+    "font-src 'self'"
+)
 
 AUTH_PASSWORD_VALIDATORS = [
     {

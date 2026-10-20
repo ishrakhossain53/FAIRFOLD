@@ -27,11 +27,11 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.9 Login, logout and access-denied UI (2026-10-20, 21 passed in tests/accounts/test_login_ui.py)
 - [x] 1.10 Password reset and change (service + API) (2026-10-20, 29 passed in tests/accounts/test_password_reset.py)
 - [x] 1.11 Password reset UI (2026-10-20, 12 passed in tests/accounts/test_password_reset_ui.py; 102 passed across 1.7-1.11, full suite 465 passed)
-- [ ] 1.12 Current-user endpoint
-- [ ] 1.13 Authorization matrix and security headers
-- [ ] 1.14 Candidate profile model
-- [ ] 1.15 Candidate profile API
-- [ ] 1.16 Candidate onboarding and profile UI
+- [x] 1.12 Current-user endpoint (2026-10-20, 16 passed in tests/accounts/test_me_api.py; full suite 481 at the time, 538 after 1.14)
+- [x] 1.13 Authorization matrix and security headers (2026-10-20, 34 passed in tests/core/test_authz_matrix.py + 10 in tests/core/test_security_headers.py; full suite 526 at the time, 538 after 1.14)
+- [x] 1.14 Candidate profile model (2026-10-20, 12 passed in tests/candidates/test_candidate_profile_model.py; full suite 538 passed)
+- [x] 1.15 Candidate profile API (2026-10-20, 23 passed in tests/candidates/test_profile_api.py; 120 targeted, full suite 591)
+- [x] 1.16 Candidate onboarding and profile UI (2026-10-20, 26 passed in tests/candidates/test_profile_ui.py; 120 targeted, full suite 591)
 - [ ] 1.17 S3-compatible dev storage
 - [ ] 1.18 Resume model (spec first)
 - [ ] 1.19 Presigned upload API

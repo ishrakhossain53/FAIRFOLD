@@ -1,0 +1,58 @@
+{% comment %}
+One profile section (design.md S02, page #16): the stored value, an accessible
+"Edit …" disclosure, and the one-field form for that section.
+
+`<details>` is the inline-edit mechanism on purpose. It is keyboard operable and
+works without JavaScript, and it keeps the page's four sections independent: a
+form only ever owns the one column named by its hidden `section` field.
+
+The edit summary text is "Edit headline" / "Edit bio" / … rather than an icon
+button, which is the accessible-name requirement in design.md S02's A11y line.
+{% endcomment %}
+<section id="profile-{{ section_key }}" aria-labelledby="profile-{{ section_key }}-heading"
+         class="border-b border-border py-6 last:border-b-0">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h2 id="profile-{{ section_key }}-heading" class="text-h4 font-semibold text-ink">{{ label }}</h2>
+      <p class="mt-2 break-words text-body text-ink-2">
+        {{ value|default:"Not provided"|linebreaksbr }}
+      </p>
+    </div>
+
+    <details id="{{ section_key }}-edit"
+             class="shrink-0 rounded-md border border-border-input bg-surface px-4 py-3 sm:w-96"
+             {% if open_section == section_key %}open{% endif %}>
+      <summary class="cursor-pointer text-body-sm font-semibold text-primary-strong">
+        Edit {{ edit_label }}
+      </summary>
+
+      <form method="post" action="{% url 'candidate_portal:profile-edit' %}" class="mt-4 space-y-4" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="section" value="{{ section_key }}">
+
+        {% if field.field.widget.input_type == "checkbox" %}
+        <div class="flex items-start gap-3">
+          {{ field }}
+          <label for="{{ field.id_for_label }}" class="text-body-sm text-ink">{{ field.label }}</label>
+        </div>
+        <p id="{{ field.id_for_label }}-error" class="text-body-sm text-danger"{% if not field.errors %} hidden{% endif %}>
+          {% if field.errors %}<span aria-hidden="true">✖</span> {{ field.errors.0 }}{% endif %}
+        </p>
+        {% else %}
+        {% include "accounts/_field.html" with field=field %}
+        {% endif %}
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="submit"
+                  class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-5 text-body-sm font-semibold text-white hover:bg-primary-strong">
+            Save
+          </button>
+          <a href="{% url 'candidate_portal:profile' %}"
+             class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </details>
+  </div>
+</section>

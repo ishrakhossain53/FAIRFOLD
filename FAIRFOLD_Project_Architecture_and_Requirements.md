@@ -1512,7 +1512,10 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai; font-src 'self';" always;
+    # CSP is set by Django: settings.CONTENT_SECURITY_POLICY, applied by
+    # core.middleware.ContentSecurityPolicyMiddleware (batch 1.13). Do not add a
+    # second header here -- browsers intersect multiple CSP headers, and the
+    # effective policy would then depend on two files that can drift.
     add_header Permissions-Policy "camera=(), microphone=()" always;
 
     # Static and media files

@@ -1,19 +1,19 @@
 """API v1 routes for the candidates app.
 
-Empty on purpose until this app's endpoints land. `config/urls.py` and
-`api/urls.py` include this module, so it must exist as an importable module from
-the first commit -- a missing module is a boot-time `ImportError` that takes down
-every URL in the project, not just this app's.
-
-The routers below are declared with `register()` calls added per viewset. An
-unregistered router renders a browsable API listing nothing, which is worse than
-404 because it looks wired up.
+The profile route (`GET`/`PATCH /api/v1/candidates/me/`) is a plain `path()`
+before the router: it has a fixed path and no object id, and a router entry
+would add a `{pk}` lookup that the contract does not have. The API app_name
+stays `candidates` (it is nested under the `api` namespace); the server-rendered
+pages use `candidate_portal` so the two URLconfs do not collide (Django keeps
+one resolver per namespace name).
 """
 
 from __future__ import annotations
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
+from candidates.api_views import CandidateMeView
 
 app_name = "candidates"
 
@@ -23,5 +23,6 @@ router = DefaultRouter()
 #   router.register("profile", ProfileViewSet, basename="profile")
 
 urlpatterns = [
+    path("me/", CandidateMeView.as_view(), name="me"),
     path("", include(router.urls)),
 ]

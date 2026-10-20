@@ -277,7 +277,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 > failure mode was *introducing* vulnerabilities in older ones.
 >
 > **The real defence is the CSP**, which is `default-src 'self'` with no third-party script host
-> (§C.9) — and that only holds because the Tailwind CDN was dropped in favour of
+> (§5.5) — and that only holds because the Tailwind CDN was dropped in favour of
 > `npm run build` (design.md §11.2). `script-src` without `unsafe-inline` is what makes an
 > injected `<script>` fail; the XSS filter header never did that reliably.
 
@@ -376,7 +376,7 @@ Candidate submits resume PDF
 | **OWASP Top 10** | Django protects against: SQL injection (ORM parameterized queries), XSS (auto-escaping in templates), CSRF (middleware), clickjacking (X-Frame-Options=DENY). Remaining: we manually protect against insecure deserialization, security misconfiguration, and vulnerable components. |
 | **Input validation** | Django form/serializer validation on all inputs. DRF serializers with strict type checking. File upload: validate MIME type (python-magic, not extension), max 10MB for resumes, scan with ClamAV or similar before storage |
 | **Rate limiting** | Django Ratelimit or DRF Throttle: 100 req/hour for unauthenticated, 1000 req/hour for authenticated candidates, 5000 req/hour for employer HR. Stricter on AI endpoints (20 req/min per user — aligns with OpenRouter free tier limits). Registration and email verification use the unauthenticated rate (DRF scopes `register` and `verify_email`, batch 1.5) |
-| **CSP** | Content-Security-Policy header: `default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai;` — tight, no external script sources except Tailwind CDN |
+| **CSP** | Content-Security-Policy set by `config/settings/base.py` (`CONTENT_SECURITY_POLICY`) and applied by `core.middleware.ContentSecurityPolicyMiddleware`: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'` — self-hosted only; no CDN script host (batch 1.13). `'unsafe-inline'` remains until the inline scripts move to nonces |
 | **Security headers** | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=()` — camera/mic blocked by default; enabled only on specific interview pages with user consent |
 | **Dependency scanning** | `pip-audit` or `safety` in CI pipeline. Dependabot or Renovate for automated PRs on vulnerabilities. |
 | **Audit logging** | Every significant action logged: login/logout, password change, job post created/edited, candidate viewed/screened/ranked, AI score generated, file uploaded/downloaded, permission change. Logs are append-only, stored separately, rotated 90 days. Log format: timestamp, user_id, action, resource_type, resource_id, IP, user-agent, result (success/failure). |
@@ -1824,12 +1824,27 @@ POST   /api/v1/auth/refresh/                     # Refresh JWT access token
 POST   /api/v1/auth/logout/                      # Revoke refresh token
 POST   /api/v1/auth/mfa/enable/                  # Enable TOTP MFA
 POST   /api/v1/auth/mfa/verify/                  # Verify TOTP code
-GET    /api/v1/auth/me/                          # Get current user profile
-PUT    /api/v1/auth/me/                          # Update user profile
+GET    /api/v1/auth/me/                          # Get current user (email, names, role names)
+PUT    /api/v1/auth/me/                          # Update first_name and last_name (both required)
 POST   /api/v1/auth/password/change/             # Change password
 POST   /api/v1/auth/password/reset/              # Request password reset email
 POST   /api/v1/auth/password/reset/confirm/      # Confirm password reset
 ```
+
+> **`/api/v1/auth/me/` contract (batch 1.12).** Authenticated, and the target is
+> always the caller (`request.user`) -- there is no user id in the path or body.
+> `GET` returns `{"email", "first_name", "last_name", "roles"}`, where `roles`
+> holds the documented role names from D-2 (never group ids, lockout state, MFA
+> flags or staff flags). `PUT` replaces `first_name` and `last_name`, both
+> required (PUT, not PATCH), and returns the same body. `email` is read-only:
+> changing the sign-in address needs the verification flow (REQ-FR-001). Keys
+> outside the whitelist are ignored and cannot change the row.
+
+> **Candidate profile semantics (batch 1.15).** `GET /api/v1/candidates/me/`
+> returns `404` until the candidate has completed onboarding. This list has no
+> `POST` for the profile, so a non-empty `PATCH` is create-or-update: it creates
+> the profile when the caller has none. An empty `PATCH` on an absent profile is
+> a `404`, not an empty row. The response is the four fields above.
 
 #### Candidate Endpoints
 ```http

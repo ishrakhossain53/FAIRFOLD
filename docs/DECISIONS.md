@@ -229,6 +229,11 @@ migration (never editing `0001_initial`, per Complete Doc §C.8.1 `:1420`).
 **Files that change if accepted.** `accounts/models.py` + a new migration; every Phase 1 model with
 an `ENCRYPTED` column; `FAIRFOLD_Complete_Project_Document.md` §C.8.
 
+> **Implementation note (batch 1.14, 2026-10-20).** `CandidateProfile.location` is a plain
+> `TextField`, following the `accounts` precedent: D-5 is still open, and an `Encrypted*` field
+> without the §C.8.2 rotation plan would create rows that procedure cannot read. This is not a
+> decision; it is the same deferral, recorded so the column is not mistaken for a settled one.
+
 ---
 
 ## D-6 — The five §5.1 schema holes

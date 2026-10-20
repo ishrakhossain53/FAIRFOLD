@@ -76,8 +76,9 @@ class TestLoginPage:
         response = post_login(client)
 
         assert response.status_code == 302
-        # Candidate dashboard is batch 1.16; the documented fallback is home.
-        assert response.url == "/"
+        # Page #16 is the candidate landing page; it forwards a candidate with
+        # no profile to onboarding (#14). The dashboard is a later batch.
+        assert response.url == "/candidate/profile/"
         assert client.session["_auth_user_id"] == str(user.pk)
 
     def test_an_authenticated_user_visiting_login_is_redirected(self, client, user):
@@ -86,7 +87,7 @@ class TestLoginPage:
         response = client.get(LOGIN_URL)
 
         assert response.status_code == 302
-        assert response.url == "/"
+        assert response.url == "/candidate/profile/"
 
     def test_a_wrong_password_re_renders_with_a_generic_error(self, client, user):
         response = post_login(client, password="wrong")
@@ -173,7 +174,7 @@ class TestNextHandling:
         response = post_login(client, next_url=unsafe)
 
         assert response.status_code == 302
-        assert response.url == "/"
+        assert response.url == "/candidate/profile/"
 
     def test_next_is_carried_through_the_form(self, client):
         response = client.get(LOGIN_URL + "?next=/health/")

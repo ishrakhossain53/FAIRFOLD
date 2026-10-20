@@ -1,7 +1,7 @@
 """API v1 routes under `/api/v1/auth/` (Complete Doc §C.12).
 
 Registration and verification (batch 1.5), login/refresh/logout (1.8) and
-password reset/change (1.10).
+password reset/change (1.10), plus the authenticated current-user route (1.12).
 
 Separate from `accounts.api_urls` on purpose. That module is mounted at
 `/api/v1/accounts/` (the app's own domain); §C.12 puts the auth routes under
@@ -21,6 +21,7 @@ from django.urls import path
 from accounts.api_views import (
     LoginView,
     LogoutView,
+    MeView,
     PasswordChangeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
@@ -58,4 +59,7 @@ urlpatterns = [
         PasswordChangeView.as_view(),
         name="password-change",
     ),
+    # §C.12: GET/PUT of the caller's own account. Authenticated, unlike every
+    # route above it in this module.
+    path("me/", MeView.as_view(), name="me"),
 ]
