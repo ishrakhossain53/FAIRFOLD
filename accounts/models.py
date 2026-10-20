@@ -118,9 +118,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(unique=True, max_length=255)
 
-    # Argon2id (settings.AUTH_PASSWORD_HASHERS). `AbstractBaseUser` stores this as
-    # `password`; the DDL calls the column `password_hash` and the two are the
-    # same value.
+    # Argon2id (settings.PASSWORD_HASHERS, REQ-SEC-001). `AbstractBaseUser` stores
+    # this as `password`; the DDL calls the column `password_hash` and the two
+    # are the same value.
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
 
