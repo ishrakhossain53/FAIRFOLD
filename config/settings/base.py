@@ -299,6 +299,23 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# REQ-SEC-001 requires Argon2id, not "whatever Django defaults to". Django has
+# listed Argon2 first since 4.0, but a security contract that a framework default
+# can silently change is not a contract. `Argon2PasswordHasher` is Argon2**id**
+# (`argon2.low_level.Type.ID`), not Argon2i or Argon2d.
+#
+# The tests do not hash with this list: `ci.py` overrides it with MD5 so a login
+# test does not spend 100 ms on a KDF, and `local.py` does the same. The pin is
+# asserted directly against this module in
+# `tests/accounts/test_password_hashing.py`.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+
 # 30 minutes idle, 8 hours absolute. Shorter than the default because a
 # recruitment session holds PII and a shared or borrowed machine is a real risk
 # in the target market.
