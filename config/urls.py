@@ -28,6 +28,10 @@ urlpatterns = [
     path("employer/", include("employers.urls")),
     path("assessments/", include("assessments.urls")),
     path("interviews/", include("interviews.urls")),
+    # Public auth pages at the root: `/register/` and `/verify-email/`
+    # (design.md pages #6 and #11). `EMAIL_VERIFICATION_URL` points at the
+    # latter, so the prefix is fixed by that setting, not a preference.
+    path("", include("accounts.public_urls")),
     path("", include("core.urls")),
 ]
 

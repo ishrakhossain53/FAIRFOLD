@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if state == 'success' %}Email verified · FairFold{% elif state == 'expired' %}Link expired · FairFold{% else %}Link not valid · FairFold{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-md py-4 sm:py-8">
+
+  {% if state == 'success' %}
+  {% comment %}
+  design.md X02: "✔ Verified". A verified address is also what a second visit to
+  the same link shows, so this is a success, not a "token already used" error.
+  {% endcomment %}
+  <div class="rounded-md border border-success bg-success-soft p-6" role="status">
+    <h1 class="text-h2 font-bold text-success-ink">
+      <span aria-hidden="true">✔</span> Email verified
+    </h1>
+    <p class="mt-2 text-body text-ink-2">
+      Your email address is verified. You can continue to FairFold.
+    </p>
+  </div>
+
+  <p class="mt-6">
+    <a href="/"
+       class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong">
+      Continue to FairFold
+    </a>
+  </p>
+
+  {% else %}
+  {% comment %}
+  X02: "⚑ Link expired → [ Send a new link ]". An invalid token gets the same
+  treatment with different wording; both offer the resend action, because "send
+  me a fresh link" is the only thing the user can do from here.
+  {% endcomment %}
+  <div class="rounded-md border p-6 {% if state == 'expired' %}border-warning bg-warning-soft{% else %}border-danger bg-danger-soft{% endif %}"
+       role="alert">
+    <h1 class="text-h2 font-bold {% if state == 'expired' %}text-warning-ink{% else %}text-danger-ink{% endif %}">
+      <span aria-hidden="true">{% if state == 'expired' %}⚑{% else %}✖{% endif %}</span>
+      {% if state == 'expired' %}This link has expired{% else %}This link is not valid{% endif %}
+    </h1>
+    <p class="mt-2 text-body text-ink-2">
+      {% if state == 'expired' %}
+      Verification links expire. Request a new one and we will send a fresh link to the same address.
+      {% else %}
+      The link may have been copied incompletely. Request a new one and we will send a fresh link to the same address.
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 shadow-card">
+    {% include "accounts/_resend_panel.html" with button_label="Send a new link" %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

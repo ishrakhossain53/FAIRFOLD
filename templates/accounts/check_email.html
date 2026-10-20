@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Check your email · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-md py-4 sm:py-8">
+  <h1 class="text-h1 font-bold text-ink">Check your email</h1>
+
+  <p class="mt-4 text-body text-ink-2">
+    We sent a verification link to <strong class="text-ink">{{ masked_email }}</strong>.
+    Open it to finish setting up your account.
+    If it does not arrive in a few minutes, check your spam folder or send another.
+  </p>
+
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 shadow-card">
+    {% include "accounts/_resend_panel.html" %}
+  </div>
+
+  <p class="mt-6 text-body-sm text-ink-3">
+    Wrong address? <a href="{% url 'accounts_public:register' %}" class="underline">Use a different email</a>.
+  </p>
+</div>
+{% endblock %}

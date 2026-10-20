@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Create your account · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-lg py-4 sm:py-8">
+  <h1 class="text-h1 font-bold text-ink">Create your account</h1>
+
+  <div class="mt-6">
+    {% include "accounts/_register_panel.html" %}
+  </div>
+</div>
+
+<script>
+  // After a failed submit the summary takes focus, so a keyboard or screen-reader
+  // user lands on the list of what went wrong instead of at the top of the page.
+  // Runs on load (JS-disabled users see the summary as the first thing in the
+  // panel) and after each HTMX swap of the form.
+  (function () {
+    var summary = document.getElementById('error-summary');
+    if (summary) { summary.focus(); }
+  })();
+
+  document.body.addEventListener('htmx:afterSwap', function (event) {
+    if (event.detail.target && event.detail.target.id === 'register-panel') {
+      var summary = document.getElementById('error-summary');
+      if (summary) { summary.focus(); }
+    }
+  });
+</script>
+{% endblock %}

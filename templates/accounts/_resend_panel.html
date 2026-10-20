@@ -1,0 +1,67 @@
+{% comment %}
+Resend action, shared by the pending page (page #11) and the expired/invalid
+states of the verification page. Plain POST: it works with JavaScript off and
+redirects to the pending page with a message. With HTMX the panel replaces itself
+and shows the same sentence inline.
+
+The address comes from the session, never from a field or a query string, so it
+stays out of history, logs and the page source. `cooldown` is display only --
+`accounts.services` owns the real throttle, and a click inside the window is
+answered with the same generic sentence rather than an error.
+{% endcomment %}
+<div id="resend-panel">
+  {% if email %}
+  <form method="post" action="{% url 'accounts_public:verify-email-resend' %}"
+        hx-post="{% url 'accounts_public:verify-email-resend' %}"
+        hx-target="#resend-panel" hx-swap="outerHTML">
+    {% csrf_token %}
+    <button type="submit"
+            class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-5 text-body font-semibold text-ink hover:bg-surface-muted">
+      {% firstof button_label "Resend email" %}
+    </button>
+  </form>
+
+  <p id="resend-cooldown" data-cooldown="{{ cooldown }}" class="mt-3 text-body-sm text-ink-3">
+    {% if cooldown %}Available in 0:{{ cooldown|stringformat:"02d" }}.{% else %}You can request a new link now.{% endif %}
+  </p>
+
+  {% if resent %}
+  <p class="mt-2 text-body-sm text-success-ink" role="status">If that address needs verification, we've sent a new link.</p>
+  {% endif %}
+  {% else %}
+  <p class="text-body-sm text-ink-3">
+    We don't have an address to send to.
+    <a href="{% url 'accounts_public:register' %}" class="underline">Create your account</a>.
+  </p>
+  {% endif %}
+</div>
+
+<script>
+  // Countdown text (design.md X02). Not an `aria-live` region on purpose: a
+  // region that changes every second would be read out every second. Screen
+  // readers get the server-rendered value; sighted users get the tick.
+  (function () {
+    if (window.__fairfoldCooldown) {
+      clearInterval(window.__fairfoldCooldown);
+      window.__fairfoldCooldown = null;
+    }
+    var element = document.getElementById('resend-cooldown');
+    if (!element) { return; }
+    var left = parseInt(element.getAttribute('data-cooldown') || '0', 10);
+    if (!left) { return; }
+    function tick() {
+      if (left <= 0) {
+        element.textContent = 'You can request a new link now.';
+        clearInterval(window.__fairfoldCooldown);
+        window.__fairfoldCooldown = null;
+        return;
+      }
+      var minutes = Math.floor(left / 60);
+      var seconds = left % 60;
+      element.textContent = 'Available in ' + minutes + ':' + String(seconds).padStart(2, '0') + '.';
+      left -= 1;
+    }
+    tick();
+    window.__fairfoldCooldown = setInterval(tick, 1000);
+  })();
+</script>

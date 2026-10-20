@@ -375,7 +375,7 @@ Candidate submits resume PDF
 |---|---|
 | **OWASP Top 10** | Django protects against: SQL injection (ORM parameterized queries), XSS (auto-escaping in templates), CSRF (middleware), clickjacking (X-Frame-Options=DENY). Remaining: we manually protect against insecure deserialization, security misconfiguration, and vulnerable components. |
 | **Input validation** | Django form/serializer validation on all inputs. DRF serializers with strict type checking. File upload: validate MIME type (python-magic, not extension), max 10MB for resumes, scan with ClamAV or similar before storage |
-| **Rate limiting** | Django Ratelimit or DRF Throttle: 100 req/hour for unauthenticated, 1000 req/hour for authenticated candidates, 5000 req/hour for employer HR. Stricter on AI endpoints (20 req/min per user — aligns with OpenRouter free tier limits) |
+| **Rate limiting** | Django Ratelimit or DRF Throttle: 100 req/hour for unauthenticated, 1000 req/hour for authenticated candidates, 5000 req/hour for employer HR. Stricter on AI endpoints (20 req/min per user — aligns with OpenRouter free tier limits). Registration and email verification use the unauthenticated rate (DRF scopes `register` and `verify_email`, batch 1.5) |
 | **CSP** | Content-Security-Policy header: `default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai;` — tight, no external script sources except Tailwind CDN |
 | **Security headers** | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=()` — camera/mic blocked by default; enabled only on specific interview pages with user consent |
 | **Dependency scanning** | `pip-audit` or `safety` in CI pipeline. Dependabot or Renovate for automated PRs on vulnerabilities. |
@@ -1816,7 +1816,7 @@ AttemptResourceRecommendation: attempt_id → AssessmentAttempt.id, resource_id 
 
 #### Authentication & User Management
 ```http
-POST   /api/v1/auth/register/                    # Register new user (email, password, role)
+POST   /api/v1/auth/register/                    # Register new user (email, password, first_name, last_name, role)
 POST   /api/v1/auth/verify-email/                # Verify email with the signed token from the link (REQ-FR-001)
 POST   /api/v1/auth/verify-email/resend/         # Resend the verification email (REQ-FR-001)
 POST   /api/v1/auth/login/                       # Login, return JWT access + refresh tokens
