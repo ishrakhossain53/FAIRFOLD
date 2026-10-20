@@ -19,9 +19,10 @@ from celery import shared_task
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode
 
 from accounts.models import User
-from accounts.services import make_verification_token
+from accounts.services import make_password_reset_token, make_verification_token
 
 
 def verification_link(token: str) -> str:
@@ -70,6 +71,65 @@ def send_verification_email(user_id: str) -> None:
             "account:\n\n"
             f"{verification_link(make_verification_token(user))}\n\n"
             "If you did not create an account, you can ignore this email."
+        ),
+        from_email=formataddr(
+            (settings.DEFAULT_FROM_EMAIL_NAME, settings.DEFAULT_FROM_EMAIL)
+        ),
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+
+def password_reset_link(uidb64: str, token: str) -> str:
+    """Absolute URL for design.md page #10.
+
+    Both values are URL-quoted: the token contains `:` and base64 characters,
+    and an unquoted `+` in a query string decodes as a space, turning a valid
+    token into an invalid signature.
+    """
+    base = settings.PASSWORD_RESET_URL
+    separator = "&" if "?" in base else "?"
+    return (
+        f"{base}{separator}uid={quote(uidb64, safe='')}"
+        f"&token={quote(token, safe='')}"
+    )
+
+
+@shared_task(ignore_result=True)
+def send_password_reset_email(user_id: str) -> None:
+    """Email a one-hour reset link to the account named by `user_id`.
+
+    The argument is the id for the same reasons as the verification task: a
+    broker dump must not contain an address, and the worker must re-read the
+    row rather than trust a serialised object.
+
+    A missing or deactivated account is a silent no-op. The request endpoint
+    answers identically for an unknown address, so a retry here could not make
+    the address exist, and an exception would put the id in the worker log for
+    no benefit.
+
+    The task is safe to run twice: two copies of the link are harmless, and the
+    first successful reset invalidates every outstanding copy.
+    """
+    try:
+        user = User.objects.get(pk=user_id)
+    except (User.DoesNotExist, ValidationError, TypeError, ValueError):
+        return
+
+    if not user.is_active:
+        return
+
+    uidb64 = urlsafe_base64_encode(str(user.pk).encode())
+    link = password_reset_link(uidb64, make_password_reset_token(user))
+
+    send_mail(
+        subject="Reset your FairFold password",
+        message=(
+            "We received a request to reset your FairFold password. The link "
+            "below works once and expires in one hour:\n\n"
+            f"{link}\n\n"
+            "If you did not request this, you can ignore this email; your "
+            "password has not changed."
         ),
         from_email=formataddr(
             (settings.DEFAULT_FROM_EMAIL_NAME, settings.DEFAULT_FROM_EMAIL)

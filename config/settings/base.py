@@ -382,6 +382,16 @@ EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS = int(
     env("EMAIL_VERIFICATION_TOKEN_MAX_AGE_SECONDS", "86400")
 )
 
+# Where the password-reset link points (design.md page #10). The task builds the
+# absolute URL from this setting for the same reason as the verification link:
+# a Celery worker has no request.
+PASSWORD_RESET_URL = env("PASSWORD_RESET_URL", "http://localhost:8000/reset-password/")
+
+# REQ-FR-004 states one hour. Django's `default_token_generator` reads this
+# setting, so the lifetime is a policy value rather than a number in the signing
+# code. It also expires a link that is never used.
+PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_RESET_TIMEOUT", "3600"))
+
 
 # ---------------------------------------------------------------------------
 # Internationalisation
@@ -444,6 +454,10 @@ REST_FRAMEWORK = {
         # scope because both are anonymous and both are the same attack surface.
         "register": env("THROTTLE_REGISTER", "100/hour"),
         "verify_email": env("THROTTLE_VERIFY_EMAIL", "100/hour"),
+        # Batch 1.10. Reset requests are anonymous and send mail, so they share
+        # the documented unauthenticated ceiling (Complete Doc §5.5) rather than
+        # a number invented here.
+        "password_reset": env("THROTTLE_PASSWORD_RESET", "100/hour"),
     },
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
 }

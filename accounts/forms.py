@@ -158,3 +158,136 @@ class RegistrationForm(forms.Form):
             "last_name": data["last_name"],
             "role": data["role"],
         }
+
+
+# ---------------------------------------------------------------------------
+# Login (REQ-FR-002/003) and password recovery (REQ-FR-004)
+# ---------------------------------------------------------------------------
+
+# design.md S01: the lockout state is "Too many attempts. Try again in 14:32."
+# The sentence itself is built in `accounts.api_views.locked_detail` so the API
+# and the page show the same countdown for the same lock; this is only the
+# summary heading.
+LOCKOUT_SUMMARY = "Too many attempts"
+
+
+class LoginForm(forms.Form):
+    """Page #7 (design.md S01): email and password.
+
+    No password rules and no `validate_password`: login must accept whatever the
+    account has, including a password that predates the current policy. The
+    credential check belongs to `authenticate_with_lockout`, which is also what
+    the API calls.
+
+    Every failure below is added as a **non-field** error on purpose. A field
+    error would say which half was wrong ("no account with that email"), which
+    is the account-existence leak this page must not have.
+    """
+
+    email = forms.EmailField(
+        max_length=255,
+        label="Email",
+        widget=forms.EmailInput(
+            attrs={
+                "class": INPUT_CLASS,
+                "autocomplete": "email",
+                "aria-describedby": "id_email-error",
+            }
+        ),
+    )
+    password = forms.CharField(
+        strip=False,
+        label="Password",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": INPUT_CLASS + " pr-16",
+                "autocomplete": "current-password",
+                "aria-describedby": "id_password-error",
+            }
+        ),
+    )
+
+    def clean_email(self) -> str:
+        """Look the address up exactly as `users.email` stores it."""
+        return User.objects.normalize_email(self.cleaned_data["email"]).lower()
+
+
+class ForgotPasswordForm(forms.Form):
+    """Page #9 (design.md X02): one email field.
+
+    The form validates format only. Whether an account exists is never a form
+    error: page #9's answer is the same sentence either way.
+    """
+
+    email = forms.EmailField(
+        max_length=255,
+        label="Email",
+        widget=forms.EmailInput(
+            attrs={
+                "class": INPUT_CLASS,
+                "autocomplete": "email",
+                "aria-describedby": "id_email-error",
+            }
+        ),
+    )
+
+    def clean_email(self) -> str:
+        return User.objects.normalize_email(self.cleaned_data["email"]).lower()
+
+
+class SetNewPasswordForm(forms.Form):
+    """Page #10 (design.md X02): new password and confirmation.
+
+    The rules are `AUTH_PASSWORD_VALIDATORS`, run against the account the link
+    belongs to, so the name/email-similarity check applies. `reset_password`
+    runs the same validators again -- a form bypass must not store a weak
+    password.
+    """
+
+    new_password = forms.CharField(
+        strip=False,
+        label="New password",
+        help_text="At least 12 characters. We check against known breached passwords.",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": INPUT_CLASS + " pr-16",
+                "autocomplete": "new-password",
+                "aria-describedby": "id_new_password-help id_new_password-error",
+            }
+        ),
+    )
+    confirm_password = forms.CharField(
+        strip=False,
+        label="Confirm new password",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": INPUT_CLASS + " pr-16",
+                "autocomplete": "new-password",
+                "aria-describedby": "id_confirm_password-error",
+            }
+        ),
+    )
+
+    def __init__(self, *args: Any, user: User | None = None, **kwargs: Any) -> None:
+        # The user is required for the similarity validator. Optional only so an
+        # accidentally bare form raises a field error instead of a TypeError in
+        # the view.
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_new_password(self) -> str:
+        password = self.cleaned_data["new_password"]
+        if self.user is not None:
+            try:
+                validate_password(password, self.user)
+            except DjangoValidationError as exc:
+                raise forms.ValidationError(exc.messages) from exc
+        return password
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean()
+        password = cleaned.get("new_password")
+        confirmation = cleaned.get("confirm_password")
+        if password and confirmation and password != confirmation:
+            self.add_error("confirm_password", "The two passwords do not match.")
+        return cleaned

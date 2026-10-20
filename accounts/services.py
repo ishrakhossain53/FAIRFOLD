@@ -1,4 +1,4 @@
-"""Account services: registration and role assignment.
+"""Account services: registration, roles, verification, login and password reset.
 
 `register_user` is the one place that creates a self-registered account. It
 normalises the email, applies every `AUTH_PASSWORD_VALIDATORS` rule, assigns the
@@ -41,16 +41,20 @@ must not be able to take the `users` table down, and it expires by itself.
 
 from __future__ import annotations
 
+import math
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from accounts.models import (
@@ -432,3 +436,396 @@ def resend_verification_email(user: User) -> bool:
 
     _dispatch_verification_email(user)
     return True
+
+
+# ---------------------------------------------------------------------------
+# Login and lockout (REQ-FR-002, REQ-FR-003)
+# ---------------------------------------------------------------------------
+
+# REQ-FR-003: five consecutive failures, then a fifteen-minute lock. These are
+# constants, not settings: the requirement fixes both numbers, and a deployment
+# that shortened the lock would be a requirements change, not configuration.
+MAX_FAILED_LOGIN_ATTEMPTS = 5
+LOCKOUT_DURATION = timedelta(minutes=15)
+
+# The audit action written when a lock is applied. `login_failed` is deliberately
+# not recorded: a row per failed attempt would copy the counter into an
+# append-only table and make the compliance export noisy. The lock is the event
+# with a consequence.
+LOGIN_LOCKOUT_AUDIT_ACTION = "account_locked"
+LOGIN_AUDIT_RESOURCE_TYPE = "user"
+
+# The one sentence every credential failure returns. It must not distinguish an
+# unknown address, a wrong password and an inactive account (AGENTS.md: no
+# account-existence leak). Defined once so the API and the page cannot drift.
+INVALID_CREDENTIALS_DETAIL = "Email or password is incorrect."
+
+
+class AuthenticationError(Exception):
+    """A sign-in was refused, for a reason the caller already knows about.
+
+    Messages are shown to the user and written to no log. They never contain the
+    email, the user id or the password: all three are personal data or a
+    credential, and neither belongs in an error body or a log line.
+    """
+
+
+class InvalidCredentials(AuthenticationError):
+    """Unknown address, wrong password, or a deactivated account.
+
+    One error for all three on purpose. Separate errors would turn the login
+    form into an account-existence oracle.
+    """
+
+
+class EmailNotVerified(AuthenticationError):
+    """The password was correct but the address is unverified (REQ-FR-001).
+
+    Raised **after** the password check succeeds, and only then. A caller who
+    does not know the password therefore still learns nothing about whether the
+    address exists, while the person who does own the account is told what to do
+    next.
+    """
+
+
+class AccountLocked(AuthenticationError):
+    """A live lockout is in force (REQ-FR-003).
+
+    `retry_after` is the number of whole seconds left, for the countdown in
+    design.md S01's "Try again in 14:32" and for the API body.
+    """
+
+    def __init__(self, retry_after: int) -> None:
+        self.retry_after = max(1, int(retry_after))
+        super().__init__("Too many failed sign-in attempts. Try again shortly.")
+
+
+def _seconds_until_unlock(user: User) -> int:
+    """Seconds left on a lock, rounded up.
+
+    `locked_until` is read here only to compute the countdown. The locked/not
+    decision comes from `is_locked()`; reading the field for that decision is
+    the mistake the model's docstring warns about.
+    """
+    remaining = (user.locked_until - timezone.now()).total_seconds()
+    return max(1, math.ceil(remaining))
+
+
+def _lock_expired(locked_user: User) -> bool:
+    """True when a previous lock has run out but left its counter behind."""
+    return (
+        locked_user.locked_until is not None
+        and not locked_user.is_locked()
+        and locked_user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS
+    )
+
+
+def _record_failed_attempt(user: User) -> bool:
+    """Count one failure and lock at the threshold. True when now locked.
+
+    The row is re-read under `select_for_update()`: two concurrent guesses must
+    not both read four and write five, which would let an attacker make more
+    than five attempts per lock window. The counter and the audit row are one
+    transaction, so a locked account always has its evidence.
+    """
+    with transaction.atomic():
+        locked_user = User.objects.select_for_update().get(pk=user.pk)
+
+        # Another request may have locked the account between our check and this
+        # row lock. Do not extend the lock or count the attempt.
+        if locked_user.is_locked():
+            user.failed_login_attempts = locked_user.failed_login_attempts
+            user.locked_until = locked_user.locked_until
+            return True
+
+        # The lock served its time. Start a fresh run of consecutive failures,
+        # otherwise this single wrong password would re-lock the account at once.
+        if _lock_expired(locked_user):
+            locked_user.failed_login_attempts = 0
+            locked_user.locked_until = None
+
+        locked_user.failed_login_attempts += 1
+        fields = ["failed_login_attempts"]
+
+        now_locked = locked_user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS
+        if now_locked:
+            locked_user.locked_until = timezone.now() + LOCKOUT_DURATION
+            fields.append("locked_until")
+
+        locked_user.save(update_fields=fields)
+
+        if now_locked:
+            AuditLogEntry.objects.create(
+                actor=locked_user,
+                action=LOGIN_LOCKOUT_AUDIT_ACTION,
+                resource_type=LOGIN_AUDIT_RESOURCE_TYPE,
+                resource_id=locked_user.id,
+                # No email, no name, no password. The counter and the reason are
+                # the only facts a compliance reader needs.
+                details={
+                    "reason": "failed_login_threshold",
+                    "failed_attempts": locked_user.failed_login_attempts,
+                },
+                result="locked",
+            )
+
+    user.failed_login_attempts = locked_user.failed_login_attempts
+    user.locked_until = locked_user.locked_until
+    return now_locked
+
+
+def _record_successful_login(user: User) -> None:
+    """Reset the lockout state and stamp `last_login` (REQ-FR-002).
+
+    Under a row lock for the same reason as the failure path: a success racing
+    a failure must not leave a counter set for an account that just signed in.
+    """
+    with transaction.atomic():
+        locked_user = User.objects.select_for_update().get(pk=user.pk)
+        locked_user.failed_login_attempts = 0
+        locked_user.locked_until = None
+        locked_user.last_login = timezone.now()
+        locked_user.save(
+            update_fields=["failed_login_attempts", "locked_until", "last_login"]
+        )
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login = locked_user.last_login
+
+
+def authenticate_with_lockout(email: str, password: str) -> User:
+    """Verify credentials, honouring the REQ-FR-003 lockout.
+
+    This is the **only** place credentials are checked. The JSON API (batch 1.8)
+    and the template login (batch 1.9) both call it, so the counter, the
+    threshold, the audit row and the counter reset cannot exist in two versions
+    that disagree.
+
+    Returns the authenticated `User` on success, with the lockout state already
+    reset and `last_login` stamped.
+
+    Raises:
+        InvalidCredentials: no such account, a wrong password, or a deactivated
+            account. The three are indistinguishable to the caller by design.
+        EmailNotVerified: the password was correct but the address is unverified.
+        AccountLocked: a lockout is in force, or this attempt reached the
+            threshold and set one. `retry_after` holds the seconds left.
+
+    The lock is set by the **fifth** consecutive failure, so the sixth attempt is
+    refused rather than counted. REQ-FR-003's "given five failures, when the
+    sixth attempt occurs, then locked" describes that state: by the time the
+    sixth request arrives the account is already locked, and no password — right
+    or wrong — gets through it.
+
+    Tests freeze the clock (`monkeypatch` on `django.utils.timezone.now`) rather
+    than sleeping: `is_locked()` compares against `timezone.now()`, so a frozen
+    clock moves the model and this service together.
+    """
+    if not isinstance(email, str) or not email.strip():
+        raise InvalidCredentials(INVALID_CREDENTIALS_DETAIL)
+
+    normalised = User.objects.normalize_email(email.strip()).lower()
+    user = User.objects.filter(email=normalised).first()
+
+    if user is None:
+        # Hash the supplied password anyway so a missing address and a wrong
+        # password take the same time. A fast path here is a timing oracle that
+        # answers "does this address have an account?" without a body difference.
+        # This is Django's own `ModelBackend` technique.
+        User().set_password(password if isinstance(password, str) else "")
+        raise InvalidCredentials(INVALID_CREDENTIALS_DETAIL)
+
+    if user.is_locked():
+        raise AccountLocked(_seconds_until_unlock(user))
+
+    if not user.check_password(password):
+        if _record_failed_attempt(user):
+            raise AccountLocked(_seconds_until_unlock(user))
+        raise InvalidCredentials(INVALID_CREDENTIALS_DETAIL)
+
+    # Ordered after the password check on purpose: a deactivated account is not
+    # a distinct message, and an unverified address is only revealed to someone
+    # who proved they own the account.
+    if not user.is_active:
+        raise InvalidCredentials(INVALID_CREDENTIALS_DETAIL)
+
+    if not user.email_verified:
+        raise EmailNotVerified("Confirm your email address before signing in.")
+
+    _record_successful_login(user)
+    return user
+
+
+# ---------------------------------------------------------------------------
+# Password reset and change (REQ-FR-004)
+# ---------------------------------------------------------------------------
+
+# The reset link is a signed pair: the encoded user id and Django's
+# `default_token_generator` value. The generator's token is bound to the
+# account's current password hash and `last_login`, so using a link once changes
+# the hash and makes every other outstanding link for that account fail. That is
+# the "invalidates the token" requirement, with no extra table.
+#
+# It is a different mechanism from email verification (`VERIFICATION_TOKEN_SALT`)
+# on purpose: a verification link must not be replayable as a reset link, and
+# vice versa.
+
+
+class InvalidPasswordResetToken(ValueError):
+    """A reset link is unusable.
+
+    One error for expired, tampered, already-used and unknown-account: telling
+    them apart confirms which addresses exist, and design.md X02 shows one
+    "expired" state with one action ("Request new").
+    """
+
+
+class WrongPassword(ValueError):
+    """The current password supplied to `change_password` is not correct."""
+
+
+def password_reset_user(uidb64: str) -> User | None:
+    """Resolve the encoded user id in a reset link, or None when unusable.
+
+    Returns None rather than raising so the page can render the same expired
+    state for a malformed id and a deleted account.
+    """
+    if not isinstance(uidb64, str) or not uidb64:
+        return None
+    try:
+        user_id = uuid.UUID(urlsafe_base64_decode(uidb64).decode())
+    except (AttributeError, TypeError, ValueError):
+        return None
+    return User.objects.filter(pk=user_id).first()
+
+
+def make_password_reset_token(user: User) -> str:
+    """Return the expiring token for `user` (REQ-FR-004, one hour).
+
+    Generated at send time, not request time, so the lifetime is not spent
+    waiting in the Celery queue -- the same rule as the verification link.
+    """
+    return default_token_generator.make_token(user)
+
+
+def is_valid_password_reset_token(user: User | None, token: str) -> bool:
+    """True when `token` is a live reset token for `user`.
+
+    Expiry comes from `settings.PASSWORD_RESET_TIMEOUT` (one hour, REQ-FR-004).
+    Used by the page to choose the form state on GET, and again by
+    `reset_password` inside the database transaction.
+    """
+    if user is None or not isinstance(token, str) or not token:
+        return False
+    return default_token_generator.check_token(user, token)
+
+
+def request_password_reset(email: str) -> User | None:
+    """The account a reset link should be sent to, or None.
+
+    Returns None for an unknown address, a malformed one and an inactive
+    account. The caller must answer all of them identically (design.md page #9:
+    "If that email exists…"), so the boolean is for the sender, not for a
+    response body.
+    """
+    if not isinstance(email, str) or not email.strip():
+        return None
+    normalised = User.objects.normalize_email(email.strip()).lower()
+    return User.objects.filter(email=normalised, is_active=True).first()
+
+
+def _revoke_refresh_tokens(user: User) -> None:
+    """Blacklist every outstanding refresh token for `user` (REQ-FR-008).
+
+    A password reset is the one moment a stolen session must not survive: if an
+    attacker had the account, changing the password has to evict them. Tokens
+    already blacklisted are skipped, so a retry is harmless.
+    """
+    # Imported here: the blacklist models are a third-party app, and importing
+    # them at module scope makes `accounts.services` depend on the blacklist
+    # tables even for a code path (registration) that never issues a token.
+    from rest_framework_simplejwt.token_blacklist.models import (
+        BlacklistedToken,
+        OutstandingToken,
+    )
+
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)
+
+
+def reset_password(uidb64: str, token: str, new_password: str) -> User:
+    """Set a new password from a reset link (REQ-FR-004).
+
+    Clears the lockout state and revokes outstanding refresh tokens, because a
+    successful reset is proof of mailbox control and the account may well be
+    locked from a guessing attack.
+
+    Raises:
+        InvalidPasswordResetToken: expired, tampered, already used, or no such
+            account.
+        ValidationError: the new password fails a configured validator. The
+            service validates with the real user, so the name/email-similarity
+            rule applies.
+    """
+    user = password_reset_user(uidb64)
+    if user is None or not is_valid_password_reset_token(user, token):
+        raise InvalidPasswordResetToken(
+            "This password reset link has expired or has already been used."
+        )
+    if not user.is_active:
+        raise InvalidPasswordResetToken(
+            "This password reset link has expired or has already been used."
+        )
+
+    if not isinstance(new_password, str) or not new_password:
+        raise ValidationError("A password is required.")
+    validate_password(new_password, user)
+
+    with transaction.atomic():
+        locked_user = User.objects.select_for_update().get(pk=user.pk)
+
+        # Re-check under the lock. The token is bound to the password hash, so
+        # the second of two concurrent requests with the same link fails here
+        # instead of setting the password twice.
+        if not default_token_generator.check_token(locked_user, token):
+            raise InvalidPasswordResetToken(
+                "This password reset link has expired or has already been used."
+            )
+
+        locked_user.set_password(new_password)
+        locked_user.failed_login_attempts = 0
+        locked_user.locked_until = None
+        locked_user.save(
+            update_fields=[
+                "password",
+                "failed_login_attempts",
+                "locked_until",
+            ]
+        )
+        _revoke_refresh_tokens(locked_user)
+
+    return locked_user
+
+
+def change_password(user: User, current_password: str, new_password: str) -> User:
+    """Change the password of a signed-in user (Complete Doc §C.12).
+
+    The current password is required so a borrowed session cannot lock the owner
+    out of their own account. Validation uses the real user, so the
+    name/email-similarity rule applies.
+
+    Raises:
+        WrongPassword: `current_password` does not match.
+        ValidationError: the new password fails a configured validator.
+    """
+    if not user.check_password(current_password):
+        raise WrongPassword("Your current password is incorrect.")
+
+    if not isinstance(new_password, str) or not new_password:
+        raise ValidationError("A password is required.")
+    validate_password(new_password, user)
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+    return user

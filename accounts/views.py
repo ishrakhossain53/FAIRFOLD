@@ -30,24 +30,49 @@ import time
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from accounts.forms import RegistrationForm
-from accounts.models import User
+from accounts.api_views import locked_detail
+from accounts.forms import (
+    ForgotPasswordForm,
+    LoginForm,
+    RegistrationForm,
+    SetNewPasswordForm,
+)
+from accounts.models import (
+    CANDIDATE_ROLE,
+    EMPLOYER_HR_ROLE,
+    EMPLOYER_MANAGER_ROLE,
+    INTERVIEWER_ROLE,
+    User,
+)
 from accounts.services import (
+    AccountLocked,
     EmailAlreadyVerified,
+    EmailNotVerified,
+    InvalidCredentials,
+    InvalidPasswordResetToken,
     InvalidVerificationToken,
     VerificationTokenExpired,
+    authenticate_with_lockout,
+    is_valid_password_reset_token,
+    password_reset_user,
     queue_verification_email,
     register_user,
+    request_password_reset,
     resend_verification_email,
+    reset_password,
     verify_email,
 )
+from accounts.tasks import send_password_reset_email
 
 # Session keys, not URL parameters: the address is personal data and a URL ends
 # up in the address bar, browser history, and the request log. The sessions table
@@ -263,3 +288,222 @@ def resend_verification(request: HttpRequest) -> HttpResponse:
 
     messages.success(request, RESEND_SENT_DETAIL)
     return redirect("accounts_public:check-email")
+
+
+# ---------------------------------------------------------------------------
+# Login, logout and landing (REQ-FR-002/003, decision D-1)
+# ---------------------------------------------------------------------------
+
+# Design.md page numbers: #7 login, #9 forgot password, #10 reset password.
+# The destination by role. The dashboard routes land in batches 1.16 (page #15,
+# candidate) and 1.30 (page #34, employer); until they exist `role_landing_url`
+# falls back to the home page, so the mapping is already correct and starts
+# working when those routes are added rather than being rewritten then.
+ROLE_LANDING_URL_NAMES = (
+    (CANDIDATE_ROLE, "candidates:dashboard"),
+    (EMPLOYER_HR_ROLE, "employers:dashboard"),
+    (EMPLOYER_MANAGER_ROLE, "employers:dashboard"),
+    (INTERVIEWER_ROLE, "employers:dashboard"),
+)
+
+
+def role_landing_url(user: User) -> str:
+    """Where `user` goes after signing in, from their role groups.
+
+    `interviewer` is an employer-team role (REQ-FR-047), so it shares the
+    employer landing. A user with no role gets the home page: a signed-in
+    account with no role is a data problem, and sending them to the homepage is
+    better than a 404.
+    """
+    for role, url_name in ROLE_LANDING_URL_NAMES:
+        if not user.has_role(role):
+            continue
+        try:
+            return reverse(url_name)
+        except NoReverseMatch:
+            # The dashboard for this role does not exist yet (batch 1.16/1.30).
+            return reverse("core:home")
+    return reverse("core:home")
+
+
+def post_login_url(request: HttpRequest, user: User, requested: str) -> str:
+    """The safe post-login destination: `next` if it is ours, else the role page.
+
+    `url_has_allowed_host_and_scheme` is the whole open-redirect guard: it
+    rejects another host and a protocol-relative `//evil.example`, and it is
+    given this request's host rather than a hardcoded list so staging and
+    production both work.
+    """
+    if requested and url_has_allowed_host_and_scheme(
+        url=requested,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return requested
+    return role_landing_url(user)
+
+
+@never_cache
+def login_view(request: HttpRequest) -> HttpResponse:
+    """Page #7 (design.md S01). Session auth for the HTML pages (D-1).
+
+    The credential check is `accounts.services.authenticate_with_lockout`, the
+    same function `/api/v1/auth/login/` calls, so the five-attempt counter, the
+    fifteen-minute lock and the audit row cannot differ between the two
+    surfaces.
+
+    Session, not JWT: AD-002's "no auth-token complexity" is what D-1 chose for
+    the template pages, and the API keeps the JWT pair. `auth_login` cycles the
+    session key, so a fixation attempt before login does not survive it.
+    """
+    requested = request.POST.get("next") or request.GET.get("next") or ""
+
+    if request.user.is_authenticated:
+        # A signed-in user visiting /login/ is not an error; send them on rather
+        # than show a form that would replace their session.
+        return redirect(post_login_url(request, request.user, requested))
+
+    form = LoginForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            user = authenticate_with_lockout(
+                form.cleaned_data["email"], form.cleaned_data["password"]
+            )
+        except AccountLocked as exc:
+            form.add_error(None, locked_detail(exc.retry_after))
+        except EmailNotVerified:
+            form.add_error(
+                None,
+                "Confirm your email address before signing in. "
+                "Use the link in the email we sent you.",
+            )
+        except InvalidCredentials:
+            # The one sentence for an unknown address, a wrong password and a
+            # deactivated account. See `accounts.services.AuthenticationError`.
+            form.add_error(None, "Email or password is incorrect.")
+        else:
+            auth_login(
+                request,
+                user,
+                backend="django.contrib.auth.backends.ModelBackend",
+            )
+            return redirect(post_login_url(request, user, requested))
+
+    return render(
+        request,
+        "accounts/login.html",
+        {"form": form, "next": requested},
+    )
+
+
+@require_POST
+@never_cache
+def logout_view(request: HttpRequest) -> HttpResponse:
+    """Sign out. POST only, because a GET logout is a CSRF-able action.
+
+    `auth_logout` flushes the session server-side (`SESSION_ENGINE = db`), which
+    is what makes the cookie worthless afterwards. The redirect target is the
+    documented `LOGOUT_REDIRECT_URL`.
+    """
+    auth_logout(request)
+    messages.success(request, "You have been signed out.")
+    return redirect(settings.LOGOUT_REDIRECT_URL)
+
+
+# ---------------------------------------------------------------------------
+# Password recovery pages (REQ-FR-004, design.md pages #9 and #10)
+# ---------------------------------------------------------------------------
+
+PASSWORD_RESET_SENT_DETAIL = "If that email exists, we've sent a link."
+
+
+@never_cache
+def forgot_password(request: HttpRequest) -> HttpResponse:
+    """Page #9: request a reset link.
+
+    The template is rendered with `sent=True` for every valid submission,
+    whether or not the address exists. The service returns `None` for an
+    unknown address and only the create path queues mail, so the page is not an
+    enumeration oracle (design.md X02's "If that email exists…").
+    """
+    sent = False
+    form = ForgotPasswordForm()
+
+    if request.method == "POST":
+        form = ForgotPasswordForm(request.POST)
+        if form.is_valid():
+            user = request_password_reset(form.cleaned_data["email"])
+            if user is not None:
+                # `on_commit` so a worker cannot pick the task up before the
+                # user row it will read is visible (the same rule as the
+                # verification email).
+                user_id = str(user.pk)
+                transaction.on_commit(lambda: send_password_reset_email.delay(user_id))
+            sent = True
+            form = ForgotPasswordForm()
+
+    return render(
+        request,
+        "accounts/forgot_password.html",
+        {
+            "form": form,
+            "sent": sent,
+            "detail": PASSWORD_RESET_SENT_DETAIL,
+        },
+    )
+
+
+@never_cache
+def reset_password_page(request: HttpRequest) -> HttpResponse:
+    """Page #10: choose a new password, or the expired-link state.
+
+    The link's `uid` and `token` arrive as query parameters
+    (`settings.PASSWORD_RESET_URL` points at this route) and are re-posted as
+    hidden fields. They are never put in the URL path: a token in a path ends up
+    in `Referer` headers and server access logs.
+
+    An expired, tampered, already-used or unknown-account link renders one state
+    with one action ("Request a new link"). The status is 400, like the
+    verification page, so a monitor can tell a dead link from a working one.
+    """
+    uid = request.POST.get("uid") or request.GET.get("uid") or ""
+    token = request.POST.get("token") or request.GET.get("token") or ""
+
+    user = password_reset_user(uid)
+    state = "form"
+    form = SetNewPasswordForm(user=user)
+
+    if not is_valid_password_reset_token(user, token):
+        state = "invalid"
+    elif request.method == "POST":
+        form = SetNewPasswordForm(request.POST, user=user)
+        if form.is_valid():
+            try:
+                reset_password(uid, token, form.cleaned_data["new_password"])
+            except InvalidPasswordResetToken:
+                # Expired or consumed between the check and the write (a second
+                # tab, or another click on the same link).
+                state = "invalid"
+            except DjangoValidationError as exc:
+                # Unreachable after `clean_new_password` ran the same validators;
+                # a guard so a divergence is a form error, not a 500.
+                form.add_error("new_password", exc)
+            else:
+                state = "success"
+
+    response = render(
+        request,
+        "accounts/reset_password.html",
+        {
+            "form": form,
+            "state": state,
+            "uid": uid,
+            "token": token if state == "form" else "",
+        },
+        status=400 if state == "invalid" else 200,
+    )
+    # The token is a bearer credential. Do not let a shared cache keep the page,
+    # and do not let the link leak through a Referer header.
+    response["Cache-Control"] = "no-store"
+    response["Referrer-Policy"] = "no-referrer"
+    return response

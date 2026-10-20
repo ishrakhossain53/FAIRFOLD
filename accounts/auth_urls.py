@@ -1,5 +1,8 @@
 """API v1 routes under `/api/v1/auth/` (Complete Doc §C.12).
 
+Registration and verification (batch 1.5), login/refresh/logout (1.8) and
+password reset/change (1.10).
+
 Separate from `accounts.api_urls` on purpose. That module is mounted at
 `/api/v1/accounts/` (the app's own domain); §C.12 puts the auth routes under
 `/api/v1/auth/`. Mounting one module at both prefixes would expose every route in
@@ -16,6 +19,12 @@ from __future__ import annotations
 from django.urls import path
 
 from accounts.api_views import (
+    LoginView,
+    LogoutView,
+    PasswordChangeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    RefreshView,
     RegisterView,
     ResendVerificationEmailView,
     VerifyEmailView,
@@ -30,5 +39,23 @@ urlpatterns = [
         "verify-email/resend/",
         ResendVerificationEmailView.as_view(),
         name="verify-email-resend",
+    ),
+    path("login/", LoginView.as_view(), name="login"),
+    path("refresh/", RefreshView.as_view(), name="refresh"),
+    path("logout/", LogoutView.as_view(), name="logout"),
+    path(
+        "password/reset/",
+        PasswordResetRequestView.as_view(),
+        name="password-reset",
+    ),
+    path(
+        "password/reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password-reset-confirm",
+    ),
+    path(
+        "password/change/",
+        PasswordChangeView.as_view(),
+        name="password-change",
     ),
 ]
