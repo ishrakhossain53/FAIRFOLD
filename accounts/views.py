@@ -295,12 +295,15 @@ def resend_verification(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------------------
 
 # Design.md page numbers: #7 login, #9 forgot password, #10 reset password.
-# The destination by role. The dashboard routes land in batches 1.16 (page #15,
-# candidate) and 1.30 (page #34, employer); until they exist `role_landing_url`
-# falls back to the home page, so the mapping is already correct and starts
-# working when those routes are added rather than being rewritten then.
+# The destination by role. The dashboard routes land in later batches (page #15,
+# candidate; page #34, employer). The candidate mapping points at page #16,
+# which forwards a candidate without a profile to onboarding (#14); employer
+# roles still fall back to the home page until #34 exists.
 ROLE_LANDING_URL_NAMES = (
-    (CANDIDATE_ROLE, "candidates:dashboard"),
+    # Page #16 is the candidate's only signed-in page so far. It sends a
+    # candidate without a profile on to page #14 (onboarding), so login lands on
+    # the right one of the two. The dashboard (#15) is a later batch.
+    (CANDIDATE_ROLE, "candidate_portal:profile"),
     (EMPLOYER_HR_ROLE, "employers:dashboard"),
     (EMPLOYER_MANAGER_ROLE, "employers:dashboard"),
     (INTERVIEWER_ROLE, "employers:dashboard"),
@@ -321,7 +324,8 @@ def role_landing_url(user: User) -> str:
         try:
             return reverse(url_name)
         except NoReverseMatch:
-            # The dashboard for this role does not exist yet (batch 1.16/1.30).
+            # The employer dashboard (#34) does not exist yet; the candidate
+            # mapping resolves to the profile page.
             return reverse("core:home")
     return reverse("core:home")
 

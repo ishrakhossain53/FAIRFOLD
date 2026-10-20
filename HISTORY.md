@@ -50,12 +50,12 @@ blocked.
 
 || File | Lines | Role |
 || --- | --- | --- |
-|| `FAIRFOLD_Complete_Project_Document.md` | 2433 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2646 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 33-table SQL schema, 53 foreign keys, 27 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
+|| `FAIRFOLD_Complete_Project_Document.md` | 2448 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2649 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 33-table SQL schema, 53 foreign keys, 27 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
 || `prd.md` | 1282 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 || `design.md` | 2918 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 420 | Project overview, documentation index, setup |
+| `README.md` | 425 | Project overview, documentation index, setup |
 
 | `.env.example` | 174 | Environment variables, all placeholders |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
@@ -2857,3 +2857,272 @@ unset and `DJANGO_SETTINGS_MODULE=config.settings.ci`:
 
 This corrects the earlier statement in this log that the 1.7-1.11 lines were left open.
 `docs/TRACEABILITY.md` already had REQ-FR-002/003/004/007/008 at `done`; no change there.
+
+### Batch 1.12: Current-user endpoint (2026-10-20)
+
+**Changed.** Added `GET`/`PUT /api/v1/auth/me/` (Complete Doc §C.12). `MeView`
+acts on `request.user` only -- there is no user id in the path or body -- and
+declares `permission_classes = [IsAuthenticated]` explicitly. `MeSerializer`
+returns the whitelist `email`, `first_name`, `last_name`, `roles`: role names
+from the D-2 `ROLES` tuple in fixture order, never `Group.pk` values and never
+groups outside that tuple. `MeUpdateSerializer` accepts only `first_name` and
+`last_name`, both required (strict PUT); the view writes them with
+`save(update_fields=["first_name", "last_name"])` so no other column can be
+written. Email changes stay out of scope, and undeclared keys in the body are
+ignored. drf-spectacular now documents both operations (`Me`, `MeUpdate`).
+
+**Docs updated with this batch.** Complete Doc §C.12 now records the response
+and update contract (the docs previously named only the two verbs); README's
+API Endpoints list shows both operations. `docs/TRACEABILITY.md` is unchanged:
+the batch covers no REQ-FR, and §C.12 is the source of record. Two line counts
+in this file's table (§ File) were corrected because those files changed:
+`FAIRFOLD_Complete_Project_Document.md` 2433 -> 2442 and `README.md` 420 ->
+421.
+
+**Tests.** New `tests/accounts/test_me_api.py` (16 tests) covers own-data
+scoping (including a `?user_id=` attempt), 401 on anonymous GET and PUT through
+the real JWT authenticator, strict-PUT 400s, PATCH 405, stable role names, and
+a whitelist test asserting `email`, `is_staff`, `is_superuser`, `mfa_enabled`,
+`locked_until`, `failed_login_attempts`, `groups`, `roles` and
+`email_verified` neither change nor appear in the response.
+
+**Commands run and results.** Local workspace, `config.settings.ci`, `DEBUG`
+unset: `pytest tests/accounts/test_me_api.py` -> 16 passed; `pytest
+tests/accounts` -> 366 passed; `manage.py check` -> no issues;
+`makemigrations --check --dry-run` -> "No changes detected"; flake8 -> exit 0;
+black -> 31 files unchanged; isort -> exit 0; `mypy accounts/` -> no issues in
+18 source files; `manage.py spectacular` -> exit 0; `pytest tests/` -> 481
+passed. With the shell's ambient `DEBUG=True`, 14 pre-existing
+`tests/core/test_production_settings.py` tests fail; unsetting `DEBUG` clears
+them, and none of the 14 touches this batch.
+
+**Known limitations.** No UI, no audit entry for a name change (no REQ-FR asks
+for one), no PATCH. `roles` excludes non-role groups, so a user who holds only
+an internal group gets `[]`. Accepted by the maintainer on 2026-10-20; the
+`docs/PROGRESS.md` line was changed to `[x]` with this entry's numbers.
+
+### Batch 1.13: Authorization matrix and security headers (2026-10-20)
+
+**Changed.** Added `tests/core/test_authz_matrix.py` (34 tests): a matrix of 30
+registered routes with the expected status for anonymous, candidate, employer
+and admin, plus three fail-closed checks and one synthetic proof. The route
+walker reads `django.urls.get_resolver()` independently of the matrix and
+compares both directions, refuses parameterised routes outside `django-admin/`,
+and asserts `DEFAULT_PERMISSION_CLASSES` is still `IsAuthenticated`. A route
+added without a rule fails `test_every_registered_route_has_a_matrix_row`;
+`test_a_route_added_without_a_rule_is_detected` proves that with a synthetic
+URLconf. `django-admin/` is one row (its generated CRUD paths share one staff
+check); `static/`, `media/`, `api/schema/` and `api/docs/` are excluded and the
+reasons are in `docs/AUTHZ_MATRIX.md`.
+
+Added `tests/core/test_security_headers.py` (10 tests): HSTS, nosniff,
+`X-Frame-Options` and `Referrer-Policy` on four paths under production-like
+settings, plus a plain-HTTP case proving HSTS is not sent before the redirect.
+
+**CSP decision.** Arch Doc §6.3 put CSP at the Nginx edge, but the repository has
+no nginx config file and Django 5.2 has no CSP support, so the header was not
+present on any response the test suite could see. Per the maintainer's decision,
+added `core.middleware.ContentSecurityPolicyMiddleware` and
+`settings.CONTENT_SECURITY_POLICY` with a self-hosted policy:
+`default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'
+'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src
+'self'`. No CDN host remains; `'unsafe-inline'` is still required by the two
+inline `<script>` blocks and is not disguised as a nonce implementation. The
+middleware leaves a response's own CSP intact. `production.py` now refuses an
+empty policy, and `test_security_headers.py` asserts the header on every path.
+
+**Docs updated.** New `docs/AUTHZ_MATRIX.md` records the matrix, the discovery
+rules, the exclusions and the header contract. Complete Doc §5.5 now states the
+self-hosted policy (and the §4.3 cross-reference points at §5.5, not §C.9).
+Arch Doc §6.3 no longer tells Nginx to add a second CSP header; it points at the
+Django setting instead. The § File line count for the Arch Doc was corrected from
+2646 to 2649 because of that edit. `docs/TRACEABILITY.md` is unchanged: this
+batch covers no REQ-FR (REQ-SEC-010 is summarised as an NFR group there).
+
+**Commands run and results.** Local workspace, `config.settings.ci`, `DEBUG`
+unset: `pytest tests/core/test_authz_matrix.py` -> 34 passed;
+`pytest tests/core/test_security_headers.py` -> 10 passed;
+`pytest tests/core/test_production_settings.py` -> 20 passed;
+`pytest tests/core` -> 120 passed; `pytest tests/` -> 526 passed;
+`manage.py check` -> no issues; `makemigrations --check --dry-run` ->
+"No changes detected"; flake8 (project apps, migrations excluded) -> exit 0;
+black on the changed files -> clean (repo-wide `black --check .` still flags the
+pre-existing, untracked-by-this-batch `scripts/verify_docs.py`); isort -> exit
+0; `mypy config/ core/ accounts/ candidates/
+employers/ matching/ ai/` -> no issues in 77 source files; `verify_docs.py` ->
+exit 0.
+
+**Known limitations.** The matrix sends one representative method per route
+(GET, or POST with an empty body); a new method on an existing path is not
+discovered automatically. API actors use session authentication; the JWT path is
+covered by `tests/accounts/test_me_api.py`. `django-admin/` internals are one
+row by design. CSP retains `'unsafe-inline'`; nonces are a separate change.
+Arch Doc §6.3 and Complete Doc §5.5 still say `Referrer-Policy:
+strict-origin-when-cross-origin`, while `production.py` sets `same-origin` (the
+stricter value, asserted by the test) -- a pre-existing doc/code mismatch left
+for a decision. `Permissions-Policy: camera=(), microphone=()` is documented but
+not set by Django and is not asserted. Accepted by the maintainer on 2026-10-20;
+the `docs/PROGRESS.md` line was changed to `[x]` with this entry's numbers.
+
+### Batch 1.14: Candidate profile model (2026-10-20)
+
+**Changed.** Added `CandidateProfile` in `candidates/models.py` and its generated
+migration `candidates/migrations/0001_initial.py`. The model is transcribed from
+Arch Doc §5.1 `candidate_profiles` for REQ-FR-009:
+
+- `user` is a non-null `OneToOneField` with `related_name="candidate_profile"`.
+  The DDL leaves `user_id` nullable, but §5.2 draws `users (1) ──(1)──>
+  candidate_profiles` and REQ-FR-009 creates the profile for a registered
+  candidate; a profile with no owner is unreachable. This is the stricter
+  reading, and the second-profile case is rejected by the database.
+- `title` (200), `bio`, `location`, `remote_ok` are REQ-FR-009's four onboarding
+  fields. Django's `blank=True`/empty-string convention is used instead of
+  `NULL`, so "not provided" has one spelling rather than two.
+- `skills`, `journey_timeline` and `match_scores` are `JSONField`s with
+  `list`/`list`/`dict` defaults. `skills` is the denormalised search copy that
+  `prd.md:756` and D-6(e) describe; `candidate_skills` (REQ-FR-014) is the
+  source of truth once it lands. `match_scores` is the DDL's read cache, not the
+  ranking input.
+- `visibility_tier` (`standard`/`promoted`/`verified`) and `is_promoted` are
+  present for REQ-FR-053/D3 discovery only. The model comment records that they
+  must never enter `match_score` or `rank_applications()`.
+- `resume_embedding VECTOR(384)` is deliberately absent. `docs/ROADMAP.md` batch
+  2.12 owns the pgvector columns and the extension migration; adding the column
+  now would make every test depend on an extension migration that does not exist
+  yet.
+- `location` is a plain `TextField`. D-5 (encrypt from creation vs defer) is
+  still open; this follows `accounts.models.User.first_name`/`last_name`, and a
+  note under D-5 in `docs/DECISIONS.md` records that the deferral applies to the
+  new column too. Switching it later is a migration, not a rewrite.
+- There is no `role` column: D-2 roles are groups. A test asserts that.
+
+**Tests.** `tests/candidates/test_candidate_profile_model.py` has 12 tests:
+one-to-one access from both sides, a second profile rejected, a profile without
+a user rejected, the DDL defaults, per-row JSON defaults (not shared mutable
+objects), cascade from user to profile, profile deletion not deleting the user,
+the 200-character title limit, the three visibility values, `__str__` not
+rendering the candidate's email, no `role` field, and the UUID key plus
+`candidate_profiles` table name.
+
+**Docs updated.** `docs/PROGRESS.md` records 1.14 as pending the maintainer's
+output. `docs/TRACEABILITY.md` moves REQ-FR-009 from `not started` to `partial`
+with the model and test paths; the onboarding endpoint and UI are 1.15/1.16.
+`docs/DECISIONS.md` D-5 gains the implementation note above. No canonical doc
+line counts changed.
+
+**Commands run and results.** Local workspace, `config.settings.ci`, `DEBUG`
+unset: `pytest tests/candidates/test_candidate_profile_model.py` -> 12 passed;
+`pytest tests/` -> 538 passed, 107 warnings; `manage.py check` -> no issues;
+`makemigrations --check --dry-run` -> "No changes detected"; black -> clean;
+isort -> exit 0; flake8 (candidates + tests/candidates) -> exit 0;
+`mypy candidates/` -> no issues in 10 source files.
+
+**Known limitations.** D-5 is still open, so `location` is plain text; the model
+does not enforce candidate-group membership (the 1.15 API must), there is no
+onboarding API or UI yet, no admin registration (batch 3.30 owns the admin
+surface), no `candidate_skills` table (REQ-FR-014) and no `resume_embedding`
+(2.12). Accepted by the maintainer on 2026-10-20; the `docs/PROGRESS.md` line was
+changed to `[x]` with this entry's numbers.
+
+### Batch 1.12-1.14 acceptance (2026-10-20)
+
+The maintainer confirmed that everything through batch 1.14 is done. The three
+`docs/PROGRESS.md` lines were changed from `[ ]` to `[x]`, and the "stays `[ ]`"
+sentence at the end of each of the three entries above was corrected in place.
+That is the only edit to an older entry, and it corrects a fact rather than
+rewriting history.
+
+Re-ran the acceptance commands before marking:
+
+- `pytest tests/accounts/test_me_api.py` -> 16 passed
+- `pytest tests/core/test_authz_matrix.py tests/core/test_security_headers.py` -> 44 passed
+- `pytest tests/candidates/test_candidate_profile_model.py` -> 12 passed
+- `pytest tests/` -> 538 passed, 107 warnings
+- `manage.py check` -> no issues
+- `makemigrations --check --dry-run` -> "No changes detected"
+
+### Batch 1.15: Candidate profile API and 1.16: Candidate onboarding/profile UI (2026-10-20)
+
+**What changed.**
+
+- **1.15 API.** `GET`/`PATCH /api/v1/candidates/me/` now exist
+  (`candidates/api_views.py`, `candidates/serializers.py`,
+  `candidates/api_urls.py`). The route is candidate-only through the existing
+  `IsCandidate` permission; the target is always `request.user`, so there is no
+  id in the path or body. `GET` returns 404 until onboarding. The response is
+  exactly the four fields §C.12 names: `title`, `bio`, `location`, `remote_ok`.
+  Because §C.12 has no profile `POST`, a non-empty `PATCH` is create-or-update;
+  an empty `PATCH` on an absent profile is 404. The Complete Doc §C.12 now states
+  that contract explicitly, and the HISTORY line-count table was corrected from
+  2442 to 2448 for the added note. The README API list gained the two candidate
+  routes and its line count was corrected from 421 to 425.
+- **1.16 UI.** Pages #14 and #16 from design.md §10.2 / wireframe S02:
+  `/candidate/onboarding/` creates the four fields, `/candidate/profile/` shows
+  them with a completeness progressbar, and `/candidate/profile/edit/` updates
+  one section at a time from a `<details>` inline form. Templates are
+  `templates/candidates/onboarding.html`, `profile.html` and `_section.html`;
+  the form classes are in `candidates/forms.py`; the views and the
+  candidate-group/login guards are in `candidates/views.py`.
+- **Entry point.** The candidate role landing changed from the not-yet-built
+  `candidates:dashboard` to `candidate_portal:profile`, so login reaches the
+  profile or, when it does not exist, onboarding. The three login-UI assertions
+  that expected `/` were updated. The employer/interviewer landing is unchanged.
+- **Authorization matrix.** Added `/candidate/onboarding/`,
+  `/candidate/profile/`, `/candidate/profile/edit/` and
+  `/api/v1/candidates/me/` to `tests/core/test_authz_matrix.py` and
+  `docs/AUTHZ_MATRIX.md`. The API row proves candidate 404 vs employer/admin 403
+  vs anonymous 401; the page rows prove anonymous redirect vs non-candidate 403.
+- **Tests.** `tests/candidates/conftest.py` (role groups and `make_user`),
+  `tests/candidates/test_profile_api.py` and
+  `tests/candidates/test_profile_ui.py`. They cover ownership, the four role
+  gates, validation, create/update, field whitelisting, per-section updates,
+  unknown-section 400, escaping, and CSRF on a session POST.
+
+**Contract decisions recorded in code.**
+
+- `PATCH` writes only declared fields (`save(update_fields=...)`). Unknown keys
+  (`user`, `id`, `skills`, `journey_timeline`, `match_scores`,
+  `visibility_tier`, `is_promoted`, `email`) are ignored by DRF and cannot
+  change the row.
+- The profile UI never accepts a profile id. A second candidate's POST can only
+  reach their own row; if they have none, it redirects them to onboarding.
+- `remote_ok` counts as an answered completeness item once the profile exists,
+  because `False` is a stored preference, not a missing value. Empty text fields
+  are shown as "Not provided".
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`
+unset; these are not a substitute for the maintainer's run).**
+
+- `pytest tests/candidates/ tests/core/test_authz_matrix.py tests/accounts/test_login_ui.py -q` -> 120 passed
+- `pytest tests/ -q` -> 591 passed, 161 warnings
+- `python manage.py check` -> no issues
+- `python manage.py makemigrations --check --dry-run` -> "No changes detected"
+- `python manage.py spectacular --file /tmp/fairfold-schema.yaml` -> exit 0
+- `flake8 candidates/ tests/candidates/ tests/core/test_authz_matrix.py accounts/views.py tests/accounts/test_login_ui.py --max-line-length=120` -> exit 0
+- `black --check` and `isort --check-only` on the changed Python files -> clean
+- `mypy candidates/ --ignore-missing-imports` -> no issues in 14 source files
+- `python scripts/verify_docs.py` -> all checks passed (14 notes for a human)
+
+**Known limitations.**
+
+- `docs/PROGRESS.md` now marks 1.15 and 1.16 `[x]` (2026-10-20) on the
+  maintainer's direction. The batch's rule 9 had left them `[ ]` pending a
+  pasted run; the counts recorded are the local targeted/full runs above. If the
+  maintainer's run differs, revert those two lines.
+- The onboarding page is the **manual profile step** of page #14, not the full
+  three-step wizard in the wireframe. Resume upload is batch 1.17 and skills is
+  1.18; the page does not fake those steps. There is no stepper, so S02's
+  `aria-current="step"` line has nothing to apply to yet. The profile page
+  implements S02's inline-edit-per-section behaviour and completeness bar.
+- The candidate dashboard (#15) is still absent; login lands on the profile.
+- `location` remains plain text while D-5 is open.
+- The compiled `static/css/tailwind.css` was not rebuilt in this workspace
+  because `node_modules/` is absent. The templates use existing tokens and
+  utilities; `npm run build` (or `npm run build:css`) is required before a
+  browser check.
+- There is no profile `POST`; API-only onboarding creates through a non-empty
+  PATCH, as recorded in §C.12. Profile edits are not rate-limited beyond the
+  project defaults.
+- `CandidateProfile` is still not registered in Django admin (batch 3.30 owns
+  that surface). No resume, skills, journey or dashboard columns are exposed by
+  this batch.

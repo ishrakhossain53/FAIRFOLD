@@ -1,8 +1,13 @@
-"""Request-scoped correlation IDs.
+"""Request-scoped correlation IDs and the application-level CSP.
 
 Every request gets an ID, and the same ID appears in the web log line, in the
 Celery task that request schedules, and in the AI provider call. Without it, a
 screening failure is three log lines in three files with nothing to join them on.
+
+The second middleware here sets `Content-Security-Policy`. Django 5.2 has no CSP
+support, and the canonical docs placed the header at the Nginx edge only, which
+left a deployment without that proxy with no CSP at all. Keeping it in Django
+makes the header testable by the same suite as the rest of REQ-SEC-010.
 
 A ``contextvars.ContextVar`` is used rather than an attribute on the request so
 that :class:`core.logging.RequestIDFilter` and Celery tasks can read the current
@@ -21,6 +26,7 @@ import logging
 import uuid
 from contextvars import ContextVar
 
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 
 logger = logging.getLogger(__name__)
@@ -74,3 +80,30 @@ class RequestIDMiddleware:
         if supplied and 8 <= len(supplied) <= 64 and supplied.isalnum():
             return supplied
         return uuid.uuid4().hex[:16]
+
+
+class ContentSecurityPolicyMiddleware:
+    """Attach `settings.CONTENT_SECURITY_POLICY` to every response.
+
+    Django 5.2 has no CSP support, and the policy was documented only at the
+    Nginx edge (Arch Doc §6.3). A deployment without that proxy therefore shipped
+    no CSP at all, and `test_security_headers.py` had nothing to assert. Setting
+    it here makes the header part of the application's tested surface; the edge
+    may still add its own copy, but the browser intersects multiple CSP headers,
+    so the strictest one wins.
+
+    A response that already carries a policy is left alone. Two headers from two
+    layers that disagree are enforced as their intersection, and the effective
+    policy then cannot be read from either file.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+
+        policy = getattr(settings, "CONTENT_SECURITY_POLICY", "")
+        if policy and "Content-Security-Policy" not in response:
+            response["Content-Security-Policy"] = policy
+        return response

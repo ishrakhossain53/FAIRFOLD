@@ -71,6 +71,13 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "same-origin"
 
+# A blank policy is the same as no CSP. The middleware skips an empty string, so
+# this is the only place the failure would otherwise be silent.
+if not CONTENT_SECURITY_POLICY:  # noqa: F405
+    raise ImproperlyConfigured(
+        "CONTENT_SECURITY_POLICY must not be empty in production."
+    )
+
 # Only safe because TLS terminates at a proxy that overwrites this header.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

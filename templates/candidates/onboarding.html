@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Complete your profile · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-2xl py-4 sm:py-8">
+  <h1 class="text-h1 font-bold text-ink">Complete your profile</h1>
+  <p class="mt-2 text-body text-ink-3">
+    Tell us a little about yourself. You can change any of this later.
+  </p>
+
+  {% comment %}
+  Error summary (design.md §6.2). It is the first thing in the panel and every
+  entry links to the field that failed, so a keyboard or screen-reader user does
+  not have to hunt for the error. `role="alert"` is appropriate because it
+  appears after a submit the user already made; the page script moves focus here.
+  {% endcomment %}
+  {% if form.errors %}
+  <div id="error-summary" tabindex="-1" role="alert"
+       class="mt-6 rounded-md border border-danger bg-danger-soft p-4">
+    <h2 class="text-h4 font-semibold text-danger-ink">There is a problem with your profile</h2>
+    <ul class="mt-2 list-inside list-disc space-y-1 text-body-sm text-danger-ink">
+      {% for error in form.non_field_errors %}
+      <li>{{ error }}</li>
+      {% endfor %}
+      {% for field in form %}
+      {% if field.errors %}
+      <li><a class="underline" href="#id_{{ field.name }}">{{ field.label }}</a></li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% comment %}
+  `novalidate` so the server-rendered messages are the only set of error copy
+  (design.md §6.2). The form works without JavaScript; the script below only
+  moves focus after a failed submit.
+  {% endcomment %}
+  <form method="post" action="{% url 'candidate_portal:onboarding' %}" novalidate
+        class="mt-6 space-y-5 rounded-md border border-border bg-surface p-6 shadow-card">
+    {% csrf_token %}
+
+    {% include "accounts/_field.html" with field=form.title %}
+    {% include "accounts/_field.html" with field=form.bio %}
+    {% include "accounts/_field.html" with field=form.location %}
+
+    <div>
+      <div class="flex items-start gap-3">
+        {{ form.remote_ok }}
+        <div>
+          <label for="{{ form.remote_ok.id_for_label }}" class="text-body-sm text-ink">
+            {{ form.remote_ok.label }}
+          </label>
+          <p id="id_remote_ok-help" class="mt-1 text-body-sm text-ink-3">
+            {{ form.remote_ok.help_text }}
+          </p>
+        </div>
+      </div>
+      <p id="id_remote_ok-error" class="mt-1 text-body-sm text-danger"{% if not form.remote_ok.errors %} hidden{% endif %}>
+        {% if form.remote_ok.errors %}<span aria-hidden="true">✖</span> {{ form.remote_ok.errors.0 }}{% endif %}
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <button type="submit"
+              class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong">
+        Save profile
+      </button>
+      <p class="text-body-sm text-ink-3">You can add a resume and skills later.</p>
+    </div>
+  </form>
+</div>
+
+<script>
+  // Move focus to the summary after a failed submit, so a keyboard or
+  // screen-reader user hears what went wrong instead of landing at the top of
+  // the page with no context (design.md §6.2, §8.3).
+  (function () {
+    var summary = document.getElementById('error-summary');
+    if (summary) { summary.focus(); }
+  })();
+</script>
+{% endblock %}

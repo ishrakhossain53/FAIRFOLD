@@ -162,6 +162,21 @@ class TestProductionAssertions:
         assert module.CSRF_COOKIE_SECURE is True
         assert module.SECURE_HSTS_SECONDS == 31536000
         assert module.SECURE_HSTS_PRELOAD is True
+        # Batch 1.13: the response-level assertions live in
+        # tests/core/test_security_headers.py; this is the settings half.
+        assert module.SECURE_HSTS_INCLUDE_SUBDOMAINS is True
+        assert module.SECURE_CONTENT_TYPE_NOSNIFF is True
+        assert module.X_FRAME_OPTIONS == "DENY"
+        assert module.SECURE_REFERRER_POLICY == "same-origin"
+
+    def test_content_security_policy_is_self_hosted(self, production_settings):
+        # Batch 1.13: the header is set by
+        # core.middleware.ContentSecurityPolicyMiddleware from this setting.
+        policy = production_settings().CONTENT_SECURITY_POLICY
+        assert "default-src 'self'" in policy
+        assert "script-src 'self' 'unsafe-inline'" in policy
+        assert "cdn.tailwindcss.com" not in policy
+        assert "cdn.jsdelivr.net" not in policy
 
     def test_sentry_is_configured_not_to_send_pii(self, production_settings):
         # The product handles candidate PII. A crash report carrying it would put

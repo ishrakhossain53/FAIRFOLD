@@ -29,7 +29,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from accounts.models import User
+from accounts.models import ROLES, User
 from accounts.services import SELF_ASSIGNABLE_ROLES
 
 
@@ -232,3 +232,57 @@ class PasswordChangeSerializer(serializers.Serializer):
         trim_whitespace=False,
         style={"input_type": "password"},
     )
+
+
+# ---------------------------------------------------------------------------
+# Current user (batch 1.12)
+# ---------------------------------------------------------------------------
+
+
+class MeSerializer(serializers.Serializer):
+    """The `GET`/`PUT /api/v1/auth/me/` response body (Complete Doc §C.12).
+
+    The declaration *is* the whitelist. It spells out the four fields the
+    endpoint may return, so `locked_until`, `failed_login_attempts`,
+    `mfa_enabled`, `is_staff` and the group rows -- all present on `User` -- are
+    unreachable from here even if a view later passes the model straight to the
+    serializer. That matters for `locked_until` in particular: exposing the
+    timestamp would tell a client exactly when to retry a password guess.
+
+    `roles` carries the documented role names (D-2), never `Group.pk` values and
+    never every group the user happens to hold: a group created for an internal
+    permission set is not part of this contract. Filtering through `ROLES` also
+    fixes the order, so two clients comparing the list do not see it change
+    between requests.
+    """
+
+    email = serializers.EmailField(read_only=True)
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    roles = serializers.SerializerMethodField()
+
+    def get_roles(self, user: User) -> list[str]:
+        held = set(user.groups.values_list("name", flat=True))
+        return [role for role in ROLES if role in held]
+
+
+class MeUpdateSerializer(serializers.Serializer):
+    """The `PUT /api/v1/auth/me/` body (Complete Doc §C.12).
+
+    Exactly the two writable columns, and both are required: the documented verb
+    is PUT, which replaces the representation, so a body with only `first_name`
+    is incomplete rather than a partial edit. A partial client belongs on a
+    future PATCH, which §C.12 does not list for this route.
+
+    `email` is deliberately absent. Changing the sign-in address is a
+    re-verification flow (REQ-FR-001) and nothing in §C.12 or the requirements
+    asks for it here; accepting it would let a caller swap the address that
+    owns the account in a single unverified write.
+
+    DRF ignores keys that are not declared, including declared read-only ones.
+    That is the documented behaviour relied on by the whitelist tests: a body
+    carrying `is_staff` or `groups` succeeds while changing neither.
+    """
+
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)

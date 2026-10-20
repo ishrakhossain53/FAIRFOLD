@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Profile · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-3xl py-4 sm:py-8">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <h1 class="text-h1 font-bold text-ink">Profile</h1>
+
+    {% comment %}
+    design.md S02 asks for a completeness bar. `role="progressbar"` carries the
+    value for assistive technology, and the percentage is also printed as text,
+    so the bar's colour is never the only signal (design.md §9).
+    {% endcomment %}
+    <div class="flex items-center gap-3">
+      <span id="completeness-label" class="text-body-sm text-ink-3">Profile completeness</span>
+      <div role="progressbar" aria-labelledby="completeness-label"
+           aria-valuenow="{{ completeness }}" aria-valuemin="0" aria-valuemax="100"
+           class="h-2 w-28 overflow-hidden rounded-full bg-surface-muted sm:w-36">
+        <div class="h-2 rounded-full bg-primary" style="width: {{ completeness }}%"></div>
+      </div>
+      <span class="text-body-sm font-medium text-ink">{{ completeness }}%</span>
+    </div>
+  </div>
+
+  <div class="mt-6 rounded-md border border-border bg-surface px-6 shadow-card">
+    {% include "candidates/_section.html" with section_key="title" label="Headline" edit_label="headline" value=profile.title field=title_form.title %}
+    {% include "candidates/_section.html" with section_key="bio" label="About" edit_label="bio" value=profile.bio field=bio_form.bio %}
+    {% include "candidates/_section.html" with section_key="location" label="Location" edit_label="location" value=profile.location field=location_form.location %}
+    {% include "candidates/_section.html" with section_key="remote_ok" label="Open to remote work" edit_label="remote preference" value=profile.remote_ok|yesno:"On,Off" field=remote_ok_form.remote_ok %}
+  </div>
+
+  <p class="mt-4 text-body-sm text-ink-3">
+    You can add a resume and skills later.
+  </p>
+</div>
+{% endblock %}

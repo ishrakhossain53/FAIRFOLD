@@ -34,6 +34,8 @@ from accounts.serializers import (
     CodedErrorSerializer,
     DetailSerializer,
     LoginSerializer,
+    MeSerializer,
+    MeUpdateSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -512,6 +514,70 @@ class PasswordChangeView(APIView):
             raise DRFValidationError({"new_password": exc.messages}) from exc
 
         return Response({"detail": PASSWORD_CHANGED_DETAIL}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Current user (batch 1.12)
+# ---------------------------------------------------------------------------
+
+
+class MeView(APIView):
+    """`GET`/`PUT /api/v1/auth/me/` -- the caller's own account.
+
+    The target is always `request.user`. The route has no id in the path and the
+    body cannot name a different account, so "own data only" is structural
+    rather than a check that a later edit can remove. A user id in the URL would
+    have needed an equality test on every method; this needs none.
+
+    `permission_classes` is set explicitly even though `IsAuthenticated` is the
+    project default: the endpoint reads and writes one person's row, and batch
+    1.13's matrix treats an undeclared permission on a non-public view as a
+    finding. There is no role restriction -- every authenticated role owns an
+    account -- so the test is authentication, not membership of a group.
+
+    `authentication_classes` is left at the project default on purpose. Unlike
+    the anonymous auth routes, this one is reached from the browser session too,
+    so `SessionAuthentication` must keep enforcing CSRF on the PUT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={200: MeSerializer},
+        summary="Get the current user",
+        description=(
+            "Authenticated. Returns the caller's email, first and last name, "
+            "and documented role names. Lockout state, MFA flags, staff flags "
+            "and group ids are never included."
+        ),
+    )
+    def get(self, request) -> Response:
+        return Response(MeSerializer(request.user).data)
+
+    @extend_schema(
+        request=MeUpdateSerializer,
+        responses={200: MeSerializer},
+        summary="Update the current user",
+        description=(
+            "Authenticated. Replaces the caller's first and last name; both "
+            "are required (PUT, not PATCH). `email` is read-only: changing the "
+            "sign-in address needs the verification flow. Any other key in the "
+            "body is ignored."
+        ),
+    )
+    def put(self, request) -> Response:
+        serializer = MeUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        user.first_name = serializer.validated_data["first_name"]
+        user.last_name = serializer.validated_data["last_name"]
+        # Named columns, not `save()`: the request must not be able to write
+        # anything else on the row even if a future field is added to the
+        # serializer by mistake.
+        user.save(update_fields=["first_name", "last_name"])
+
+        return Response(MeSerializer(user).data)
 
 
 def locked_detail(retry_after: int) -> str:

@@ -300,12 +300,17 @@ scripts/
 ### Authentication
 - `POST /api/v1/auth/register/` - Register new user
 - `POST /api/v1/auth/login/` - Login, get JWT tokens
-- `GET /api/v1/auth/me/` - Get current user
+- `GET /api/v1/auth/me/` - Get current user (email, names, role names)
+- `PUT /api/v1/auth/me/` - Update the current user's first and last name
 
 ### Jobs
 - `GET /api/v1/jobs/` - List jobs
 - `POST /api/v1/jobs/` - Create job
 - `POST /api/v1/jobs/{id}/screen/` - Screen applications
+
+### Candidates
+- `GET /api/v1/candidates/me/` - Get the candidate's profile (404 before onboarding)
+- `PATCH /api/v1/candidates/me/` - Create or update title, bio, location, remote_ok
 
 ## Technology Choices
 
