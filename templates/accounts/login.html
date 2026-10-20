@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Log in · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-md py-4 sm:py-8">
+  <h1 class="text-h1 font-bold text-ink">Log in</h1>
+
+  {% comment %}
+  design.md S01: the lockout state is "Too many attempts. Try again in 14:32."
+  It is `role="alert"` because it changes what the user must do, and it is
+  rendered once per response rather than counted down every second — a live
+  region that updates each second interrupts a screen reader continuously.
+  {% endcomment %}
+  {% if form.non_field_errors %}
+  <div id="error-summary" tabindex="-1" role="alert"
+       class="mt-6 rounded-md border border-danger bg-danger-soft p-4">
+    <h2 class="text-h4 font-semibold text-danger-ink">We could not sign you in</h2>
+    <ul class="mt-2 list-inside list-disc space-y-1 text-body-sm text-danger-ink">
+      {% for error in form.non_field_errors %}
+      <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% comment %}
+  `novalidate` so the server-rendered summary is the only set of error copy, and
+  the response for a wrong password is the same page whether the browser would
+  have blocked the submit or not. `next` is a hidden field rather than part of
+  the action URL so the view validates the same value on GET and POST.
+  {% endcomment %}
+  <form method="post" action="{% url 'accounts_public:login' %}" novalidate
+        class="mt-6 space-y-5 rounded-md border border-border bg-surface p-6 shadow-card">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+
+    {% include "accounts/_field.html" with field=form.email %}
+    {% include "accounts/_field.html" with field=form.password %}
+
+    <p class="text-body-sm">
+      <a href="{% url 'accounts_public:forgot-password' %}" class="underline text-primary-strong">
+        Forgot password?
+      </a>
+    </p>
+
+    <button type="submit"
+            class="inline-flex h-touch w-full items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong">
+      Log in
+    </button>
+  </form>
+
+  <p class="mt-6 text-body-sm text-ink-3">
+    No account?
+    <a href="{% url 'accounts_public:register' %}" class="underline text-primary-strong">Register</a>
+  </p>
+</div>
+
+<script>
+  // After a failed submit, move focus to the summary so a keyboard or
+  // screen-reader user hears why the sign-in failed (design.md §6.2, §8.3).
+  (function () {
+    var summary = document.getElementById('error-summary');
+    if (summary) { summary.focus(); }
+  })();
+</script>
+{% endblock %}

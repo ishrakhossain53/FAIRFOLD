@@ -17,9 +17,9 @@ more damaging failure (design.md §6.2, §9).
   <p id="{{ field.id_for_label }}-help" class="mt-1 text-body-sm text-ink-3">{{ field.help_text }}</p>
   {% endif %}
 
-  <div class="mt-1{% if field.name == 'password' %} relative{% endif %}">
+  <div class="mt-1{% if field.field.widget.input_type == 'password' %} relative{% endif %}">
     {{ field }}
-    {% if field.name == 'password' %}
+    {% if field.field.widget.input_type == 'password' %}
     <button type="button" data-toggle-password="{{ field.id_for_label }}"
             aria-controls="{{ field.id_for_label }}" aria-pressed="false" hidden
             class="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm px-2 py-1 text-body-sm font-medium text-primary-strong underline">

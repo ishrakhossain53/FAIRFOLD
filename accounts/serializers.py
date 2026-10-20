@@ -146,3 +146,89 @@ class CodedErrorSerializer(serializers.Serializer):
 
     detail = serializers.CharField()
     code = serializers.CharField()
+
+
+# ---------------------------------------------------------------------------
+# Login, token refresh, logout and password management (batches 1.8 and 1.10)
+# ---------------------------------------------------------------------------
+
+
+class LoginSerializer(serializers.Serializer):
+    """The body of `POST /api/v1/auth/login/` (REQ-FR-002).
+
+    The password keeps its whitespace for the same reason as registration: the
+    service hashes exactly what was sent, so trimming here would make the API
+    accept a password the account does not have.
+    """
+
+    email = NormalisedEmailField(max_length=255)
+    password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+    )
+
+
+class TokenPairSerializer(serializers.Serializer):
+    """SimpleJWT's response shape, declared for the OpenAPI document.
+
+    SimpleJWT builds this body itself; the serializer exists so drf-spectacular
+    can describe it. Without it the login and refresh endpoints are omitted from
+    the schema, and a generated client has no way to know the field names.
+    """
+
+    access = serializers.CharField(read_only=True)
+    refresh = serializers.CharField(read_only=True)
+
+
+class RefreshSerializer(serializers.Serializer):
+    """The body of `POST /api/v1/auth/refresh/` and `/logout/`."""
+
+    refresh = serializers.CharField(write_only=True)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """The body of `POST /api/v1/auth/password/reset/` (REQ-FR-004).
+
+    Only the address. The response is identical whether or not it exists, so
+    there is nothing else the caller can use to test for an account.
+    """
+
+    email = NormalisedEmailField(max_length=255)
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """The body of `POST /api/v1/auth/password/reset/confirm/`.
+
+    `uid` and `token` are the two values in the emailed link. They are not
+    validated here: `reset_password` owns the signature, expiry and reuse
+    checks, and a second implementation would be a second place to get the
+    one-hour window wrong.
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+    )
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """The body of `POST /api/v1/auth/password/change/` (authenticated).
+
+    `current_password` is required so a borrowed session cannot lock the owner
+    out of their own account.
+    """
+
+    current_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+    )

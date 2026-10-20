@@ -57,7 +57,7 @@ blocked.
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 420 | Project overview, documentation index, setup |
 
-| `.env.example` | 168 | Environment variables, all placeholders |
+| `.env.example` | 174 | Environment variables, all placeholders |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -2674,3 +2674,186 @@ the run recorded above, which the agent executed in this repository. Nothing was
 - `tests/accounts/test_user_model.py` pins the case-sensitive unique index as a known wart; changing it
   is a schema decision.
 
+
+### Batch 1.7: Login service with lockout (2026-10-20)
+
+**What changed.** `accounts/services.py` gained `authenticate_with_lockout`, the single
+credential check used by both the JSON API and the template login (D-1). It
+implements REQ-FR-003: `MAX_FAILED_LOGIN_ATTEMPTS = 5`, `LOCKOUT_DURATION = 15 min`,
+the counter and `locked_until` written under `select_for_update()`, a success that
+resets both, and a lock that clears its own counter when it expires so one new wrong
+password does not re-lock immediately. The fifth failure sets the lock, so the sixth
+attempt is refused; this was confirmed with the maintainer before implementation.
+Every refuse is a typed exception (`InvalidCredentials`, `EmailNotVerified`,
+`AccountLocked`), and the first two are ordered so "verify your email" is only shown
+after the correct password. `EmailNotVerified` and `InvalidCredentials` messages never
+contain the address. A lock writes one `AuditLogEntry` (`action="account_locked"`,
+`details={"reason": ..., "failed_attempts": 5}`) and nothing else: no email, name or
+password reaches the audit table.
+
+**Tests.** `tests/accounts/test_login_service.py` — 18 passed. A frozen
+`django.utils.timezone.now` moves the model and the service together; no test sleeps.
+Coverage: success (counter reset, `last_login`, case-insensitive address), wrong
+password, unknown address (same error text), inactive account, unverified account,
+unverified + wrong password (stays generic), fifth-failure lock, sixth attempt refused
+with the right password, attempts while locked do not extend the lock, expiry, expiry
+then a wrong password restarting the count, success before the threshold, and the
+audit row with a PII-absence assertion.
+
+### Batch 1.8: JWT login, refresh, logout and revocation API (2026-10-20)
+
+**What changed.** `accounts/api_views.py` gained `LoginView` (anonymous, throttle
+scope `login`, issues `RefreshToken.for_user`), `RefreshView` (subclass of
+SimpleJWT's view, which already rotates and blacklists) and `LogoutView` (blacklists
+the refresh token in the body, 204; invalid/blacklisted token is 401). Routes were
+added to `accounts/auth_urls.py`. Login maps the service's exceptions to 401
+`invalid_credentials`, 403 `email_not_verified` and 423 `account_locked` with
+`retry_after` and the same mm:ss wording as the page. Serializers for the four
+request/response shapes were added so drf-spectacular documents them. D-7's settings
+were already applied in batch 0.5 (15-min access, 7-day refresh, rotation
+blacklisting the old token, `token_blacklist` installed), so no settings change was
+needed for this batch; a test pins them.
+
+**Tests.** `tests/accounts/test_auth_tokens_api.py` — 22 passed. Token shape and PII
+absence, `last_login`, generic 401 for wrong/unknown/inactive, 403 for unverified,
+423 after five failures, 900-second access lifetime decoded from the JWT, rotation
+returning a new pair, replay of the old refresh returning 401, logout then refresh
+401, post-only/body-only logout, `login` throttle scope producing 429, and the three
+operations present in the generated schema.
+
+### Batch 1.9: Login, logout and access-denied UI (2026-10-20)
+
+**What changed.** Page #7 (`design.md` S01, wireframe S01, A11y line: one `<h1>`,
+visible labels, `autocomplete="email"` / `"current-password"`, lockout as
+`role="alert"` announced once) is `templates/accounts/login.html`. `LoginForm` was
+added to `accounts/forms.py`; `login_view`, `logout_view`, `role_landing_url` and
+`post_login_url` to `accounts/views.py`; the routes to `accounts/public_urls.py`.
+The page calls the same `authenticate_with_lockout` as the API and starts a **session**
+(D-1, now recorded as accepted in `docs/DECISIONS.md`). `post_login_url` validates
+`next` with `url_has_allowed_host_and_scheme` against the request host. No dashboard
+route exists yet (pages #15 and #34 land in 1.16 and 1.30), so the role map
+(candidate → `candidates:dashboard`, employer/interviewer → `employers:dashboard`)
+falls back to `/` until those routes exist; the maintainer chose this over inventing a
+page. `logout_view` is POST-only and flushes the server-side session. The existing
+`templates/errors/403.html` is exercised through `core.views.error_403`; no new page
+was needed.
+
+**Tests.** `tests/accounts/test_login_ui.py` — 21 passed. Form rendering, session
+start, generic failure for wrong/unknown/inactive, unverified copy, lockout countdown,
+`next` honoured when local and rejected for five off-site forms (including
+`//host` and `javascript:`), POST-only logout that clears the session, 403 rendering
+and the handler wiring.
+
+### Batch 1.10: Password reset and change (service + API) (2026-10-20)
+
+**What changed.** `accounts/services.py` gained `request_password_reset`,
+`make_password_reset_token`, `is_valid_password_reset_token`, `reset_password` and
+`change_password`. Reset uses Django's `default_token_generator`, so the token is
+bound to the current password hash and dies when used; the one-hour window is
+`settings.PASSWORD_RESET_TIMEOUT = 3600` (REQ-FR-004). A reset clears the lockout and
+blacklists every outstanding refresh token for the account, so a stolen session does
+not survive a reset. `accounts/tasks.py` gained `send_password_reset_email`, which
+builds the uid + token at send time and links to `PASSWORD_RESET_URL`.
+`accounts/api_views.py` gained the three endpoints from Complete Doc §C.12, with a
+`password_reset` throttle scope and the same 202/200 bodies for known and unknown
+addresses. A successful change requires the current password and does not revoke
+refresh tokens (the caller is the signed-in owner; D-7 makes rotation the revocation
+point) — stated in the view docstring.
+
+**Tests.** `tests/accounts/test_password_reset.py` — 29 passed. Valid/reset/expired
+(via `override_settings(PASSWORD_RESET_TIMEOUT=-1)`)/reused/tampered/unknown-uid
+tokens, weak password, lockout clear, refresh-token blacklisting, the emailed link
+actually resets the password (parsed out of the `mailoutbox`), no-op task for an
+unknown or inactive account, API non-enumeration (byte-identical body), 400
+`invalid_token`, field-keyed validation errors, and the authenticated change route.
+
+### Batch 1.11: Password reset UI (2026-10-20)
+
+**What changed.** Pages #9 and #10 (`design.md` X02, wireframe X02) are
+`templates/accounts/forgot_password.html` and `templates/accounts/reset_password.html`,
+with `ForgotPasswordForm` and `SetNewPasswordForm` in `accounts/forms.py` and
+`forgot_password` / `reset_password_page` in `accounts/views.py`, mounted at
+`/forgot-password/` and `/reset-password/`. States: request form, "If that email
+exists…", new-password form, expired/reused link (one state, one action), success.
+The uid and token travel as query parameters from the email and then as hidden
+fields, never in the form action; the page is `no-store` and `no-referrer`.
+
+**Tests.** `tests/accounts/test_password_reset_ui.py` — 12 passed. Both pages render,
+known and unknown addresses get the same sentence and only the known one queues mail,
+valid/reused/invalid/unknown-uid links, mismatch, weak password, and the cache and
+referrer headers.
+
+### Batches 1.7-1.11: commands run (2026-10-20)
+
+Run in this repository with `config.settings.ci`, PostgreSQL/Redis/ClamAV from Compose,
+`DEBUG` unset (the shell used for these runs exported `DEBUG=True` by default; sourcing
+it makes the 14 pre-existing `test_production_settings.py` tests fail with "DEBUG must
+be False in production", which is the environment condition already documented in
+README):
+
+* `.venv/bin/pytest tests/accounts/test_login_service.py -q` → **18 passed**
+* `.venv/bin/pytest tests/accounts/test_auth_tokens_api.py -q` → **22 passed**
+* `.venv/bin/pytest tests/accounts/test_login_ui.py -q` → **21 passed**
+* `.venv/bin/pytest tests/accounts/test_password_reset.py -q` → **29 passed**
+* `.venv/bin/pytest tests/accounts/test_password_reset_ui.py -q` → **12 passed**
+* the five files together → **102 passed**
+* `.venv/bin/pytest tests/accounts/ -q` → **350 passed**
+* `.venv/bin/pytest tests/ -q` → **465 passed**, 60 warnings (mostly JWT test-key length
+  and a drf-spectacular `_UnionGenericAlias` deprecation; both pre-existing)
+* `.venv/bin/python manage.py check` → "System check identified no issues (0 silenced)."
+* `.venv/bin/python manage.py makemigrations --check --dry-run` → "No changes detected"
+* flake8 (repo command) → exit 0
+* `black --check .` → only `scripts/verify_docs.py` would be reformatted (pre-existing,
+  untouched); the changed files are clean
+* `isort --check-only .` → clean
+* `mypy config/ core/ accounts/ candidates/ employers/ matching/ ai/
+  --ignore-missing-imports` → "Success: no issues found in 77 source files"
+* `.venv/bin/python scripts/verify_docs.py` → exit 0 (33 tables, 53 FKs, 27 indexes)
+* `.venv/bin/python scripts/verify_bias_set.py` → exit 0
+
+`docs/PROGRESS.md` for 1.7-1.11 is left at `[ ]` with "pending my test output" because
+rule 9 of the batch requires the maintainer's pasted run before a batch is marked
+complete. `docs/TRACEABILITY.md` sets REQ-FR-002/003/004/007/008 to `done` on the
+strength of the runs above; flip any of them to `partial` if the pasted run differs.
+
+**Known limitations.**
+
+* The post-login landing is `/` for every role until batches 1.16 and 1.30 add the
+  dashboard routes; `role_landing_url` already holds the correct targets and falls
+  back. Chosen by the maintainer rather than inventing a page.
+* No protected template view exists yet, so the "login-required redirect" is exercised
+  through the login view's `next` handling and the `LOGIN_URL` setting, not through a
+  real `@login_required` page.
+* The template reset/request views have no per-IP throttle; only the API has the
+  `password_reset` scope. Complete Doc §C.12's rate-limit note (line ~2035) is about
+  broadcast mail separation, which is Phase 4 and untouched.
+* Expired, reused, tampered and unknown-account reset links share one "This link has
+  expired" state (design.md X02 has one state). The user cannot tell which happened.
+* `RefreshView` and `LogoutView` have no throttle scope: the only documented scope is
+  `login`, and inventing another was out of scope.
+* A reset performs a `SELECT` over the account's outstanding tokens; fine at MVP
+  volumes, but it is not paged.
+* No browser, 360px-viewport or axe-core run was performed. The pages follow the
+  existing token classes and the S01/X02 A11y notes but that is not the same as a
+  manual pass.
+* `docs/DECISIONS.md` records D-1 as accepted on the strength of the batch 1.9
+  instruction; no separate signed decision exists.
+
+### 2026-10-20 — Batches 1.7-1.11 marked done after a maintainer-requested re-run
+
+The entries above left `docs/PROGRESS.md` at `[ ]` pending the maintainer's pasted test
+output (rule 9). The maintainer asked for the tests to be run and the status updated, so
+the five lines are now `[x]` with these results, all re-run on this date with `DEBUG`
+unset and `DJANGO_SETTINGS_MODULE=config.settings.ci`:
+
+* `pytest tests/accounts/test_login_service.py` -> 18 passed
+* `pytest tests/accounts/test_auth_tokens_api.py` -> 22 passed
+* `pytest tests/accounts/test_login_ui.py` -> 21 passed
+* `pytest tests/accounts/test_password_reset.py` -> 29 passed
+* `pytest tests/accounts/test_password_reset_ui.py` -> 12 passed
+* the five files together -> 102 passed
+* `pytest tests/ -q` -> 465 passed
+* `manage.py check` -> no issues; `makemigrations --check --dry-run` -> "No changes detected"
+
+This corrects the earlier statement in this log that the 1.7-1.11 lines were left open.
+`docs/TRACEABILITY.md` already had REQ-FR-002/003/004/007/008 at `done`; no change there.

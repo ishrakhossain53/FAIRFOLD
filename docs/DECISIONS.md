@@ -14,10 +14,14 @@ answers; it does not start until every `[ ]` below is answered.
 > **Partial answers recorded 2026-10-19.** Only D-2, D-3, D-6(a)–(c) and D-7 were accepted, and
 > batch 0.5 applied exactly those. The remaining decisions (D-1, D-4, D-5, D-6(d)–(e), D-8–D-12)
 > are still open and are not applied.
+>
+> **Update 2026-10-20.** D-1 Option A was accepted with batch 1.9 and is now applied: the
+> server-rendered pages use session authentication and the JSON API keeps JWT, with one shared
+> lockout service. The other decisions above remain open.
 
 | ID | Question | Recommendation | Files that change | Your answer |
 |---|---|---|---|---|
-| D-1 | Sessions or JWT for the HTMX template pages? | Sessions for pages, JWT for `/api/v1/`, one shared service | `accounts/services.py` (new), `accounts/views.py`, `accounts/urls.py` | [ ] |
+| D-1 | Sessions or JWT for the HTMX template pages? | Sessions for pages, JWT for `/api/v1/`, one shared service | `accounts/services.py` (new), `accounts/views.py`, `accounts/urls.py` | [x] **A** — sessions for pages, JWT for `/api/v1/`, one shared lockout service. Applied in batch 1.9 (`accounts.views.login_view`, `accounts.public_urls`). |
 | D-2 | Which role vocabulary, and which role is protected as "last one"? | Adopt the requirement names: `employer_manager`, and protect the last `employer_hr` | `core/fixtures/groups.json`, `accounts/models.py`, `seed.py`, `employers/__init__.py`, specs | [x] **B** — `employer_manager`, protect the last `employer_hr`. Applied to `groups.json`, `seed.py` ROLES and the specs; `accounts/models.py` / `employers/__init__.py` deferred to the code batch. |
 | D-3 | Add email-verification endpoints to §C.12? | Yes: `verify-email/` + `verify-email/resend/`, stateless signed token (no new table) | Complete Doc §C.12, `prd.md` §13, `docs/TRACEABILITY.md` | [x] **A** — two endpoints, stateless signed token, no new table. |
 | D-4 | Build the per-employer alias in Phase 1? | Yes, pull it forward (batch 1.35) | `candidates/` alias service + tests, `docs/TRACEABILITY.md` | [ ] |
