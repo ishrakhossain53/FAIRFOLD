@@ -17,7 +17,7 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 ## Phase 1: Core recruitment platform (no AI)
 
 - [ ] 1.1 User model characterization tests
-- [ ] 1.2 Role helpers, permission classes, role-exclusivity
+- [ ] 1.2 Role helpers, permission classes, role-exclusivity (pending my test output)
 - [ ] 1.3 Registration service
 - [ ] 1.4 Email verification tokens and email task
 - [ ] 1.5 Registration and verification API

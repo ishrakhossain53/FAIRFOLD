@@ -2122,3 +2122,63 @@ of the pre-0.5 tree and were left unedited — their "32 tables" describes that 
 criterion is demonstrated by a new test, so no TRACEABILITY status is promoted to `done` (FR-002/007 are
 `partial`).
 
+
+### Batch 1.2: Role helpers, permission classes, role-exclusivity (2026-10-20)
+
+Implemented the role layer on top of the batch 1.1 characterization tests. Nothing was committed.
+
+**What changed.**
+
+- `accounts/models.py` — the four role names are now named constants (`CANDIDATE_ROLE`,
+  `EMPLOYER_HR_ROLE`, `EMPLOYER_MANAGER_ROLE`, `INTERVIEWER_ROLE`); `ROLES` is built from them and the
+  `is_candidate`/`is_employer`/`is_employer_admin` properties no longer spell role strings inline.
+  `is_employer_admin` keeps its pre-D-2 name but checks the requirement's `employer_manager` group.
+  `EMPLOYER_ROLES` (hr + manager) is the employer side of REQ-FR-045; `interviewer` is deliberately not
+  in it, because REQ-FR-045 forbids only the candidate/employer conflict.
+- `accounts/services.py` (new) — `assign_role(user, role)` adds a seeded group and refuses a role that
+  would leave the user holding both the candidate and employer sides (REQ-FR-045). Unknown roles raise
+  `ValueError`; conflicts raise `RoleConflictError` (a `ValueError`). The group is fetched with
+  `get()`, never `get_or_create()`, so a typo cannot create a fifth role. The check and insert run in
+  one transaction with `select_for_update()` on the user row, so two concurrent assignments cannot
+  both pass the check. The error message names groups, never the person.
+- `accounts/permissions.py` (new) — `IsCandidate`, `IsEmployer`, `IsEmployerAdmin`, `IsPlatformAdmin`.
+  Role classes delegate to the model's `is_*` properties; `IsPlatformAdmin` checks `is_staff or
+  is_superuser` (D-2: `admin` is a flag, not a group). All four deny anonymous and inactive users.
+  They read group membership rather than `has_perm` because the seeded groups carry no permission
+  codenames; inventing one would be a spec change.
+- `tests/accounts/conftest.py`, `tests/accounts/test_role_assignment.py`,
+  `tests/accounts/test_permissions.py` (new) — every role is asserted against every permission class
+  (16 cases, plus a meta-test that the matrix has no missing combination); the four conflicting pairs
+  are asserted in both directions with the database re-read after the refusal; seeded-group tests load
+  `core/fixtures/groups.json` rather than creating groups themselves.
+
+**Commands run and results.**
+
+- `pytest tests/accounts/test_user_model.py -q` (prerequisite 1.1) → **29 passed**.
+- `pytest tests/accounts/ -q` → **84 passed**.
+- `pytest tests/ -q` with `DEBUG` unset → **199 passed**.
+- `manage.py check` → "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` → "No changes detected" (with the usual `fairfold_test`
+  does-not-exist RuntimeWarning from the migration-history probe; no model change).
+- `flake8 accounts/ tests/accounts/ --max-line-length=120 --extend-exclude='*/migrations/*'` → exit 0.
+- `black --check accounts/ tests/accounts/` → clean after one reformat of `test_permissions.py`;
+  `isort --check-only accounts/ tests/accounts/` → clean.
+- `mypy accounts/ tests/accounts/ --ignore-missing-imports` → "Success: no issues found in 16 source files".
+- `scripts/verify_docs.py` → all checks passed; `scripts/verify_bias_set.py` → 2 versions consistent.
+- `bandit -r accounts/ -c bandit.yaml ...` → **exit 2**, "[main] ERROR Unknown test found in profile:
+  B105". This is the pre-existing `bandit.yaml` / installed-bandit incompatibility recorded in batch
+  0.2, not caused by this batch; bandit could not be run.
+- `black --check .` still reports `scripts/verify_docs.py` would be reformatted — pre-existing, untouched.
+
+**Docs.** `docs/PROGRESS.md` line 1.2 is marked `(pending my test output)` — the tests above passed
+locally, but the batch is not marked `[x]` until the maintainer pastes their own run.
+`docs/TRACEABILITY.md`: REQ-FR-038 and REQ-FR-045 moved from `not started` to `partial`, with the
+missing acceptance criteria named in the evidence cell.
+
+**Known limitations.** There is no test for the concurrent-assignment race (the row lock is reasoned,
+not exercised); the `interviewer` exemption from REQ-FR-045 is an interpretation that should be
+confirmed; the permission classes are not wired to any view yet (out of scope); `employers/__init__.py`
+still says "last-`employer_admin`" and `core/management/commands/seed.py` keeps its own `ROLES` copy,
+both noted as observations rather than changed here. `docs/PROGRESS.md` line 1.1 also remains
+unchecked even though `tests/accounts/test_user_model.py` passes (29 tests); its tracking was not
+updated by that batch.

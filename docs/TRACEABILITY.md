@@ -63,14 +63,14 @@ table must not be used to satisfy the §4.1 row-count check — that check reads
 | REQ-FR-035 | Analytics Dashboard | Medium | 3 | employers | GET /api/v1/jobs/{id}/analytics/; GET /api/v1/jobs/{id}/analytics/override-rate/ | applications; audit_log_entries | not started |  |  |
 | REQ-FR-036 | Job Sharing | Medium | 3 | employers | POST /api/v1/jobs/{id}/share/ | jobs | not started |  |  |
 | REQ-FR-037 | Admin Dashboard | Medium | 3 | core | GET /api/v1/admin/dashboard/ | users; jobs; applications | not started |  |  |
-| REQ-FR-038 | User Management | High | 3 | core | GET /api/v1/admin/users/ | users | not started |  |  |
+| REQ-FR-038 | User Management | High | 3 | core | GET /api/v1/admin/users/ | users | partial | `accounts.permissions.IsPlatformAdmin` and `IsEmployerAdmin` exist and are tested (batch 1.2); no admin user list, filtering, role editing or lockout/reset actions |  |
 | REQ-FR-039 | Audit Log Search | High | 3 | core | GET /api/v1/admin/audit-log/ | audit_log_entries | partial | core.AuditLogEntry model and migration exist; no search logic, filtering or CSV export |  |
 | REQ-FR-040 | Data Export (GDPR) | High | 4 | core | POST /api/v1/gdpr/export/; GET /api/v1/gdpr/export/{id}/; GET /api/v1/gdpr/export/{id}/download/ | data_export_requests | not started |  |  |
 | REQ-FR-041 | Account Deletion (GDPR) | High | 4 | core | POST /api/v1/gdpr/deletion/; GET /api/v1/gdpr/deletion/{id}/; POST /api/v1/gdpr/deletion/{id}/cancel/ | data_deletion_requests | not started |  |  |
 | REQ-FR-042 | Job Browse and Search | High | 1 | employers | GET /api/v1/jobs/public/; GET /api/v1/jobs/public/{id}/ | jobs; job_skills (D-6c); employer_profiles (`show_company_name`) | not started |  |  |
 | REQ-FR-043 | Candidate–Employer Messaging | Medium | 3 | notifications | GET /api/v1/messages/; POST /api/v1/messages/; GET /api/v1/notifications/ | messages; notifications | not started |  |  |
 | REQ-FR-044 | Certification Management | Medium | 3 | candidates | GET /api/v1/candidates/certifications/; POST /api/v1/candidates/certifications/ | certifications | not started |  |  |
-| REQ-FR-045 | Employer Company Profile | High | 1 | employers | GET /api/v1/employers/me/; PATCH /api/v1/employers/me/ | employer_profiles | not started |  |  |
+| REQ-FR-045 | Employer Company Profile | High | 1 | employers | GET /api/v1/employers/me/; PATCH /api/v1/employers/me/ | employer_profiles | partial | `accounts.services.assign_role` enforces candidate/employer mutual exclusivity and is tested (batch 1.2); no `EmployerProfile` model, onboarding endpoints or activation guard |  |
 | REQ-FR-046 | Employer Dashboard | Medium | 3 | employers | (none in §C.12) | jobs; applications; subscriptions | not started |  |  |
 | REQ-FR-047 | Employer Team and Roles | Medium | 3 | employers | GET /api/v1/employers/team/; POST /api/v1/employers/team/invite/; POST /api/v1/employers/team/{id}/role/; DELETE /api/v1/employers/team/{id}/; POST /api/v1/employers/team/invitations/{token}/accept/; DELETE /api/v1/employers/team/invitations/{id}/ | employer_team_members | not started |  |  |
 | REQ-FR-048 | Billing and Plan Management | Medium | 5 | employers | (none in §C.12) | subscriptions; payments | not started |  |  |
