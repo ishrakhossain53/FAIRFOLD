@@ -3126,3 +3126,72 @@ unset; these are not a substitute for the maintainer's run).**
 - `CandidateProfile` is still not registered in Django admin (batch 3.30 owns
   that surface). No resume, skills, journey or dashboard columns are exposed by
   this batch.
+
+### 2026-10-20 — Post-1.16 UI polish and DEBUG-only verification link
+
+**What changed.**
+
+- **Landing page.** `templates/home.html` is no longer the "FairFold Demo"
+  verification page. It follows design.md X01 (page #1): hero, the two role
+  CTAs, Private / Explainable / Affordable cards, a three-step "How it works",
+  and a closing CTA. The CTAs link to `/register/?role=candidate` or
+  `?role=employer_hr`; `accounts.views.register` now reads that query value and
+  preselects the matching radio card. An unknown or privileged value is ignored
+  and the form's candidate default applies. No statistics or claims beyond the
+  documented privacy, explainability and advisory-AI behaviour were added.
+- **Shared account navigation.** `templates/base.html` gained a header nav:
+  anonymous visitors see "Log in" and "Create account"; a signed-in candidate
+  sees "My profile" and "Log out"; other signed-in roles see only sign-out,
+  because employer/interviewer portal pages do not exist yet.
+- **Password reveal.** The reveal button in `accounts/_field.html` was only
+  wired by a script inside the register panel, so it never appeared on the login
+  page. The handler moved to `base.html` and re-initialises after an HTMX swap
+  (`data-toggle-ready` prevents a doubled listener). The duplicate register-panel
+  script was removed.
+- **Pending page (#11).** Added a three-step explanation and a development box
+  that shows a clickable verification link and its URL. `accounts.views.check_email`
+  only builds that value when `settings.DEBUG` is on and the pending address
+  belongs to an active, unverified account. `accounts.tasks.send_verification_email`
+  also logs the link at INFO when `DEBUG` is on, because the console email
+  backend prints into whichever process sends the message — often the Celery
+  worker, not the Django terminal. Neither line runs in production.
+- **Onboarding and profile (#14/#16).** Onboarding gained a two-column field
+  layout, a bordered remote-work card, a privacy sentence and a "Back to home"
+  link. The profile page gained an initials avatar, a completeness panel, a
+  four-item checklist, a "Good to know" panel, a clearer empty state
+  ("Not provided — use Edit …") and a provided tick per section. The inline-edit
+  behaviour, section keys and accessible "Edit …" names are unchanged.
+- **Auth and error pages.** Login gained an intro, a friendlier signup link and
+  the working reveal button. Register gained an intro and a "Log in" link.
+  Forgot/reset copy now states that the link is single-use and expires in an
+  hour. The 403/404/500 pages gained decorative icons and clearer action buttons;
+  the 500 reference remains selectable text. All copy added is behavioural, not
+  a statistic.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`
+unset).**
+
+- `pytest tests/accounts/test_registration_ui.py tests/accounts/test_email_verification.py -q` -> 89 passed
+- `pytest tests/accounts/test_registration_ui.py -q` after the role-preselect tests -> 63 passed
+- `pytest tests/candidates/ tests/accounts/test_login_ui.py tests/accounts/test_password_reset_ui.py tests/core/ -q` -> 15 failed, 203 passed because `DEBUG=True` was inherited from the shell; re-ran `env -u DEBUG pytest tests/core/ -q` -> 124 passed. The failures were in `test_production_settings.py` and were caused by the environment, not this change.
+- `env -u DEBUG pytest tests/ -q` -> 597 passed, 161 warnings
+- `manage.py check` -> no issues; `makemigrations --check --dry-run` -> "No changes detected"
+- `flake8` on the four changed Python files -> exit 0; `black --check` and `isort --check-only` -> clean; `mypy accounts/ --ignore-missing-imports` -> no issues in 18 source files
+- `python scripts/verify_docs.py` -> exit 0 (human notes only)
+- `npm install` + `npm run build` -> `static/css/tailwind.css` 14,519 bytes; `npm run check-budget` -> under 30,720 bytes gzipped. The built CSS and vendored JS are gitignored, as before.
+- `docker compose build` + `docker compose up -d --wait` -> all six services healthy (the Compose stack has no source bind mounts, so the image had to be rebuilt for a browser check).
+- Manual HTTP check: `GET /` -> 200 and the new hero; `GET /register/?role=employer_hr` -> the employer radio is `checked`; registration -> 302 to `/register/check-email/`; the pending page renders "Development only" and a `token=` link; `GET` that link -> 200 "Email verified"; `GET /static/css/tailwind.css` -> 200, 14,519 bytes. `docker compose logs django` and `logs celery` both contain "Development verification link".
+
+**Known limitations.**
+
+- The verification link is deliberately `DEBUG`-only. With `DEBUG=False` the
+  pending page contains no token (pinned by a test), and the task logs nothing
+  (also pinned). This is not a replacement for a real email provider.
+- The built `static/css/tailwind.css` and `static/js/*` are gitignored. A fresh
+  checkout or a Docker build runs `npm run build`; a host-only browser check must
+  run it once, or the new utilities will be missing.
+- The landing page has no Jobs/Pricing/How-our-AI-works routes to link to, so it
+  links only to pages that exist. The base footer's `/privacy/` and `/terms/`
+  links still predate this pass and still 404.
+- No new requirement, endpoint, model or role was introduced. The `?role=` value
+  only preselects one of the two roles the registration form already offers.

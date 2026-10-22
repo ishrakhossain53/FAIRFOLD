@@ -80,21 +80,3 @@ moved here by the page script (design.md §6.2, §8.3).
     </button>
   </form>
 </div>
-
-<script>
-  // Show/hide is an enhancement: the button is `hidden` in the markup and only
-  // revealed here, so a JS-disabled page has no dead control. Re-runs after each
-  // HTMX swap because the panel is replaced, which removes the old listeners.
-  document.querySelectorAll('[data-toggle-password]').forEach(function (button) {
-    var input = document.getElementById(button.getAttribute('data-toggle-password'));
-    if (!input) { return; }
-    button.hidden = false;
-    button.addEventListener('click', function () {
-      var showing = input.type === 'text';
-      input.type = showing ? 'password' : 'text';
-      button.textContent = showing ? 'Show' : 'Hide';
-      button.setAttribute('aria-pressed', showing ? 'false' : 'true');
-      input.focus();
-    });
-  });
-</script>

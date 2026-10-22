@@ -25,6 +25,7 @@ second visit renders the success state rather than an error.
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 
@@ -64,6 +65,7 @@ from accounts.services import (
     VerificationTokenExpired,
     authenticate_with_lockout,
     is_valid_password_reset_token,
+    make_verification_token,
     password_reset_user,
     queue_verification_email,
     register_user,
@@ -72,7 +74,9 @@ from accounts.services import (
     reset_password,
     verify_email,
 )
-from accounts.tasks import send_password_reset_email
+from accounts.tasks import send_password_reset_email, verification_link
+
+logger = logging.getLogger(__name__)
 
 # Session keys, not URL parameters: the address is personal data and a URL ends
 # up in the address bar, browser history, and the request log. The sessions table
@@ -149,7 +153,18 @@ def register(request: HttpRequest) -> HttpResponse:
     two apart.
     """
     if request.method != "POST":
-        return render(request, "accounts/register.html", {"form": RegistrationForm()})
+        # The landing page links to "I'm hiring" and "I'm looking for work"
+        # (`?role=…`). Preselect the matching card instead of making the visitor
+        # choose twice. Anything else falls back to the form's own default.
+        initial = {}
+        requested_role = request.GET.get("role", "")
+        if requested_role in (CANDIDATE_ROLE, EMPLOYER_HR_ROLE):
+            initial["role"] = requested_role
+        return render(
+            request,
+            "accounts/register.html",
+            {"form": RegistrationForm(initial=initial)},
+        )
 
     form = RegistrationForm(request.POST)
     if form.is_valid():
@@ -178,13 +193,32 @@ def register(request: HttpRequest) -> HttpResponse:
 
 @never_cache
 def check_email(request: HttpRequest) -> HttpResponse:
-    """Page #11, pending state: "We sent a link to a***@x.com"."""
+    """Page #11, pending state: "We sent a link to a***@x.com".
+
+    With ``DEBUG`` on, the page also offers the link itself. Local email is sent
+    through the console backend (or a Celery worker's console), which is easy to
+    miss while testing. The block is gated on ``DEBUG``, so production never
+    renders a verification token into a page body.
+    """
     email = request.session.get(PENDING_EMAIL_SESSION_KEY)
     if not email:
         # Reached by a bookmark or after the session expired. There is no address
         # to show and no button that could work, so start again rather than
         # render a dead page.
         return redirect("accounts_public:register")
+
+    dev_verification_url = ""
+    if settings.DEBUG:
+        user = User.objects.filter(
+            email=email, email_verified=False, is_active=True
+        ).first()
+        if user is not None:
+            dev_verification_url = verification_link(make_verification_token(user))
+            logger.info(
+                "Development verification link for the pending address: %s",
+                dev_verification_url,
+            )
+
     return render(
         request,
         "accounts/check_email.html",
@@ -192,6 +226,7 @@ def check_email(request: HttpRequest) -> HttpResponse:
             "email": email,
             "masked_email": mask_email(email),
             "cooldown": _cooldown_remaining(request),
+            "dev_verification_url": dev_verification_url,
         },
     )
 

@@ -19,6 +19,7 @@ message.
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 import uuid
@@ -202,6 +203,27 @@ class TestVerificationEmailTask:
         send_verification_email(str(uuid.uuid4()))
 
         assert mailoutbox == []
+
+    def test_debug_logs_the_link_for_the_console(self, make_user, settings, caplog):
+        # The email backend prints to whichever process sends the message, which
+        # is often the Celery worker rather than `runserver`. The explicit log
+        # line is what makes the link findable in either terminal.
+        settings.DEBUG = True
+        user = make_user()
+
+        with caplog.at_level(logging.INFO, logger="accounts.tasks"):
+            send_verification_email(str(user.pk))
+
+        assert "verify-email/?token=" in caplog.text
+
+    def test_a_production_run_does_not_log_the_token(self, make_user, settings, caplog):
+        settings.DEBUG = False
+        user = make_user()
+
+        with caplog.at_level(logging.INFO, logger="accounts.tasks"):
+            send_verification_email(str(user.pk))
+
+        assert "token=" not in caplog.text
 
 
 # `transaction=True`: `resend_verification_email` dispatches through

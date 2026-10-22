@@ -168,6 +168,21 @@ class TestRegisterPage:
         assert 'value="employer_manager"' not in content
         assert 'value="interviewer"' not in content
 
+    def test_a_landing_cta_preselects_the_matching_role(self):
+        # The landing page's "I'm hiring" / "I'm looking for work" links carry
+        # `?role=…`; the visitor should not have to answer the same question twice.
+        content = Client().get(REGISTER_URL + "?role=employer_hr").content.decode()
+
+        assert re.search(r'value="employer_hr"[^>]*checked', content)
+
+    def test_an_unknown_or_privileged_role_is_ignored(self):
+        for value in ("employer_manager", "not-a-role"):
+            content = Client().get(REGISTER_URL, {"role": value}).content.decode()
+
+            assert re.search(r'value="candidate"[^>]*checked', content)
+            assert not re.search(r'value="employer_hr"[^>]*checked', content)
+            assert 'value="employer_manager"' not in content
+
     def test_the_password_is_masked_and_marked_for_password_managers(self):
         content = Client().get(REGISTER_URL).content.decode()
 
@@ -413,6 +428,44 @@ class TestPendingPage:
 
         assert response.status_code == 302
         assert response["Location"] == REGISTER_URL
+
+
+class TestDevelopmentVerificationLink:
+    """DEBUG-only shortcut on the pending page (design.md X02, page #11).
+
+    Local email goes to a console (often a Celery worker's), which is easy to
+    miss. The page offers the link itself, but only while DEBUG is on. These
+    tests pin both directions: the shortcut works, and production never renders
+    a token into the pending page.
+    """
+
+    def test_debug_renders_a_link_that_verifies_the_account(
+        self, role_groups, settings, dispatched
+    ):
+        settings.DEBUG = True
+        client = Client()
+        register(client)
+
+        content = client.get(CHECK_EMAIL_URL).content.decode()
+
+        assert "Development only" in content
+        match = re.search(r'href="(http[^"]*token=[^"]+)"', content)
+        assert match, "the pending page must offer the verification link"
+        response = Client().get(match.group(1))
+        assert response.status_code == 200
+        assert User.objects.get(email="ada@example.com").email_verified is True
+
+    def test_without_debug_the_page_contains_no_verification_token(
+        self, role_groups, settings, dispatched
+    ):
+        settings.DEBUG = False
+        client = Client()
+        register(client)
+
+        content = client.get(CHECK_EMAIL_URL).content.decode()
+
+        assert "Development only" not in content
+        assert "token=" not in content
 
 
 class TestVerifyPage:

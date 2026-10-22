@@ -32,6 +32,7 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.14 Candidate profile model (2026-10-20, 12 passed in tests/candidates/test_candidate_profile_model.py; full suite 538 passed)
 - [x] 1.15 Candidate profile API (2026-10-20, 23 passed in tests/candidates/test_profile_api.py; 120 targeted, full suite 591)
 - [x] 1.16 Candidate onboarding and profile UI (2026-10-20, 26 passed in tests/candidates/test_profile_ui.py; 120 targeted, full suite 591)
+- [x] Post-1.16 UI polish and development verification link (2026-10-20, landing page, shared account nav, password reveal on login, friendlier check-email/onboarding/profile/error pages; DEBUG-only link on the pending page and in the server log; 6 new tests, full suite 597 passed)
 - [ ] 1.17 S3-compatible dev storage
 - [ ] 1.18 Resume model (spec first)
 - [ ] 1.19 Presigned upload API

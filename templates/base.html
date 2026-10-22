@@ -41,7 +41,41 @@
       {% block header %}
       <a href="/" class="text-h4 font-bold text-ink">FairFold</a>
       {% endblock %}
-      {% block header_actions %}{% endblock %}
+
+      {% comment %}
+      Account navigation. It lives in the base template so every page answers
+      "how do I get back?" without each view passing links in. Candidates get a
+      direct route to their profile; employers/interviewers have no portal page
+      yet, so they only see sign-out rather than a link that would 404.
+      {% endcomment %}
+      {% block header_actions %}
+      <nav aria-label="Account" class="ml-auto flex items-center gap-1 sm:gap-2">
+        {% if user.is_authenticated %}
+          {% if user.is_candidate %}
+          <a href="{% url 'candidate_portal:profile' %}"
+             class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">
+            My profile
+          </a>
+          {% endif %}
+          <form method="post" action="{% url 'accounts_public:logout' %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="inline-flex h-touch items-center rounded-md border border-border-input bg-surface px-3 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+              Log out
+            </button>
+          </form>
+        {% else %}
+          <a href="{% url 'accounts_public:login' %}"
+             class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">
+            Log in
+          </a>
+          <a href="{% url 'accounts_public:register' %}"
+             class="inline-flex h-touch items-center rounded-md bg-primary px-4 text-body-sm font-semibold text-white hover:bg-primary-strong">
+            Create account
+          </a>
+        {% endif %}
+      </nav>
+      {% endblock %}
     </div>
   </header>
 
@@ -99,6 +133,33 @@
         event.detail.headers['X-CSRFToken'] = token.content;
       }
     });
+  </script>
+
+  <script>
+    // Password reveal, shared by every page that uses accounts/_field.html.
+    // The button is `hidden` in the markup and only revealed here, so a page
+    // without JavaScript has no dead control. The `data-toggle-ready` guard
+    // matters because the function runs on load and again after an HTMX swap
+    // (which replaces the old button): without it, a swapped panel would keep
+    // adding a second click handler and "Show" would toggle twice.
+    function initPasswordToggles() {
+      document.querySelectorAll('[data-toggle-password]').forEach(function (button) {
+        if (button.dataset.toggleReady) { return; }
+        var input = document.getElementById(button.getAttribute('data-toggle-password'));
+        if (!input) { return; }
+        button.dataset.toggleReady = '1';
+        button.hidden = false;
+        button.addEventListener('click', function () {
+          var showing = input.type === 'text';
+          input.type = showing ? 'password' : 'text';
+          button.textContent = showing ? 'Show' : 'Hide';
+          button.setAttribute('aria-pressed', showing ? 'false' : 'true');
+          input.focus();
+        });
+      });
+    }
+    initPasswordToggles();
+    document.body.addEventListener('htmx:afterSwap', initPasswordToggles);
   </script>
 
   {% block extra_js %}{% endblock %}
