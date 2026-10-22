@@ -54,7 +54,9 @@ pytestmark = pytest.mark.django_db
 ACTORS = ("anonymous", "candidate", "employer", "admin")
 
 # method -> expected status per actor. GET is used for pages and reads; POST with
-# an empty body for endpoints whose only verb is POST. The body is deliberately
+# an empty body for endpoints whose only verb is POST. A path that answers more
+# than one verb carries a `methods` map instead of a single `method`; see
+# `method_specs`. The body is deliberately
 # invalid: these tests are about who gets past the permission layer, not about
 # what a valid payload does. A protected endpoint answers 401 before a serializer
 # ever runs, so an empty body cannot mask a missing permission.
@@ -180,6 +182,73 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 403,
         "admin": 403,
     },
+    # Page #17 (batch 1.22). Same shape as `/candidate/profile/`: the candidate
+    # actor has no profile in this fixture, so the page forwards to onboarding.
+    "/candidate/resumes/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 302,
+        "employer": 403,
+        "admin": 403,
+    },
+    # Delete confirmation and the POST that performs it, on one fixed path. With
+    # no `resume` parameter there is nothing to confirm, so the candidate gets the
+    # 404 the view gives an unknown id.
+    "/candidate/resumes/delete/": {
+        "methods": {
+            "get": {
+                "anonymous": 302,
+                "candidate": 404,
+                "employer": 403,
+                "admin": 403,
+            },
+            "post": {
+                "anonymous": 302,
+                "candidate": 404,
+                "employer": 403,
+                "admin": 403,
+            },
+        },
+    },
+    # ---- employer portal pages (design.md page #33, batch 1.25) --------
+    # Employer-only. Anonymous goes to /login/ with a `next`; a candidate,
+    # interviewer or admin gets 403. The employer actor has no profile in this
+    # fixture, so the GET renders onboarding and an empty POST re-renders it
+    # with the required-field error.
+    "/employer/onboarding/": {
+        "methods": {
+            "get": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 200,
+                "admin": 403,
+            },
+            "post": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 200,
+                "admin": 403,
+            },
+        },
+    },
+    # The company page forwards an employer without a profile to onboarding.
+    # That redirect is the documented empty state.
+    "/employer/company/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    # POST-only edit. With no profile there is nothing to edit: the view sends
+    # the employer to onboarding before it binds the form.
+    "/employer/company/edit/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
     # Django admin: anonymous and non-staff are redirected to its login page.
     # This is the only route where the admin actor sees something the employer
     # does not, and it is enforced by `is_staff`, not by a role group.
@@ -280,15 +349,28 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 403,
         "admin": 403,
     },
-    # Candidate-only. The 400 for a candidate is the empty body failing
-    # validation before the profile lookup; a valid body with no profile is 404
-    # (tests/candidates/test_resume_upload_api.py).
+    # Candidate-only. One path, two verbs (batch 1.21 put `GET` beside 1.19's
+    # `POST`), so the row carries a per-method map. `POST` gets 400 for a
+    # candidate because the empty body fails validation before the profile
+    # lookup; a valid body with no profile is 404
+    # (tests/candidates/test_resume_upload_api.py). `GET` gets 404 for a
+    # candidate because this fixture has no profile yet, and the list is
+    # 404-until-onboarding like `/me/` (tests/candidates/test_resume_list_detail_api.py).
     "/api/v1/candidates/resumes/": {
-        "method": "post",
-        "anonymous": 401,
-        "candidate": 400,
-        "employer": 403,
-        "admin": 403,
+        "methods": {
+            "get": {
+                "anonymous": 401,
+                "candidate": 404,
+                "employer": 403,
+                "admin": 403,
+            },
+            "post": {
+                "anonymous": 401,
+                "candidate": 400,
+                "employer": 403,
+                "admin": 403,
+            },
+        },
     },
     # Candidate-only, by object id. The sample id exists nowhere, so the
     # candidate gets the same 404 an unowned id gets -- ownership and existence
@@ -298,6 +380,35 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "anonymous": 401,
         "candidate": 404,
         "employer": 403,
+        "admin": 403,
+    },
+    # Candidate-only and owner-only, same 404 answer for "not yours" and "no such
+    # row" (batch 1.21).
+    "/api/v1/candidates/resumes/00000000-0000-0000-0000-000000000000/": {
+        "methods": {
+            "get": {
+                "anonymous": 401,
+                "candidate": 404,
+                "employer": 403,
+                "admin": 403,
+            },
+            "delete": {
+                "anonymous": 401,
+                "candidate": 404,
+                "employer": 403,
+                "admin": 403,
+            },
+        },
+    },
+    # Employer-only. 404 is the documented "not onboarded yet" state: the
+    # employer passed the permission check, while the candidate/interviewer and
+    # admin did not. PATCH is covered by
+    # tests/employers/test_employer_profile_api.py.
+    "/api/v1/employers/me/": {
+        "method": "get",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
         "admin": 403,
     },
     # DRF router roots for apps whose viewsets have not landed yet. They inherit
@@ -361,7 +472,33 @@ PARAMETERISED_SAMPLES = {
     "/api/v1/candidates/resumes/<uuid:pk>/complete/": (
         f"/api/v1/candidates/resumes/{SAMPLE_UUID}/complete/"
     ),
+    "/api/v1/candidates/resumes/<uuid:pk>/": (
+        f"/api/v1/candidates/resumes/{SAMPLE_UUID}/"
+    ),
 }
+
+
+def method_specs(spec: dict) -> dict[str, dict]:
+    """The per-method expectations of one matrix row.
+
+    A row is either a single verb (`{"method": "post", "anonymous": ...}`) or an
+    explicit map (`{"methods": {"get": {...}, "post": {...}}}`) for a path that
+    answers more than one. The single-verb form is kept because most rows have
+    one verb and the compact form reads better; the map exists so a second verb
+    on an existing path is a decision rather than an untested route.
+    """
+    if "methods" in spec:
+        return spec["methods"]
+    return {spec["method"]: spec}
+
+
+def matrix_cases() -> list[tuple[str, str]]:
+    """Every (path, method) pair the matrix states an answer for."""
+    return [
+        (path, method)
+        for path in sorted(AUTHZ_MATRIX)
+        for method in method_specs(AUTHZ_MATRIX[path])
+    ]
 
 
 def registered_routes(urlpatterns=None) -> tuple[set[str], set[str]]:
@@ -495,10 +632,9 @@ def test_the_global_default_is_fail_closed():
     ]
 
 
-@pytest.mark.parametrize("path", sorted(AUTHZ_MATRIX))
-def test_route_matches_the_authorization_matrix(actors, path):
-    spec = AUTHZ_MATRIX[path]
-    method = spec["method"]
+@pytest.mark.parametrize("path,method", matrix_cases())
+def test_route_matches_the_authorization_matrix(actors, path, method):
+    spec = method_specs(AUTHZ_MATRIX[path])[method]
 
     for actor in ACTORS:
         client = Client()

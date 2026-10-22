@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Set up your company · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-2xl py-4 sm:py-8">
+  <p class="inline-flex items-center rounded-full border border-border bg-primary-soft px-3 py-1 text-caption font-semibold uppercase tracking-widest text-primary-strong">
+    Company setup
+  </p>
+  <h1 class="mt-3 text-h1 font-bold text-ink">Set up your company</h1>
+  <p class="mt-2 text-body text-ink-3">
+    Tell candidates who is hiring. You can change any of this later, and you can
+    skip it for now.
+  </p>
+
+  {% include "employers/_error_summary.html" %}
+
+  {% comment %}
+  `novalidate` so the server-rendered messages are the only set of error copy
+  (design.md §6.2). The form works without JavaScript; the script below only
+  moves focus after a failed submit.
+  {% endcomment %}
+  <form method="post" action="{% url 'employer_portal:onboarding' %}" novalidate
+        class="mt-6 space-y-5 rounded-md border border-border bg-surface p-6 shadow-card">
+    {% csrf_token %}
+
+    {% include "employers/_form.html" %}
+
+    <p class="rounded-md border border-border bg-surface-muted p-4 text-body-sm text-ink-2">
+      Until you save a company profile, it is not visible on the public job
+      board. Your company name stays hidden there unless you turn on the toggle
+      above.
+    </p>
+
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <button type="submit"
+              class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong">
+        Save and continue
+      </button>
+      <a href="/"
+         class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+        Skip for now
+      </a>
+    </div>
+  </form>
+</div>
+
+<script>
+  // Move focus to the summary after a failed submit, so a keyboard or
+  // screen-reader user hears what went wrong instead of landing at the top of
+  // the page with no context (design.md §6.2, §8.3).
+  (function () {
+    var summary = document.getElementById('error-summary');
+    if (summary) { summary.focus(); }
+  })();
+</script>
+{% endblock %}

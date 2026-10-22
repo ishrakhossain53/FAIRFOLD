@@ -2,10 +2,13 @@
 
 `/api/v1/candidates/me/` and `/api/v1/candidates/resumes/` are plain `path()`
 entries before the router: both have fixed paths and no object id, and a router
-entry would add a `{pk}` lookup that the contract does not have. The API
-app_name stays `candidates` (it is nested under the `api` namespace); the
-server-rendered pages use `candidate_portal` so the two URLconfs do not collide
-(Django keeps one resolver per namespace name).
+entry would add a `{pk}` lookup that the contract does not have. The resume
+detail route is a `path()` for the same reason -- Complete Doc §C.12 addresses
+resumes by `<uuid:pk>` and the router would register a full CRUD viewset whose
+`PUT`/`PATCH`/`DELETE` verbs the contract does not declare. The API app_name
+stays `candidates` (it is nested under the `api` namespace); the server-rendered
+pages use `candidate_portal` so the two URLconfs do not collide (Django keeps one
+resolver per namespace name).
 """
 
 from __future__ import annotations
@@ -16,7 +19,8 @@ from rest_framework.routers import DefaultRouter
 from candidates.api_views import (
     CandidateMeView,
     CandidateResumeCompleteView,
-    CandidateResumeUploadView,
+    CandidateResumeDetailView,
+    CandidateResumeListView,
 )
 
 app_name = "candidates"
@@ -28,13 +32,21 @@ router = DefaultRouter()
 
 urlpatterns = [
     path("me/", CandidateMeView.as_view(), name="me"),
-    # Batch 1.19 owns only the upload start. The list/detail routes in §C.12 are
-    # batch 1.21, so this path deliberately has no GET yet.
-    path("resumes/", CandidateResumeUploadView.as_view(), name="resume-upload"),
+    # Batch 1.19 owns the upload start, batch 1.21 the list; both live on this
+    # path because §C.12 puts `GET` and `POST` on the same resource.
+    path("resumes/", CandidateResumeListView.as_view(), name="resume-list"),
     path(
         "resumes/<uuid:pk>/complete/",
         CandidateResumeCompleteView.as_view(),
         name="resume-complete",
+    ),
+    # Declared after `complete/` so the literal suffix is matched before the bare
+    # detail pattern; `<uuid:pk>` would not match `.../complete/` anyway, but the
+    # order documents which route owns the nested path.
+    path(
+        "resumes/<uuid:pk>/",
+        CandidateResumeDetailView.as_view(),
+        name="resume-detail",
     ),
     path("", include(router.urls)),
 ]

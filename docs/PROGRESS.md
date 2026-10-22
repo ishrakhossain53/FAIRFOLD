@@ -37,11 +37,11 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.18 Resume model (spec first) (2026-10-22, 10 passed in tests/candidates/test_resume_model.py; full suite 632 passed / 4 skipped)
 - [x] 1.19 Presigned upload API (2026-10-22, 29 passed in tests/candidates/test_resume_upload_api.py; full suite 662 passed / 4 skipped)
 - [x] 1.20 Upload completion, MIME validation and ClamAV scan (2026-10-22, 33 passed in tests/candidates/test_resume_completion_api.py + test_resume_scan.py incl. 2 real-clamd tests; full suite 696 passed / 4 skipped)
-- [ ] 1.21 Resume list and detail API
-- [ ] 1.22 Resume upload UI
-- [ ] 1.23 Employer profile model
-- [ ] 1.24 Employer onboarding API
-- [ ] 1.25 Employer onboarding UI
+- [x] 1.21 Resume list and detail API (2026-10-22, 37 passed in tests/candidates/test_resume_list_detail_api.py, 80 with the authz matrix; full suite 736 passed / 4 skipped at the time; DELETE is a hard delete audited as `resume.deleted`)
+- [x] 1.22 Resume upload UI (2026-10-22, 32 passed in tests/candidates/test_resume_ui.py + 9 in tests/core/test_presign_endpoint.py; full suite 780 passed / 4 skipped; presigned URL signed for the browser host, real MinIO PUT returned 200. Browser CORS/progress remains a manual check)
+- [x] 1.23 Employer profile model (2026-10-22, 13 passed in tests/employers/test_employer_profile_model.py; full suite 855 passed / 4 skipped)
+- [x] 1.24 Employer onboarding API (2026-10-22, 28 passed in tests/employers/test_employer_profile_api.py, 121 with the authz matrix; full suite 855 passed / 4 skipped)
+- [x] 1.25 Employer onboarding UI (2026-10-22, 29 passed in tests/employers/test_employer_onboarding_ui.py, 70 in tests/employers/; full suite 855 passed / 4 skipped)
 - [ ] 1.26 Job model
 - [ ] 1.27 Create draft job API
 - [ ] 1.28 Edit and delete draft jobs

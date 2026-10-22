@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -306,14 +307,11 @@ SECURE_REFERRER_POLICY = "same-origin"
 # still required by the two inline <script> blocks (base.html and home.html) and
 # by inline style attributes; replacing it with a per-response nonce is a
 # separate change with its own template edits.
-CONTENT_SECURITY_POLICY = (
-    "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
-    "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data: blob:; "
-    "connect-src 'self'; "
-    "font-src 'self'"
-)
+#
+# `connect-src` is built after the storage block below: REQ-FR-010 uploads
+# straight from the browser to the bucket, so the bucket's origin has to be
+# named or the browser blocks the PUT while every server-side test still passes.
+# See the assignment under "Object storage".
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -477,6 +475,30 @@ AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
 AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL")
 AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", "us-east-1")
 
+# The same store as the browser reaches it (batch 1.22, REQ-FR-010). Compose
+# speaks to MinIO at `minio:9000`, which no browser can resolve; the browser
+# uses `localhost:9000`. The host is part of the SigV4 signature, so a URL
+# signed for the internal host cannot be rewritten afterwards -- it is signed
+# against this endpoint instead. Empty means "same host as the server".
+
+
+def public_endpoint(value: str) -> str:
+    """`S3_PUBLIC_ENDPOINT_URL`, refusing anything that is not an http(s) URL.
+
+    A scheme-less value (`minio:9000`) parses as scheme `minio` and would reach
+    boto3 as a nonsense endpoint; the failure would then appear when a candidate
+    clicks Upload, not at boot. A function so the guard itself is testable.
+    """
+    if value and urlsplit(value).scheme not in {"http", "https"}:
+        raise ImproperlyConfigured(
+            "S3_PUBLIC_ENDPOINT_URL must be an http(s) URL, e.g. "
+            "http://localhost:9000."
+        )
+    return value
+
+
+S3_PUBLIC_ENDPOINT_URL = public_endpoint(env("S3_PUBLIC_ENDPOINT_URL"))
+
 # Browser CORS for presigned PUT/POST (batch 1.19). Comma-separated origins, the
 # same shape as CSRF_TRUSTED_ORIGINS, because both answer the same question:
 # which origin is allowed to act on this deployment.
@@ -511,6 +533,67 @@ if AWS_STORAGE_BUCKET_NAME:
             "file_overwrite": False,
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Content Security Policy
+# ---------------------------------------------------------------------------
+
+# Derived, never hand-written. With `AWS_S3_ENDPOINT_URL` set the browser talks
+# to that endpoint (MinIO locally, a gateway in a real deployment); with only a
+# bucket configured it talks to the regional virtual-host address boto3 signs
+# for. Reading the origin off the same values the storage backend uses is what
+# keeps the policy and the presigned URL pointing at the same host.
+
+
+def storage_origin(
+    endpoint_url: str,
+    bucket: str,
+    region: str,
+    public_endpoint_url: str = "",
+) -> str:
+    """The origin a browser uploads to, or "" when no bucket is configured.
+
+    A function, not three module-level lines, so `tests/core/test_security_headers.py`
+    can prove every case without reloading the settings module. The empty string
+    is the "no storage" case: the policy then stays `connect-src 'self'` rather
+    than gaining a wildcard.
+
+    `public_endpoint_url` wins because it is the host the browser actually talks
+    to; the internal endpoint is the fallback for a deployment where one host
+    serves both roles.
+    """
+    if not bucket:
+        return ""
+
+    for url in (public_endpoint_url, endpoint_url):
+        if url:
+            parsed = urlsplit(url)
+            return f"{parsed.scheme}://{parsed.netloc}"
+
+    return f"https://{bucket}.s3.{region}.amazonaws.com"
+
+
+_STORAGE_ORIGIN = storage_origin(
+    AWS_S3_ENDPOINT_URL,
+    AWS_STORAGE_BUCKET_NAME,
+    AWS_S3_REGION_NAME,
+    public_endpoint_url=S3_PUBLIC_ENDPOINT_URL,
+)
+
+# `'self'` first: the API calls the page makes are same-origin. The storage
+# origin is appended only when one is configured, so a deployment without a
+# bucket keeps the stricter policy instead of gaining a bare `https:` wildcard.
+CONNECT_SRC = "'self'" + (f" {_STORAGE_ORIGIN}" if _STORAGE_ORIGIN else "")
+
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    f"connect-src {CONNECT_SRC}; "
+    "font-src 'self'"
+)
 
 
 # ---------------------------------------------------------------------------

@@ -24,4 +24,9 @@ urlpatterns = [
     path("onboarding/", views.onboarding, name="onboarding"),
     path("profile/", views.profile, name="profile"),
     path("profile/edit/", views.profile_edit, name="profile-edit"),
+    path("resumes/", views.resumes, name="resumes"),
+    # One fixed path for the confirmation page and the POST that performs it.
+    # `/resumes/<uuid:pk>/delete/` would be a parameterised page route, and the
+    # authorization matrix refuses to guess a sample value for one.
+    path("resumes/delete/", views.resume_delete, name="resume-delete"),
 ]

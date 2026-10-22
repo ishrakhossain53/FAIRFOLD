@@ -33,7 +33,7 @@ import os
 from django.conf import settings
 from rest_framework import serializers
 
-from candidates.models import CandidateProfile
+from candidates.models import CandidateProfile, CandidateResume
 
 
 class CandidateProfileSerializer(serializers.ModelSerializer):
@@ -152,3 +152,41 @@ class ResumeStatusSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     status = serializers.CharField()
     status_reason = serializers.CharField(allow_blank=True)
+
+
+class ResumeSummarySerializer(serializers.ModelSerializer):
+    """One resume row, as its owner may see it (batch 1.21).
+
+    Complete Doc §C.12 declares `GET /api/v1/candidates/resumes/` and
+    `GET /api/v1/candidates/resumes/{id}/` but names no fields, so this is the
+    row's metadata and nothing more. The list is a whitelist for the same reason
+    as `CandidateProfileSerializer`:
+
+    * `file_key` is storage detail. REQ-FR-010 says Django stores the key; it
+      does not say the client may read it back, and a key that recurs in JSON
+      ends up in logs, browser history and error reports.
+    * There is no URL field at all. Files are served through authenticated
+      Django views (Complete Doc §7), never from object storage, so this
+      serializer has nothing to presign and must not grow a habit of it.
+    * `extracted_text`, `raw_text_hash` and `processed_at`'s pipeline belong to
+      Phase 2 (2.10-2.12). `processed_at` is included because it is metadata
+      the resume manager shows, not text.
+
+    `status_reason` is included: it is a machine code such as "clamav
+    unavailable" or a short operator sentence, never PII or resume text, and the
+    owner needs it to understand a `rejected` row (REQ-SEC-012).
+    """
+
+    class Meta:
+        model = CandidateResume
+        fields = (
+            "id",
+            "original_filename",
+            "file_size",
+            "mime_type",
+            "status",
+            "status_reason",
+            "created_at",
+            "processed_at",
+        )
+        read_only_fields = fields

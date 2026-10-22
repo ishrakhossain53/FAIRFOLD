@@ -607,6 +607,15 @@ CREATE TABLE candidate_resumes (
     CONSTRAINT ck_resume_status CHECK (status IN ('pending','uploaded','scanning','clean','rejected','processing','extracted','embedded','failed'))
 );
 
+-- Deletion (batch 1.21, REQ-FR-041): DELETE /api/v1/candidates/resumes/{id}/ is a
+-- hard delete of the row and of the stored object. No table in this section has a
+-- FK pointing at candidate_resumes, so nothing loses a referent, and REQ-FR-041's
+-- erasure model is "delete the personal data, keep the audit trail". An
+-- AuditLogEntry (action resume.deleted) records the deletion without the filename
+-- or the storage key. There is deliberately no deleted_at column and no
+-- 'superseded' status: "replace" is a new upload plus a delete of the old row,
+-- which needs neither.
+
 -- === EMPLOYER PROFILES ===
 CREATE TABLE employer_profiles (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1280,11 +1289,13 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 > `AWS_S3_ENDPOINT_URL`, `AWS_S3_REGION_NAME` and `S3_CORS_ALLOWED_ORIGINS` from the
 > environment. The S3 backend is selected by the **presence of a bucket name**, so a host
 > run with none of them set keeps the filesystem backend that `.env.example` documents. The
-> Compose endpoint is `http://minio:9000`, which only resolves inside the network; batch
-> 1.19 (presigned uploads) must add a browser-reachable endpoint before a browser PUT can
-> work. `config/settings/production.py` still pins the filesystem default and is unchanged
-> by this batch — the production storage decision belongs with the resume model (1.18) and
-> upload API (1.19).
+> Compose endpoint is `http://minio:9000`, which only resolves inside the network, so
+> `S3_PUBLIC_ENDPOINT_URL` names the same store as the browser reaches it
+> (`http://localhost:9000`): presigned URLs are signed against that host while server-side
+> reads keep the internal one, and the CSP `connect-src` entry follows it (batch 1.22,
+> REQ-FR-010). `config/settings/production.py` still pins the filesystem default and is
+> unchanged by this batch — the production storage decision belongs with the resume model
+> (1.18) and upload API (1.19).
 
 ```yaml
 # docker-compose.yml
