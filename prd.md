@@ -831,7 +831,7 @@ age-revealing dates, photos and URLs by default (REQ-FR-057).
 
 **Added 2026-10-19 (D-6):** `job_skills` (2 FKs, indexed on both) so `REQ-FR-042`'s keyword search
 over "title, description and skills" is an indexable query rather than a JSONB scan;
-`candidate_resumes.status` + `processed_at` for the upload → extract → embed pipeline
+`candidate_resumes.status` + `status_reason` + `processed_at` for the upload → scan → extract → embed pipeline
 (REQ-FR-010/012/013); and `applications.screening_status`/`_attempts`/`_started_at`/`_error`
 for the per-application "Screen All" batch run (REQ-FR-028).
 

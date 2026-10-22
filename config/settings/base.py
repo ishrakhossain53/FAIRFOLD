@@ -373,7 +373,20 @@ CLAMD_HOST = env_required("CLAMD_HOST")
 CLAMD_PORT = int(env("CLAMD_PORT", "3310"))
 CLAMD_TIMEOUT = int(env("CLAMD_TIMEOUT", "30"))
 
-MAX_UPLOAD_SIZE_BYTES = int(env("MAX_UPLOAD_SIZE_BYTES", str(5 * 1024 * 1024)))
+MAX_UPLOAD_SIZE_BYTES = int(env("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))
+
+# The one file type a resume may be declared as, mapped to the extension used in
+# the object key. REQ-SEC-012 says "MIME validation + virus scan"; REQ-FR-012
+# names PDF as the input the extraction pipeline reads. DOCX is deliberately
+# absent: accepting a type nothing can extract yet is a dead end, not a feature.
+# The extension comes from this map, never from the client's filename.
+RESUME_ALLOWED_MIME_TYPES = {
+    "application/pdf": ".pdf",
+}
+
+# How long a presigned PUT stays valid. Short on purpose: the URL is a bearer
+# credential for exactly one object and it is handed to a browser.
+RESUME_PRESIGN_EXPIRES_SECONDS = int(env("RESUME_PRESIGN_EXPIRES_SECONDS", "300"))
 
 
 # ---------------------------------------------------------------------------

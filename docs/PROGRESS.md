@@ -34,9 +34,9 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.16 Candidate onboarding and profile UI (2026-10-20, 26 passed in tests/candidates/test_profile_ui.py; 120 targeted, full suite 591)
 - [x] Post-1.16 UI polish and development verification link (2026-10-20, landing page, shared account nav, password reveal on login, friendlier check-email/onboarding/profile/error pages; DEBUG-only link on the pending page and in the server log; 6 new tests, full suite 597 passed)
 - [x] 1.17 S3-compatible dev storage (2026-10-22, `docker compose up -d --build --wait` -> 7 services healthy incl. `minio`, bucket `fairfold-media` created by the entrypoint, `check_storage` verified a 35-byte round-trip; 20 passed + 1 skipped in tests/core/test_storage.py against the running MinIO, full suite 614 passed / 4 skipped. Local `.env` uses the `MINIO_IMAGE` mirror override because `quay.io/minio/minio` needs `docker login quay.io`; the committed default is still quay)
-- [ ] 1.18 Resume model (spec first)
-- [ ] 1.19 Presigned upload API
-- [ ] 1.20 Upload completion, MIME validation and ClamAV scan
+- [x] 1.18 Resume model (spec first) (2026-10-22, 10 passed in tests/candidates/test_resume_model.py; full suite 632 passed / 4 skipped)
+- [x] 1.19 Presigned upload API (2026-10-22, 29 passed in tests/candidates/test_resume_upload_api.py; full suite 662 passed / 4 skipped)
+- [x] 1.20 Upload completion, MIME validation and ClamAV scan (2026-10-22, 33 passed in tests/candidates/test_resume_completion_api.py + test_resume_scan.py incl. 2 real-clamd tests; full suite 696 passed / 4 skipped)
 - [ ] 1.21 Resume list and detail API
 - [ ] 1.22 Resume upload UI
 - [ ] 1.23 Employer profile model

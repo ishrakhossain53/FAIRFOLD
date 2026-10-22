@@ -592,19 +592,19 @@ CREATE TABLE candidate_profiles (
 
 CREATE TABLE candidate_resumes (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    candidate_id    UUID REFERENCES candidate_profiles(id) ON DELETE CASCADE,
+    candidate_id    UUID NOT NULL REFERENCES candidate_profiles(id) ON DELETE CASCADE, -- §5.2: 1 -> N
     file_key        VARCHAR(500) NOT NULL,          -- S3 key (UUID-based name)
     original_filename TEXT ENCRYPTED,               -- encrypted
     file_size       INTEGER,
     mime_type       VARCHAR(100),
     extracted_text  TEXT,                          -- PII-stripped text
     raw_text_hash   VARCHAR(64),                    -- for deduplication
-    -- D-6(a): upload -> extract -> embed is a pipeline with states (REQ-FR-010/012/013);
-    -- without a status column the UI cannot tell "uploaded, unprocessed" from a failure.
-    status          VARCHAR(20) DEFAULT 'uploaded', -- uploaded, processing, extracted, embedded, failed
+    -- D-6(a) + 1.18-1.20: pending = presigned URL issued, uploaded = bytes exist. 1.20 checks presence, size and MIME in one step, so no row rests at 'uploaded'.
+    status          VARCHAR(20) DEFAULT 'pending', -- pending, uploaded, scanning, clean, rejected, processing, extracted, embedded, failed
+    status_reason   TEXT,                          -- why scanning/pipeline stopped; NULL when healthy. Never PII.
     processed_at    TIMESTAMPTZ,                    -- last successful extraction + embedding
     created_at      TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT ck_resume_status CHECK (status IN ('uploaded','processing','extracted','embedded','failed'))
+    CONSTRAINT ck_resume_status CHECK (status IN ('pending','uploaded','scanning','clean','rejected','processing','extracted','embedded','failed'))
 );
 
 -- === EMPLOYER PROFILES ===
