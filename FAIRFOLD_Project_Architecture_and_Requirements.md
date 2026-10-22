@@ -1242,6 +1242,49 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 > service, which is specified in §3.4 and in the Phase 1 acceptance criteria (§10) but is not in
 > the block below either — so its absence is consistent with the specification, not a divergence
 > from it. See [`README.md`](README.md) for the commands that actually work.
+>
+> **Object storage, added 2026-10-22 (batch 1.17).** The block below has no object store,
+> which left REQ-FR-010 with nothing to test against in development. The built file now has
+> a `minio` service (`quay.io/minio/minio`, `server /data`, console on 9001, a
+> `minio_data` volume and a `/minio/health/live` probe on 9000) and passes
+> `MINIO_API_CORS_ALLOW_ORIGIN` from `S3_CORS_ALLOWED_ORIGINS`.
+>
+> The bucket is created by `python manage.py ensure_storage` from the `django`
+> entrypoint, not by a one-shot `mc` container. Two reasons: the `mc` image sets
+> `ENTRYPOINT ["mc"]` on `ubi-micro` with no shell, so a multi-step script cannot
+> run in it; and a bucket created with the application's own settings module is by
+> construction one the application can reach, which a separately-configured `mc`
+> container is not. `ensure_storage` is idempotent and a no-op when no bucket is
+> configured.
+>
+> **Bucket CORS is applied where the endpoint has the API, and reported where it
+> is not.** MinIO answers `NotImplemented` to `PutBucketCors` — verified
+> 2026-10-22 against a real MinIO release — and enforces CORS at the server level
+> through `MINIO_API_CORS_ALLOW_ORIGIN`, which Compose sets from the same
+> `S3_CORS_ALLOWED_ORIGINS` (a preflight `OPTIONS` for `PUT` from
+> `http://localhost:8000` returns `204` with `Access-Control-Allow-Origin`). AWS S3
+> and Cloudflare R2 do implement the bucket API, so `ensure_storage` installs the
+> policy there and prints that it did. Treating `NotImplemented` as a failure
+> would stop a working stack; reporting it as success would hide where the policy
+> actually lives.
+>
+> **MinIO no longer publishes anonymous images.** `minio/minio` is gone from Docker Hub
+> (verified 404 on 2026-10-22) and `quay.io/minio/minio` / `quay.io/minio/mc` return 401
+> without a login, while anonymous quay pulls of other repositories succeed. The README
+> therefore requires `docker login quay.io` once, and `.env.example` exposes `MINIO_IMAGE`
+> so a release tag can be pinned where reproducibility matters. This is the one thing in
+> the stack that cannot be pulled without an account; everything else in the block below
+> is public.
+>
+> Django reads `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`,
+> `AWS_S3_ENDPOINT_URL`, `AWS_S3_REGION_NAME` and `S3_CORS_ALLOWED_ORIGINS` from the
+> environment. The S3 backend is selected by the **presence of a bucket name**, so a host
+> run with none of them set keeps the filesystem backend that `.env.example` documents. The
+> Compose endpoint is `http://minio:9000`, which only resolves inside the network; batch
+> 1.19 (presigned uploads) must add a browser-reachable endpoint before a browser PUT can
+> work. `config/settings/production.py` still pins the filesystem default and is unchanged
+> by this batch — the production storage decision belongs with the resume model (1.18) and
+> upload API (1.19).
 
 ```yaml
 # docker-compose.yml

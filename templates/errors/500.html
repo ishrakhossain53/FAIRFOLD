@@ -14,8 +14,10 @@
 
   <div class="mx-auto mt-6 max-w-sm rounded-md border border-border bg-surface-muted p-4">
     <p class="text-body-sm text-ink-3">Quote this reference if you contact support:</p>
-    {# The reference is the request ID from core.middleware: an opaque identifier
-       and nothing else. It is the only thing that lets support find the traceback. #}
+    {% comment %}
+    The reference is the request ID from core.middleware: an opaque identifier
+    and nothing else. It is the only thing that lets support find the traceback.
+    {% endcomment %}
     {% if reference %}
     <p class="mt-2 select-all font-mono text-body text-ink">{{ reference }}</p>
     {% else %}

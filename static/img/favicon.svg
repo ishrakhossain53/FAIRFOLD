@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!--
+    Placeholder mark, not the brand logo. design.md §2.4 lists the logo and
+    favicon as "Not started" and §19 keeps public logo use behind the RSK-011
+    trademark search, so this is only a monogram in the primary token colour
+    (static/css/tokens.css: --primary #4f46e5). Replace it when the real asset
+    exists; templates/base.html already points here.
+  -->
+  <rect width="32" height="32" rx="7" fill="#4f46e5"/>
+  <text x="16" y="23" text-anchor="middle"
+        font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+        font-size="19" font-weight="700" fill="#ffffff">F</text>
+</svg>

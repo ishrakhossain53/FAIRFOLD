@@ -15,22 +15,28 @@
   <meta name="description" content="{% block description %}FairFold — AI-powered, explainable recruitment for candidates and employers.{% endblock %}">
   {% endblock %}
 
-  {# Built by `npm run build` from static/css/tokens.css + tailwind.config.js.
-     Loaded from a static file rather than the CDN so the CSP needs no
-     'unsafe-inline' and no third-party script host. #}
+  {% comment %}
+  Built by `npm run build` from static/css/tokens.css + tailwind.config.js.
+  Loaded from a static file rather than the CDN so the CSP needs no
+  'unsafe-inline' and no third-party script host.
+  {% endcomment %}
   <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
 
-  {# The CSRF token is read by HTMX on every unsafe request. This is why
-     CSRF_COOKIE_HTTPONLY is False in production settings. #}
+  {% comment %}
+  The CSRF token is read by HTMX on every unsafe request. This is why
+  CSRF_COOKIE_HTTPONLY is False in production settings.
+  {% endcomment %}
   <meta name="csrf-token" content="{{ csrf_token }}">
 
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
 </head>
 <body class="min-h-screen bg-bg text-ink font-sans antialiased">
 
-  {# Skip link. The first focusable element on the page, hidden until focused.
-     Without it, keyboard and screen-reader users traverse the nav on every page
-     to reach content that is already known to be there. #}
+  {% comment %}
+  Skip link. The first focusable element on the page, hidden until focused.
+  Without it, keyboard and screen-reader users traverse the nav on every page
+  to reach content that is already known to be there.
+  {% endcomment %}
   <a href="#main"
      class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3 focus:bg-primary focus:text-white">
     Skip to main content
@@ -85,11 +91,13 @@
     <main id="main" class="min-w-0 flex-1 py-6" tabindex="-1">
       {% block page_header %}{% endblock %}
 
-      {# Flash messages are an aria-live region so a screen reader announces a
-         message that appears after a POST without the user having to go looking
-         for it. `role="status"` rather than "alert": an override recorded is
-         information, not an emergency, and "alert" interrupts whatever is being
-         read. #}
+      {% comment %}
+      Flash messages are an aria-live region so a screen reader announces a
+      message that appears after a POST without the user having to go looking
+      for it. `role="status"` rather than "alert": an override recorded is
+      information, not an emergency, and "alert" interrupts whatever is being
+      read.
+      {% endcomment %}
       {% if messages %}
       <div role="status" aria-live="polite" class="mb-4 space-y-2">
         {% for message in messages %}
@@ -118,9 +126,11 @@
 
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
 
-  {# Chart.js is loaded ONLY on pages that draw a chart (design.md §11.4).
-     It is ~60 KB gzipped, which is the single largest asset in the product, and
-     the target market is on mid-range connections. #}
+  {% comment %}
+  Chart.js is loaded ONLY on pages that draw a chart (design.md §11.4).
+  It is ~60 KB gzipped, which is the single largest asset in the product, and
+  the target market is on mid-range connections.
+  {% endcomment %}
   {% block scripts %}{% endblock %}
 
   <script>
