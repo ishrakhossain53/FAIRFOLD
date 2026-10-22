@@ -12,11 +12,22 @@ button, which is the accessible-name requirement in design.md S02's A11y line.
 <section id="profile-{{ section_key }}" aria-labelledby="profile-{{ section_key }}-heading"
          class="border-b border-border py-6 last:border-b-0">
   <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div class="min-w-0">
-      <h2 id="profile-{{ section_key }}-heading" class="text-h4 font-semibold text-ink">{{ label }}</h2>
-      <p class="mt-2 break-words text-body text-ink-2">
-        {{ value|default:"Not provided"|linebreaksbr }}
+    <div class="min-w-0 flex-1">
+      <div class="flex items-center gap-2">
+        <h2 id="profile-{{ section_key }}-heading" class="text-h4 font-semibold text-ink">{{ label }}</h2>
+        {% if value %}
+        <span class="text-body-sm text-success" aria-label="Provided">✔</span>
+        {% endif %}
+      </div>
+
+      {% if value %}
+      <p class="mt-2 break-words text-body text-ink-2">{{ value|linebreaksbr }}</p>
+      {% else %}
+      <p class="mt-2 text-body text-ink-3">
+        Not provided
+        <span class="text-body-sm">— use “Edit {{ edit_label }}” to add it.</span>
       </p>
+      {% endif %}
     </div>
 
     <details id="{{ section_key }}-edit"

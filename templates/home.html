@@ -1,56 +1,154 @@
 {% extends "base.html" %}
 
-{% block title %}FairFold Demo{% endblock %}
-{% block description %}FairFold demo page for testing the app frontend and backend wiring.{% endblock %}
+{% block title %}FairFold — Hiring that explains itself{% endblock %}
+{% block description %}FairFold is explainable recruiting: personal details are removed before any AI sees a resume, every suggestion shows its evidence, and a person makes the decision.{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <section class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <p class="text-body-sm uppercase tracking-[0.2em] text-ink-3">FairFold</p>
-        <h1 class="mt-3 text-h2 font-bold text-ink">AI-powered recruiting, working locally.</h1>
-        <p class="mt-4 max-w-2xl text-body-lg text-ink-2">
-            This is a minimal working page to confirm the Django backend and frontend are connected.
+<div class="space-y-8 py-2 sm:space-y-12 sm:py-4">
+
+  {% comment %}
+  Landing page, design.md X01 (page #1). The two CTAs land on the register form
+  with the matching role preselected (`?role=…`, handled in accounts.views). No
+  claim here is a statistic: the copy describes behaviour the product enforces
+  (REQ-FR-029/054 privacy, REQ-FR-053 ranking, advisory AI).
+  {% endcomment %}
+  <section aria-labelledby="hero-heading"
+           class="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+    <div class="grid gap-8 px-5 py-8 sm:px-10 sm:py-12 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-center">
+
+      <div>
+        <p class="inline-flex items-center gap-2 rounded-full border border-border bg-primary-soft px-3 py-1 text-caption font-semibold uppercase tracking-widest text-primary-strong">
+          <span class="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true"></span>
+          Explainable recruiting
         </p>
 
-        <div class="mt-6 flex flex-wrap gap-3">
-            <a href="/health/"
-                class="rounded-md bg-primary px-4 py-2 text-body-sm font-semibold text-white hover:bg-primary-2">
-                Check backend health
-            </a>
-            <button id="demo-button"
-                class="rounded-md border border-border bg-surface-muted px-4 py-2 text-body-sm font-semibold text-ink hover:bg-surface">
-                Call demo API
-            </button>
+        <h1 id="hero-heading" class="mt-4 text-display font-bold tracking-tight text-ink">
+          Hiring that explains itself
+        </h1>
+        <p class="mt-4 max-w-prose text-h3 text-ink-2">
+          Private by design. Fair by default. Free to start.
+        </p>
+        <p class="mt-3 max-w-prose text-body text-ink-3">
+          FairFold removes personal details before any AI sees a resume, shows the
+          evidence behind every suggestion, and leaves the decision with a person.
+        </p>
+
+        <div class="mt-7 flex flex-col gap-3 sm:flex-row">
+          <a href="{% url 'accounts_public:register' %}?role=employer_hr"
+             class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong">
+            I'm hiring
+          </a>
+          <a href="{% url 'accounts_public:register' %}?role=candidate"
+             class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-6 text-body font-semibold text-ink hover:bg-surface-muted">
+            I'm looking for work
+          </a>
         </div>
-    </section>
 
-    <section class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="text-h4 font-semibold text-ink">Status</h2>
-        <p id="demo-status" class="mt-3 text-body-md text-ink-2">
-            Waiting for the backend response...
+        <p class="mt-4 text-body-sm text-ink-3">
+          Already have an account?
+          <a href="{% url 'accounts_public:login' %}" class="font-medium text-primary-strong underline">Log in</a>.
         </p>
-    </section>
+      </div>
+
+      <div class="rounded-lg border border-border bg-surface-muted p-5">
+        <p class="text-body-sm font-semibold uppercase tracking-wide text-ink-3">Privacy, visibly</p>
+        <ul class="mt-4 space-y-4 text-body-sm text-ink-2">
+          <li class="flex gap-3">
+            <span aria-hidden="true" class="mt-0.5 text-success">✔</span>
+            <span>Your name, photo and contact details stay hidden from employers until you are shortlisted.</span>
+          </li>
+          <li class="flex gap-3">
+            <span aria-hidden="true" class="mt-0.5 text-success">✔</span>
+            <span>Every AI suggestion comes with the evidence behind it — never a bare score.</span>
+          </li>
+          <li class="flex gap-3">
+            <span aria-hidden="true" class="mt-0.5 text-success">✔</span>
+            <span>A person reviews and makes the decision. The AI only advises.</span>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section aria-labelledby="values-heading">
+    <h2 id="values-heading" class="sr-only">Why FairFold</h2>
+    <div class="grid gap-4 sm:grid-cols-3">
+
+      <div class="rounded-lg border border-border bg-surface p-6 shadow-card">
+        <p aria-hidden="true" class="text-h2">🛡</p>
+        <h3 class="mt-3 text-h4 font-semibold text-ink">Private</h3>
+        <p class="mt-2 text-body-sm text-ink-3">
+          Personal details are removed before AI screening. Employers see a
+          per-employer alias, not your identity, until you are shortlisted.
+        </p>
+      </div>
+
+      <div class="rounded-lg border border-border bg-surface p-6 shadow-card">
+        <p aria-hidden="true" class="text-h2">🔍</p>
+        <h3 class="mt-3 text-h4 font-semibold text-ink">Explainable</h3>
+        <p class="mt-2 text-body-sm text-ink-3">
+          Every match and every screening suggestion shows the reasons behind it,
+          so you can check the evidence instead of trusting a number.
+        </p>
+      </div>
+
+      <div class="rounded-lg border border-border bg-surface p-6 shadow-card">
+        <p aria-hidden="true" class="text-h2">✳</p>
+        <h3 class="mt-3 text-h4 font-semibold text-ink">Affordable</h3>
+        <p class="mt-2 text-body-sm text-ink-3">
+          Free to start, with simple plans for teams that hire regularly.
+          Candidates never pay to apply.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <section aria-labelledby="how-heading"
+           class="rounded-lg border border-border bg-surface p-6 shadow-card sm:p-8">
+    <h2 id="how-heading" class="text-h2 font-bold text-ink">How it works</h2>
+    <ol class="mt-6 grid gap-6 sm:grid-cols-3">
+      <li class="border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+        <p class="text-caption font-semibold uppercase tracking-widest text-primary-strong">Step 1</p>
+        <h3 class="mt-1 text-h4 font-semibold text-ink">Create a profile or post a role</h3>
+        <p class="mt-1 text-body-sm text-ink-3">
+          Candidates describe what they are looking for; employers describe the job.
+        </p>
+      </li>
+      <li class="border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+        <p class="text-caption font-semibold uppercase tracking-widest text-primary-strong">Step 2</p>
+        <h3 class="mt-1 text-h4 font-semibold text-ink">AI suggests, with reasons</h3>
+        <p class="mt-1 text-body-sm text-ink-3">
+          Screening works on anonymised text and every result carries its evidence.
+        </p>
+      </li>
+      <li class="border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+        <p class="text-caption font-semibold uppercase tracking-widest text-primary-strong">Step 3</p>
+        <h3 class="mt-1 text-h4 font-semibold text-ink">People decide</h3>
+        <p class="mt-1 text-body-sm text-ink-3">
+          A human shortlists or rejects with a written reason, and every action is audited.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="rounded-lg bg-primary px-6 py-8 text-white sm:px-10">
+    <h2 class="text-h2 font-bold">Ready to hire — or be hired — with reasons?</h2>
+    <p class="mt-2 max-w-prose text-body text-white">
+      Create an account in a minute. You can change your details at any time.
+    </p>
+    <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+      <a href="{% url 'accounts_public:register' %}?role=candidate"
+         class="inline-flex h-touch items-center justify-center rounded-md bg-white px-6 text-body font-semibold text-primary-strong hover:bg-surface-muted">
+        Create a candidate account
+      </a>
+      <a href="{% url 'accounts_public:register' %}?role=employer_hr"
+         class="inline-flex h-touch items-center justify-center rounded-md border border-white px-6 text-body font-semibold text-white hover:bg-primary-strong">
+        Create an employer account
+      </a>
+    </div>
+  </section>
+
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const button = document.getElementById('demo-button');
-        const status = document.getElementById('demo-status');
-
-        button.addEventListener('click', async function () {
-            button.disabled = true;
-            status.textContent = 'Loading...';
-
-            try {
-                const response = await fetch('/api/demo/');
-                const data = await response.json();
-                status.textContent = data.message || 'Backend responded successfully.';
-            } catch (error) {
-                status.textContent = 'The backend did not respond.';
-            } finally {
-                button.disabled = false;
-            }
-        });
-    });
-</script>
 {% endblock %}

@@ -5,10 +5,24 @@
 {% block content %}
 <div class="mx-auto w-full max-w-lg py-4 sm:py-8">
   <h1 class="text-h1 font-bold text-ink">Create your account</h1>
+  <p class="mt-2 text-body text-ink-3">
+    Tell us who you are and what you are here to do. You can change your details
+    later.
+  </p>
 
   <div class="mt-6">
     {% include "accounts/_register_panel.html" %}
   </div>
+
+  <p class="mt-6 text-body-sm text-ink-3">
+    Already have an account?
+    <a href="{% url 'accounts_public:login' %}" class="font-semibold text-primary-strong underline">Log in</a>.
+  </p>
+
+  <p class="mt-2 text-body-sm text-ink-3">
+    Questions about privacy? FairFold hides your name and contact details from
+    employers until you are shortlisted.
+  </p>
 </div>
 
 <script>

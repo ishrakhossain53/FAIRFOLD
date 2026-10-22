@@ -3,20 +3,35 @@
 {% block title %}Something went wrong — FairFold{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-prose py-16 text-center">
-  <h1 class="text-h1 font-bold text-ink">Something went wrong on our side</h1>
-  <p class="mt-4 text-body text-ink-2">The problem has been recorded and we will look at it. Nothing you submitted has been lost.</p>
-  <p class="mt-8 text-body-sm text-ink-3">Quote this reference if you contact support:</p>
-  {# The reference is the request ID from core.middleware: an opaque identifier
-     and nothing else. It is the only thing that lets support find the traceback. #}
-  {% if reference %}
-  <p class="mt-2 font-mono text-body-sm text-ink-2">{{ reference }}</p>
-  {% endif %}
-  <p class="mt-8">
+<div class="mx-auto max-w-prose py-12 text-center sm:py-16">
+  <div aria-hidden="true"
+       class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-danger-soft text-h1">⚑</div>
+  <h1 class="mt-6 text-h1 font-bold text-ink">Something went wrong on our side</h1>
+  <p class="mt-4 text-body text-ink-2">
+    The problem has been recorded and we will look at it. Nothing you submitted
+    has been lost.
+  </p>
+
+  <div class="mx-auto mt-6 max-w-sm rounded-md border border-border bg-surface-muted p-4">
+    <p class="text-body-sm text-ink-3">Quote this reference if you contact support:</p>
+    {# The reference is the request ID from core.middleware: an opaque identifier
+       and nothing else. It is the only thing that lets support find the traceback. #}
+    {% if reference %}
+    <p class="mt-2 select-all font-mono text-body text-ink">{{ reference }}</p>
+    {% else %}
+    <p class="mt-2 text-body-sm text-ink-3">No reference was recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
     <a href="/"
-       class="inline-flex h-touch items-center rounded-md bg-primary px-6 text-body font-medium text-white hover:bg-primary-strong">
+       class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong">
       Go to the homepage
     </a>
-  </p>
+    <a href="{% url 'accounts_public:login' %}"
+       class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-6 text-body font-semibold text-ink hover:bg-surface-muted">
+      Log in
+    </a>
+  </div>
 </div>
 {% endblock %}

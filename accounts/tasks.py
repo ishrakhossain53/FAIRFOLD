@@ -12,6 +12,7 @@ harmless, and `verify_email` flips the flag only once.
 
 from __future__ import annotations
 
+import logging
 from email.utils import formataddr
 from urllib.parse import quote
 
@@ -23,6 +24,8 @@ from django.utils.http import urlsafe_base64_encode
 
 from accounts.models import User
 from accounts.services import make_password_reset_token, make_verification_token
+
+logger = logging.getLogger(__name__)
 
 
 def verification_link(token: str) -> str:
@@ -64,12 +67,21 @@ def send_verification_email(user_id: str) -> None:
     if user.email_verified or not user.is_active:
         return
 
+    link = verification_link(make_verification_token(user))
+    if settings.DEBUG:
+        # The console email backend prints the whole message, but it prints to
+        # whichever process sends it -- often a Celery worker in a container, not
+        # the terminal running the web server. One explicit line makes the link
+        # findable in either log stream. DEBUG-gated: a token must never reach a
+        # production log.
+        logger.info("Development verification link: %s", link)
+
     send_mail(
         subject="Verify your FairFold email",
         message=(
             "Confirm your email address to finish setting up your FairFold "
             "account:\n\n"
-            f"{verification_link(make_verification_token(user))}\n\n"
+            f"{link}\n\n"
             "If you did not create an account, you can ignore this email."
         ),
         from_email=formataddr(
