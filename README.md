@@ -110,28 +110,33 @@ the application refuses to start with either one missing, so this step is not op
 docker compose up -d --wait
 ```
 
-This builds the image and starts `postgres`, `redis`, `clamav`, `django`, `celery` and
-`celery-beat`. On **every** start the `django` container:
+This builds the image and starts `postgres`, `redis`, `minio`, `clamav`, `django`, `celery`
+and `celery-beat`. On **every** start the `django` container:
 
 1. applies migrations (`manage.py migrate`),
 2. loads reference data (`manage.py seed` — role groups, skills, countries, industries,
    score bands; it warns that the bands are **uncalibrated**, per `design.md` §3.4),
-3. collects static files (`manage.py collectstatic`), and only then
-4. starts gunicorn on `0.0.0.0:8000`.
+3. creates the MinIO bucket and its CORS policy (`manage.py ensure_storage`), then
+4. collects static files (`manage.py collectstatic`), and only then
+5. starts gunicorn on `0.0.0.0:8000`.
 
 `--wait` returns once every health check passes, so a completed command means the stack is
 ready to use. The first run takes a few minutes: pip installs PyTorch (CPU wheels), spaCy
 and the rest, and ClamAV downloads its signature database on first boot.
 
-You never run `migrate` or `seed` by hand to get started — the container entrypoint does
-both. They are re-run safely on every restart (both are idempotent).
+You never run `migrate`, `seed` or `ensure_storage` by hand to get started — the container
+entrypoint does all three. They are re-run safely on every restart (all are idempotent).
 
 ### 4. Verify it is up
 
 ```bash
 docker compose ps                     # every service Up, the health-checked ones healthy
 curl -s localhost:8000/health/ready/  # {"status": "ok", "checks": {"database": "ok", "cache": "ok"}}
+docker compose exec django python manage.py check_storage   # write, read, delete a probe object
 ```
+
+The last command is the one that proves object storage works: a healthy MinIO container
+does not prove Django is pointed at the right bucket with the right credentials.
 
 Then open **http://localhost:8000/**.
 
@@ -174,11 +179,23 @@ docker compose up -d --build       # rebuild the image after a code change
 
 - **`error while interpolating … required variable … is missing a value`** — `.env` is
   absent or incomplete. Run `cp .env.example .env` first; `DB_PASSWORD`,
-  `DJANGO_SECRET_KEY`, `ENCRYPTION_KEY`, `EMAIL_BACKEND_URL` and `DEFAULT_FROM_EMAIL` must
-  each have a value.
-- **A port is already in use (8000, 5432, 6379, 3310)** — another stack, or a host
-  PostgreSQL/Redis, owns it. Change `DJANGO_PORT` / `POSTGRES_PORT` / `REDIS_PORT` /
-  `CLAMD_PORT` in `.env`, or stop the other process.
+  `DJANGO_SECRET_KEY`, `ENCRYPTION_KEY`, `EMAIL_BACKEND_URL`, `DEFAULT_FROM_EMAIL`,
+  `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` must each have a value. An `.env` written
+  before batch 1.17 has no `MINIO_*` lines; copy them from `.env.example`.
+- **`minio` fails to pull with `401 Unauthorized`** — MinIO no longer publishes anonymous
+  images (`minio/minio` was removed from Docker Hub, `quay.io/minio/minio` requires a
+  login). Run `docker login quay.io` once, or set `MINIO_IMAGE` to a registry this machine
+  is already authenticated to. `django` will not start until MinIO is healthy, because it
+  creates the bucket on boot.
+- **`check_storage` fails with `S3 error InvalidAccessKeyId` / `SignatureDoesNotMatch`** —
+  `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` in `.env` do not match the credentials the
+  existing `minio_data` volume was initialised with. Either restore the old values or
+  `docker compose down -v` to start the object store empty (that also deletes the database
+  and uploaded files).
+- **A port is already in use (8000, 5432, 6379, 9000, 9001, 3310)** — another stack, or a
+  host PostgreSQL/Redis/MinIO, owns it. Change `DJANGO_PORT` / `POSTGRES_PORT` /
+  `REDIS_PORT` / `MINIO_PORT` / `MINIO_CONSOLE_PORT` / `CLAMD_PORT` in `.env`, or stop the
+  other process.
 - **`django` is healthy but the browser cannot connect** — confirm the bind address:
   `docker compose logs django | grep "Listening at"` must report `0.0.0.0:8000`. If it
   reports `127.0.0.1:8000`, gunicorn lost its arguments and the published port is dead.
@@ -190,6 +207,11 @@ docker compose up -d --build       # rebuild the image after a code change
   ```
 - **An upload is rejected because ClamAV is unreachable** — this is deliberate; the scan
   fails closed. Wait for `docker compose ps` to show `clamav` as healthy.
+- **The pending page shows the verification link** — that is deliberate in this build: the link
+  is always rendered (also for an address that is already verified) so onboarding can be finished
+  without a mailbox; console email lands in the Celery worker's log. It is a pre-deployment
+  convenience, **not** production behaviour: the page can be requested by anyone who types an
+  address, so it must be re-gated before the app is reachable by other people.
 
 ## Project Structure
 

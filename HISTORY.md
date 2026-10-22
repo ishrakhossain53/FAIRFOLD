@@ -51,13 +51,13 @@ blocked.
 || File | Lines | Role |
 || --- | --- | --- |
 || `FAIRFOLD_Complete_Project_Document.md` | 2448 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
-|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2649 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 33-table SQL schema, 53 foreign keys, 27 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
+|| `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2692 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 33-table SQL schema, 53 foreign keys, 27 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
 || `prd.md` | 1282 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 || `design.md` | 2918 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 425 | Project overview, documentation index, setup |
+| `README.md` | 447 | Project overview, documentation index, setup |
 
-| `.env.example` | 174 | Environment variables, all placeholders |
+| `.env.example` | 201 | Environment variables, all placeholders |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -3195,3 +3195,289 @@ unset).**
   links still predate this pass and still 404.
 - No new requirement, endpoint, model or role was introduced. The `?role=` value
   only preselects one of the two roles the registration form already offers.
+
+### Batch 1.17: S3-compatible dev storage (2026-10-22)
+
+**What changed.**
+
+- **`docker-compose.yml`** — new `minio` service: `${MINIO_IMAGE:-quay.io/minio/minio:latest}`,
+  `command: server /data --console-address ":9001"`, `MINIO_API_CORS_ALLOW_ORIGIN` fed from
+  `S3_CORS_ALLOWED_ORIGINS`, a `minio_data` volume, published 9000/9001, and a
+  `/minio/health/live` probe using the static `curl` the official image bundles. `django`
+  depends on `minio: service_healthy` and runs `python manage.py ensure_storage` between
+  `seed` and `collectstatic`. Both `django` and `celery` receive `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`, `AWS_S3_ENDPOINT_URL` and
+  `AWS_S3_REGION_NAME`, derived from the `MINIO_*` values rather than duplicated in `.env`.
+- **`config/settings/base.py`** — `AWS_*` and `S3_CORS_ALLOWED_ORIGINS` read from the
+  environment. `STORAGES["default"]` becomes `storages.backends.s3.S3Storage` (path-style,
+  SigV4, private, `file_overwrite=False`, `querystring_auth=True`) **only** when
+  `AWS_STORAGE_BUCKET_NAME` is set; otherwise the filesystem backend is unchanged, which is
+  what `.env.example` already promised.
+- **`core/storage.py`** — `object_storage_configured`, `bucket_name`, `s3_client` (reuses
+  `default_storage.connection` so the probe and the application cannot disagree about
+  endpoint/region/signing), `cors_configuration`, `ensure_bucket`, `apply_cors`, `round_trip`.
+  botocore failures become `StorageError` carrying only the S3 error code and the operation;
+  no credentials and no request metadata reach a message that is printed or logged.
+- **`core/management/commands/ensure_storage.py`** — idempotent bucket creation plus CORS,
+  a no-op when no bucket is configured, `CommandError` on failure. **`check_storage.py`** —
+  writes, reads back and deletes `healthchecks/<uuid>.txt` through `default_storage`.
+- **`.env.example`** — `MINIO_IMAGE`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`,
+  `MINIO_BUCKET`, `MINIO_PORT`, `MINIO_CONSOLE_PORT`, `S3_CORS_ALLOWED_ORIGINS`; the `AWS_*`
+  block documented for host runs and for AWS/R2.
+- **`README.md`** — the stack list, the entrypoint steps, `check_storage` in "Verify it is
+  up", and troubleshooting for the registry 401, a credential mismatch against an existing
+  `minio_data` volume, and ports 9000/9001. **Arch Doc §6.1** records the divergence.
+- Out of scope and untouched: any resume model, endpoint or upload UI.
+
+**Findings, verified rather than assumed.** `minio/minio` is gone from Docker Hub (registry
+and Hub API both 404). `quay.io/minio/minio` and `quay.io/minio/mc` return `401` to anonymous
+pulls while `quay.io/prometheus/busybox` pulls anonymously, so the images are gated rather
+than the network. The stack therefore needs `docker login quay.io`, and `MINIO_IMAGE` exists
+so a release tag can be pinned where reproducibility matters.
+
+MinIO also answers `NotImplemented` to `PutBucketCors` (confirmed against a real MinIO
+release), and enforces CORS at the server level. `ensure_storage` installs the bucket policy
+on endpoints that support it (AWS S3, Cloudflare R2) and reports the fallback on MinIO
+instead of failing the entrypoint or claiming success.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`/`SENTRY_DSN`
+unset).**
+
+- `pytest tests/core/test_storage.py -v` (no bucket configured) -> 15 passed, 4 skipped
+- `pytest tests/core/test_storage.py -v` (AWS_* pointed at a temporary real MinIO on port
+  19000) -> 20 passed, 1 skipped
+- `manage.py ensure_storage` -> bucket created, CORS reported as unsupported and delegated
+  to `MINIO_API_CORS_ALLOW_ORIGIN`; second run -> "already present"; `manage.py check_storage`
+  -> `storage round-trip verified: backend=storages.backends.s3.S3Storage
+  bucket=fairfold-media ... bytes=35`
+- `pytest tests/ -q` -> 614 passed, 4 skipped
+- `manage.py check` -> no issues; `manage.py makemigrations --check --dry-run` -> "No changes
+  detected"; `manage.py check --deploy --fail-level WARNING` (production settings) -> no issues
+- `flake8` on the changed apps -> exit 0; `black --check` / `isort --check-only` on the five
+  changed Python files -> clean; `mypy` -> no issues in 86 source files
+- `python scripts/verify_docs.py` -> exit 0 after three line-count rows were refreshed
+  (README 425→442, `.env.example` 174→201, Arch Doc 2649→2692)
+- `docker compose config` -> seven services with the intended env and `depends_on`
+- Preflight check against the same real MinIO with `MINIO_API_CORS_ALLOW_ORIGIN` set:
+  `OPTIONS` for `PUT` from `http://localhost:8000` -> `204` +
+  `Access-Control-Allow-Origin: http://localhost:8000`
+- `docker compose up -d --build --wait` (with the local `.env` image override described below)
+  -> seven services healthy including `minio`; the `django` entrypoint logged
+  `bucket fairfold-media created; CORS (2 origin(s)): bucket CORS is not supported by this
+  endpoint ...`; `docker compose exec django python manage.py check_storage` ->
+  `storage round-trip verified ... bytes=35`; `GET /health/ready/` -> `{"status": "ok"}`;
+  anonymous `GET http://localhost:9000/fairfold-media/` -> `403`; MinIO console -> `200`;
+  `pytest tests/core/test_storage.py` against that live MinIO -> 20 passed, 1 skipped.
+- A first full-suite run reported 15 failures in `test_production_settings.py`; the shell had
+  `DEBUG=True` and `SENTRY_DSN` exported. Re-ran with them unset -> all 20 pass. Environment,
+  not the change.
+
+**Known limitations.**
+
+- **The shipped image was never pulled from quay.** `quay.io/minio/minio` needs a login from
+  this machine. The stack was therefore run end-to-end with a local, gitignored `.env`
+  override — `MINIO_IMAGE=pgsty/minio:RELEASE.2026-06-18T00-00-00Z` — which proves the compose
+  file, settings, entrypoint, bucket creation, CORS and round-trip against a real MinIO, but
+  **not** against MinIO's own registry image. The committed default is still
+  `quay.io/minio/minio:latest`; after `docker login quay.io`, delete the override (or set it to
+  a release tag) and the same acceptance check applies unchanged. A community mirror is a
+  local workaround, not an approved dependency.
+- **CI has no MinIO service**, because the image cannot be pulled anonymously. The four
+  `TestS3Integration` tests skip in CI; everything else runs. Closing that gap needs CI
+  registry credentials or an approved alternative image.
+- **Bucket-level CORS does not exist on MinIO.** The bucket policy is applied where the
+  endpoint implements `PutBucketCors`; on MinIO the server-level allow-list is the mechanism.
+- **`config/settings/production.py` still pins `FileSystemStorage`** and is unchanged. The
+  production storage decision belongs with the resume model (1.18) and upload API (1.19).
+- **Presigned URLs will not work in a browser yet.** Django signs
+  `http://minio:9000/...`, a Compose-internal name; batch 1.19 must add a browser-reachable
+  endpoint. This batch creates no upload path at all.
+- **An existing `.env` needs the `MINIO_*` lines.** Compose deliberately fails with an
+  interpolation error rather than defaulting a credential.
+- No requirement, table, endpoint, column or role was added. Arch Doc §6.1 and the README
+  were amended to describe infrastructure that already existed in the specification
+  (REQ-FR-010, Complete Doc §C.6).
+
+### 2026-10-22 — Verification link display is a setting, not a DEBUG check
+
+**What changed (maintainer request).** The pending page (#11) used to render the
+verification link only when `DEBUG` was on, which meant a run with `DEBUG=False`
+(`config.settings.ci`, a UI test, a colleague's machine) could not finish onboarding
+without a real mailbox. It is now controlled by `EMAIL_VERIFICATION_LINK_IN_UI`
+(`config/settings/base.py`), which **defaults to `DEBUG`** so nothing changes for anyone
+who does not set it.
+
+- `accounts/views.py` — `check_email` reads the new setting; the context key is now
+  `testing_verification_url`. It still only builds a link for an active, unverified
+  account matching the pending session address.
+- `templates/accounts/check_email.html` — copy changed from "Development only" to
+  "Testing only" and states that `EMAIL_VERIFICATION_LINK_IN_UI` is what enables it.
+  The page remains `never_cache`d, so the token is never written into a cacheable response.
+- `config/settings/production.py` — **refuses to boot** with the flag on. The pending page
+  can be requested by anyone who types an address, so an enabled flag is a way to verify an
+  account you do not own; a default plus a warning is exactly the "I'll remember to turn it
+  off" failure this project writes assertions for.
+- `.env.example` documents the variable (commented, so the `DEBUG` default applies);
+  `README.md` troubleshooting explains what to set when the link does not appear.
+- Tests: `tests/accounts/test_registration_ui.py` now pins both directions — the flag
+  shows the link with `DEBUG=False`, and `DEBUG=True` alone does not — and
+  `tests/core/test_production_settings.py` asserts the production refusal.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`/`SENTRY_DSN`
+unset).**
+
+- `pytest tests/accounts/test_registration_ui.py tests/core/test_production_settings.py -q`
+  -> 84 passed
+- `pytest tests/ -q` -> 615 passed, 4 skipped
+- `flake8 accounts/ config/` -> exit 0; `black --check` + `isort --check-only` on the five
+  changed Python files -> clean
+- `python scripts/verify_docs.py` -> exit 0 after two line-count rows were refreshed
+  (README 442→446, `.env.example` 201→208)
+- `docker compose up -d --build --wait` -> seven services healthy; entrypoint logged
+  `bucket fairfold-media already present`
+- Live browser-equivalent check with `curl` (fresh cookie jar, candidate signup):
+  `POST /register/` -> `302 /register/check-email/`; the pending page contained
+  `Testing only`, `Shown because EMAIL_VERIFICATION_LINK_IN_UI`, and a `verify-email/?token=…`
+  link. `.env` has `EMAIL_VERIFICATION_LINK_IN_UI=True` for this workspace.
+
+**Known limitations.**
+
+- This is a testing aid, not a product feature: the flag exposes a working verification
+  link to whoever requests the pending page for an address, which is why production
+  refuses it. It does not replace email delivery in any environment.
+- The Celery task's "Development verification link" log line is still `DEBUG`-gated and
+  is not controlled by the new setting. The two were left separate deliberately: the log
+  writes a token to a log stream, and this change was about the page.
+- `tests/bias/test_bias_audit.py:118` still trips flake8 `E203`; it is untouched by this
+  change and is not part of the CI flake8 target list.
+
+### 2026-10-22 — The pending page always shows the verification link
+
+**What changed (maintainer request).** The link must be visible all the time, so the
+`EMAIL_VERIFICATION_LINK_IN_UI` setting added earlier the same day is **removed** rather than
+defaulted on. `/register/check-email/` now always renders the link for an unverified, active
+account matching the pending session address — no `DEBUG` check, no setting, no environment
+condition.
+
+- `accounts/views.py` — `check_email` builds the token unconditionally; context key is
+  `pending_verification_url`. The token-in-log line was removed: the page carries the link, so
+  writing the token to a log stream no longer buys anything.
+- `templates/accounts/check_email.html` — copy is "For testing — no need to open the email".
+  The comment states the consequence and the requirement to re-gate before deployment.
+- `config/settings/base.py`, `config/settings/production.py` — the setting and the production
+  boot refusal are gone. **Production now boots and renders the link too.**
+- `.env.example` — variable removed. `README.md` troubleshooting now says the block is expected
+  and explains why it must not ship as-is.
+- Tests: `tests/accounts/test_registration_ui.py` renders the link with `DEBUG=False`, and asserts
+  an already-verified address still gets a link (corrected below: this entry first said the
+  opposite). The production-refusal test was deleted with the assertion it covered.
+
+**This is a deliberate security trade-off, recorded here on purpose.** The pending page can be
+requested by anyone who types an address, so any visitor can verify an account they do not own.
+That is acceptable for a not-yet-deployed, single-maintainer build and is **not** acceptable once
+the app is reachable by other people. Before deployment the block must be re-gated (a `DEBUG`
+check or an explicit setting that `production.py` refuses).
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`/`SENTRY_DSN`
+unset).**
+
+- `pytest tests/accounts/test_registration_ui.py tests/core/test_production_settings.py -q`
+  -> 83 passed
+- `pytest tests/ -q` -> 615 passed, 4 skipped
+- `flake8 accounts/ config/` -> exit 0; `black`/`isort` on the five changed Python files -> clean
+- `python scripts/verify_docs.py` -> exit 0 after refreshing two line-count rows
+  (README 446→447, `.env.example` 208→201)
+- `docker compose up -d --build --wait` -> services healthy; live `curl` signup + pending page
+  shows the "For testing" block with a `token=` link
+- `docker compose exec django python manage.py shell` with the Django test client and
+  `override_settings(DEBUG=False)` against the running stack -> `status: 200`, the "For testing"
+  block present, a `token=` link present. `DEBUG` no longer decides anything. (The earlier
+  `settings.EMAIL_VERIFICATION_LINK_IN_UI` check is no longer applicable: the setting does not
+  exist.)
+
+**Known limitations.**
+
+- Unrestricted public verification until the block is re-gated. Tracked as the single item to
+  fix before any shared deployment.
+- The Celery task still logs "Development verification link" under `DEBUG`; that log line is
+  independent of the page and was left alone.
+
+### 2026-10-22 — Multi-line template comments were rendering as page text
+
+**What changed (maintainer report: stray text at the top of the UI).** Django's
+``{# ... #}`` is a comment only when both delimiters sit on the **same line**. Six
+comment blocks spanned several lines, so the template engine rendered them as literal
+text above the header on every page. They are now ``{% comment %} ... {% endcomment %}``:
+
+- `templates/base.html` — five blocks (stylesheet note, CSRF note, skip-link note,
+  flash-message note, Chart.js note).
+- `templates/errors/500.html` — the support-reference note.
+
+**Favicon 404 fixed.** `base.html` linked `{% static 'img/favicon.svg' %}`, but
+`static/img/` did not exist, so every page requested a 404. Added
+`static/img/favicon.svg`: a monogram "F" in the `--primary` token colour, marked in the
+file as a placeholder because design.md §2.4 lists the logo/favicon as not started and
+§19 keeps public logo use behind the RSK-011 trademark search.
+
+**Regression tests.** New `tests/core/test_templates.py` (7 tests) renders `/`,
+`/register/` and `/login/` and fails if any of `{#`, `{%`, `{{` or the specific leaked
+prose appears in the response. It also asks the staticfiles finders for every
+`{% static %}` name in `base.html`, so a reference without a file fails here rather than
+in a browser's console.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`/`SENTRY_DSN`
+unset).**
+
+- `pytest tests/core/test_templates.py -q` -> 7 passed
+- `pytest tests/ -q` -> 621 passed, 4 skipped
+- `flake8 tests/core/test_templates.py` -> exit 0; `black --check`/`isort` -> clean
+- `python scripts/verify_docs.py` -> exit 0
+- `docker compose up -d --build --wait django` -> healthy
+- Live checks with `curl`: `/`, `/register/`, `/login/` contain no `{#`/`{%`/`{{` and no
+  comment prose; `/static/img/favicon.svg` -> `200 image/svg+xml`; a fresh signup's
+  `/register/check-email/` renders the "For testing" block with a `token=` link; an HTML
+  parser found no unclosed or stray tags on those pages.
+
+**Known limitations / blockers.**
+
+- `/privacy/` and `/terms/` are still 404: they are page #12 ("Privacy policy / Terms",
+  REQ-COM-004, design.md W03), which is not implemented. The wireframe's retention
+  durations are mockup content, while GAP-A03 ("Data retention policies with specific
+  durations", High) is still open, and the repo has no contact address for a policy.
+  Writing that page now would invent legal commitments, so it was left alone.
+- The favicon is a placeholder monogram, not a brand asset.
+
+### 2026-10-22 — Link was still hidden for an already-verified address (reported)
+
+**What changed.** The maintainer reported the "For testing" block missing on
+`/register/check-email/`. The screenshot showed a signed-in account (`s***@gmail.com`) whose
+row is already `email_verified=True` (`saima@gmail.com`, joined 2026-10-20). `check_email`
+filtered on `email_verified=False`, so a tester reusing an old account — the normal way to
+return to that page — got no link and no email. The filter is gone: any **active** account on
+the pending address gets a link, verified or not. Following a token for a verified account is
+already the success state (`EmailAlreadyVerified`), so the extra link is harmless.
+
+- `accounts/views.py` — `User.objects.filter(email=email, is_active=True)`; comment says why.
+- Tests — `test_an_already_verified_address_gets_no_link` became
+  `test_an_already_verified_address_still_gets_a_link` (and follows the token to the success
+  page); added `test_a_deactivated_address_gets_no_link` for the one filter that remains.
+- `README.md` — troubleshooting says the block also appears for an already-verified address.
+- **Correction:** the earlier entry today ("The pending page always shows the verification
+  link") said the tests assert a verified address gets *no* link. That was true then and is
+  wrong now; the sentence was edited to say so rather than left contradicting the code.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`/`SENTRY_DSN`
+unset).**
+
+- `pytest tests/accounts/test_registration_ui.py -q` -> 64 passed
+- `pytest tests/ -q` -> 622 passed, 4 skipped
+- `flake8`/`black`/`isort` on the changed files -> clean
+- `python scripts/verify_docs.py` -> exit 0
+- `docker compose up -d --build --wait django` -> healthy
+- Live container check with the real reported account: `saima@gmail.com` (`verified: True`),
+  session pointed at the pending page, `override_settings(DEBUG=False, ALLOWED_HOSTS=...)` ->
+  `status: 200`, block present, `token=` present.
+
+**Known limitations.** An account with `is_active=False` still gets no link (a token for it
+would only fail), and the block is still a public verification bypass until it is re-gated
+before deployment.

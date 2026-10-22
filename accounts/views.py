@@ -195,10 +195,15 @@ def register(request: HttpRequest) -> HttpResponse:
 def check_email(request: HttpRequest) -> HttpResponse:
     """Page #11, pending state: "We sent a link to a***@x.com".
 
-    With ``DEBUG`` on, the page also offers the link itself. Local email is sent
-    through the console backend (or a Celery worker's console), which is easy to
-    miss while testing. The block is gated on ``DEBUG``, so production never
-    renders a verification token into a page body.
+    The page always offers the link itself. Local email goes through the console
+    backend (or a Celery worker's console), which is easy to miss, and a test run
+    has no mailbox at all, so the shortcut is not gated on ``DEBUG`` or on any
+    setting.
+
+    That is a deliberate pre-deployment choice: the page can be requested by
+    anyone who types an address, so a visitor can verify an account they do not
+    own. It must be re-gated before this app is reachable by other people; see
+    the note in ``templates/accounts/check_email.html``.
     """
     email = request.session.get(PENDING_EMAIL_SESSION_KEY)
     if not email:
@@ -207,17 +212,16 @@ def check_email(request: HttpRequest) -> HttpResponse:
         # render a dead page.
         return redirect("accounts_public:register")
 
-    dev_verification_url = ""
-    if settings.DEBUG:
-        user = User.objects.filter(
-            email=email, email_verified=False, is_active=True
-        ).first()
-        if user is not None:
-            dev_verification_url = verification_link(make_verification_token(user))
-            logger.info(
-                "Development verification link for the pending address: %s",
-                dev_verification_url,
-            )
+    # Any active account on the pending address gets a link, including one that is
+    # already verified: the point of this block is that the link is visible while
+    # testing, and an old verified session on this page is exactly when a tester
+    # goes looking for it. Following a token for a verified account lands on the
+    # success page (`EmailAlreadyVerified` is the success state), so the extra
+    # link cannot do harm.
+    user = User.objects.filter(email=email, is_active=True).first()
+    pending_verification_url = (
+        verification_link(make_verification_token(user)) if user is not None else ""
+    )
 
     return render(
         request,
@@ -226,7 +230,7 @@ def check_email(request: HttpRequest) -> HttpResponse:
             "email": email,
             "masked_email": mask_email(email),
             "cooldown": _cooldown_remaining(request),
-            "dev_verification_url": dev_verification_url,
+            "pending_verification_url": pending_verification_url,
         },
     )
 

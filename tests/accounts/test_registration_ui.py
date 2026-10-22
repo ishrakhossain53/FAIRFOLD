@@ -430,41 +430,68 @@ class TestPendingPage:
         assert response["Location"] == REGISTER_URL
 
 
-class TestDevelopmentVerificationLink:
-    """DEBUG-only shortcut on the pending page (design.md X02, page #11).
+class TestVerificationLinkOnThePendingPage:
+    """The pending page (#11) always offers the link itself (design.md X02).
 
     Local email goes to a console (often a Celery worker's), which is easy to
-    miss. The page offers the link itself, but only while DEBUG is on. These
-    tests pin both directions: the shortcut works, and production never renders
-    a token into the pending page.
+    miss, and a test run has no mailbox at all. The shortcut is therefore not
+    gated on ``DEBUG`` or on any setting: it renders in every environment.
+
+    That is a deliberate pre-deployment choice, not a claim that it is safe to
+    expose publicly -- see the comment in `templates/accounts/check_email.html`.
+    These tests pin the behaviour and the one condition that still applies: the
+    account must exist and be active. A verified account still gets a link, so an
+    old test session does not leave the tester with no way forward.
     """
 
-    def test_debug_renders_a_link_that_verifies_the_account(
+    def test_the_page_always_offers_a_link_that_verifies_the_account(
         self, role_groups, settings, dispatched
     ):
-        settings.DEBUG = True
-        client = Client()
-        register(client)
-
-        content = client.get(CHECK_EMAIL_URL).content.decode()
-
-        assert "Development only" in content
-        match = re.search(r'href="(http[^"]*token=[^"]+)"', content)
-        assert match, "the pending page must offer the verification link"
-        response = Client().get(match.group(1))
-        assert response.status_code == 200
-        assert User.objects.get(email="ada@example.com").email_verified is True
-
-    def test_without_debug_the_page_contains_no_verification_token(
-        self, role_groups, settings, dispatched
-    ):
+        # DEBUG is deliberately False: it no longer decides anything.
         settings.DEBUG = False
         client = Client()
         register(client)
 
         content = client.get(CHECK_EMAIL_URL).content.decode()
 
-        assert "Development only" not in content
+        assert "For testing" in content
+        match = re.search(r'href="(http[^"]*token=[^"]+)"', content)
+        assert match, "the pending page must offer the verification link"
+        response = Client().get(match.group(1))
+        assert response.status_code == 200
+        assert User.objects.get(email="ada@example.com").email_verified is True
+
+    def test_an_already_verified_address_still_gets_a_link(
+        self, role_groups, settings, dispatched
+    ):
+        # The reported bug: signing in with an old, already-verified account and
+        # opening the pending page left the tester with no link and no email to
+        # fall back on. A token for a verified account is harmless: the verify
+        # view treats `EmailAlreadyVerified` as the success state.
+        settings.DEBUG = False
+        client = Client()
+        register(client)
+        User.objects.filter(email="ada@example.com").update(email_verified=True)
+
+        content = client.get(CHECK_EMAIL_URL).content.decode()
+
+        assert "For testing" in content
+        match = re.search(r'href="(http[^"]*token=[^"]+)"', content)
+        assert match, "a verified account must still offer the link while testing"
+        response = Client().get(match.group(1))
+        assert response.status_code == 200
+        assert User.objects.get(email="ada@example.com").email_verified is True
+
+    def test_a_deactivated_address_gets_no_link(self, role_groups, dispatched):
+        # `is_active=False` is an account an admin disabled; a token for it would
+        # only ever fail, so the page stays quiet instead of offering it.
+        client = Client()
+        register(client)
+        User.objects.filter(email="ada@example.com").update(is_active=False)
+
+        content = client.get(CHECK_EMAIL_URL).content.decode()
+
+        assert "For testing" not in content
         assert "token=" not in content
 
 

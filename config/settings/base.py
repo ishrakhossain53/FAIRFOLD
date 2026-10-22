@@ -442,10 +442,62 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+
+# ---------------------------------------------------------------------------
+# Object storage — S3-compatible (REQ-FR-010, Arch Doc §6.1)
+# ---------------------------------------------------------------------------
+# The *presence of a bucket name* is the switch, exactly as .env.example
+# promises ("leave unset to store files on the local filesystem"). A filesystem
+# default that silently becomes S3, or the reverse, is how a resume ends up
+# somewhere nobody backs up.
+#
+# `endpoint_url` is what points this at MinIO instead of AWS; it is passed
+# through unmodified because MinIO needs path-style addressing (a bucket
+# subdomain does not exist in a local stack) and SigV4.
+#
+# Credentials stay optional: on real AWS an instance role is a legitimate
+# source, and boto3 resolves it when neither key is set. Requiring them here
+# would make the IAM path impossible.
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", "us-east-1")
+
+# Browser CORS for presigned PUT/POST (batch 1.19). Comma-separated origins, the
+# same shape as CSRF_TRUSTED_ORIGINS, because both answer the same question:
+# which origin is allowed to act on this deployment.
+S3_CORS_ALLOWED_ORIGINS = env_list(
+    "S3_CORS_ALLOWED_ORIGINS",
+    default="http://localhost:8000,http://127.0.0.1:8000",
+)
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+if AWS_STORAGE_BUCKET_NAME:
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": AWS_ACCESS_KEY_ID,
+            "secret_key": AWS_SECRET_ACCESS_KEY,
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "endpoint_url": AWS_S3_ENDPOINT_URL,
+            "region_name": AWS_S3_REGION_NAME,
+            # MinIO serves buckets as paths, not subdomains.
+            "addressing_style": "path",
+            "signature_version": "s3v4",
+            # Files are private. Every read goes through an authenticated,
+            # rate-limited Django view with a signed URL (Complete Doc §C.6),
+            # never a public object URL.
+            "default_acl": None,
+            "querystring_auth": True,
+            # Two uploads of the same name must not overwrite each other.
+            "file_overwrite": False,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
