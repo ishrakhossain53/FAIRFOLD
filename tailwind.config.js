@@ -15,11 +15,18 @@
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // Both globs are needed. The first covers templates/ at the repository root;
-  // the second covers each app's own templates/ directory. Dropping the second
-  // does not error -- it silently produces a stylesheet missing every class used
-  // in app templates, which is why CI asserts the 30 KB size budget.
-  content: ["./templates/**/*.html", "./**/templates/**/*.html"],
+  // Three globs are needed. The first covers templates/ at the repository root;
+  // the second covers each app's own templates/ directory; the third covers the
+  // hand-written scripts, which toggle utility classes from JavaScript
+  // (`static/js/resume-upload.js` sets `text-success-ink`, `text-danger-ink`,
+  // `border-primary`). Dropping any one of them does not error -- it silently
+  // produces a stylesheet missing those classes, which is why CI asserts the
+  // 30 KB size budget.
+  content: [
+    "./templates/**/*.html",
+    "./**/templates/**/*.html",
+    "./static/js/**/*.js",
+  ],
 
   // Preflight is on deliberately: the reset is what makes the type and spacing
   // scale in design.md §4 actually apply. It is listed here only to note that it

@@ -57,6 +57,12 @@
       {% block header_actions %}
       <nav aria-label="Account" class="ml-auto flex items-center gap-1 sm:gap-2">
         {% if user.is_authenticated %}
+          {% if user.is_employer %}
+          <a href="{% url 'employer_portal:onboarding' %}"
+             class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">
+            Company
+          </a>
+          {% endif %}
           {% if user.is_candidate %}
           <a href="{% url 'candidate_portal:profile' %}"
              class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">

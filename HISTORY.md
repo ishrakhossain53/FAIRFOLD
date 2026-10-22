@@ -57,7 +57,7 @@ blocked.
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 447 | Project overview, documentation index, setup |
 
-| `.env.example` | 214 | Environment variables, all placeholders |
+| `.env.example` | 220 | Environment variables, all placeholders (214 before batch 1.22 added `S3_PUBLIC_ENDPOINT_URL`; the count in this table was corrected 2026-10-22) |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -3704,3 +3704,212 @@ declared when the URL was signed.
 1.18, 1.19 and 1.20 from `[ ]` to `[x]`, each with the date and the test result recorded above.
 The 1.18 entry's older "stays `[ ]`" sentence was corrected in place for the same reason; no
 other older entry was edited.
+
+### Batch 1.21: Resume list, detail and delete API (2026-10-22)
+
+**What changed.** The read side and the erasure side of REQ-FR-010's resume API.
+
+- `candidates/api_views.py` — `CandidateResumeListView` gained `GET` (candidate-only,
+  `StandardPagination`, the caller's rows only, newest first) beside the existing `POST`;
+  `CandidateResumeDetailView` serves `GET` and `DELETE`. Detail and delete answer one 404
+  sentence for "no such row" and "not yours", so ids cannot be enumerated.
+- `candidates/serializers.py` — `ResumeSummarySerializer` is a metadata whitelist: id,
+  filename, size, MIME type, status, status reason, created-at. No `file_key`, no signed URL,
+  no `extracted_text`.
+- DELETE is a **hard delete** (D-A): row and bytes, with a `resume.deleted` `AuditLogEntry`
+  (`resource_type="candidate_resume"`, `details={"status": …}`, `result="success"`) written in
+  the same transaction. No FK references `candidate_resumes`, so nothing dangles; the audit
+  trail is what REQ-FR-041 keeps.
+- Batch 1.22 moved that body into `candidates/services.py:delete_resume()`, so the API and the
+  Resume manager share one implementation instead of two copies of the audit write.
+- Spec/docs: §C.12 `DELETE` line, Arch Doc §5.1 deletion note, `docs/AUTHZ_MATRIX.md` rows
+  (list, detail, delete) and matching `tests/core/test_authz_matrix.py` rows.
+- `tests/candidates/test_resume_list_detail_api.py` (new) — 37 tests: list ownership,
+  pagination and ordering; detail whitelist and PII absence; employer/interviewer/staff 403;
+  anonymous 401; another candidate's id 404; delete removes row and object, writes the audit
+  entry, and a later detail request is 404. The scan task returns quietly if the row is gone,
+  so a delete during a scan does not recreate a status.
+
+**Commands run and results.**
+
+- `pytest tests/candidates/test_resume_list_detail_api.py -q` → **37 passed**.
+- `pytest tests/candidates/test_resume_list_detail_api.py tests/core/test_authz_matrix.py -q`
+  → **80 passed**.
+- `pytest tests/ -q` → **736 passed, 4 skipped** (the 4 are the pre-existing S3 skips).
+- `manage.py check` → no issues; `makemigrations --check --dry-run` → "No changes detected".
+- `scripts/verify_docs.py` → exit 0; flake8, black, isort and mypy clean on the touched paths.
+
+**Known limitations.** Deletion leaves no recoverable copy — that is the accepted decision, not
+an accident. A `pending` row whose upload was abandoned can only be removed through this
+endpoint.
+
+### Batch 1.22: Resume upload UI and browser-reachable presigning (2026-10-22)
+
+**What changed.** Page #17 (design.md §10.0 row 17, wireframe S03) and the setting that makes a
+browser upload possible at all.
+
+- `candidates/views.py` — `resumes` renders the page server-side (own rows, status labels, a
+  rejection reason, the size limit, `?replace=<id>` only when that id belongs to the caller) and
+  `resume_delete` (GET confirmation, POST mutation). A candidate without a profile is sent to
+  onboarding, like page #16.
+- `templates/candidates/resumes.html` — list, uploader, `<noscript>` message, progress region
+  (`role="progressbar"`, `aria-valuenow`, the percentage as text, a polite live region), and the
+  "Personal details are removed before AI screening" note.
+  `templates/candidates/resume_confirm_delete.html` — Cancel first in the DOM and focused on
+  load; the POST is the only mutation.
+- `static/js/resume-upload.js` — presign → XHR PUT with `upload.onprogress` → complete → poll
+  while `scanning` (2 s, 20 attempts) → reload. Replace deletes the old row only after the new
+  one is `clean`, so a failed upload never leaves the candidate with nothing.
+- `candidates/services.py` (new) — `delete_resume()`, shared by the API and the page.
+- `config/settings/base.py` — CSP `connect-src` gained the storage origin: `connect-src 'self'`
+  blocked the browser PUT while every server-side test still passed.
+- **Batch 1.22a, same session, after the environment gap was reported:** the Compose endpoint
+  `minio:9000` is not browser-resolvable, and the host is part of the SigV4 signature so a
+  signed URL cannot be rewritten. `S3_PUBLIC_ENDPOINT_URL` plus
+  `core/storage.py:presign_client()` sign for the browser-reachable host while server-side reads
+  keep `AWS_S3_ENDPOINT_URL`; `docker-compose.yml` sets it to `http://localhost:9000` and its
+  stale "batch 1.19 will need…" comment is replaced by the implementation.
+- Spec first: Arch Doc §6.1 note (which already required a browser-reachable endpoint), Complete
+  Doc env table and §C.9 CSP cell, `docs/AUTHZ_MATRIX.md`, `.env.example`.
+- `tailwind.config.js` now scans `static/js/**/*.js`, because the script toggles status classes.
+- `tests/candidates/test_resume_ui.py` — 32 tests (access, list ownership, storage key never
+  rendered, filename escaping, replace ownership, a11y hooks, noscript, delete confirm/404/CSRF/
+  audit); `tests/core/test_presign_endpoint.py` — 9 tests (endpoint selection, signed host, boot
+  guard for a scheme-less value).
+- Deliberate wireframe deviations, all in the template comment: PDF-only copy (the allow-list is
+  PDF-only), two pipeline steps (PII stripping and extraction are Phase 2), no "Review" action
+  (no file-serving endpoint or Resume Review page yet), Delete is a page rather than a
+  `<dialog>` so it works without JavaScript.
+
+**Commands run and results.**
+
+- `pytest tests/candidates/test_resume_ui.py -q` → **32 passed**;
+  `pytest tests/core/test_presign_endpoint.py tests/core/test_security_headers.py
+  tests/candidates/test_resume_upload_api.py -q` → **47 passed**.
+- `pytest tests/ -q` → **780 passed, 4 skipped**.
+- Real MinIO check: server `127.0.0.1:9000`, public `localhost:9000`; the signed host was
+  `localhost:9000`; `PUT` → **200**; the object was removed afterwards.
+- `manage.py check` clean; `makemigrations --check --dry-run` → "No changes detected";
+  `scripts/verify_docs.py` → exit 0; flake8 (CI scope), isort, black and mypy clean;
+  `docker compose config -q` valid; Tailwind **4,464 B gzipped** against the 30,720 B budget.
+
+**Known limitations.** The browser-only half (CORS preflight, live progress, drag-and-drop) is
+a manual check; no automated test performs it. Uploads are not rate-limited. `bandit` cannot run
+in this environment (1.7.10 rejects `B108` on Python 3.14); CI must confirm. A replacement adds
+a second row until the new scan is `clean` — that is the safe-replace behaviour, not a leak.
+
+**Corrected fact.** The file table earlier in this document said `.env.example` was 214 lines;
+the file is 220 after this batch, so the count was corrected in place. No other older entry was
+edited.
+
+### Batch 1.23: Employer profile model (2026-10-22)
+
+**What changed.** `EmployerProfile` and `employers/migrations/0001_initial.py` were already in the
+working tree from the earlier 1.23 pass; this session verified them against Arch Doc §5.1 and the
+tests, then built batches 1.24-1.25 on top. The model is one profile per user (non-null unique FK;
+the DDL leaves `user_id` nullable, but §5.2 draws 1:1 and REQ-FR-045 creates it for a user), with
+`company_name` TEXT, `industry` VARCHAR(100), nullable `company_size`, `show_company_name`
+defaulting to `False` (REQ-FR-042), the three billing columns from the DDL, and `created_at`.
+`company_name` and `stripe_customer_id` remain plain text because D-5 is still open; the model
+docstring records the deferral and the test `test_company_name_is_plain_until_d5_is_accepted`
+pins it. `__str__` returns the primary key, not the company name, so an admin list or log line
+cannot render the column the DDL marks ENCRYPTED.
+
+**Commands run and results.**
+
+- `pytest tests/employers/test_employer_profile_model.py -q` -> **13 passed**.
+- `manage.py check` -> "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` -> "No changes detected". The command printed a
+  `RuntimeWarning` because the local `fairfold_test` database did not exist outside pytest; the
+  migration state check itself passed.
+- Full suite after 1.24-1.25: `pytest tests/ -q` -> **855 passed, 4 skipped**.
+
+**Known limitations.** D-5 is open, so `company_name` is not encrypted. The DDL's nullable
+`user_id` is modelled as non-null unique; a profile with no owner would be unreachable. Billing
+columns are stored but have no behaviour (Phase 5). No audit entry is written for profile
+creation or editing; REQ-FR-045 does not ask for one and this batch did not invent one.
+
+### Batch 1.24: Employer onboarding API (2026-10-22)
+
+**What changed.** `GET`/`PATCH /api/v1/employers/me/` for the caller's own company profile.
+
+- `employers/serializers.py` -- response whitelist (`company_name`, `industry`, `company_size`,
+  `show_company_name`) and an update serializer with only the four documented columns. The owner,
+  row id, timestamps and Phase-5 billing columns are not writable or returned.
+- `employers/api_views.py` -- `EmployerMeView` with `IsEmployer` set explicitly. `GET` is 404
+  before onboarding; `PATCH` is create-or-update, so the first PATCH carrying a non-blank
+  `company_name` creates the row (there is no `POST` in §C.12). An empty PATCH on an absent
+  profile stays 404; a create without a company name is 400. `update_fields` writes only the sent
+  columns.
+- `employers/api_urls.py` -- the fixed `me/` path before the router.
+- The candidate/employer mutual-exclusion rule is still `accounts.services.assign_role` (batch
+  1.2); `IsEmployer` reads the seeded employer groups and a candidate never reaches the view.
+
+**Commands run and results.**
+
+- `pytest tests/employers/test_employer_profile_api.py -q` -> **28 passed** (create/update,
+  validation, whitelist, ownership, candidate/interviewer/admin 403, anonymous 401).
+- `pytest tests/employers/ tests/core/test_authz_matrix.py -q` -> **121 passed**.
+- `manage.py check` clean; `makemigrations --check --dry-run` -> "No changes detected".
+
+**Known limitations.** The API accepts a blank `company_name` on an existing profile even though
+creation requires one; the model column is `blank=True` because the DDL has no NOT NULL. Billing
+fields stay unwritable. There is no audit entry for a profile change.
+
+### Batch 1.25: Employer onboarding UI (2026-10-22)
+
+**What changed.** Page #33 (design.md §10.3, wireframe W10) and the company edit page.
+
+- `employers/forms.py` -- `EmployerProfileForm` over the four documented columns. `company_name`
+  is required in the form (REQ-FR-045, W10's asterisk); `industry` is a text input because §5.1
+  has no industry lookup table; `company_size` is a number input because the DDL stores one
+  INTEGER and a band select would invent a range-to-integer mapping. The `show_company_name`
+  toggle carries plain-language copy: hidden until opt-in, and it never affects candidate ranking.
+- `employers/views.py` -- `employer_required` (login redirect first, then 403 for non-employers),
+  `onboarding` (GET/POST), `company` (read + edit form) and `company_edit` (POST). The target is
+  always `request.user`; there is no id in a URL or body. On an invalid edit the row is re-read so
+  the summary shows stored values while the bound form keeps the user's attempt.
+- `employers/urls.py` -- `employer_portal` namespace: `onboarding/`, `company/`,
+  `company/edit/`.
+- `templates/employers/` -- onboarding page, company page, shared form partial and shared error
+  summary. The "Skip for now" link is a real equal-weight option that leaves no row.
+- `templates/base.html` -- an employer-only "Company" link, so page #33 is reachable from the shell.
+- `tests/core/test_authz_matrix.py` + `docs/AUTHZ_MATRIX.md` -- rows for the four page routes and
+  the API route.
+
+**Commands run and results.**
+
+- `pytest tests/employers/test_employer_onboarding_ui.py -q` -> **29 passed** (access,
+  onboarding, validation, escaping, edit, CSRF, ownership).
+- `pytest tests/employers/ tests/core/test_authz_matrix.py -q` -> **121 passed**.
+- `pytest tests/ -q` -> **855 passed, 4 skipped**.
+- `manage.py check` clean; `makemigrations --check --dry-run` -> "No changes detected";
+  `scripts/verify_docs.py` -> all checks passed (14 notes for human confirmation).
+- `flake8` (CI scope) clean; `isort --check-only .` clean; `mypy` -> "Success: no issues found in
+  96 source files". `black --check .` reports one pre-existing file, `scripts/verify_docs.py`
+  (untouched by this batch); the touched files are clean. `bandit` cannot run in this environment
+  because the installed version rejects `B105` from `bandit.yaml` (the same class of tooling
+  problem recorded for 1.22); CI must confirm.
+
+**Known limitations.** W10's logo, website and three-step stepper (Details / Team / Preferences)
+are not built: §5.1 has no `logo`/`website` columns and team management is REQ-FR-047. The page is
+a single company-details step with an honest "Skip for now" link. Industry and size use text and
+number inputs rather than W10's selects, for the reasons above. There is no employer dashboard
+(page #34) yet, so after saving the employer lands on the company page. Browser-only checks
+(keyboard traversal, mobile 360px rendering, the Tailwind build output) are manual.
+
+### Progress bookkeeping for 1.23-1.25 (2026-10-22)
+
+**What changed.** The three `docs/PROGRESS.md` lines moved from `[ ]` to `[x]` after the user
+asked for the update, on the strength of a fresh confirmation run rather than the earlier session
+output. No code, test or traceability status changed. `docs/TRACEABILITY.md` keeps REQ-FR-042 and
+REQ-FR-045 at `partial`: `company_name` stays plain text while D-5 is open, and the REQ-FR-045
+job-activation guard cannot land before the `Job` model and its activation endpoint (1.26-1.29).
+
+**Commands run and results.**
+
+- `pytest tests/employers/ -q` -> **70 passed**.
+- `pytest tests/employers/ tests/core/test_authz_matrix.py -q` -> **121 passed**.
+- `pytest tests/ -q` -> **855 passed, 4 skipped** (the 4 skips are the pre-existing unset-S3
+  storage tests).
+- `scripts/verify_docs.py` -> exit 0, "All checks passed."

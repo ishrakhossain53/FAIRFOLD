@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% comment %}
+Confirmation for page #17's Delete action (design.md S03: "Delete opens a
+confirm dialog with focus on Cancel").
+
+It is a page rather than a `<dialog>` so it works with JavaScript disabled: a
+dialog element that never opens leaves the form unreachable, which would make
+Delete a dead control. Cancel carries `autofocus`, so the safe answer is the one
+the keyboard is on, and the destructive answer is never the default.
+
+The mutation is the POST form. The GET only renders this page, so a prefetch or
+a reload cannot delete anything.
+{% endcomment %}
+
+{% block title %}Delete resume · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-prose py-4">
+  <h1 class="text-h1 font-bold text-ink">Delete this resume?</h1>
+
+  <p class="mt-3 text-body text-ink-2">
+    <span class="font-semibold text-ink">{{ resume.original_filename|default:"Your resume" }}</span>
+    will be removed permanently. This cannot be undone, and any application
+    that used it will no longer have a file attached.
+  </p>
+
+  <form method="post" action="{% url 'candidate_portal:resume-delete' %}" class="mt-6 flex flex-wrap items-center gap-3">
+    {% csrf_token %}
+    <input type="hidden" name="resume" value="{{ resume.id }}">
+
+    {% comment %}
+    Cancel comes first in the DOM so that, without JavaScript, it is the first
+    control in the form and the keyboard reaches the safe answer before the
+    destructive one. It is a link, not a submit button: cancelling must not send
+    the form. `data-cancel-focus` lets the small script below move focus to it on
+    load, which is S03's "focus on Cancel".
+    {% endcomment %}
+    <a href="{% url 'candidate_portal:resumes' %}" data-cancel-focus
+       class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-5 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+      Cancel
+    </a>
+
+    <button type="submit"
+            class="inline-flex h-touch items-center justify-center rounded-md bg-danger px-5 text-body-sm font-semibold text-white hover:bg-danger-ink">
+      Delete resume
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Focus the safe answer. Inline because it is three lines and a separate file
+  // would be a second request for one call; the CSP already allows the inline
+  // blocks `base.html` uses.
+  (function () {
+    var cancel = document.querySelector('[data-cancel-focus]');
+    if (cancel) { cancel.focus(); }
+  })();
+</script>
+{% endblock %}

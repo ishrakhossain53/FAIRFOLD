@@ -22,19 +22,23 @@ arbitrary column.
 
 from __future__ import annotations
 
+import uuid
 from functools import wraps
 from typing import Callable
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
 from candidates.forms import SECTION_FORMS, SECTION_LABELS, CandidateProfileForm
-from candidates.models import CandidateProfile
+from candidates.models import CandidateProfile, CandidateResume
+from candidates.services import delete_resume
 
 
 def candidate_required(view: Callable) -> Callable:
@@ -194,4 +198,189 @@ def profile_edit(request: HttpRequest) -> HttpResponse:
             bound_section=section,
             bound_form=form,
         ),
+    )
+
+
+# Display text for page #17. The pipeline states are the model's, not a second
+# vocabulary: `candidate_resumes.status` is the only place a state is defined
+# (D-6(a)), and this dict only decides how each one reads to a candidate.
+RESUME_STATUS_LABELS = {
+    CandidateResume.Status.PENDING: "Not uploaded",
+    CandidateResume.Status.UPLOADED: "Uploaded",
+    CandidateResume.Status.SCANNING: "Checking for viruses",
+    CandidateResume.Status.CLEAN: "Ready",
+    CandidateResume.Status.REJECTED: "Rejected",
+    CandidateResume.Status.PROCESSING: "Processing",
+    CandidateResume.Status.EXTRACTED: "Processed",
+    CandidateResume.Status.EMBEDDED: "Processed",
+    CandidateResume.Status.FAILED: "Failed",
+}
+
+# Statuses that mean "this file is usable, or was and can be replaced". A
+# `pending` row never received bytes, so "Replace" would be a second empty row;
+# it gets "Delete" only.
+RESUME_REPLACEABLE = {
+    CandidateResume.Status.UPLOADED,
+    CandidateResume.Status.SCANNING,
+    CandidateResume.Status.CLEAN,
+    CandidateResume.Status.REJECTED,
+    CandidateResume.Status.PROCESSING,
+    CandidateResume.Status.EXTRACTED,
+    CandidateResume.Status.EMBEDDED,
+    CandidateResume.Status.FAILED,
+}
+
+
+def _owned_resume(request: HttpRequest, raw_id: str | None) -> CandidateResume:
+    """The caller's resume named by `raw_id`, or a 404.
+
+    One answer for a malformed id, an id that exists nowhere and another
+    candidate's id: a candidate has no business distinguishing them, and a
+    distinguishable answer would enumerate ids.
+    """
+    try:
+        resume_id = uuid.UUID(str(raw_id))
+    except (TypeError, ValueError):
+        raise Http404("Resume not found.")
+
+    resume = CandidateResume.objects.filter(
+        pk=resume_id, candidate__user=request.user
+    ).first()
+    if resume is None:
+        raise Http404("Resume not found.")
+    return resume
+
+
+def _resume_api_urls() -> dict:
+    """The three API addresses page #17's uploader calls.
+
+    The two object routes are templated from the nil UUID rather than assembled
+    by string concatenation in the template: the URLconf stays the only place a
+    path is written, so a future route change cannot leave the page calling a
+    stale address. `{id}` is substituted by `static/js/resume-upload.js`.
+    """
+    nil = uuid.UUID(int=0)
+    return {
+        "upload": reverse("api:candidates:resume-list"),
+        "complete": reverse("api:candidates:resume-complete", args=[nil]).replace(
+            str(nil), "{id}"
+        ),
+        "detail": reverse("api:candidates:resume-detail", args=[nil]).replace(
+            str(nil), "{id}"
+        ),
+    }
+
+
+def _resume_rows(candidate_profile: CandidateProfile) -> list[dict]:
+    """The metadata list for page #17, newest first.
+
+    Names, sizes and codes only. `file_key` never reaches the template: the page
+    has no use for it, and a key rendered into HTML is a key in every screenshot
+    and support ticket.
+    """
+    rows = []
+    for resume in CandidateResume.objects.filter(candidate=candidate_profile):
+        rows.append(
+            {
+                "id": resume.id,
+                "filename": resume.original_filename or "Resume",
+                "uploaded_at": resume.created_at,
+                "status": resume.status,
+                "status_label": RESUME_STATUS_LABELS.get(resume.status, resume.status),
+                "status_reason": resume.status_reason,
+                "rejected": resume.status == CandidateResume.Status.REJECTED,
+                "can_replace": resume.status in RESUME_REPLACEABLE,
+            }
+        )
+    return rows
+
+
+def _replace_id(candidate_profile: CandidateProfile, raw_id: str) -> str:
+    """The id the page is replacing, or "" — only for a resume this candidate owns.
+
+    The page offers "Replace" as `?replace=<id>` so the intent survives a reload
+    and works as a plain link. Validating it here means a hand-edited query
+    string cannot make the page claim it is replacing somebody else's resume,
+    and the JavaScript that deletes the old row is only ever handed an id the
+    server confirmed belongs to this candidate.
+    """
+    if not raw_id:
+        return ""
+    try:
+        resume_id = uuid.UUID(raw_id)
+    except (TypeError, ValueError):
+        return ""
+
+    owned = CandidateResume.objects.filter(
+        pk=resume_id, candidate=candidate_profile
+    ).exists()
+    return str(resume_id) if owned else ""
+
+
+@never_cache
+@candidate_required
+@require_http_methods(["GET"])
+def resumes(request: HttpRequest) -> HttpResponse:
+    """Page #17: the Resume manager (design.md S03, REQ-FR-010).
+
+    The page renders the list server-side and hands the upload flow the three
+    API addresses it needs. It deliberately does not call the API itself: a
+    template that fetches its own list would show an empty page whenever the
+    JSON call failed, and the list is the part that must survive a broken
+    uploader.
+
+    A candidate with no profile is sent to onboarding, like page #16: resumes
+    hang off the profile (REQ-FR-009 precedes REQ-FR-010).
+    """
+    candidate_profile = CandidateProfile.objects.filter(user=request.user).first()
+    if candidate_profile is None:
+        return redirect("candidate_portal:onboarding")
+
+    return render(
+        request,
+        "candidates/resumes.html",
+        {
+            "resumes": _resume_rows(candidate_profile),
+            "status_labels": RESUME_STATUS_LABELS,
+            "max_upload_bytes": settings.MAX_UPLOAD_SIZE_BYTES,
+            "max_upload_mb": settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024),
+            "replace_id": _replace_id(
+                candidate_profile, request.GET.get("replace", "")
+            ),
+            "api": _resume_api_urls(),
+        },
+    )
+
+
+@never_cache
+@candidate_required
+@require_http_methods(["GET", "POST"])
+def resume_delete(request: HttpRequest) -> HttpResponse:
+    """Page #17's Delete action: a confirmation page, then a POST that deletes.
+
+    The confirmation is a page rather than a `<dialog>` so the destructive action
+    works without JavaScript, which is the batch's degradation rule. It is a
+    fixed path with the id in the query string or the body, not a
+    `<uuid:pk>` segment, for the same reason as `profile/edit/`: the
+    authorization matrix refuses to guess a sample for a parameterised page
+    route.
+
+    The mutation is a POST. A GET never deletes anything: a link that does is
+    triggered by prefetchers, crawlers and a mis-click on "reload".
+    """
+    raw_id = request.POST.get("resume") if request.method == "POST" else None
+    if raw_id is None:
+        raw_id = request.GET.get("resume")
+
+    resume = _owned_resume(request, raw_id)
+
+    if request.method == "POST":
+        delete_resume(resume, actor=request.user)
+        messages.success(request, "Resume deleted.")
+        return redirect("candidate_portal:resumes")
+
+    return render(
+        request,
+        "candidates/resume_confirm_delete.html",
+        {"resume": resume},
     )

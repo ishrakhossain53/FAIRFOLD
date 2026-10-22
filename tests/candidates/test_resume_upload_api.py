@@ -77,7 +77,10 @@ class StubS3:
 @pytest.fixture
 def stub_s3(monkeypatch):
     stub = StubS3()
-    monkeypatch.setattr("candidates.uploads.s3_client", lambda: stub)
+    # Patching the presigner, not the storage client: since batch 1.22 the URL
+    # handed to the browser is signed by a client pointed at the public
+    # endpoint, so `s3_client` is no longer what this endpoint calls.
+    monkeypatch.setattr("candidates.uploads.presign_client", lambda: stub)
     return stub
 
 
@@ -291,7 +294,7 @@ class TestPresigning:
         def unavailable():
             raise StorageError("AWS_STORAGE_BUCKET_NAME is not set.")
 
-        monkeypatch.setattr("candidates.uploads.s3_client", unavailable)
+        monkeypatch.setattr("candidates.uploads.presign_client", unavailable)
 
         response = post(profile)
 

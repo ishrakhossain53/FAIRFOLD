@@ -1,0 +1,23 @@
+{% comment %}
+Error summary (design.md §6.2) shared by page #33 and the company edit page.
+It is the first thing in the panel and every entry links to the field that
+failed, so a keyboard or screen-reader user does not have to hunt for the error.
+`role="alert"` is appropriate because it appears after a submit the user already
+made; the page script moves focus here.
+{% endcomment %}
+{% if form.errors %}
+<div id="error-summary" tabindex="-1" role="alert"
+     class="mt-6 rounded-md border border-danger bg-danger-soft p-4">
+  <h2 class="text-h4 font-semibold text-danger-ink">There is a problem with your company profile</h2>
+  <ul class="mt-2 list-inside list-disc space-y-1 text-body-sm text-danger-ink">
+    {% for error in form.non_field_errors %}
+    <li>{{ error }}</li>
+    {% endfor %}
+    {% for field in form %}
+    {% if field.errors %}
+    <li><a class="underline" href="#id_{{ field.name }}">{{ field.label }}</a></li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

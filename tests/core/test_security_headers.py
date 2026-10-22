@@ -81,6 +81,50 @@ def test_content_security_policy_is_self_hosted(path, production_like):
         assert third_party not in policy
 
 
+def test_connect_src_names_the_storage_origin(production_like):
+    """REQ-FR-010 uploads from the browser to the bucket, so `connect-src 'self'`
+    alone blocks the PUT while every server-side test still passes (batch 1.22).
+
+    The cases are asserted on the pure function rather than by reloading the
+    settings module: the policy is computed once at import, and a test that
+    mutated `AWS_S3_ENDPOINT_URL` afterwards would be testing nothing.
+
+    The public endpoint wins because it is the host the browser reaches; Compose
+    serves the app at `localhost:8000` and the bucket at `localhost:9000` while
+    the server itself talks to `minio:9000`.
+    """
+    from config.settings.base import storage_origin
+
+    assert (
+        storage_origin("http://127.0.0.1:9000", "fairfold-media", "us-east-1")
+        == "http://127.0.0.1:9000"
+    )
+    assert (
+        storage_origin("", "fairfold-media", "eu-west-1")
+        == "https://fairfold-media.s3.eu-west-1.amazonaws.com"
+    )
+    assert storage_origin("", "", "us-east-1") == ""
+    # An endpoint without a bucket is not storage: no S3 backend is selected, so
+    # the policy must not name a host nothing uploads to.
+    assert storage_origin("http://127.0.0.1:9000", "", "us-east-1") == ""
+    # The browser-facing endpoint overrides the internal one.
+    assert (
+        storage_origin(
+            "http://minio:9000",
+            "fairfold-media",
+            "us-east-1",
+            public_endpoint_url="http://localhost:9000",
+        )
+        == "http://localhost:9000"
+    )
+
+    # And the live policy is 'self' plus at most that one origin: no wildcard.
+    assert "connect-src 'self'" in settings.CONTENT_SECURITY_POLICY
+    assert "connect-src 'self' *" not in settings.CONTENT_SECURITY_POLICY
+    assert "connect-src 'self' https:;" not in settings.CONTENT_SECURITY_POLICY
+    assert "connect-src 'self' http;" not in settings.CONTENT_SECURITY_POLICY
+
+
 def test_a_view_specific_policy_is_not_overwritten():
     """Two CSP headers are enforced as their intersection, so overriding a
     stricter per-page policy silently weakens it in a way neither file shows."""

@@ -30,7 +30,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
 
 from candidates.models import CandidateResume
-from core.storage import StorageError, bucket_name, s3_client
+from core.storage import StorageError, bucket_name, presign_client
 
 # Namespaced so lifecycle rules, metrics and a future "delete all resumes" job
 # can select every resume without knowing candidate ids.
@@ -115,7 +115,9 @@ def presign_resume_put(*, key: str, content_type: str, expires_in: int) -> str:
     twice: once when the URL is issued and once when the bytes arrive.
     """
     try:
-        client = s3_client()
+        # Not `s3_client()`: the URL is handed to a browser, so it is signed for
+        # the browser-facing host when one is configured (batch 1.22).
+        client = presign_client()
         bucket = bucket_name()
     except StorageError as exc:
         # The message names the missing setting and carries no credentials, so

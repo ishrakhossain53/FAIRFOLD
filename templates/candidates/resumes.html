@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Page #17 — Resume manager (design.md §10.0 row 17, wireframe S03).
+
+Deviations from the wireframe, all deliberate and reported with the batch:
+
+* The dropzone says "PDF" and the error copy says PDF, not "PDF, DOC or DOCX".
+  `RESUME_ALLOWED_MIME_TYPES` contains PDF only (batch 1.19): REQ-FR-012's
+  extraction reads PDF, and accepting a type nothing can extract yet would be a
+  dead end, not a feature.
+* The four processing steps in S03 are two here. "Removing personal details" and
+  "Reading skills" are the Phase 2 pipeline (REQ-FR-011/012) and are not
+  pretended to be running.
+* "Review" is absent from the actions. It opens the Resume Review page (design
+  §7.6), which needs the extraction pipeline and the authenticated file view;
+  neither exists in Phase 1, so the control would be a link to nothing.
+* Delete is a confirmation page, not a `<dialog>`, so the destructive action
+  works without JavaScript. Cancel is autofocused, which is the A11y intent of
+  "focus on Cancel".
+{% endcomment %}
+
+{% block title %}Resumes · FairFold{% endblock %}
+
+{% block page_header %}
+<div class="mb-6">
+  <h1 class="text-h1 font-bold text-ink">Resumes</h1>
+  <p class="mt-1 text-body-sm text-ink-3">
+    Upload a PDF and we will check it for viruses before it can be used.
+  </p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-4xl">
+
+  {% comment %}
+  The batch's degradation rule: no JavaScript, no direct-to-storage upload. The
+  message says what still works rather than only what does not, and it is the
+  first thing after the heading, not a footnote.
+  {% endcomment %}
+  <noscript>
+    <div class="mb-4 rounded-md border border-border bg-warning-soft px-4 py-3 text-body-sm text-warning-ink">
+      <strong>Uploading needs JavaScript.</strong>
+      You can still see and delete the resumes already in the list. To upload,
+      enable JavaScript or use a browser that supports it — the file never
+      passes through our server, so the upload is done by the browser directly.
+    </div>
+  </noscript>
+
+  <section id="upload" aria-labelledby="upload-heading"
+           data-resume-uploader
+           data-upload-url="{{ api.upload }}"
+           data-complete-url="{{ api.complete }}"
+           data-detail-url="{{ api.detail }}"
+           data-max-bytes="{{ max_upload_bytes }}"
+           data-replace-id="{{ replace_id }}"
+           class="rounded-md border border-border bg-surface p-5 shadow-card sm:p-6">
+    <h2 id="upload-heading" class="text-h4 font-semibold text-ink">
+      {% if replace_id %}Replace a resume{% else %}Upload a resume{% endif %}
+    </h2>
+
+    {% if replace_id %}
+    <p class="mt-2 text-body-sm text-warning-ink">
+      The new file replaces the old one once its virus check passes. Until then
+      both are listed.
+    </p>
+    {% endif %}
+
+    {% comment %}
+    S03's A11y line: "the dropzone is also a real button". The button is a real
+    `<button>` that opens a visually-hidden file input; the surrounding box is
+    only a drop target, so keyboard and screen-reader users get button
+    semantics, not a div with a click handler.
+    {% endcomment %}
+    <div data-dropzone
+         class="mt-4 flex flex-col items-center gap-3 rounded-md border border-dashed border-border-input bg-surface-muted px-4 py-8 text-center">
+      <p class="text-body text-ink-2">
+        Drop a PDF here, or choose a file
+      </p>
+      <button type="button" data-choose-file
+              class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-5 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+        Choose file
+      </button>
+      <input type="file" accept="application/pdf,.pdf" data-file-input class="sr-only"
+             aria-label="Choose a PDF resume to upload">
+      <p class="text-body-sm text-ink-3">One PDF, maximum {{ max_upload_mb }} MB.</p>
+    </div>
+
+    {% comment %}
+    The progress region is `aria-live="polite"` and the bar carries `aria-valuenow`
+    plus the percentage as text, so progress is not conveyed by width alone
+    (design.md §9, S03 A11y).
+    {% endcomment %}
+    <div data-progress hidden class="mt-4 space-y-2">
+      <div class="flex items-center justify-between gap-3">
+        <p class="truncate text-body-sm font-medium text-ink" data-progress-name></p>
+        <p class="shrink-0 text-body-sm font-semibold text-ink" data-progress-percent>0%</p>
+      </div>
+      <div role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100"
+           aria-valuenow="0" data-progress-bar
+           class="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
+        <div class="h-2 rounded-full bg-primary" style="width: 0%" data-progress-fill></div>
+      </div>
+      <div aria-live="polite" data-status-region class="text-body-sm text-ink-2"></div>
+      <ol class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body-sm text-ink-3" data-steps>
+        <li data-step="upload"><span aria-hidden="true">○</span> Uploaded</li>
+        <li data-step="scan"><span aria-hidden="true">○</span> Virus scan</li>
+      </ol>
+    </div>
+
+    <p data-error role="alert" hidden
+       class="mt-4 rounded-md border border-danger bg-danger-soft px-4 py-3 text-body-sm text-danger-ink"></p>
+  </section>
+
+  <section aria-labelledby="list-heading" class="mt-8">
+    <h2 id="list-heading" class="text-h4 font-semibold text-ink">Your resumes</h2>
+
+    {% comment %}
+    A real table with `<th scope="col">`. At 360px the container scrolls
+    horizontally rather than turning into a second, card-shaped copy of the same
+    rows: duplicated markup gives a screen reader each resume twice.
+    {% endcomment %}
+    <div class="mt-3 -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <table class="w-full min-w-[34rem] border-collapse text-left text-body-sm">
+        <thead>
+          <tr class="border-b border-border text-caption uppercase tracking-wide text-ink-3">
+            <th scope="col" class="py-2 pr-3 font-semibold">Name</th>
+            <th scope="col" class="py-2 pr-3 font-semibold">Uploaded</th>
+            <th scope="col" class="py-2 pr-3 font-semibold">Status</th>
+            <th scope="col" class="py-2 text-right font-semibold">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for resume in resumes %}
+          <tr class="border-b border-border align-top">
+            <td class="py-3 pr-3 font-medium text-ink break-words">{{ resume.filename }}</td>
+            <td class="py-3 pr-3 whitespace-nowrap text-ink-3">{{ resume.uploaded_at|date:"j M Y" }}</td>
+            <td class="py-3 pr-3">
+              {% if resume.status == "clean" %}
+              <span class="inline-flex items-center gap-1 text-success-ink"><span aria-hidden="true">✔</span>{{ resume.status_label }}</span>
+              {% elif resume.rejected %}
+              <span class="inline-flex items-center gap-1 text-danger-ink"><span aria-hidden="true">✖</span>{{ resume.status_label }}</span>
+              {% else %}
+              <span class="inline-flex items-center gap-1 text-ink-2"><span aria-hidden="true">●</span>{{ resume.status_label }}</span>
+              {% endif %}
+              {% if resume.rejected and resume.status_reason %}
+              <p class="mt-1 text-caption text-ink-3">{{ resume.status_reason }}</p>
+              {% endif %}
+            </td>
+            <td class="py-3 text-right whitespace-nowrap">
+              {% if resume.can_replace %}
+              <a href="?replace={{ resume.id }}#upload"
+                 class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
+                Replace
+              </a>
+              {% endif %}
+              <a href="{% url 'candidate_portal:resume-delete' %}?resume={{ resume.id }}"
+                 class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-danger-ink underline">
+                Delete
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="py-6 text-body-sm text-ink-3">
+              No resumes yet. Your first upload appears here.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-4 rounded-md border border-border bg-surface-muted px-4 py-3 text-body-sm text-ink-2">
+      Personal details are removed before AI screening. A person makes the final
+      decision.
+    </p>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/resume-upload.js' %}" defer></script>
+{% endblock %}

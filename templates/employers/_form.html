@@ -1,0 +1,46 @@
+{% comment %}
+Company-profile fields shared by page #33 (onboarding) and the company edit page.
+
+Deliberate deviations from design.md W10, recorded here because a later reader
+will compare the two:
+
+* W10 draws Industry and Size as native <select> elements. Arch Doc §5.1 has no
+  industry lookup table, and `company_size` is a single INTEGER with no
+  `choices`; a band select would have to invent a range-to-integer mapping. The
+  text and number inputs store what the columns mean.
+* W10 draws a logo and a website. §5.1 has no column for either, and adding one
+  is a schema decision, not a form field.
+* W10 draws a three-step stepper (Details / Team / Preferences). Team is
+  REQ-FR-047 and preferences have no model yet; a stepper whose other steps do
+  not exist would be a dead control.
+
+The "Personal details" warning does not belong here: this page collects company
+data, never candidate data. `show_company_name` is off until the employer opts
+in (REQ-FR-042), and the checkbox copy says what that means.
+{% endcomment %}
+
+<div class="space-y-5">
+  {% include "accounts/_field.html" with field=form.company_name %}
+
+  <div class="grid gap-5 sm:grid-cols-2">
+    {% include "accounts/_field.html" with field=form.industry %}
+    {% include "accounts/_field.html" with field=form.company_size %}
+  </div>
+
+  <div class="rounded-md border border-border bg-surface-muted p-4">
+    <div class="flex items-start gap-3">
+      {{ form.show_company_name }}
+      <div>
+        <label for="{{ form.show_company_name.id_for_label }}" class="text-body-sm font-semibold text-ink">
+          {{ form.show_company_name.label }}
+        </label>
+        <p id="id_show_company_name-help" class="mt-1 text-body-sm text-ink-3">
+          {{ form.show_company_name.help_text }}
+        </p>
+      </div>
+    </div>
+    <p id="id_show_company_name-error" class="mt-1 text-body-sm text-danger"{% if not form.show_company_name.errors %} hidden{% endif %}>
+      {% if form.show_company_name.errors %}<span aria-hidden="true">✖</span> {{ form.show_company_name.errors.0 }}{% endif %}
+    </p>
+  </div>
+</div>

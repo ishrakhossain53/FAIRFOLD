@@ -376,7 +376,7 @@ Candidate submits resume PDF
 | **OWASP Top 10** | Django protects against: SQL injection (ORM parameterized queries), XSS (auto-escaping in templates), CSRF (middleware), clickjacking (X-Frame-Options=DENY). Remaining: we manually protect against insecure deserialization, security misconfiguration, and vulnerable components. |
 | **Input validation** | Django form/serializer validation on all inputs. DRF serializers with strict type checking. File upload: validate MIME type (python-magic, not extension), max 10MB for resumes, scan with ClamAV or similar before storage |
 | **Rate limiting** | Django Ratelimit or DRF Throttle: 100 req/hour for unauthenticated, 1000 req/hour for authenticated candidates, 5000 req/hour for employer HR. Stricter on AI endpoints (20 req/min per user — aligns with OpenRouter free tier limits). Registration and email verification use the unauthenticated rate (DRF scopes `register` and `verify_email`, batch 1.5) |
-| **CSP** | Content-Security-Policy set by `config/settings/base.py` (`CONTENT_SECURITY_POLICY`) and applied by `core.middleware.ContentSecurityPolicyMiddleware`: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'` — self-hosted only; no CDN script host (batch 1.13). `'unsafe-inline'` remains until the inline scripts move to nonces |
+| **CSP** | Content-Security-Policy set by `config/settings/base.py` (`CONTENT_SECURITY_POLICY`) and applied by `core.middleware.ContentSecurityPolicyMiddleware`: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' <storage origin>; font-src 'self'` — self-hosted only; no CDN script host (batch 1.13). `<storage origin>` is derived by `storage_origin()` — preferring `S3_PUBLIC_ENDPOINT_URL`, then `AWS_S3_ENDPOINT_URL`, then the bucket's regional address — and is omitted when no bucket is configured: REQ-FR-010 has the browser `PUT` a resume straight to the bucket, which `connect-src 'self'` would block (batch 1.22). `'unsafe-inline'` remains until the inline scripts move to nonces |
 | **Security headers** | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=()` — camera/mic blocked by default; enabled only on specific interview pages with user consent |
 | **Dependency scanning** | `pip-audit` or `safety` in CI pipeline. Dependabot or Renovate for automated PRs on vulnerabilities. |
 | **Audit logging** | Every significant action logged: login/logout, password change, job post created/edited, candidate viewed/screened/ranked, AI score generated, file uploaded/downloaded, permission change. Logs are append-only, stored separately, rotated 90 days. Log format: timestamp, user_id, action, resource_type, resource_id, IP, user-agent, result (success/failure). |
@@ -1410,7 +1410,8 @@ jobs:
 | `AWS_SECRET_ACCESS_KEY` | No (S3) | — | S3-compatible storage secret key |
 | `AWS_STORAGE_BUCKET_NAME` | No (S3) | — | S3 bucket name |
 | `AWS_S3_REGION_NAME` | No (S3) | — | S3 region |
-| `AWS_S3_ENDPOINT_URL` | No (MinIO) | — | Custom endpoint URL for MinIO |
+| `AWS_S3_ENDPOINT_URL` | No (MinIO) | — | Custom endpoint URL for MinIO. This is the **server-side** endpoint; inside Compose it is `http://minio:9000`, which only resolves inside the Docker network |
+| `S3_PUBLIC_ENDPOINT_URL` | No (browser uploads) | — | The storage endpoint **as the browser reaches it**. When set, presigned upload URLs (REQ-FR-010) are signed against this host while server-side reads keep using `AWS_S3_ENDPOINT_URL`; the CSP's `connect-src` also names it (batch 1.22). Compose sets `http://localhost:9000` |
 | `ENCRYPTION_KEY` | Yes | — | AES-256-GCM key for field-level encryption (Fernet) |
 | `CLAMD_HOST` | No (antivirus) | `localhost` | ClamAV daemon host |
 | `CLAMD_PORT` | No (antivirus) | `3310` | ClamAV daemon port |
@@ -1859,6 +1860,7 @@ POST   /api/v1/candidates/resumes/               # Upload new resume (returns pr
 POST   /api/v1/candidates/resumes/{id}/complete/ # Mark upload finished; verify size/MIME and scan
 POST   /api/v1/candidates/resumes/{id}/process/  # Trigger PII stripping + embedding
 GET    /api/v1/candidates/resumes/{id}/          # Get resume details
+DELETE /api/v1/candidates/resumes/{id}/          # Delete resume (owner only; row and stored file; audited)
 GET    /api/v1/candidates/certifications/        # List certifications
 POST   /api/v1/candidates/certifications/        # Add certification
 GET    /api/v1/candidates/journey/               # Get journey mapping data

@@ -26,6 +26,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+import boto3
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -130,6 +132,49 @@ def s3_client() -> Any:
         return connection.meta.client
     except BotoCoreError as exc:
         raise _translate(exc, "connecting to object storage") from exc
+
+
+def presign_client() -> Any:
+    """The client used to sign upload URLs, pointed at the browser-facing host.
+
+    ``generate_presigned_url`` is local computation: it signs a request and
+    never opens a connection. A second client with ``S3_PUBLIC_ENDPOINT_URL``
+    therefore costs nothing and produces a URL a browser can actually reach,
+    while server-side reads keep using ``AWS_S3_ENDPOINT_URL``.
+
+    Rewriting the host of a signed URL afterwards is not an option: the host is
+    part of the SigV4 canonical request, so the object store rejects the result
+    with ``SignatureDoesNotMatch``. That is why this exists at all, and why the
+    setting is read here and not in the view.
+
+    Empty ``S3_PUBLIC_ENDPOINT_URL`` (or one equal to the internal endpoint)
+    returns the storage client unchanged, so a single-host deployment gains no
+    second client and no new failure mode.
+    """
+    public = getattr(settings, "S3_PUBLIC_ENDPOINT_URL", "")
+    internal = s3_client()
+    if not public:
+        return internal
+
+    if str(getattr(internal.meta, "endpoint_url", "")).rstrip("/") == public.rstrip(
+        "/"
+    ):
+        return internal
+
+    try:
+        return boto3.client(
+            "s3",
+            endpoint_url=public,
+            region_name=settings.AWS_S3_REGION_NAME,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID or None,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY or None,
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+            ),
+        )
+    except BotoCoreError as exc:
+        raise _translate(exc, "preparing the browser upload client") from exc
 
 
 def _error_code(exc: ClientError) -> str:

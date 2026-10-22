@@ -23,9 +23,11 @@ from candidates.serializers import (
     CandidateProfileSerializer,
     CandidateProfileUpdateSerializer,
     ResumeStatusSerializer,
+    ResumeSummarySerializer,
     ResumeUploadRequestSerializer,
     ResumeUploadResponseSerializer,
 )
+from candidates.services import delete_resume
 from candidates.tasks import scan_resume
 from candidates.uploads import (
     ResumeUploadUnavailable,
@@ -36,6 +38,7 @@ from candidates.uploads import (
     mark_rejected,
     presign_resume_put,
 )
+from core.pagination import StandardPagination
 
 # One sentence for both "you have not onboarded yet" and "the row is gone".
 # A 404 here does not enumerate anything: the only row it could describe is the
@@ -128,12 +131,29 @@ class CandidateMeView(APIView):
         return Response(CandidateProfileSerializer(profile).data)
 
 
-class CandidateResumeUploadView(APIView):
-    """`POST /api/v1/candidates/resumes/` -- issue a presigned upload URL.
+class CandidateResumeListView(APIView):
+    """`GET`/`POST /api/v1/candidates/resumes/` -- the caller's own resumes.
 
-    REQ-FR-010: the browser uploads directly to object storage and Django stores
-    only the key. This view therefore validates the *declaration*, writes the
-    `pending` row, and signs a PUT; it never sees the file.
+    Two verbs, one path. Complete Doc §C.12 declares `GET` (list) and `POST`
+    (upload), and both are owner-scoped for the same structural reason: the
+    candidate comes from `request.user`, never from the body or the path, so
+    there is nowhere in a list request to name someone else's profile.
+
+    **`GET` returns metadata only.** See `ResumeSummarySerializer`: no storage
+    key, no URL, no extracted text. A resume that was never completed is still
+    listed -- `pending` is a real state the owner must be able to see and retry
+    (batch 1.20 leaves the row `pending` when the bytes have not landed), and
+    hiding it would make a failed upload vanish silently.
+
+    **A candidate with no profile gets 404, not an empty list.** The same
+    `_profile_for` answer as `/me/`: a profile is the onboarding step that
+    precedes any resume (REQ-FR-009), so "no profile yet" and "no resumes yet"
+    are different facts and the client is told which one it hit.
+
+    **`POST` issues a presigned upload URL.** REQ-FR-010: the browser uploads
+    directly to object storage and Django stores only the key. This view
+    therefore validates the *declaration*, writes the `pending` row, and signs a
+    PUT; it never sees the file.
 
     **Order matters.** Validate, then create the row, then sign. If signing
     fails the row is deleted: no URL was issued, so no bytes can arrive, and a
@@ -149,6 +169,28 @@ class CandidateResumeUploadView(APIView):
     """
 
     permission_classes = [IsCandidate]
+
+    @extend_schema(
+        responses={200: ResumeSummarySerializer(many=True)},
+        summary="List the current candidate's resumes",
+        description=(
+            "Candidate group only. Newest first, paginated (page_size up to 100). "
+            "Returns metadata and scan status only: never the storage key, a "
+            "download URL or resume text. 404 until the candidate has a profile."
+        ),
+    )
+    def get(self, request) -> Response:
+        profile = _profile_for(request.user)
+        queryset = CandidateResume.objects.filter(candidate=profile)
+
+        # `StandardPagination` is applied by DRF's generic views, not by an
+        # APIView, so it is driven by hand here. The class is the project one
+        # rather than a local page size: it carries the 100-row ceiling that
+        # keeps a caller from asking for everything at once.
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = ResumeSummarySerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     @extend_schema(
         request=ResumeUploadRequestSerializer,
@@ -332,3 +374,72 @@ class CandidateResumeCompleteView(APIView):
             ResumeStatusSerializer(resume).data,
             status=status.HTTP_202_ACCEPTED,
         )
+
+
+class CandidateResumeDetailView(APIView):
+    """`GET`/`DELETE /api/v1/candidates/resumes/{id}/` -- one of the caller's rows.
+
+    Same body as a list entry on `GET`, so a client that has an id from the list
+    does not need a second shape. `file_key` is not in it (see
+    `ResumeSummarySerializer`): the detail view is where a storage key would be
+    most tempting to add, and it is still not part of the contract.
+
+    **Ownership is in the lookup, not in a branch.** `candidate__user` is part of
+    the filter, so another candidate's id and an id that exists nowhere produce
+    the same 404. A distinguishable 403/404 would let one candidate enumerate
+    another's resume ids.
+
+    **`DELETE` is a hard delete**, decided for batch 1.21: the row goes and the
+    stored bytes go. §5.1 has no FK pointing at `candidate_resumes`, and
+    REQ-FR-041's model for erasure is "delete the personal data, keep the audit
+    trail", so a soft-delete column would add a predicate to every future resume
+    query without a requirement behind it. An `AuditLogEntry` records that the
+    deletion happened, without the filename or the key.
+
+    Any status may be deleted, including `scanning`: the queued task re-reads
+    the row (batch 1.20) and returns quietly when it is gone, so a deletion
+    cannot leave a scan that resurrects a row. Deleting is idempotent at the
+    HTTP level in the usual sense -- the second request is a 404, not a 500.
+    """
+
+    permission_classes = [IsCandidate]
+
+    @extend_schema(
+        responses={200: ResumeSummarySerializer},
+        summary="Get one of the current candidate's resumes",
+        description=(
+            "Candidate group only, owner-only. Metadata and scan status for one "
+            "resume; 404 for an id the caller does not own. No storage key, no "
+            "download URL."
+        ),
+    )
+    def get(self, request, pk) -> Response:
+        resume = CandidateResume.objects.filter(
+            pk=pk, candidate__user=request.user
+        ).first()
+        if resume is None:
+            raise NotFound(NO_RESUME_DETAIL)
+
+        return Response(ResumeSummarySerializer(resume).data)
+
+    @extend_schema(
+        responses={204: None},
+        summary="Delete one of the current candidate's resumes",
+        description=(
+            "Candidate group only, owner-only. Removes the row and the stored "
+            "object; writes an audit entry that carries no filename or key. 404 "
+            "for an id the caller does not own."
+        ),
+    )
+    def delete(self, request, pk) -> Response:
+        resume = CandidateResume.objects.filter(
+            pk=pk, candidate__user=request.user
+        ).first()
+        if resume is None:
+            raise NotFound(NO_RESUME_DETAIL)
+
+        # Row, audit entry and bytes are handled by one shared operation, because
+        # the Resume manager's Delete button (batch 1.22) has the same rule.
+        delete_resume(resume, actor=request.user)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

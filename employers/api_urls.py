@@ -1,13 +1,15 @@
 """API v1 routes for the employers app.
 
-Empty on purpose until this app's endpoints land. `config/urls.py` and
-`api/urls.py` include this module, so it must exist as an importable module from
-the first commit -- a missing module is a boot-time `ImportError` that takes down
-every URL in the project, not just this app's.
+`/api/v1/employers/me/` is a plain `path()` before the router: it has a fixed
+path and no object id, and a router entry would add a `{pk}` lookup that the
+contract does not have. Complete Doc §C.12 lists exactly `GET` and `PATCH` on
+this resource, so a viewset would also expose verbs the contract does not
+declare.
 
-The routers below are declared with `register()` calls added per viewset. An
-unregistered router renders a browsable API listing nothing, which is worse than
-404 because it looks wired up.
+The router stays mounted for the team, job and billing viewsets that land in
+later batches. The API `app_name` is `employers`; the server-rendered pages use
+`employer_portal` so the two URLconfs do not collide (Django keeps one resolver
+per namespace name).
 """
 
 from __future__ import annotations
@@ -15,13 +17,16 @@ from __future__ import annotations
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from employers.api_views import EmployerMeView
+
 app_name = "employers"
 
 router = DefaultRouter()
 
 # Registered per viewset as the viewset lands, e.g.:
-#   router.register("profile", ProfileViewSet, basename="profile")
+#   router.register("team", TeamViewSet, basename="team")
 
 urlpatterns = [
+    path("me/", EmployerMeView.as_view(), name="me"),
     path("", include(router.urls)),
 ]
