@@ -12,12 +12,13 @@ Two properties make this fail closed:
   directions. Adding a route without a rule fails here, and so does leaving a
   rule for a route that no longer exists. A test that only walks the matrix
   would keep passing while a new endpoint shipped unprotected.
-* **Parameterised routes are refused, not skipped.** A path with `<...>` needs a
+* **Parameterised routes need an explicit sample.** A path with `<...>` needs a
   concrete object id to request, and guessing one would make the expected
-  status depend on which row exists. None exists outside `django-admin/` today,
-  so any such route is a new decision to make in this file. The only exception
-  is DRF's `<drf_format_suffix:format>` duplicate, which resolves to the same
-  view as its parent path.
+  status depend on which row exists. `PARAMETERISED_SAMPLES` names the sample
+  used for each template; a template with no entry fails, so a new
+  parameterised route is still a decision rather than a silent skip. The only
+  automatic exception is DRF's `<drf_format_suffix:format>` duplicate, which
+  resolves to the same view as its parent path.
 
 Deliberate exclusions, all documented in `docs/AUTHZ_MATRIX.md`:
 
@@ -279,6 +280,26 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 403,
         "admin": 403,
     },
+    # Candidate-only. The 400 for a candidate is the empty body failing
+    # validation before the profile lookup; a valid body with no profile is 404
+    # (tests/candidates/test_resume_upload_api.py).
+    "/api/v1/candidates/resumes/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 400,
+        "employer": 403,
+        "admin": 403,
+    },
+    # Candidate-only, by object id. The sample id exists nowhere, so the
+    # candidate gets the same 404 an unowned id gets -- ownership and existence
+    # are one answer by design.
+    "/api/v1/candidates/resumes/00000000-0000-0000-0000-000000000000/complete/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 404,
+        "employer": 403,
+        "admin": 403,
+    },
     # DRF router roots for apps whose viewsets have not landed yet. They inherit
     # the global IsAuthenticated default; they must not become public just
     # because they list nothing.
@@ -331,6 +352,17 @@ AUTHZ_MATRIX: dict[str, dict] = {
 # unclassified route and fails `test_every_registered_route_has_a_matrix_row`.
 EXCLUDED_PREFIXES = ("static/", "media/", "api/schema/", "api/docs/")
 
+# A concrete sample for each parameterised route, keyed by the template the
+# resolver reports. The matrix uses the value as its key; a template with no
+# entry still fails, so this is not a blanket skip. The id is the nil UUID on
+# purpose: it exists nowhere, so an owning view's 404 is reproducible.
+SAMPLE_UUID = "00000000-0000-0000-0000-000000000000"
+PARAMETERISED_SAMPLES = {
+    "/api/v1/candidates/resumes/<uuid:pk>/complete/": (
+        f"/api/v1/candidates/resumes/{SAMPLE_UUID}/complete/"
+    ),
+}
+
 
 def registered_routes(urlpatterns=None) -> tuple[set[str], set[str]]:
     """Return (paths, parameterised) for every project route.
@@ -374,7 +406,7 @@ def registered_routes(urlpatterns=None) -> tuple[set[str], set[str]]:
 
 def unclassified(routes: set[str]) -> set[str]:
     """Routes with no rule. Extracted so the fail-closed test can prove it."""
-    return routes - set(AUTHZ_MATRIX)
+    return routes - set(AUTHZ_MATRIX) - set(PARAMETERISED_SAMPLES)
 
 
 @pytest.fixture(autouse=True)
@@ -420,7 +452,7 @@ def test_every_registered_route_has_a_matrix_row():
         + " -- add a row to AUTHZ_MATRIX and docs/AUTHZ_MATRIX.md"
     )
 
-    stale = sorted(set(AUTHZ_MATRIX) - routes)
+    stale = sorted(set(AUTHZ_MATRIX) - routes - set(PARAMETERISED_SAMPLES.values()))
     assert not stale, "matrix rows for routes that no longer exist: " + ", ".join(stale)
 
 
@@ -449,9 +481,10 @@ def test_a_route_added_without_a_rule_is_detected():
 def test_no_parameterised_route_is_silently_uncovered():
     _, parameterised = registered_routes()
 
-    assert not parameterised, (
-        "route(s) contain a URL parameter and need a concrete sample value in "
-        "the matrix: " + ", ".join(sorted(parameterised))
+    unmapped = sorted(parameterised - set(PARAMETERISED_SAMPLES))
+    assert not unmapped, (
+        "route(s) contain a URL parameter and need a concrete sample in "
+        "PARAMETERISED_SAMPLES and a row in AUTHZ_MATRIX: " + ", ".join(unmapped)
     )
 
 

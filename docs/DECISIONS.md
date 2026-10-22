@@ -280,6 +280,20 @@ spec-first: no model is written until the DDL agrees.
 `accounts/models.py` + migration; the new `candidates`/`employers`/`matching` models;
 `docs/TRACEABILITY.md`; and every file asserting the table/FK/index counts.
 
+> **Implementation note (batch 1.18, 2026-10-22).** D-6(a) landed as
+> `candidate_resumes.status` + `processed_at` in batch 0.5, but that vocabulary stopped at
+> `uploaded, processing, extracted, embedded, failed` and had no place for the scan gate that
+> REQ-SEC-012 and gap P require. Batches 1.18–1.20 therefore extend the same column to
+> `pending, uploaded, scanning, clean, rejected, processing, extracted, embedded, failed` and add
+> `status_reason` (nullable, never PII). `pending` is the row created when a presigned URL is
+> issued; `uploaded` means the bytes are confirmed present. This is one column, not two: a resume
+> has exactly one state at a time, and an unknown state is rejected by `ck_resume_status`. Batch
+> 1.20 folded the presence check, the size/MIME checks and queueing the scan into the single
+> completion call, so no row stops at `uploaded` today; the value stays in the CHECK so a future
+> split (a completion that only confirms presence, then a separate scan trigger) does not need a
+> migration.
+> `candidate_id` became `NOT NULL`, matching §5.2's `candidate_profiles (1) ──(N)──> candidate_resumes`.
+
 ---
 
 ## D-7 — JWT lifetimes and refresh semantics

@@ -58,6 +58,8 @@ layer's answer or is refused before the serializer runs.
 | `/api/v1/auth/password/change/` | POST | **401** | 400 | 400 | 400 | authenticated for every role; the 400 is the empty body |
 | `/api/v1/auth/me/` | GET | **401** | 200 | 200 | 200 | authenticated for every role (batch 1.12) |
 | `/api/v1/candidates/me/` | GET | **401** | 404 | 403 | 403 | candidate-only; 404 until onboarding; PATCH is covered by `tests/candidates/test_profile_api.py` (batch 1.15) |
+| `/api/v1/candidates/resumes/` | POST | **401** | 400 | 403 | 403 | candidate-only; the 400 is the empty body failing validation, a valid body without a profile is 404 (batch 1.19) |
+| `/api/v1/candidates/resumes/{id}/complete/` | POST | **401** | 404 | 403 | 403 | candidate-only and owner-only; the matrix requests the nil UUID, which exists nowhere, so 404 (batch 1.20) |
 | `/api/v1/accounts/` | GET | **401** | 200 | 200 | 200 | DRF router root inherits the global default |
 | `/api/v1/candidates/` | GET | **401** | 200 | 200 | 200 | same |
 | `/api/v1/employers/` | GET | **401** | 200 | 200 | 200 | same |
@@ -77,11 +79,13 @@ layer's answer or is refused before the serializer runs.
    (`test_a_route_added_without_a_rule_is_detected`), so the discovery half is
    itself tested rather than assumed.
 3. **Parameterised routes must be handled explicitly.** Any path containing
-   `<...>` outside `django-admin/` fails
+   `<...>` outside `django-admin/` and `PARAMETERISED_SAMPLES` fails
    (`test_no_parameterised_route_is_silently_uncovered`); a real object id would
-   otherwise make the expected answer depend on which row exists. DRF's
-   `<drf_format_suffix:format>` duplicate of a router root is the one exception:
-   it resolves to the same view.
+   otherwise make the expected answer depend on which row exists. An entry maps
+   the template to the concrete sample in the table above, so a new
+   parameterised route cannot be added without a decision. DRF's
+   `<drf_format_suffix:format>` duplicate of a router root is the one automatic
+   exception: it resolves to the same view.
 4. **The global default is asserted**
    (`test_the_global_default_is_fail_closed`): the API-wide permission class is
    `IsAuthenticated`, so a new `APIView` that forgets `permission_classes` is

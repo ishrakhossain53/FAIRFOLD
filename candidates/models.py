@@ -11,7 +11,7 @@ database, and `makemigrations --check` in CI would then pass on migrations that
 encode a guess. The DDL remains the specification; models are added app by app
 against it, one migration at a time.
 
-`CandidateProfile` is batch 1.14. `resume_embedding VECTOR(384)` is deliberately
+`CandidateProfile` is batch 1.14 and `CandidateResume` is batch 1.18. `resume_embedding VECTOR(384)` is deliberately
 absent: `docs/ROADMAP.md` batch 2.12 owns the pgvector columns and the extension
 migration, and adding the column before that migration would make every test run
 depend on the extension being present in a database that has not created it yet.
@@ -105,3 +105,109 @@ class CandidateProfile(models.Model):
         # list of profiles that renders it would put PII in every page and log
         # line that touches this model.
         return self.title or f"Candidate profile {self.pk}"
+
+
+class CandidateResume(models.Model):
+    """An uploaded resume (REQ-FR-010/012, REQ-SEC-012, Arch Doc §5.1).
+
+    **The row exists before the bytes do.** Requesting a presigned URL (batch
+    1.19) creates a `pending` row that carries the server-generated key; only
+    the completion step (batch 1.20) may move it to `uploaded`. Without that
+    split, a URL a client requested and never used would leave a row
+    indistinguishable from a real upload, and a scan would later report a
+    missing object as if the candidate had uploaded it.
+
+    **`file_key` is the only file reference.** REQ-FR-010: the browser uploads
+    directly to object storage and Django stores only the key. The key is built
+    server-side from a UUID, so it cannot be guessed from, or used to discover,
+    `original_filename`. Never write the original name into it.
+
+    **`original_filename` is not encrypted yet.** The DDL marks it `ENCRYPTED`;
+    D-5 is still open, so this follows the `CandidateProfile.location`
+    precedent: plain text until the Complete Doc §C.8.2 `key_version` rotation
+    procedure exists. It is never rendered to an employer before shortlist
+    (REQ-FR-029, 054) and never logged.
+
+    **`status` is the whole pipeline, including the scan gate.** D-6(a) gave
+    this table a status column, and REQ-SEC-012/gap P added the scan stage.
+    `pending -> uploaded -> scanning -> clean` is the Phase 1 path; `rejected`
+    is terminal and must carry a `status_reason`. `processing -> extracted ->
+    embedded` belongs to Phase 2 (batches 2.10-2.12), and `failed` is their
+    error state. The database CHECK constraint mirrors the DDL, so an unknown
+    value fails in PostgreSQL rather than only in a form.
+
+    **`status_reason` never holds PII or resume text.** It is a machine code or
+    a short operator sentence such as "clamav unavailable", which is what
+    `AuditLogEntry` may safely quote.
+    """
+
+    class Status(models.TextChoices):
+        """The nine states in `ck_resume_status`, in pipeline order."""
+
+        PENDING = "pending", "Pending upload"
+        UPLOADED = "uploaded", "Uploaded"
+        SCANNING = "scanning", "Scanning"
+        CLEAN = "clean", "Clean"
+        REJECTED = "rejected", "Rejected"
+        PROCESSING = "processing", "Processing"
+        EXTRACTED = "extracted", "Extracted"
+        EMBEDDED = "embedded", "Embedded"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Non-null: the DDL leaves this nullable, but a resume with no candidate is
+    # a row nobody can reach, and §5.2 draws the relation 1 -> N. Same reasoning
+    # as `CandidateProfile.user`.
+    candidate = models.ForeignKey(
+        CandidateProfile,
+        on_delete=models.CASCADE,
+        related_name="resumes",
+    )
+
+    file_key = models.CharField(max_length=500)
+    original_filename = models.TextField(blank=True)
+    file_size = models.IntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=100, blank=True)
+    extracted_text = models.TextField(blank=True)
+    raw_text_hash = models.CharField(max_length=64, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    status_reason = models.TextField(blank=True)
+
+    processed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "candidate_resumes"
+        verbose_name = "candidate resume"
+        verbose_name_plural = "candidate resumes"
+        ordering = ["-created_at"]
+        constraints = [
+            # Name matches the DDL so a database dump and §5.1 are diffable.
+            models.CheckConstraint(
+                condition=models.Q(
+                    status__in=[
+                        "pending",
+                        "uploaded",
+                        "scanning",
+                        "clean",
+                        "rejected",
+                        "processing",
+                        "extracted",
+                        "embedded",
+                        "failed",
+                    ]
+                ),
+                name="ck_resume_status",
+            )
+        ]
+
+    def __str__(self) -> str:
+        # Neither the key nor the original name: the first is storage detail,
+        # the second is PII. An admin list that renders either would leak it.
+        return f"Resume {self.pk}"

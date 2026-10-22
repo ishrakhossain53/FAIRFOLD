@@ -706,14 +706,14 @@ class CandidateProfile(models.Model):
 
 class CandidateResume(models.Model):
     candidate = models.ForeignKey(CandidateProfile, on_delete=models.CASCADE)
-    file = models.FileField(upload_to="resumes/")  # S3 key, not path
+    file_key = models.CharField(max_length=500)  # S3 key (UUID-based name), never the original filename
     original_filename = EncryptedCharField(max_length=500)
-    file_size = models.IntegerField()
-    mime_type = models.CharField(max_length=100)
+    file_size = models.IntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=100, blank=True)
     extracted_text = models.TextField(blank=True)  # PII-stripped text
-    raw_text_hash = models.CharField(max_length=64)  # for dedup
-    # D-6(a) / REQ-FR-010/012/013: upload -> extract -> embed
-    status = models.CharField(max_length=20, default="uploaded")  # uploaded, processing, extracted, embedded, failed
+    raw_text_hash = models.CharField(max_length=64, blank=True)  # for dedup
+    status = models.CharField(max_length=20, default="pending")  # D-6(a)+1.18-1.20: pending, uploaded, scanning, clean, rejected, processing, extracted, embedded, failed
+    status_reason = models.TextField(blank=True)  # why scanning/pipeline stopped; never PII
     processed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -1856,6 +1856,7 @@ PATCH  /api/v1/candidates/skills/{id}/           # Update skill
 DELETE /api/v1/candidates/skills/{id}/           # Delete skill
 GET    /api/v1/candidates/resumes/               # List resumes
 POST   /api/v1/candidates/resumes/               # Upload new resume (returns presigned URL)
+POST   /api/v1/candidates/resumes/{id}/complete/ # Mark upload finished; verify size/MIME and scan
 POST   /api/v1/candidates/resumes/{id}/process/  # Trigger PII stripping + embedding
 GET    /api/v1/candidates/resumes/{id}/          # Get resume details
 GET    /api/v1/candidates/certifications/        # List certifications

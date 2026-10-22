@@ -50,14 +50,14 @@ blocked.
 
 || File | Lines | Role |
 || --- | --- | --- |
-|| `FAIRFOLD_Complete_Project_Document.md` | 2448 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
+|| `FAIRFOLD_Complete_Project_Document.md` | 2449 | **Canonical** product document — vision, personas, competitor analysis, journeys, model reference, roadmap, team roles, appendices |
 || `FAIRFOLD_Project_Architecture_and_Requirements.md` | 2692 | **Canonical** specification — ADRs, 63 functional requirements (REQ-FR-001–063), 50 non-functional requirements, 33-table SQL schema, 53 foreign keys, 27 indexes, sequence diagram, ops/runbook, risk register, acceptance criteria |
 || `prd.md` | 1282 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 || `design.md` | 2918 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
 | `README.md` | 447 | Project overview, documentation index, setup |
 
-| `.env.example` | 201 | Environment variables, all placeholders |
+| `.env.example` | 214 | Environment variables, all placeholders |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -3481,3 +3481,226 @@ unset).**
 **Known limitations.** An account with `is_active=False` still gets no link (a token for it
 would only fail), and the block is still a public verification bypass until it is re-gated
 before deployment.
+
+### Batch 1.18: Resume model (spec first) (2026-10-22)
+
+**What changed.** D-6(a) had already added `candidate_resumes.status` + `processed_at` in batch
+0.5, but that vocabulary stopped at `uploaded, processing, extracted, embedded, failed` and had
+nowhere to record the scan gate that REQ-SEC-012 and gap P require. This batch amended the
+canonical DDL first, then transcribed it.
+
+- `FAIRFOLD_Project_Architecture_and_Requirements.md` §5.1 `candidate_resumes` — the single
+  `status` column now carries the full lifecycle `pending, uploaded, scanning, clean, rejected,
+  processing, extracted, embedded, failed` (`pending` = a presigned URL was issued, `uploaded` =
+  the bytes are confirmed present); added `status_reason` (nullable, never PII) so a rejected or
+  failed resume says why; `candidate_id` is now `NOT NULL`, matching §5.2's 1 → N relation. The
+  block keeps its original line count, so cross-document `file:line` references do not shift.
+- `FAIRFOLD_Complete_Project_Document.md` §C.8 model sketch — updated to `file_key` (key only,
+  per REQ-FR-010), the new status vocabulary and `status_reason`.
+- `prd.md` §11 — the D-6 note now names `status_reason` and the scan stage.
+- `docs/DECISIONS.md` D-6 — implementation note recording the extension without reopening D-6(a).
+- `candidates/models.py` — `CandidateResume` (`db_table = "candidate_resumes"`): non-null
+  `candidate` FK with `related_name="resumes"`, key-only `file_key`, plain `original_filename`
+  following the D-5 precedent, `extracted_text`/`raw_text_hash`, the nine `Status` choices and a
+  `CheckConstraint` named `ck_resume_status` (the DDL's name), `status_reason`, `processed_at`,
+  `created_at`. `__str__` renders only the id, never the key or the filename.
+- `candidates/migrations/0002_candidateresume.py` — generated, not hand-written.
+- `tests/candidates/test_resume_model.py` — 10 tests: defaults, every documented status, a
+  rejected resume carrying its reason, an unknown status rejected **by PostgreSQL**, `file_key`'s
+  NOT NULL, no resume without a candidate, N resumes per candidate, cascade delete, newest-first
+  ordering, and `__str__` exposing neither key nor filename.
+- `docs/PROGRESS.md`, `docs/TRACEABILITY.md` — batch state and REQ-FR-010/012 evidence.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG` unset).**
+
+- `pytest tests/candidates/test_resume_model.py -q` → **10 passed**.
+- `pytest tests/candidates/ -q` → **71 passed** (42 warnings, all from the short test JWT key).
+- `pytest tests/ -q` with `DEBUG` and `SENTRY_DSN` unset → **632 passed, 4 skipped**; the same run
+  with this shell's ambient `DEBUG=True`/`SENTRY_DSN` fails 15 `test_production_settings.py` tests,
+  the environment artefact recorded in batch 0.5 and unrelated to this change.
+- `manage.py check` → "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` → "No changes detected" (with the usual
+  `fairfold_test` does-not-exist RuntimeWarning from the migration-history probe).
+- `python scripts/verify_docs.py` → exit 0, "All checks passed" (33 tables, 53 FKs, 27 indexes).
+- `flake8 ... --max-line-length=120 --extend-exclude='*/migrations/*'` → exit 0.
+- `black --check` and `isort --check-only` on the changed Python files → clean after one reformat
+  of the test file. `isort --check-only .` → clean (migrations are skipped by config).
+- `mypy candidates/ --ignore-missing-imports` → "Success: no issues found in 15 source files".
+- `black --check .` → **fails on `scripts/verify_docs.py`**, a file this batch did not touch
+  (pre-existing; not caused by this change).
+
+**Known limitations.**
+
+- `original_filename` is plain text: D-5 is still open, so this follows the `CandidateProfile.location`
+  precedent rather than creating rows the §C.8.2 rotation procedure cannot read.
+- No key generation, no presign endpoint, no scan, no extraction — batches 1.19, 1.20 and 2.10.
+- `file_key` has no UNIQUE constraint because the DDL specifies none; uniqueness rests on the
+  UUID in the key and is not enforced by the database.
+- `docs/PROGRESS.md` was left `- [ ]` in this entry at the time, because the project rule is
+  that a batch is only checked off after the maintainer pastes the test output. **Corrected
+  2026-10-22:** the maintainer instructed the 1.18–1.20 lines be marked complete, so the line is
+  now `[x]`; the local run above is the recorded result.
+
+### Batch 1.19: Presigned upload API (2026-10-22)
+
+**What changed.** REQ-FR-010's upload half: a candidate asks Django for a short-lived
+presigned PUT and uploads straight to object storage, so no file bytes cross Django.
+
+- `candidates/uploads.py` (new) — `build_resume_key()` returns
+  `resumes/<candidate uuid>/<uuid4 hex><extension>`, with the extension looked up from the MIME
+  allow-list rather than taken from the filename; `presign_resume_put()` signs a `put_object`
+  with `Bucket`, `Key` and `ContentType` in the signature. Storage and botocore failures become
+  `ResumeUploadUnavailable` without interpolating botocore text (it can carry request metadata).
+- `candidates/serializers.py` — `ResumeUploadRequestSerializer` requires `content_type`,
+  `file_size` and `original_filename`; rejects a type outside `RESUME_ALLOWED_MIME_TYPES` and a
+  size above `MAX_UPLOAD_SIZE_BYTES`; strips any path from the filename. The response serializers
+  describe `{id, status, upload{url, method, headers, expires_in}}` and deliberately do not echo
+  the storage key or the filename.
+- `candidates/api_views.py` — `CandidateResumeUploadView` with explicit `permission_classes =
+  [IsCandidate]`. Validates, creates the `pending` row, then signs; if signing fails the row is
+  deleted and the caller gets 503, so no `pending` row can exist without a URL that could fill it.
+  The owner comes from `request.user` and the key from the service; `candidate`, `file_key` and
+  `status` in the body are ignored.
+- `candidates/api_urls.py` — `POST /api/v1/candidates/resumes/`. No `GET` yet: list/detail is
+  batch 1.21.
+- `config/settings/base.py` — `MAX_UPLOAD_SIZE_BYTES` default 5 MB → **10 MB**, matching
+  REQ-SEC-012 (the 5 MB default was undocumented and contradicted the requirement); added
+  `RESUME_ALLOWED_MIME_TYPES = {"application/pdf": ".pdf"}` (REQ-FR-012 reads PDF; DOCX would be
+  a type nothing can extract yet) and `RESUME_PRESIGN_EXPIRES_SECONDS` (default 300).
+- `.env.example` — documents `MAX_UPLOAD_SIZE_BYTES` and `RESUME_PRESIGN_EXPIRES_SECONDS`.
+- `tests/candidates/test_resume_upload_api.py` (new) — 29 tests with a stubbed boto3 client:
+  anonymous 401; employer/manager/interviewer/staff 403; no profile 404; allowed PDF creates a
+  pending row and returns the upload target; two uploads get different keys; the key never
+  contains the filename and takes its extension from the type, not the name; five denied types,
+  oversize, non-positive size, every missing field and a blank filename are 400 with no row and
+  no signing call; the body cannot choose the owner, key or status; the signed PUT carries the
+  stored key and declared type; the expiry comes from settings; storage failure is 503 with no
+  row left behind.
+- `tests/core/test_authz_matrix.py` + `docs/AUTHZ_MATRIX.md` — the new route has a matrix row
+  (anonymous 401, candidate 400 on the empty test body, employer/admin 403). The route-discovery
+  test caught the missing row, which is why it exists.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`/`SENTRY_DSN` unset).**
+
+- `pytest tests/candidates/test_resume_upload_api.py -q` → **29 passed**.
+- `pytest tests/candidates/ -q` → **100 passed**.
+- `pytest tests/core/test_authz_matrix.py -q` → **39 passed** after the matrix row was added.
+- `pytest tests/ -q` → **662 passed, 4 skipped**.
+- `manage.py check` → "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` → "No changes detected" (no model change in this
+  batch).
+- `python scripts/verify_docs.py` → exit 0 after the `.env.example` line count in the HISTORY
+  file table was corrected 201 → 214.
+- `flake8`, `black --check`, `isort --check-only` on the changed Python files → clean.
+- `mypy candidates/ config/ --ignore-missing-imports` → "Success: no issues found in 25 source files".
+
+**Known limitations.**
+
+- The endpoint trusts the declared `file_size` and `content_type`; the stored object is not
+  checked here. Size/MIME verification and ClamAV are batch 1.20, and until then a client can
+  declare a PDF and PUT something else.
+- No rate limit or per-candidate quota (REQ-SEC-008 is later). A candidate can create pending
+  rows by repeating the request.
+- No completion step, so a row stays `pending` after a successful PUT; nothing distinguishes
+  "uploaded but not finished" from "URL never used" until 1.20.
+- The presigned URL is only usable from a browser when `AWS_S3_ENDPOINT_URL` is reachable from
+  the browser; the Compose-internal `http://minio:9000` problem recorded in batch 1.17 is
+  unchanged here.
+- `original_filename` is still plain text (D-5 open), and it is stored before any scan runs.
+
+### Batch 1.20: Upload completion, MIME validation and ClamAV scan (2026-10-22)
+
+**What changed.** REQ-FR-010's upload now has a finish line, and REQ-SEC-012's "MIME validation
++ virus scan" is enforced on the bytes that actually arrived rather than on what the browser
+declared when the URL was signed.
+
+- `FAIRFOLD_Complete_Project_Document.md` §C.12 — added
+  `POST /api/v1/candidates/resumes/{id}/complete/`. The route did not exist in any canonical
+  document, so this was amended first, before any code. No other doc referenced a line number
+  past the insertion point; the HISTORY file table's own line count for this document was
+  corrected 2448 → 2449.
+- `candidates/uploads.py` — `inspect_upload(key, max_bytes=...)` reads the stored object's real
+  size from the backend and the first `SNIFF_BYTES` (2048) through `python-magic`; it returns
+  `(size, sniffed_mime)` and raises `UploadMissing` (nothing at the key yet, row stays `pending`),
+  `UploadProblem` (empty, oversize, undetectable — message safe for `status_reason`), or
+  `ResumeUploadUnavailable` (storage broken). `discard_object()` deletes a rejected object best
+  effort; `mark_rejected()` writes `rejected` + reason then discards. Storage failures are
+  narrowed to `OSError`/botocore/`StorageError`/`ImproperlyConfigured`; a 404/NoSuchKey/NotFound
+  is told apart from a real storage outage.
+- `candidates/scanner.py` (new) — clamd over `ClamdNetworkSocket.instream`, streaming the open
+  storage handle so no temporary file is written. `MalwareDetected` carries ClamAV's signature
+  name; every transport/protocol failure becomes `ScanUnavailable`. There is no "unknown" return
+  and no setting to disable the scan: **fail closed**.
+- `candidates/tasks.py` — `scan_resume(resume_id)` takes the id only (a broker dump carries no
+  metadata), runs only while the row is `scanning` (idempotent, so a retry cannot overwrite a
+  malware verdict), and settles to `clean` only on an explicit OK. Malware → `rejected` with
+  `malware detected: <signature>`; daemon down → `rejected` / `antivirus unavailable`; missing or
+  unreadable object → `rejected` / `stored file could not be read`.
+- `candidates/api_views.py` — `CandidateResumeCompleteView`, explicit `[IsCandidate]`, ownership
+  folded into the lookup (`candidate__user=request.user`) so an unowned id and a nonexistent id
+  are both 404. `pending` → checks → `scanning` + `scan_resume.delay` → **202**. A failed check
+  → **200** with `status: rejected` and `status_reason`; missing object → **409**, row stays
+  `pending`; broker failure → row back to `pending` and **503** (never a row stuck in
+  `scanning`). Already `scanning`/`clean`/`rejected` → **200** with the current row, no rescan;
+  Phase 2 states (`processing`/`extracted`/`embedded`/`failed`) → **409**.
+- `candidates/serializers.py` — `ResumeStatusSerializer` (`id`, `status`, `status_reason`) used by
+  both the 200 and 202 bodies.
+- `candidates/api_urls.py` — `resumes/<uuid:pk>/complete/` before the router.
+- `tests/core/test_authz_matrix.py` + `docs/AUTHZ_MATRIX.md` — the first parameterised API route
+  forced a harness extension: `PARAMETERISED_SAMPLES` maps each resolver template to the concrete
+  path requested (the nil UUID). An unmapped template still fails, so the fail-closed property is
+  kept. Matrix row: anonymous 401, candidate 404, employer/admin 403.
+- `tests/candidates/conftest.py` — `resume_storage` (per-test `STORAGES` with a `tmp_path`
+  location; overriding only `MEDIA_ROOT` does not reliably reset the cached `default_storage`)
+  and `put_object`.
+- `tests/candidates/test_resume_completion_api.py` (new, 21 tests) — access (anonymous 401,
+  employer/manager/interviewer/staff 403, unknown id 404, another candidate's id 404 and
+  untouched), valid PDF → 202 + queued, missing object → 409 + `pending`, empty/oversize/wrong
+  magic/declared-mismatch → rejected with a reason and the object deleted, reason never contains
+  the filename, settled states idempotent, Phase 2 states 409, queue failure → 503 + `pending`.
+- `tests/candidates/test_resume_scan.py` (new, 12 tests) — unit: OK → clean, signature → rejected
+  + deleted, daemon down → rejected, unreadable object → rejected, non-`scanning` row untouched,
+  clean verdict not overwritten by a retry, unknown/malformed id no-ops; integration against the
+  Compose clamd: clean PDF → clean, EICAR → rejected with `Eicar-Test-Signature`, skipped when no
+  daemon is reachable.
+
+**Commands run and results (local workspace, `config.settings.ci`, `DEBUG`/`SENTRY_DSN` unset).**
+
+- `pytest tests/candidates/test_resume_completion_api.py tests/candidates/test_resume_scan.py
+  tests/core/test_authz_matrix.py -q` → **73 passed** (first run had three real failures: a
+  second candidate created without the candidate group got 403 instead of 404; an 8-byte PNG
+  signature alone is sniffed as `text/plain` and needed the IHDR chunk; ClamAV reports OK for
+  EICAR appended after a PDF trailer, so the integration test stores the bare test string).
+- `pytest tests/candidates/ -q` → **133 passed**.
+- `pytest tests/ -q` → **696 passed, 4 skipped** (the 4 skips are the pre-existing S3 tests with
+  `AWS_STORAGE_BUCKET_NAME` unset).
+- `manage.py check` → "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` → "No changes detected".
+- `python scripts/verify_docs.py` → exit 0, notes only.
+- `flake8 candidates/ tests/candidates/ tests/core/ --max-line-length=120` → clean.
+- `black` reformatted `candidates/uploads.py` and the new completion test; `black --check` on
+  `candidates/ tests/candidates/ tests/core/` → clean. `isort --check-only` → clean.
+- `mypy candidates/ --ignore-missing-imports` → "Success: no issues found in 17 source files".
+
+**Known limitations.**
+
+- A ClamAV outage is terminal for that resume: it becomes `rejected` (fail closed), and the
+  candidate must upload again. A retry queue or an operator re-scan command is not in this batch.
+- `status_reason` for malware includes ClamAV's signature name. That is not PII, but it is
+  attacker-visible through the owner's own resume row; it is not exposed to employers.
+- The declared `file_size` is still not compared with the stored size; only the configured limit
+  is enforced. Exact equality was not a documented check and could reject a legal upload.
+- `uploaded` remains in `ck_resume_status` but no code writes it: completion goes
+  `pending → scanning` directly.
+- The scan reads through `default_storage`; in production that must be the same bucket the
+  presigned URL targets (true whenever `AWS_STORAGE_BUCKET_NAME` is set, which presigning already
+  requires).
+- `original_filename` is still stored as plain text before the scan runs (D-5 open), unchanged by
+  this batch.
+- The two real-clamd tests skip when the daemon is unreachable, so a CI runner without the
+  Compose service does not exercise INSTREAM end to end.
+
+**Checked off at the maintainer's instruction (2026-10-22).** `docs/PROGRESS.md` changed
+1.18, 1.19 and 1.20 from `[ ]` to `[x]`, each with the date and the test result recorded above.
+The 1.18 entry's older "stays `[ ]`" sentence was corrected in place for the same reason; no
+other older entry was edited.

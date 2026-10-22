@@ -28,6 +28,9 @@ change cannot accidentally expose or accept them.
 
 from __future__ import annotations
 
+import os
+
+from django.conf import settings
 from rest_framework import serializers
 
 from candidates.models import CandidateProfile
@@ -72,3 +75,80 @@ class CandidateProfileUpdateSerializer(serializers.Serializer):
     bio = serializers.CharField(required=False, allow_blank=True)
     location = serializers.CharField(required=False, allow_blank=True)
     remote_ok = serializers.BooleanField(required=False)
+
+
+class ResumeUploadRequestSerializer(serializers.Serializer):
+    """The `POST /api/v1/candidates/resumes/` body (REQ-FR-010, batch 1.19).
+
+    Validate *before* issuing a URL: a wrong type or an oversize file must not
+    leave a `pending` row or a signed credential behind.
+
+    `content_type` is checked against `RESUME_ALLOWED_MIME_TYPES` (REQ-SEC-012)
+    and is the declared type, not a guess from the extension. `original_filename`
+    is metadata only -- it is stored for the candidate's own list (D-5) and is
+    never used to build the object key.
+    """
+
+    content_type = serializers.CharField(max_length=100)
+    file_size = serializers.IntegerField(min_value=1)
+    original_filename = serializers.CharField(max_length=500, trim_whitespace=True)
+
+    def validate_content_type(self, value: str) -> str:
+        normalized = value.strip().lower()
+        allowed = settings.RESUME_ALLOWED_MIME_TYPES
+        if normalized not in allowed:
+            raise serializers.ValidationError(
+                "Unsupported file type. Allowed: " + ", ".join(sorted(allowed)) + "."
+            )
+        return normalized
+
+    def validate_file_size(self, value: int) -> int:
+        limit = settings.MAX_UPLOAD_SIZE_BYTES
+        if value > limit:
+            raise serializers.ValidationError(
+                f"File is larger than the {limit}-byte limit."
+            )
+        return value
+
+    def validate_original_filename(self, value: str) -> str:
+        # Browsers normally send a bare name; older ones send a full Windows
+        # path. Keep the name, discard the path, and reject a blank result so a
+        # row never stores "" where a filename is expected.
+        name = os.path.basename(value.replace("\\", "/")).strip()
+        if not name:
+            raise serializers.ValidationError("A filename is required.")
+        return name
+
+
+class ResumeUploadTargetSerializer(serializers.Serializer):
+    """What the browser needs to perform the PUT, and nothing else."""
+
+    url = serializers.URLField()
+    method = serializers.CharField()
+    headers = serializers.DictField(child=serializers.CharField())
+    expires_in = serializers.IntegerField()
+
+
+class ResumeUploadResponseSerializer(serializers.Serializer):
+    """The `201` body of `POST /api/v1/candidates/resumes/`.
+
+    The storage key is deliberately not echoed: the client already has the URL,
+    and the key is storage detail. The original filename is not echoed either --
+    the caller sent it, and this response may be rendered in a page.
+    """
+
+    id = serializers.UUIDField()
+    status = serializers.CharField()
+    upload = ResumeUploadTargetSerializer()
+
+
+class ResumeStatusSerializer(serializers.Serializer):
+    """The completion endpoint's body: the row's state, and why if rejected.
+
+    Both `200` (already settled or rejected) and `202` (queued for scanning) use
+    this shape, so a client can poll or simply re-post the same call.
+    """
+
+    id = serializers.UUIDField()
+    status = serializers.CharField()
+    status_reason = serializers.CharField(allow_blank=True)

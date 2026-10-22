@@ -19,6 +19,41 @@ from accounts.models import User
 
 
 @pytest.fixture
+def resume_storage(tmp_path, settings):
+    """Django's default storage, rooted at a per-test temporary directory.
+
+    The resume endpoints read and delete objects through `default_storage`, so
+    the tests need a real backend without touching the repository's `media/`
+    directory. Overriding `STORAGES` also resets `default_storage`, which
+    overriding only `MEDIA_ROOT` does not reliably do once its location is
+    cached.
+    """
+    settings.STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": str(tmp_path)},
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+    return tmp_path
+
+
+@pytest.fixture
+def put_object(resume_storage):
+    """Write bytes at a storage key, creating parent directories."""
+
+    def _put(key: str, data: bytes):
+        path = resume_storage / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return path
+
+    return _put
+
+
+@pytest.fixture
 def role_groups(db):
     """The seeded role groups, exactly as `manage.py seed` installs them."""
     call_command("loaddata", "groups", verbosity=0)
