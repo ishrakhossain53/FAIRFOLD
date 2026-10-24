@@ -1,0 +1,17 @@
+{% comment %}
+The auto-save status region (design.md S11: "autosave status text is polite").
+
+Replaced by HTMX with `outerHTML`, so it keeps its id, its `role="status"` and
+its `aria-live` on every swap: a region that only gains `aria-live` after the
+first save is silent exactly when the user needs it. The glyph is decorative and
+hidden from the accessibility tree; the text always says what happened.
+{% endcomment %}
+<p id="autosave-status"
+   role="status" aria-live="polite"
+   class="text-body-sm {% if saved %}text-success-ink{% else %}text-warning-ink{% endif %}">
+  {% if saved %}
+  <span aria-hidden="true">✔</span> {{ detail }}{% if saved_at %} at {{ saved_at|time:"H:i" }}{% endif %}
+  {% else %}
+  <span aria-hidden="true">⚑</span> {{ detail }}
+  {% endif %}
+</p>

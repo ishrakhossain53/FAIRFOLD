@@ -109,6 +109,7 @@ urlpatterns = [
     path("accounts/", include("accounts.api_urls")),
     path("candidates/", include("candidates.api_urls")),
     path("employers/", include("employers.api_urls")),
+    path("jobs/", include("employers.job_urls")),
     path("assessments/", include("assessments.api_urls")),
     path("interviews/", include("interviews.api_urls")),
     path("notifications/", include("notifications.api_urls")),

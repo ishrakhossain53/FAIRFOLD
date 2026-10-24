@@ -3913,3 +3913,290 @@ job-activation guard cannot land before the `Job` model and its activation endpo
 - `pytest tests/ -q` -> **855 passed, 4 skipped** (the 4 skips are the pre-existing unset-S3
   storage tests).
 - `scripts/verify_docs.py` -> exit 0, "All checks passed."
+
+### Batches 2.26-2.29: bias-audit integration, rationale persistence, citation tests, page #41 (2026-10-22)
+
+**What changed.** The four batches arrived with Phase-1 job titles (1.26-1.29) above Phase-2
+bodies (2.26-2.29). The bodies were implemented, because they are the detailed, mutually
+consistent chain; the titles name batches that do not exist yet. Two prerequisites were folded
+in from the canonical DDL because 2.27 cannot persist anything without them:
+
+- `matching/models.py` — `Job` (batch 1.26) and `Application` (batch 1.34) from Arch Doc §5.1,
+  with `matching/migrations/0001_initial.py`. `jobs.description_embedding VECTOR(384)` is
+  deliberately still absent: batch 2.12 owns the pgvector column *and* the extension migration,
+  the same deferral `candidates/models.py` documents.
+- `ai/citation.py` — the rationale contract from the new Arch Doc §7.5 and its validator
+  (batch 2.28's subject, and the input 2.26/2.27 needed).
+- `ai/screening.py` — `screen_application()` validates, audits, persists and records in that
+  order, in one transaction; `bias_status_for()` reads the status back from the trail.
+- `ai/bias_audit.py` — `audit_payload()` gained an optional `model=` keyword that adds
+  `ai_model_used` to `details`. Additive: the 40 existing tests are untouched and pass.
+- `employers/views.py`, `employers/urls.py`, `templates/employers/application_rationale.html` —
+  page #41 (S13) rationale column at `/employer/applications/<uuid>/`.
+- `tests/matching/test_job_application_models.py`, `tests/ai/test_citation.py`,
+  `tests/ai/test_screening_audit.py`, `tests/employers/test_application_rationale_ui.py`.
+- `tests/core/test_authz_matrix.py` + `docs/AUTHZ_MATRIX.md` — the new parameterised route needs
+  a sample and a row; the matrix test is fail-closed and caught it.
+- `pyproject.toml` — `matching` added to `coverage.source`, per the note already in that file
+  ("as each app gains a models.py it must be added to source").
+
+**Decisions recorded, not invented silently.**
+
+1. **Bias status has no column.** §5.1 has none, so the status is the newest
+   `audit_log_entries` row (`resource_type='ai_decision'`, `action='bias_audit'`) for the
+   application. A review is scoped to the scoring row it followed, so a re-screen requires a
+   new review. Recorded in Arch Doc §7.5 and as a comment in the `applications` DDL.
+2. **`match_rationale` holds the validated payload as JSON text.** The DDL has one TEXT column
+   and page #41 needs claim-level structure; a second JSONB column would duplicate the payload.
+   `ai.citation.load_rationale()` is the only reader.
+3. **Evidence is a verbatim substring, normalised for case and whitespace, ≥12 characters.**
+   Offsets would break on re-stripping. The floor is what stops `"the"` counting as proof.
+4. **Missing skills are matched as whole words** (`+`, `#`, `.` are word characters), so `Rust`
+   is still missing from a resume that says `trusted`, and `C++`/`.NET` work.
+5. **The writer cannot touch a decision field.** `SCORING_FIELDS` excludes `status`,
+   `shortlisted_at`, `decided_by`, `decision_override` and `assessment_gate_status`; the audit
+   verdict is advisory in the only place that writes a score.
+
+Docs also corrected in passing: Complete Doc §C.4's `JobSkill` pointed at `candidates.Skill`,
+but the taxonomy is `core.Skill`; and its `match_rationale` comment now points at §7.5.
+
+**Commands run and results (on this machine).**
+
+- `pytest tests/bias -q` **before** any change -> **40 passed** (the untouched baseline).
+- `pytest tests/ai tests/matching tests/bias -q` -> **107 passed**; after the UI tests ->
+  **119 passed**.
+- `pytest tests/ -q --cov --cov-fail-under=80` -> **950 passed, 4 skipped**, total coverage
+  **94%** (`ai/citation.py` 100%, `ai/screening.py` 100%, `matching/models.py` 100%).
+- `manage.py check` -> "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `mypy` (CI scope) ->
+  "Success: no issues found in 100 source files".
+- `black --check .` -> one file, the pre-existing `scripts/verify_docs.py` (not touched here).
+- `scripts/verify_docs.py` -> exit 0, "All checks passed."
+
+**Environment note.** `DEBUG=True` is exported in the interactive shell here (the harness has
+`.env` loaded), and the full suite then reports 15 failures in
+`tests/core/test_production_settings.py` — the documented consequence of sourcing `.env`.
+With `env -u DEBUG`, all 20 pass. This is pre-existing and unrelated to these batches.
+
+**Known limitations.** 2.29 is the rationale column of S13 only: the anonymised resume pane
+(design.md 7.14, batch 2.9), the assessment-gate panel (REQ-FR-051) and the sticky decision bar
+(REQ-FR-051/052) are not built, so page #41 is not yet a complete candidate-review screen. No
+provider client or generation exists (2.21-2.25), so the payload is produced in tests, not in
+production. No per-employer alias (1.35), so the page shows no alias badge. The batch titles in
+the prompt (1.26-1.29) remain unimplemented apart from the two folded models.
+
+### 2026-10-23 — Batch 1.27: create draft job API
+
+`POST /api/v1/jobs/` (REQ-FR-025, Complete Doc §C.12). The endpoint is
+`employers.JobCreateView`, mounted at `/api/v1/jobs/` by the new
+`employers/job_urls.py`. It requires `IsEmployer` and a company profile, so an
+employer who has not onboarded gets the same 404 as the profile endpoint;
+candidates, interviewers and platform admins get 403, anonymous callers 401.
+
+The body whitelist is `title`, `description`, `responsibilities`,
+`requirements`, `nice_to_have`, `location`, `remote_allowed`,
+`experience_level`. `status` is written by the view as `draft`, never read from
+the body: REQ-FR-027 makes activation its own audited action, and a create call
+that could publish would be a second path to it. `employer` comes from the
+caller's `EmployerProfile`, so one employer cannot file a job under another's
+name. `screening_questions`, `screening_config`, `cost_estimate`,
+`ai_model_used` and the embedding keep their defaults — the first is Phase-2 AI
+suggestion with no documented element shape, and the second is the Gap-G3 rule
+set that must not be written outside its version bump.
+
+Creation writes exactly one append-only entry: `action="job.created"`,
+`resource_type="job"`, the job id, the actor, and `{"title", "status"}`. The
+action string is the example named in `core/models.py` and Complete Doc §C.4.
+No candidate data is present, and the test asserts the key set.
+
+**Files.** `employers/serializers.py` (`JobCreateSerializer`, `JobSerializer`),
+`employers/api_views.py` (`JobCreateView`; `_profile_for` renamed to
+`employer_profile_for` so the jobs view can reuse it), `employers/job_urls.py`
+(new), `api/urls.py` (mount), `tests/employers/test_job_create_api.py` (20
+tests), `tests/core/test_authz_matrix.py` (row), `docs/AUTHZ_MATRIX.md`,
+`docs/TRACEABILITY.md` (REQ-FR-025 -> `partial`), `docs/PROGRESS.md`.
+
+**Commands run and results.**
+
+- `pytest tests/employers/test_job_create_api.py -q` -> **20 passed**.
+- `pytest tests/core/test_authz_matrix.py -q` -> **53 passed**.
+- `pytest tests/employers/ tests/matching/ tests/core/test_authz_matrix.py -q`
+  -> **175 passed**.
+- `pytest tests/ -q` with the README CI environment (below) -> **971 passed, 4
+  skipped**.
+- `pytest tests/bias/ -q` -> **40 passed** (untouched).
+- `manage.py check` -> "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `mypy` (CI
+  scope) -> "Success: no issues found in 101 source files".
+- `black --check .` -> only the pre-existing `scripts/verify_docs.py` (not
+  touched here).
+- `bandit` with the CI arguments -> **cannot run in this environment** (corrected
+  2026-10-24: the earlier wording said "exit 0" because `$?` was read from the
+  `tail` in the pipeline, not bandit). bandit 1.7.10 on Python 3.14 fails to load
+  its plugin set: it prints `[main] ERROR Unknown test found in profile: B104`
+  (the unknown ID varies between runs) and exits 2, and even without `-s` it
+  logs `Exception occurred when executing tests against employers/views.py`.
+  Environment/tooling, not this change; CI must confirm.
+- `scripts/verify_docs.py` -> exit 0, "All checks passed". `scripts/verify_bias_set.py`
+  -> exit 0.
+
+**Environment note for future batches.** This shell exports
+`DJANGO_SETTINGS_MODULE=config.settings.local` (from `.env`), so `env -u DEBUG`
+is *not* enough: `tests/conftest.py`'s `os.environ.setdefault` cannot override
+it, collection runs against the local settings module, and
+`tests/core/test_authz_matrix.py::test_no_parameterised_route_is_silently_uncovered`
+fails because `config.urls` is imported at collection with `DEBUG=True` and
+therefore carries the `static/` and `media/` patterns. That failure is a
+consequence of the environment, not of this change: it reproduces with the new
+route removed. The reliable invocation is `env -i` with the variables listed in
+README "Running tests":
+
+```
+env -i PATH="$PATH" HOME="$HOME" LANG=C.UTF-8 \
+  DJANGO_SETTINGS_MODULE=config.settings.ci \
+  DJANGO_SECRET_KEY=test-only-not-a-real-key \
+  ENCRYPTION_KEY=test-only-fernet-placeholder-0000000000= \
+  DB_PASSWORD=devpassword DB_HOST=127.0.0.1 \
+  REDIS_URL=redis://127.0.0.1:6379/0 \
+  CELERY_BROKER_URL=redis://127.0.0.1:6379/0 \
+  CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/1 CLAMD_HOST=127.0.0.1 \
+  .venv/bin/pytest tests/ -q
+```
+
+**Known limitations.** No AI-suggested screening questions or skills
+(REQ-FR-025's second clause, Phase 2), no `job_skills` rows, and no subscription
+job quota (no `Subscription` model yet), so the free-plan three-job limit is not
+enforced. `GET /api/v1/jobs/` answers 405 until its own batch; the jobs list is
+page #35 (batch 1.30). Draft editing/deletion (1.28) and activation/pause/close
+(1.29) are still open.
+
+### 2026-10-24 — Batches 1.28 and 1.29: draft edit/delete, and the job lifecycle
+
+**Spec first.** The batches needed endpoints no canonical document declared:
+deleting a job, and pausing/closing one. `design.md` page #37 says
+"edit/pause/close" and the §5.1 DDL has the four statuses, but Complete Doc
+§C.12 listed only `activate/`. Rather than putting verbs behind an undeclared
+resource, two amendments went in before code:
+
+- Arch Doc **§4.3 Job Posting Lifecycle** — the normative transition matrix
+  (`draft|paused -> active`, `active -> paused`, `active|paused -> closed`), the
+  `409` cases, idempotency, the draft-only edit/delete rules, the cascade
+  argument for deletion, and the audit action names.
+- Complete Doc **§C.12** — `DELETE /api/v1/jobs/{id}/`,
+  `POST /api/v1/jobs/{id}/pause/`, `POST /api/v1/jobs/{id}/close/`, and a note
+  pointing at §4.3. No table, column, foreign key or FR changed, so the 33/53/27
+  and 63 counts are untouched. `scripts/verify_docs.py` passes.
+
+**Code.** `employers/api_views.py` gained `JobDetailView` (GET/PATCH/DELETE) and
+`_JobStateView` with `JobActivateView`/`JobPauseView`/`JobCloseView`;
+`employers/serializers.py` gained `JobUpdateSerializer`; `employers/job_urls.py`
+routes them. Every write runs under `select_for_update()` inside one
+transaction, so two racing actions cannot both audit a transition. Ownership is
+still the caller's profile: another employer's id is a 404, not a 403 that would
+confirm it exists. `job.updated` stores changed field **names**, `job.deleted`
+the title, the state actions `{"from", "to"}` — no values, no candidate data.
+
+`pyproject.toml`: `employers` added to `coverage.source`, as the note in that
+file requires once an app has models; it measures 100%, and the total moved from
+94% to 95%.
+
+**Tests.** `tests/employers/test_job_edit_delete_api.py` (32) and
+`tests/employers/test_job_lifecycle_api.py` (24), plus four matrix rows and four
+`PARAMETERISED_SAMPLES` entries in `tests/core/test_authz_matrix.py`.
+
+**Commands run and results** (README CI environment; see the 2026-10-23 entry for
+why `env -u DEBUG` alone is not enough in this shell).
+
+- `pytest tests/employers/test_job_edit_delete_api.py -q` -> **32 passed**.
+- `pytest tests/employers/test_job_lifecycle_api.py -q` -> **24 passed**.
+- `pytest tests/employers/ tests/core/test_authz_matrix.py -q` -> **217 passed**.
+- `pytest tests/ -q --cov --cov-fail-under=80` -> **1033 passed, 4 skipped**,
+  **95%** total (employers 100%, matching 100%).
+- `pytest tests/bias/ -q` -> **40 passed** (untouched).
+- `manage.py check` -> "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `mypy` (CI
+  scope) -> "Success: no issues found in 101 source files".
+- `black --check .` -> only the pre-existing `scripts/verify_docs.py`.
+- `scripts/verify_docs.py` -> "All checks passed."
+- `bandit` -> **could not run**: bandit 1.7.10 on Python 3.14 fails to load its
+  plugin set (`Unknown test found in profile: B104`, varying between runs) and
+  exits 2; without `-s` it logs exceptions while executing tests. CI must
+  confirm. The 2026-10-23 entry was corrected: it had reported "exit 0" from the
+  pipeline's `tail`, not from bandit.
+
+**Known limitations.** REQ-FR-027 stays `partial`: nothing yet serves `active`
+jobs to candidates (public board, batch 1.31), so "job visible to candidates" is
+not demonstrated. A published job cannot be edited (409 by design); no revisioned
+edit flow exists. `PATCH` cannot touch `screening_questions`/`screening_config`
+for the reasons in the 1.27 entry. `GET /api/v1/jobs/` (the list, page #35) is
+still 405. No subscription quota, no scheduled close, no `job_skills`.
+
+### 2026-10-24 — Batch 1.30: employer job management UI (pages #35, #36, #37)
+
+**What changed.** The employer portal now manages jobs through HTML rather than
+only through the API. Page #35 (`/employer/jobs/`) lists the caller's jobs with
+one tab per §4.3 status and a count on each tab; page #36
+(`/employer/jobs/new/`, `/employer/jobs/{id}/edit/`) creates and edits drafts;
+page #37 (`/employer/jobs/{id}/`) shows the pipeline and offers the state
+actions. All routes are namespaced `employer_portal` and guarded by
+`employer_required` + a profile check.
+
+**One state machine, two surfaces.** `employers/services.py` is new and holds
+`change_job_status`, `delete_draft_job`, `record_job_audit` and `job_status`. The
+1.28/1.29 API views were refactored to call them, so `POST
+/api/v1/jobs/{id}/pause/` and the Pause button on page #37 run the same code:
+same lock, same idempotent no-op, same 409 sentence, same audit entry. The
+service is HTTP-free and raises `Job.DoesNotExist`; each surface maps that to its
+own 404.
+
+**What the pages do not have, deliberately.** Page #36's AI-suggested skills and
+questions are Phase 2 (REQ-FR-025's second clause); structured skills need
+`job_skills`, which has no model; screening questions are JSONB whose element
+shape no document defines, so neither the API nor the form accepts them;
+required assessments are REQ-FR-051 and have no model; page #37's share
+link/embed points at the public job URL (batch 1.33) and its screening-rules
+banner needs `screening_config` editing, so neither is rendered — a copy button
+for a 404 is worse than no button. The five-step stepper is rendered as sections
+with anchors: no step has its own validation, so a wizard would only hide fields.
+
+**Auto-save.** `POST /employer/jobs/{id}/autosave/` posts the same `JobForm` on
+`change` (600 ms debounce) and swaps the `role="status" aria-live="polite"`
+region. It answers 200 even when the draft is invalid, because HTMX does not swap
+a 4xx and a stale status line is the failure the page's a11y note is about; the
+fragment then says "Not saved: <first error>". A published job is 409. No audit
+entry is written for an unchanged or an invalid save.
+
+**Fields assert the whitelist, not a copy of it.** `JobForm.Meta.fields` is the
+`JobCreateSerializer` set. `status` and `employer` are not fields, so a body
+carrying `status=active` cannot publish (covered by a test).
+
+**Commands run and results** (README CI environment; see the 2026-10-23 entry for
+why `env -u DEBUG` alone is not enough in this shell).
+
+- `pytest tests/employers/test_job_management_ui.py -q` -> **54 passed**.
+- `pytest tests/employers tests/core tests/matching -q` -> **421 passed, 4
+  skipped**.
+- `pytest tests/core/test_authz_matrix.py -q` -> **70 passed** (11 new cases).
+- `pytest tests/ -q --cov --cov-fail-under=80` -> **1098 passed, 4 skipped**,
+  **95%** total (`employers/views.py` 98%, `employers/services.py` 100%).
+- `pytest tests/bias/ -q` -> included in the full run, **40 passed** (untouched).
+- `manage.py check` -> "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `mypy` (CI
+  scope) -> "Success: no issues found in 102 source files".
+- `black --check .` -> only the pre-existing `scripts/verify_docs.py`.
+- `scripts/verify_docs.py` -> "All checks passed."
+- `bandit` -> **could not run** for the reason in the 2026-10-23 entry (bandit
+  1.7.10 on Python 3.14 cannot load its own plugin profile). CI must confirm.
+
+**Known limitations.** `employers/views.py` lines 573-574 and 653-654 (the
+`Job.DoesNotExist` branch taken when a job is deleted between the ownership fetch
+and the row lock) are unreachable without a race and are not covered. Delete and
+Close still ask for confirmation through an inline `onsubmit="return
+confirm(...)"` rather than S11's `⋯` menu with a dialog; the server refuses a
+non-draft delete regardless. No pagination on page #35: the spec does not give a
+page size and an employer with many jobs would get one long table. REQ-FR-027
+remains `partial` until the public board (1.31) serves `active` jobs.

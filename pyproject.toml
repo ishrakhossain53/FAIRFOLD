@@ -113,7 +113,7 @@ addopts = "--strict-markers --strict-config -ra"
 # `omit` still excludes the remaining noise *within* the measured packages:
 # migrations are generated code that runs once per deploy, and `*/tests.py` and
 # `conftest.py` are test infrastructure rather than product code.
-source = ["ai", "accounts", "core", "config"]
+source = ["ai", "accounts", "core", "config", "employers", "matching"]
 omit = [
     "*/migrations/*",
     "*/tests.py",

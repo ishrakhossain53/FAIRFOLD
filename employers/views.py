@@ -26,13 +26,27 @@ from typing import Callable
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.db import transaction
+from django.db.models import Count, Max, Q
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
-from employers.forms import EmployerProfileForm
+from ai.citation import CitationError, load_rationale
+from ai.screening import bias_status_for
+from employers.forms import EmployerProfileForm, JobForm
 from employers.models import EmployerProfile
+from employers.services import (
+    CONFLICT,
+    NOOP,
+    change_job_status,
+    job_status,
+    delete_draft_job,
+    record_job_audit,
+)
+from matching.models import Application, Job
 
 
 def employer_required(view: Callable) -> Callable:
@@ -163,3 +177,485 @@ def company_edit(request: HttpRequest) -> HttpResponse:
             "form": form,
         },
     )
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET"])
+def application_rationale(request: HttpRequest, application_id) -> HttpResponse:
+    """Page #41 (S13): the AI assessment column for one application.
+
+    **Only the rationale column is built here.** S13 is a split view: the
+    anonymised resume pane is `design.md` 7.14 and batch 2.9, the assessment-gate
+    panel is REQ-FR-051, and the sticky decision bar is REQ-FR-051/052. Those are
+    later batches; offering the controls now would show buttons nothing enforces.
+
+    **Scoped to the caller's own applications.** The lookup filters on
+    `job__employer__user`, so another employer's application is a 404, not a 403
+    that would confirm the row exists. The candidate's identity is never in the
+    context: REQ-FR-029 keeps the name, photo and contact details hidden until
+    shortlist, and this page does not shortlist.
+
+    A stored rationale that no longer parses renders the error state rather than a
+    500. The score and the audit row are still true even when the payload is not
+    readable, and the employer is told exactly that.
+    """
+    application = get_object_or_404(
+        Application.objects.select_related("job", "job__employer"),
+        pk=application_id,
+        job__employer__user=request.user,
+    )
+
+    bias_status = bias_status_for(application)
+    checked: list[str] = []
+    highlights: list[str] = []
+    if bias_status.entry is not None:
+        # `details` is the documented payload (ai.bias_audit.audit_payload). Read
+        # defensively: an older row may predate a key, and a page must not 500 on
+        # a row an earlier version wrote.
+        checked = list(bias_status.entry.details.get("checked", []))
+        highlights = list(bias_status.entry.details.get("highlights", []))
+
+    rationale = None
+    error = None
+    if application.match_rationale:
+        try:
+            rationale = load_rationale(application.match_rationale)
+        except CitationError:
+            error = (
+                "The stored rationale could not be read. The score and the audit "
+                "entry are unchanged; re-screening will replace the rationale."
+            )
+    elif application.screening_status == Application.ScreeningStatus.FAILED:
+        error = application.screening_error or (
+            "Screening failed before a rationale was produced."
+        )
+
+    return render(
+        request,
+        "employers/application_rationale.html",
+        {
+            "application": application,
+            "rationale": rationale,
+            "bias_status": bias_status,
+            "checked": checked,
+            "highlights": highlights,
+            "error": error,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Job management pages (REQ-FR-025-027, pages #35-#37, batch 1.30)
+# ---------------------------------------------------------------------------
+
+#: Page #35's four tabs, in the order design.md draws them.
+JOB_TABS = (
+    (Job.Status.DRAFT, "Draft"),
+    (Job.Status.ACTIVE, "Active"),
+    (Job.Status.PAUSED, "Paused"),
+    (Job.Status.CLOSED, "Closed"),
+)
+
+#: Page #37's funnel columns (design.md W11) and the application status each
+#: one counts. `not_matched`, `rejected` and `hired` are deliberately absent:
+#: the funnel is the live pipeline, and a filter outcome is not a stage.
+JOB_FUNNEL = (
+    (Application.Status.APPLIED, "Applied"),
+    (Application.Status.SCREENED, "Screened"),
+    (Application.Status.SHORTLISTED, "Shortlisted"),
+    (Application.Status.INTERVIEW, "Interview"),
+    (Application.Status.OFFERED, "Offer"),
+)
+
+NO_PROFILE_INFO = "Set up your company profile before posting a job."
+EDIT_DRAFT_ONLY = "Only a draft job can be edited."
+DELETE_DRAFT_ONLY = "Only a draft job can be deleted."
+AUTOSAVE_NOT_SAVED = "Not saved"
+
+
+def _portal_profile(request: HttpRequest):
+    """The caller's profile, or `(None, redirect-to-onboarding)`.
+
+    A job belongs to an `EmployerProfile`, so an employer who has not onboarded
+    has nowhere to put one. Redirecting with a sentence is better than a 404: the
+    page is reachable and the next step is obvious.
+    """
+    profile = _profile_for(request.user)
+    if profile is None:
+        messages.info(request, NO_PROFILE_INFO)
+        return None, redirect("employer_portal:onboarding")
+    return profile, None
+
+
+def _owned_job(request: HttpRequest, profile: EmployerProfile, job_id) -> Job:
+    """The caller's job, or the documented 404.
+
+    Filtering by `employer` is the ownership rule: another employer's id and a
+    non-existent id render the same page, so the portal cannot be used to learn
+    that a job exists elsewhere.
+    """
+    return get_object_or_404(Job, pk=job_id, employer=profile)
+
+
+def _tabs(profile: EmployerProfile, selected: str) -> list[dict]:
+    counts = {
+        row["status"]: row["n"]
+        for row in profile.jobs.values("status").annotate(n=Count("id"))
+    }
+    return [
+        {
+            "value": value,
+            "label": label,
+            "count": counts.get(value, 0),
+            "selected": value == selected,
+        }
+        for value, label in JOB_TABS
+    ]
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET"])
+def jobs(request: HttpRequest) -> HttpResponse:
+    """Page #35: the employer's jobs, one status tab at a time.
+
+    The Active tab is the default because it is the one an employer with live
+    postings opens the page for. An unrecognised `status` value falls back to it
+    rather than raising: the tabs are links, so the value is user-visible input,
+    not an identifier.
+
+    Each row carries the same three numbers W11 shows: total applicants, the
+    applications still in `applied` (the "New" column), and the most recent
+    activity -- the job's own `updated_at` or the newest application, whichever
+    is later. Activity is an application being created, not a status change;
+    a status change writes an audit entry, not a row.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    selected = request.GET.get("status", Job.Status.ACTIVE)
+    if selected not in {value for value, _ in JOB_TABS}:
+        selected = Job.Status.ACTIVE
+
+    rows = (
+        profile.jobs.filter(status=selected)
+        .annotate(
+            applicant_count=Count("applications", distinct=True),
+            new_count=Count(
+                "applications",
+                filter=Q(applications__status=Application.Status.APPLIED),
+                distinct=True,
+            ),
+            last_application_at=Max("applications__created_at"),
+        )
+        .order_by("-created_at")
+    )
+    for job in rows:
+        job.last_activity = max(filter(None, (job.updated_at, job.last_application_at)))
+
+    return render(
+        request,
+        "employers/jobs.html",
+        {"tabs": _tabs(profile, selected), "jobs": rows, "selected": selected},
+    )
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET", "POST"])
+def job_create(request: HttpRequest) -> HttpResponse:
+    """Page #36 (create): a new job is always a draft (REQ-FR-025, §4.3).
+
+    The status is set by the view, not by the form, so the page cannot publish a
+    job: activation is the audited `job_activate` action on the overview.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    job = Job(employer=profile)
+    form = JobForm(request.POST or None, instance=job)
+
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            job = form.save(commit=False)
+            job.status = Job.Status.DRAFT
+            job.save()
+            record_job_audit(
+                actor=request.user,
+                action="job.created",
+                job=job,
+                details={"title": job.title, "status": job.status},
+            )
+        messages.success(request, "Draft saved.")
+        return redirect("employer_portal:job-edit", job_id=job.pk)
+
+    return render(
+        request,
+        "employers/job_form.html",
+        {"form": form, "job": None},
+    )
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET", "POST"])
+def job_edit(request: HttpRequest, job_id) -> HttpResponse:
+    """Page #36 (edit): a draft only (REQ-FR-026, §4.3 rule 3).
+
+    A published job redirects to its overview with the same sentence the API
+    returns in a 409. The API refuses the write; the page explains why instead
+    of rendering a form whose Save would fail.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    job = _owned_job(request, profile, job_id)
+    if job.status != Job.Status.DRAFT:
+        messages.error(request, EDIT_DRAFT_ONLY)
+        return redirect("employer_portal:job-overview", job_id=job.pk)
+
+    form = JobForm(request.POST or None, instance=job)
+
+    if request.method == "POST" and form.is_valid():
+        # `changed_data` is the form's own comparison against the loaded row, so
+        # a save that changed nothing writes no audit entry -- the same rule as
+        # the API's no-op PATCH.
+        changed = sorted(form.changed_data)
+        with transaction.atomic():
+            job = form.save()
+            if changed:
+                record_job_audit(
+                    actor=request.user,
+                    action="job.updated",
+                    job=job,
+                    details={"changed": changed},
+                )
+        messages.success(request, "Draft saved.")
+        return redirect("employer_portal:job-edit", job_id=job.pk)
+
+    return render(
+        request,
+        "employers/job_form.html",
+        {"form": form, "job": job},
+    )
+
+
+@never_cache
+@employer_required
+@require_POST
+def job_autosave(request: HttpRequest, job_id) -> HttpResponse:
+    """Page #36's auto-save: HTMX posts the form, the status region is replaced.
+
+    **200 even when the draft is invalid.** HTMX replaces only a successful
+    response by default, so a 400 would leave the status region silently stale --
+    the exact failure the a11y note on S11 is about ("autosave status text is
+    polite"). The fragment says "Not saved" and names the first error; the manual
+    Save button is the path that renders field errors and never loses input.
+
+    A published job is a 409: HTMX keeps the previous status text, and the API's
+    rule (only drafts are editable) still holds. No audit entry is written for an
+    unsuccessful or unchanged save.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    job = _owned_job(request, profile, job_id)
+    if job.status != Job.Status.DRAFT:
+        return HttpResponse(status=409)
+
+    form = JobForm(request.POST, instance=job)
+    if not form.is_valid():
+        first_error = next(
+            (str(error) for errors in form.errors.values() for error in errors),
+            "check the form",
+        )
+        return render(
+            request,
+            "employers/_autosave_status.html",
+            {"saved": False, "detail": f"{AUTOSAVE_NOT_SAVED}: {first_error}"},
+        )
+
+    changed = sorted(form.changed_data)
+    with transaction.atomic():
+        job = form.save()
+        if changed:
+            record_job_audit(
+                actor=request.user,
+                action="job.updated",
+                job=job,
+                details={"changed": changed},
+            )
+
+    return render(
+        request,
+        "employers/_autosave_status.html",
+        {"saved": True, "detail": "Draft saved", "saved_at": timezone.localtime()},
+    )
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET"])
+def job_overview(request: HttpRequest, job_id) -> HttpResponse:
+    """Page #37: the funnel, the state actions and the candidates behind them.
+
+    The funnel is a real table (design.md W11's a11y note): a `<th scope="col">`
+    per stage and one numeric cell per row, so a screen reader reads "Applied,
+    42" rather than a position on a bar.
+
+    W11's share link/embed block and its screening-rules banner are not rendered:
+    the public job URL is batch 1.33, and the rules banner needs
+    `screening_config` editing, which no batch has built. A link to a 404 is
+    worse than no link.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    job = _owned_job(request, profile, job_id)
+    counts = {
+        row["status"]: row["n"]
+        for row in job.applications.values("status").annotate(n=Count("id"))
+    }
+    stages = [
+        {"label": label, "count": counts.get(status, 0)} for status, label in JOB_FUNNEL
+    ]
+
+    return render(
+        request,
+        "employers/job_overview.html",
+        {
+            "job": job,
+            "stages": stages,
+            "applicant_total": sum(counts.values()),
+            "can_pause": job.status == Job.Status.ACTIVE,
+            "can_close": job.status in (Job.Status.ACTIVE, Job.Status.PAUSED),
+            "can_delete": job.status == Job.Status.DRAFT,
+        },
+    )
+
+
+def _apply_state_change(
+    request: HttpRequest,
+    job_id,
+    *,
+    to_status: str,
+    allowed_from: tuple[str, ...],
+    audit_action: str,
+    conflict_detail: str,
+    success_message: str,
+) -> HttpResponse:
+    """Run one §4.3 action from the portal and redirect back to the overview.
+
+    The decision is `employers.services.change_job_status`, the same function the
+    API calls. A conflict shows the API's sentence as an error message and
+    leaves the job where it was; a no-op says so without writing an entry.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    _owned_job(request, profile, job_id)
+    try:
+        outcome, job = change_job_status(
+            job_id=job_id,
+            employer=profile,
+            to_status=to_status,
+            allowed_from=allowed_from,
+            audit_action=audit_action,
+            actor=request.user,
+        )
+    except Job.DoesNotExist as exc:  # deleted between the fetch and the lock
+        raise Http404 from exc
+
+    if outcome == CONFLICT:
+        messages.error(request, conflict_detail)
+    elif outcome == NOOP:
+        messages.info(request, f"This job is already {to_status}.")
+    else:
+        messages.success(request, success_message)
+
+    return redirect("employer_portal:job-overview", job_id=job.pk)
+
+
+@never_cache
+@employer_required
+@require_POST
+def job_activate(request: HttpRequest, job_id) -> HttpResponse:
+    """`draft|paused -> active` (REQ-FR-027). Closing is terminal, so a closed
+    job cannot come back through this button."""
+    return _apply_state_change(
+        request,
+        job_id,
+        to_status=job_status(Job.Status.ACTIVE),
+        allowed_from=(job_status(Job.Status.DRAFT), job_status(Job.Status.PAUSED)),
+        audit_action="job.activated",
+        conflict_detail="A closed job cannot be reactivated. Create a new job instead.",
+        success_message="Job activated.",
+    )
+
+
+@never_cache
+@employer_required
+@require_POST
+def job_pause(request: HttpRequest, job_id) -> HttpResponse:
+    """`active -> paused`. The row and its applications are untouched."""
+    return _apply_state_change(
+        request,
+        job_id,
+        to_status=job_status(Job.Status.PAUSED),
+        allowed_from=(job_status(Job.Status.ACTIVE),),
+        audit_action="job.paused",
+        conflict_detail="Only an active job can be paused.",
+        success_message="Job paused.",
+    )
+
+
+@never_cache
+@employer_required
+@require_POST
+def job_close(request: HttpRequest, job_id) -> HttpResponse:
+    """`active|paused -> closed`. A draft is deleted, not closed (§4.3 rule 3)."""
+    return _apply_state_change(
+        request,
+        job_id,
+        to_status=job_status(Job.Status.CLOSED),
+        allowed_from=(job_status(Job.Status.ACTIVE), job_status(Job.Status.PAUSED)),
+        audit_action="job.closed",
+        conflict_detail="Only an active or paused job can be closed.",
+        success_message="Job closed.",
+    )
+
+
+@never_cache
+@employer_required
+@require_POST
+def job_delete(request: HttpRequest, job_id) -> HttpResponse:
+    """Delete a draft (§4.3 rule 4). A published job is closed instead.
+
+    The confirm dialog in W11 is client-side; the server refuses regardless,
+    because a dialog is not a permission check.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    _owned_job(request, profile, job_id)
+    try:
+        outcome, _ = delete_draft_job(
+            job_id=job_id, employer=profile, actor=request.user
+        )
+    except Job.DoesNotExist as exc:
+        raise Http404 from exc
+
+    if outcome == CONFLICT:
+        messages.error(request, DELETE_DRAFT_ONLY)
+        return redirect("employer_portal:job-overview", job_id=job_id)
+
+    messages.success(request, "Draft deleted.")
+    return redirect("employer_portal:jobs")
