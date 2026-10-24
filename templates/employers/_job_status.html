@@ -1,0 +1,13 @@
+{% comment %}
+One job's posting state, as a badge. Colour is never the only signal: the label
+is always rendered, and the colour classes only reinforce it (design.md §9).
+{% endcomment %}
+{% if status == "active" %}
+<span class="inline-flex items-center rounded-sm bg-success-soft px-2 py-1 text-body-sm font-semibold text-success-ink">{{ label }}</span>
+{% elif status == "paused" %}
+<span class="inline-flex items-center rounded-sm bg-warning-soft px-2 py-1 text-body-sm font-semibold text-warning-ink">{{ label }}</span>
+{% elif status == "closed" %}
+<span class="inline-flex items-center rounded-sm bg-surface-muted px-2 py-1 text-body-sm font-semibold text-ink-3">{{ label }}</span>
+{% else %}
+<span class="inline-flex items-center rounded-sm bg-surface-muted px-2 py-1 text-body-sm font-semibold text-ink-2">{{ label }}</span>
+{% endif %}

@@ -21,6 +21,9 @@ endpoint is not a second place to repair roles.
 
 from __future__ import annotations
 
+from django.db import transaction
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
@@ -32,7 +35,18 @@ from employers.models import EmployerProfile
 from employers.serializers import (
     EmployerProfileSerializer,
     EmployerProfileUpdateSerializer,
+    JobCreateSerializer,
+    JobSerializer,
+    JobUpdateSerializer,
 )
+from employers.services import (
+    CONFLICT,
+    change_job_status,
+    delete_draft_job,
+    job_status,
+    record_job_audit,
+)
+from matching.models import Job
 
 # One sentence for both "you have not onboarded yet" and "the row is gone".
 # A 404 here does not enumerate anything: the only row it could describe is the
@@ -47,8 +61,13 @@ COMPANY_NAME_REQUIRED = {
     "company_name": ["A company name is required to create an employer profile."]
 }
 
+# The two draft-only rules from Arch Doc §4.3. One sentence each, because the
+# client shows it verbatim and a 409 without a reason reads as a bug.
+EDIT_DRAFT_ONLY = "Only a draft job can be edited."
+DELETE_DRAFT_ONLY = "Only a draft job can be deleted."
 
-def _profile_for(user) -> EmployerProfile:
+
+def employer_profile_for(user) -> EmployerProfile:
     """Return the caller's profile or raise the API's 404."""
     profile = EmployerProfile.objects.filter(user=user).first()
     if profile is None:
@@ -76,7 +95,9 @@ class EmployerMeView(APIView):
         ),
     )
     def get(self, request) -> Response:
-        return Response(EmployerProfileSerializer(_profile_for(request.user)).data)
+        return Response(
+            EmployerProfileSerializer(employer_profile_for(request.user)).data
+        )
 
     @extend_schema(
         request=EmployerProfileUpdateSerializer,
@@ -122,3 +143,290 @@ class EmployerMeView(APIView):
             profile.save(update_fields=list(data.keys()))
 
         return Response(EmployerProfileSerializer(profile).data)
+
+
+class JobCreateView(APIView):
+    """`POST /api/v1/jobs/` -- create a **draft** job (REQ-FR-025, batch 1.27).
+
+    The caller must hold an employer role *and* have completed onboarding. A job
+    belongs to `EmployerProfile`, and an employer without one has nothing to
+    attach it to; `404` with the onboarding message is the same answer the
+    profile endpoint gives, so a client handles one case rather than two.
+
+    **Draft, always.** `status` is written here, not read from the body. REQ-FR-027
+    makes activation a separate, audited action (batch 1.29); a create call that
+    could publish would be a bypass of that.
+
+    **One audit entry per creation.** The `AuditLogEntry` docstring in
+    `core/models.py` and Complete Doc §C.4 name `"job.created"` as an example
+    action, and a job is employer-visible state that later screens against
+    candidate data. The entry carries the title and status -- employer content,
+    never candidate PII -- and an id, so the trail says what was created, by whom,
+    and when.
+
+    `GET` on this path is deliberately absent: the jobs list is a separate batch,
+    and a 405 is honest about that.
+    """
+
+    permission_classes = [IsEmployer]
+
+    @extend_schema(
+        request=JobCreateSerializer,
+        responses={201: JobSerializer},
+        summary="Create a draft job",
+        description=(
+            "Employer group only, and only after onboarding. Creates a draft; "
+            "activation is POST /api/v1/jobs/{id}/activate/. Writable: title, "
+            "description, responsibilities, requirements, nice_to_have, location, "
+            "remote_allowed, experience_level. `status` and `employer` are not "
+            "writable."
+        ),
+    )
+    def post(self, request) -> Response:
+        profile = employer_profile_for(request.user)
+
+        serializer = JobCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            job = serializer.save(employer=profile, status=Job.Status.DRAFT)
+            record_job_audit(
+                actor=request.user,
+                action="job.created",
+                job=job,
+                details={"title": job.title, "status": job.status},
+            )
+
+        return Response(JobSerializer(job).data, status=status.HTTP_201_CREATED)
+
+
+def owned_job(profile: EmployerProfile, job_id) -> Job:
+    """The caller's job, or the API's 404.
+
+    Filtering by `employer` rather than fetching by id and comparing afterwards is
+    the ownership rule: another employer's id is indistinguishable from an id that
+    does not exist, so the response cannot be used to enumerate jobs.
+    """
+    return get_object_or_404(Job, pk=job_id, employer=profile)
+
+
+def owned_job_for_update(profile: EmployerProfile, job_id) -> Job:
+    """`owned_job` with a row lock. Call only inside `transaction.atomic()`.
+
+    Two state changes racing on one job would otherwise both read `draft` and
+    both write an audit entry; the lock makes the second request see the first
+    request's status and take the no-op branch in `_JobStateView`.
+    """
+    return get_object_or_404(
+        Job.objects.select_for_update(), pk=job_id, employer=profile
+    )
+
+
+class JobDetailView(APIView):
+    """`GET`, `PATCH` and `DELETE` on `/api/v1/jobs/{id}/` (REQ-FR-026, batch 1.28).
+
+    **`GET` is the read side of the edit form.** Complete Doc §C.12 declares it,
+    and a client that can `PATCH` a resource but not read it would have to keep
+    its own copy of every field it wants to edit.
+
+    **`PATCH` is draft-only** (Arch Doc §4.3, rule 3). Editing a live job changes
+    the text candidates applied to without a revision trail, so an active, paused
+    or closed job answers `409` with the sentence in `EDIT_DRAFT_ONLY`; the way to
+    change a published job is to close it and post a new one. `status` and
+    `employer` are not in the serializer, so neither can be written here.
+
+    **`DELETE` is draft-only and hard** (rule 4). Every §5.1 reference to `jobs`
+    cascades, so deleting a published job would destroy its applications and
+    interviews. A draft has none by construction.
+
+    Both writes record one entry inside the same transaction as the change, so a
+    rolled-back write leaves no audit entry claiming it happened.
+    """
+
+    permission_classes = [IsEmployer]
+
+    @extend_schema(responses={200: JobSerializer}, summary="Get a job")
+    def get(self, request, job_id) -> Response:
+        profile = employer_profile_for(request.user)
+        return Response(JobSerializer(owned_job(profile, job_id)).data)
+
+    @extend_schema(
+        request=JobUpdateSerializer,
+        responses={200: JobSerializer},
+        summary="Update a draft job",
+        description=(
+            "Employer group only, owner only. Draft status only: any other "
+            "status is 409. Writable: title, description, responsibilities, "
+            "requirements, nice_to_have, location, remote_allowed, "
+            "experience_level. `status` and `employer` are not writable."
+        ),
+    )
+    def patch(self, request, job_id) -> Response:
+        profile = employer_profile_for(request.user)
+
+        with transaction.atomic():
+            job = owned_job_for_update(profile, job_id)
+            if job.status != Job.Status.DRAFT:
+                return Response(
+                    {"detail": EDIT_DRAFT_ONLY}, status=status.HTTP_409_CONFLICT
+                )
+
+            serializer = JobUpdateSerializer(job, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+
+            # Field *names*, never values: `job.updated` must not become a second
+            # copy of employer-entered text in an append-only table. A PATCH that
+            # changes nothing (an auto-save firing on an untouched form) is a
+            # no-op and does not add an entry.
+            changed = sorted(
+                field
+                for field, value in serializer.validated_data.items()
+                if getattr(job, field) != value
+            )
+            if changed:
+                serializer.save()
+                record_job_audit(
+                    actor=request.user,
+                    action="job.updated",
+                    job=job,
+                    details={"changed": changed},
+                )
+
+        return Response(JobSerializer(job).data)
+
+    @extend_schema(
+        responses={204: None},
+        summary="Delete a draft job",
+        description="Employer group only, owner only. Draft status only: any other status is 409.",
+    )
+    def delete(self, request, job_id) -> Response:
+        profile = employer_profile_for(request.user)
+
+        try:
+            outcome, _ = delete_draft_job(
+                job_id=job_id, employer=profile, actor=request.user
+            )
+        except Job.DoesNotExist as exc:
+            raise Http404 from exc
+
+        if outcome == CONFLICT:
+            return Response(
+                {"detail": DELETE_DRAFT_ONLY}, status=status.HTTP_409_CONFLICT
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class _JobStateView(APIView):
+    """Shared implementation of the three Arch Doc §4.3 state actions.
+
+    The subclasses below differ only in data, so the transition check, the lock,
+    the no-op rule and the audit entry are written once. `status` is the only
+    field written: the action endpoints cannot be used to smuggle a content edit
+    past the draft-only rule on `PATCH`.
+    """
+
+    permission_classes = [IsEmployer]
+
+    #: The status this action writes.
+    to_status: str = ""
+    #: Statuses this action may leave. Anything else is a 409.
+    allowed_from: tuple[str, ...] = ()
+    #: Audit action recorded on an effective change.
+    audit_action: str = ""
+    #: Sentence returned when the transition is not in the §4.3 matrix.
+    conflict_detail: str = ""
+
+    def post(self, request, job_id) -> Response:
+        profile = employer_profile_for(request.user)
+
+        try:
+            # One implementation of the §4.3 matrix, shared with the employer
+            # portal (`employers.services`). The service locks the row, applies
+            # the no-op rule and writes the audit entry.
+            outcome, job = change_job_status(
+                job_id=job_id,
+                employer=profile,
+                to_status=self.to_status,
+                allowed_from=self.allowed_from,
+                audit_action=self.audit_action,
+                actor=request.user,
+            )
+        except Job.DoesNotExist as exc:
+            raise Http404 from exc
+
+        if outcome == CONFLICT:
+            return Response(
+                {"detail": self.conflict_detail},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(JobSerializer(job).data)
+
+
+@extend_schema(
+    request=None,
+    responses={200: JobSerializer},
+    summary="Activate a draft or paused job",
+    description=(
+        "REQ-FR-027. draft|paused -> active; activating an active job is a no-op. "
+        "A closed job cannot be reactivated (409)."
+    ),
+)
+class JobActivateView(_JobStateView):
+    """`POST /api/v1/jobs/{id}/activate/` -- publish, or resume a paused job.
+
+    Resume reuses this endpoint rather than adding a fourth URL: the action is
+    "make this job live again", and the §4.3 matrix allows it from `draft` and
+    `paused`. A closed job is terminal -- employers who want to rehire post a new
+    job, which keeps the old job's applications attached to the terms candidates
+    actually applied to.
+    """
+
+    to_status = job_status(Job.Status.ACTIVE)
+    allowed_from = (job_status(Job.Status.DRAFT), job_status(Job.Status.PAUSED))
+    audit_action = "job.activated"
+    conflict_detail = "A closed job cannot be reactivated. Create a new job instead."
+
+
+@extend_schema(
+    request=None,
+    responses={200: JobSerializer},
+    summary="Pause an active job",
+    description="active -> paused; pausing a paused job is a no-op. Any other status is 409.",
+)
+class JobPauseView(_JobStateView):
+    """`POST /api/v1/jobs/{id}/pause/` -- stop accepting applications.
+
+    The row, its applications and its audit trail are untouched (rule 5); only
+    visibility and the ability to apply stop. A draft was never published, so
+    there is nothing to pause and the answer is 409.
+    """
+
+    to_status = job_status(Job.Status.PAUSED)
+    allowed_from = (job_status(Job.Status.ACTIVE),)
+    audit_action = "job.paused"
+    conflict_detail = "Only an active job can be paused."
+
+
+@extend_schema(
+    request=None,
+    responses={200: JobSerializer},
+    summary="Close a job",
+    description=(
+        "active|paused -> closed; closing a closed job is a no-op. A draft is "
+        "deleted rather than closed (409)."
+    ),
+)
+class JobCloseView(_JobStateView):
+    """`POST /api/v1/jobs/{id}/close/` -- retire the posting for good.
+
+    Closing is the documented way to take a published job down (rule 3): the row
+    and its applications stay for the audit trail and for analytics. Drafts are
+    deleted instead, because they have no history to keep.
+    """
+
+    to_status = job_status(Job.Status.CLOSED)
+    allowed_from = (job_status(Job.Status.ACTIVE), job_status(Job.Status.PAUSED))
+    audit_action = "job.closed"
+    conflict_detail = "Only an active or paused job can be closed."

@@ -42,15 +42,15 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.23 Employer profile model (2026-10-22, 13 passed in tests/employers/test_employer_profile_model.py; full suite 855 passed / 4 skipped)
 - [x] 1.24 Employer onboarding API (2026-10-22, 28 passed in tests/employers/test_employer_profile_api.py, 121 with the authz matrix; full suite 855 passed / 4 skipped)
 - [x] 1.25 Employer onboarding UI (2026-10-22, 29 passed in tests/employers/test_employer_onboarding_ui.py, 70 in tests/employers/; full suite 855 passed / 4 skipped)
-- [ ] 1.26 Job model
-- [ ] 1.27 Create draft job API
-- [ ] 1.28 Edit and delete draft jobs
-- [ ] 1.29 Activate, pause and close jobs
-- [ ] 1.30 Employer job management UI
+- [x] 1.26 Job model (2026-10-24; `matching/models.py` `Job` + `matching/migrations/0001_initial.py`; 20 passed in tests/matching/test_job_application_models.py, matching/models.py 100% line coverage)
+- [x] 1.27 Create draft job API (2026-10-23, 20 passed in tests/employers/test_job_create_api.py, 175 in tests/employers/ + tests/matching/ + authz matrix; full suite 971 passed / 4 skipped with the README CI env)
+- [x] 1.28 Edit and delete draft jobs (2026-10-24; GET/PATCH/DELETE /api/v1/jobs/{id}/; 32 passed in tests/employers/test_job_edit_delete_api.py, 217 in tests/employers/ + authz matrix; full suite 1033 passed / 4 skipped, coverage 94% with `employers` now in the gate)
+- [x] 1.29 Activate, pause and close jobs (2026-10-24; Arch Doc §4.3 transition matrix; 24 passed in tests/employers/test_job_lifecycle_api.py; full suite 1033 passed / 4 skipped)
+- [x] 1.30 Employer job management UI (2026-10-24; pages #35/#36/#37 at `/employer/jobs/`, `/employer/jobs/new/`, `/employer/jobs/{id}/edit/`, `/employer/jobs/{id}/`; 54 passed in tests/employers/test_job_management_ui.py, 11 new authz matrix cases, full suite 1098 passed / 4 skipped, coverage 95%)
 - [ ] 1.31 Public job list and detail API
 - [ ] 1.32 Search, filters, ordering and pagination
 - [ ] 1.33 Public job board UI
-- [ ] 1.34 Application model
+- [ ] 1.34 Application model (model + migration landed 2026-10-22 as a prerequisite of 2.27; awaiting your test output)
 - [ ] 1.35 Per-employer candidate alias service
 - [ ] 1.36 Apply to a job API
 - [ ] 1.37 Apply UI
@@ -91,10 +91,10 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [ ] 2.23 Outbound PII gate
 - [ ] 2.24 Rationale schema and validation
 - [ ] 2.25 Rationale generation for one application
-- [ ] 2.26 Integrate the bias audit
-- [ ] 2.27 Store rationale with audit entry
-- [ ] 2.28 Evidence traceability tests
-- [ ] 2.29 Rationale detail UI
+- [ ] 2.26 Integrate the bias audit (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
+- [ ] 2.27 Store rationale with audit entry (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
+- [ ] 2.28 Evidence traceability tests (code + tests landed 2026-10-22; citation validator at 100% line coverage; awaiting your test output)
+- [ ] 2.29 Rationale detail UI (page #41 rationale column built 2026-10-22; evidence, missing skills, bias status, AI mark, error/empty states; awaiting your test output)
 - [ ] 2.30 Decide where screening-run state lives (spec first)
 - [ ] 2.31 Server-side cost estimator
 - [ ] 2.32 Preflight and explicit confirmation

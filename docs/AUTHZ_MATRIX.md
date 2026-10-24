@@ -52,6 +52,18 @@ layer's answer or is refused before the serializer runs.
 | `/employer/onboarding/` | POST | 302 | 403 | 200 | 403 | employer-only create; an empty body re-renders with the required-field error (batch 1.25) |
 | `/employer/company/` | GET | 302 | 403 | 302 | 403 | employer-only company page; no profile → onboarding (batch 1.25) |
 | `/employer/company/edit/` | POST | 302 | 403 | 302 | 403 | employer-only edit; no profile → onboarding (batch 1.25) |
+| `/employer/jobs/` | GET | 302 | 403 | 302 | 403 | employer-only jobs list (page #35); no profile → onboarding (batch 1.30) |
+| `/employer/jobs/new/` | GET | 302 | 403 | 302 | 403 | employer-only create form (page #36); no profile → onboarding (batch 1.30) |
+| `/employer/jobs/new/` | POST | 302 | 403 | 302 | 403 | creates a draft, never anything else; the status is not a form field (batch 1.30) |
+| `/employer/jobs/{id}/` | GET | 302 | 403 | 302 | 403 | employer-only job overview (page #37); another employer's id is a 404 (batch 1.30) |
+| `/employer/jobs/{id}/edit/` | GET | 302 | 403 | 302 | 403 | employer-only edit form (page #36); published jobs redirect to the overview (batch 1.30) |
+| `/employer/jobs/{id}/edit/` | POST | 302 | 403 | 302 | 403 | saves a draft, writes `job.updated` only for changed fields (batch 1.30) |
+| `/employer/jobs/{id}/autosave/` | POST | 302 | 403 | 302 | 403 | HTMX auto-save for a draft; published jobs are 409 (batch 1.30) |
+| `/employer/jobs/{id}/activate/` | POST | 302 | 403 | 302 | 403 | §4.3 `draft\|paused -> active` as a form, audited (batch 1.30) |
+| `/employer/jobs/{id}/pause/` | POST | 302 | 403 | 302 | 403 | §4.3 `active -> paused` as a form, audited (batch 1.30) |
+| `/employer/jobs/{id}/close/` | POST | 302 | 403 | 302 | 403 | §4.3 `active\|paused -> closed` as a form, audited (batch 1.30) |
+| `/employer/jobs/{id}/delete/` | POST | 302 | 403 | 302 | 403 | deletes a draft only; a published job is refused (batch 1.30) |
+| `/employer/applications/{id}/` | GET | 302 | 403 | 404 | 403 | employer-only page #41 (S13) AI assessment; scoped to the caller's own jobs, so an unknown or another employer's application is a 404 (batches 2.26-2.29) |
 | `/django-admin/` | GET | 302 | 302 | 302 | 200 | staff-only; non-staff go to the admin login |
 | `/api/v1/` | GET | 200 | 200 | 200 | 200 | public API index (URL prefixes only) |
 | `/api/v1/auth/register/` | POST | 400 | 400 | 400 | 400 | public by necessity; empty body fails validation |
@@ -71,6 +83,13 @@ layer's answer or is refused before the serializer runs.
 | `/api/v1/candidates/resumes/{id}/` | GET | **401** | 404 | 403 | 403 | candidate-only and owner-only; "not yours" and "no such row" are the same 404 (batch 1.21) |
 | `/api/v1/candidates/resumes/{id}/` | DELETE | **401** | 404 | 403 | 403 | candidate-only and owner-only; hard delete of row + object, audited without PII (batch 1.21) |
 | `/api/v1/employers/me/` | GET | **401** | 403 | 404 | 403 | employer-only; 404 until onboarding; PATCH is covered by `tests/employers/test_employer_profile_api.py` (batch 1.24) |
+| `/api/v1/jobs/` | POST | **401** | 403 | 404 | 403 | employer-only; 404 until onboarding; creates a draft only, `status` is not writable (batch 1.27) |
+| `/api/v1/jobs/{id}/` | GET | **401** | 403 | 404 | 403 | employer-only and owner-only; another employer's id is the same 404 (batch 1.28) |
+| `/api/v1/jobs/{id}/` | PATCH | **401** | 403 | 404 | 403 | draft only; a published job is 409 (batch 1.28) |
+| `/api/v1/jobs/{id}/` | DELETE | **401** | 403 | 404 | 403 | draft only; a published job is 409 because every `jobs` reference cascades (batch 1.28) |
+| `/api/v1/jobs/{id}/activate/` | POST | **401** | 403 | 404 | 403 | `draft`/`paused` -> `active`; closed is 409, active is a no-op (batch 1.29) |
+| `/api/v1/jobs/{id}/pause/` | POST | **401** | 403 | 404 | 403 | `active` -> `paused`; anything else but a repeat is 409 (batch 1.29) |
+| `/api/v1/jobs/{id}/close/` | POST | **401** | 403 | 404 | 403 | `active`/`paused` -> `closed`; a draft is 409 (batch 1.29) |
 | `/api/v1/accounts/` | GET | **401** | 200 | 200 | 200 | DRF router root inherits the global default |
 | `/api/v1/candidates/` | GET | **401** | 200 | 200 | 200 | same |
 | `/api/v1/employers/` | GET | **401** | 200 | 200 | 200 | same |

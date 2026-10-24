@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% comment %}
+Page #37 (design.md W11): one job's pipeline and its state actions.
+
+The funnel is a `<table>` with a `<th scope="col">` per stage, as W11's a11y
+note requires: a bar chart drawn with divs has no reading order. The counts are
+deliberately not colour-coded by stage -- a number is not a status.
+
+Actions are forms, not links: pause, close, activate and delete all change state,
+and a GET that changes state can be fired by a prefetch or a crawler. The server
+re-checks every transition, so a hidden button is not the protection.
+
+W11 also draws a share link/embed block and a screening-rules banner. Neither is
+rendered: the public job URL is batch 1.33 (a copy button for a 404 is worse than
+no button), and the banner needs `screening_config` editing, which no batch has
+built. The banner becomes mandatory when screening ships -- it is the surface
+that keeps `not_matched` candidates reviewable (REQ-FR-029).
+{% endcomment %}
+
+{% block title %}{{ job.title }} · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-content px-4 py-4 sm:py-8">
+  <a href="{% url 'employer_portal:jobs' %}"
+     class="text-body-sm font-medium text-primary-strong underline">← Jobs</a>
+
+  <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <div class="flex flex-wrap items-center gap-3">
+        <h1 class="text-h1 font-bold text-ink">{{ job.title }}</h1>
+        {% include "employers/_job_status.html" with status=job.status label=job.get_status_display %}
+      </div>
+      <p class="mt-2 text-body-sm text-ink-3">
+        {% if job.location %}{{ job.location }}{% else %}No location set{% endif %}
+        · {% if job.remote_allowed %}Remote allowed{% else %}On-site or hybrid{% endif %}
+        · {% if job.experience_level %}{{ job.get_experience_level_display }}{% else %}Level not set{% endif %}
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      {% if job.status == "draft" %}
+      <a href="{% url 'employer_portal:job-edit' job.pk %}"
+         class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+        Edit
+      </a>
+      {% endif %}
+
+      {% if job.status == "draft" or job.status == "paused" %}
+      <form method="post" action="{% url 'employer_portal:job-activate' job.pk %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-4 text-body-sm font-semibold text-white hover:bg-primary-strong">
+          {% if job.status == "paused" %}Resume{% else %}Activate{% endif %}
+        </button>
+      </form>
+      {% endif %}
+
+      {% if can_pause %}
+      <form method="post" action="{% url 'employer_portal:job-pause' job.pk %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+          Pause
+        </button>
+      </form>
+      {% endif %}
+
+      {% if can_close %}
+      <form method="post" action="{% url 'employer_portal:job-close' job.pk %}"
+            onsubmit="return confirm('Close this job? It stops accepting applications and cannot be reactivated.');">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+          Close
+        </button>
+      </form>
+      {% endif %}
+
+      {% if can_delete %}
+      <form method="post" action="{% url 'employer_portal:job-delete' job.pk %}"
+            onsubmit="return confirm('Delete this draft? This cannot be undone.');">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-semibold text-danger underline">
+          Delete draft
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if job.status == "closed" %}
+  <p class="mt-4 rounded-md border border-border bg-surface-muted p-4 text-body-sm text-ink-2">
+    This job is closed. It keeps its applications and its audit trail, but it no
+    longer accepts new ones. Post a new job to hire for the role again.
+  </p>
+  {% elif job.status == "paused" %}
+  <p class="mt-4 rounded-md border border-border bg-warning-soft p-4 text-body-sm text-warning-ink">
+    This job is paused. It is not visible to candidates, and existing
+    applications keep their status.
+  </p>
+  {% elif job.status == "draft" %}
+  <p class="mt-4 rounded-md border border-border bg-surface-muted p-4 text-body-sm text-ink-2">
+    This job is a draft. Only you can see it. Activate it when the text is ready.
+  </p>
+  {% endif %}
+
+  <section aria-labelledby="pipeline-heading" class="mt-6">
+    <h2 id="pipeline-heading" class="text-h4 font-semibold text-ink">Pipeline</h2>
+    <div class="mt-3 overflow-x-auto rounded-md border border-border bg-surface shadow-card">
+      <table class="w-full min-w-[34rem] text-left text-body-sm">
+        <caption class="sr-only">Applications by stage</caption>
+        <thead class="border-b border-border text-ink-3">
+          <tr>
+            {% for stage in stages %}
+            <th scope="col" class="px-4 py-3 font-medium">{{ stage.label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {% for stage in stages %}
+            <td class="px-4 py-4 text-h4 font-semibold text-ink">{{ stage.count }}</td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2 text-body-sm text-ink-3">
+      {{ applicant_total }} application{{ applicant_total|pluralize }} in total.
+      {% if applicant_total == 0 %}Nothing has been submitted to this job yet.{% endif %}
+    </p>
+  </section>
+
+  <section aria-labelledby="posting-heading" class="mt-6">
+    <h2 id="posting-heading" class="text-h4 font-semibold text-ink">Posting</h2>
+    <dl class="mt-3 space-y-3 rounded-md border border-border bg-surface p-5 text-body-sm shadow-card">
+      <div>
+        <dt class="font-semibold text-ink">Created</dt>
+        <dd class="mt-1 text-ink-2"><time datetime="{{ job.created_at|date:'c' }}">{{ job.created_at|date:"j M Y, H:i" }}</time></dd>
+      </div>
+      <div>
+        <dt class="font-semibold text-ink">Last updated</dt>
+        <dd class="mt-1 text-ink-2"><time datetime="{{ job.updated_at|date:'c' }}">{{ job.updated_at|date:"j M Y, H:i" }}</time></dd>
+      </div>
+      <div>
+        <dt class="font-semibold text-ink">Description</dt>
+        <dd class="mt-1 whitespace-pre-line break-words text-ink-2">{{ job.description|default:"Not written yet." }}</dd>
+      </div>
+      <div>
+        <dt class="font-semibold text-ink">Requirements</dt>
+        <dd class="mt-1 whitespace-pre-line break-words text-ink-2">{{ job.requirements|default:"Not written yet." }}</dd>
+      </div>
+    </dl>
+  </section>
+</div>
+{% endblock %}

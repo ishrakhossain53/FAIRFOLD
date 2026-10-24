@@ -31,6 +31,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from employers.models import EmployerProfile
+from matching.models import Job
 
 
 class EmployerProfileSerializer(serializers.ModelSerializer):
@@ -78,3 +79,92 @@ class EmployerProfileUpdateSerializer(serializers.Serializer):
     )
     company_size = serializers.IntegerField(required=False, allow_null=True)
     show_company_name = serializers.BooleanField(required=False)
+
+
+# ---------------------------------------------------------------------------
+# Jobs (REQ-FR-025, Complete Doc §C.12 `POST /api/v1/jobs/`, batch 1.27)
+# ---------------------------------------------------------------------------
+
+
+class JobCreateSerializer(serializers.ModelSerializer):
+    """The `POST /api/v1/jobs/` body.
+
+    **A creation endpoint produces a draft or nothing.** `status` is not a field
+    here: publishing is `POST /api/v1/jobs/{id}/activate/` (REQ-FR-027, batch
+    1.29), and a create body that could set `status="active"` would be a second,
+    unaudited activation path. The view writes `draft` explicitly.
+
+    **`employer` is not a field either.** It comes from the caller's profile, so
+    one employer cannot post a job under another's name. This is the same
+    structural ownership rule as `EmployerProfileSerializer`: there is nowhere in
+    the request to put a different owner.
+
+    **Not writable yet, and why.** `screening_questions` is filled by the AI
+    suggestion step in REQ-FR-025 (Phase 2) and its element shape is not
+    specified in any document, so accepting a list here would invent a contract.
+    `screening_config` is the Gap-G3 rule set with its own version bump; writing
+    it through creation would bypass the versioning that makes a `not_matched`
+    result replayable. `cost_estimate`, `ai_model_used` and the embedding are
+    produced by later batches. All keep their model defaults.
+
+    `description` is optional because the DDL allows a job with no description
+    and page #36 auto-saves a draft while the employer is still typing.
+    """
+
+    class Meta:
+        model = Job
+        fields = (
+            "title",
+            "description",
+            "responsibilities",
+            "requirements",
+            "nice_to_have",
+            "location",
+            "remote_allowed",
+            "experience_level",
+        )
+
+
+class JobSerializer(serializers.ModelSerializer):
+    """The `POST /api/v1/jobs/` response body.
+
+    The `id` is included because the client needs it for `PATCH` and
+    `activate/`; the owner is not, because the caller is the owner. Timestamps
+    let the jobs list (page #35) show "last activity" without a second request.
+    """
+
+    class Meta:
+        model = Job
+        fields = (
+            "id",
+            "title",
+            "description",
+            "responsibilities",
+            "requirements",
+            "nice_to_have",
+            "location",
+            "remote_allowed",
+            "experience_level",
+            "status",
+            "screening_questions",
+            "screening_config_version",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class JobUpdateSerializer(JobCreateSerializer):
+    """The `PATCH /api/v1/jobs/{id}/` body (REQ-FR-026, batch 1.28).
+
+    The writable set is the creation set, deliberately: a field an employer can
+    type into a draft is a field they can correct in it, and a field the create
+    path refuses (`status`, `employer`, `screening_config`) is not writable here
+    either. The view applies it with `partial=True`, so page #36's auto-save can
+    send one changed field at a time.
+
+    **`status` still cannot be written.** The Arch Doc §4.3 lifecycle table is
+    enforced by the action endpoints; a `PATCH` that could set `active` would be
+    an unaudited publishing path, and one that could set `closed` would skip the
+    retention rule.
+    """

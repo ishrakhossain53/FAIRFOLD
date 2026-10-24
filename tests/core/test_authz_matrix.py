@@ -249,6 +249,112 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 302,
         "admin": 403,
     },
+    # ---- employer job management (pages #35-#37, batch 1.30) -----------
+    # The employer actor has no profile in this fixture, so every page below
+    # forwards to onboarding (302) before it looks at anything else. That is the
+    # documented empty state, not a permission decision.
+    "/employer/jobs/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    "/employer/jobs/new/": {
+        "methods": {
+            "get": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 302,
+                "admin": 403,
+            },
+            "post": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 302,
+                "admin": 403,
+            },
+        },
+    },
+    # Page #37. Without a profile the redirect happens before the job lookup,
+    # so the nil UUID never has to exist for this row to be meaningful. The
+    # owner path and the 404 for another employer are in
+    # tests/employers/test_job_management_ui.py.
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    # Page #36 in edit mode. POST is a draft save, not a state action: the
+    # status is never writable from the form (REQ-FR-027).
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/edit/": {
+        "methods": {
+            "get": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 302,
+                "admin": 403,
+            },
+            "post": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 302,
+                "admin": 403,
+            },
+        },
+    },
+    # Page #36's auto-save (HTMX). Same guard order as the edit page.
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/autosave/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    # The four §4.3 actions, POST-only. The matrix's empty body never reaches
+    # the transition: the profile redirect comes first, and for an owner the
+    # service refuses an off-matrix move with the API's 409.
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/activate/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/pause/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/close/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/delete/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    # Page #41 (S13), the AI assessment column. The matrix requests the nil
+    # UUID, which exists nowhere, so the employer actor gets the same 404 another
+    # employer would for a real application. The 200 path is proved by
+    # tests/employers/test_application_rationale_ui.py, which builds a job.
+    "/employer/applications/00000000-0000-0000-0000-000000000000/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
     # Django admin: anonymous and non-staff are redirected to its login page.
     # This is the only route where the admin actor sees something the employer
     # does not, and it is enforced by `is_staff`, not by a role group.
@@ -411,6 +517,68 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 404,
         "admin": 403,
     },
+    # Draft-job creation (REQ-FR-025, batch 1.27). The employer actor has no
+    # company profile in this fixture, so the permission check passes and the
+    # onboarding check answers 404 -- the same shape as the profile endpoint
+    # above. The empty POST body never reaches the serializer for any of the
+    # denied actors. Body validation and ownership are covered by
+    # tests/employers/test_job_create_api.py.
+    "/api/v1/jobs/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
+    # Job detail and the three state actions (REQ-FR-026/027, batches 1.28/1.29).
+    # Same shape as the collection: the employer actor has no company profile in
+    # this fixture, so the onboarding check answers 404 after the permission
+    # check passes. Ownership (another employer's id is also 404), the 409
+    # transitions and the draft-only rules are covered by
+    # tests/employers/test_job_edit_delete_api.py and test_job_lifecycle_api.py.
+    "/api/v1/jobs/00000000-0000-0000-0000-000000000000/": {
+        "methods": {
+            "get": {
+                "anonymous": 401,
+                "candidate": 403,
+                "employer": 404,
+                "admin": 403,
+            },
+            "patch": {
+                "anonymous": 401,
+                "candidate": 403,
+                "employer": 404,
+                "admin": 403,
+            },
+            "delete": {
+                "anonymous": 401,
+                "candidate": 403,
+                "employer": 404,
+                "admin": 403,
+            },
+        },
+    },
+    "/api/v1/jobs/00000000-0000-0000-0000-000000000000/activate/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
+    "/api/v1/jobs/00000000-0000-0000-0000-000000000000/pause/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
+    "/api/v1/jobs/00000000-0000-0000-0000-000000000000/close/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
     # DRF router roots for apps whose viewsets have not landed yet. They inherit
     # the global IsAuthenticated default; they must not become public just
     # because they list nothing.
@@ -475,6 +643,24 @@ PARAMETERISED_SAMPLES = {
     "/api/v1/candidates/resumes/<uuid:pk>/": (
         f"/api/v1/candidates/resumes/{SAMPLE_UUID}/"
     ),
+    "/employer/applications/<uuid:application_id>/": (
+        f"/employer/applications/{SAMPLE_UUID}/"
+    ),
+    "/employer/jobs/<uuid:job_id>/": (f"/employer/jobs/{SAMPLE_UUID}/"),
+    "/employer/jobs/<uuid:job_id>/edit/": (f"/employer/jobs/{SAMPLE_UUID}/edit/"),
+    "/employer/jobs/<uuid:job_id>/autosave/": (
+        f"/employer/jobs/{SAMPLE_UUID}/autosave/"
+    ),
+    "/employer/jobs/<uuid:job_id>/activate/": (
+        f"/employer/jobs/{SAMPLE_UUID}/activate/"
+    ),
+    "/employer/jobs/<uuid:job_id>/pause/": (f"/employer/jobs/{SAMPLE_UUID}/pause/"),
+    "/employer/jobs/<uuid:job_id>/close/": (f"/employer/jobs/{SAMPLE_UUID}/close/"),
+    "/employer/jobs/<uuid:job_id>/delete/": (f"/employer/jobs/{SAMPLE_UUID}/delete/"),
+    "/api/v1/jobs/<uuid:job_id>/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/",
+    "/api/v1/jobs/<uuid:job_id>/activate/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/activate/",
+    "/api/v1/jobs/<uuid:job_id>/pause/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/pause/",
+    "/api/v1/jobs/<uuid:job_id>/close/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/close/",
 }
 
 
