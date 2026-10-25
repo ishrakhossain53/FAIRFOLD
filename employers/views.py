@@ -21,7 +21,7 @@ than by a query parameter, and the authorization matrix can state both answers.
 from __future__ import annotations
 
 from functools import wraps
-from typing import Callable
+from typing import Callable, Mapping
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -42,8 +42,8 @@ from employers.services import (
     CONFLICT,
     NOOP,
     change_job_status,
-    job_status,
     delete_draft_job,
+    job_status,
     record_job_audit,
 )
 from matching.models import Application, Job
@@ -298,6 +298,30 @@ def _owned_job(request: HttpRequest, profile: EmployerProfile, job_id) -> Job:
     return get_object_or_404(Job, pk=job_id, employer=profile)
 
 
+#: Page #36's four long-text fields, in the form's order (design.md 7.22). The
+#: labels come from `JobForm` rather than a second copy, so renaming a field in
+#: the form renames it in the preview too.
+PREVIEW_FIELDS = tuple(
+    (JobForm.base_fields[name].label, name)
+    for name in ("description", "responsibilities", "requirements", "nice_to_have")
+)
+
+
+def _preview_context(values: Mapping[str, str | None]) -> dict:
+    """Context for the live preview fragment, from a bound form or a POST.
+
+    Trimming here means a field containing only whitespace keeps the empty state
+    instead of rendering an empty paragraph.
+    """
+    fields = [
+        (label, (values.get(name) or "").strip()) for label, name in PREVIEW_FIELDS
+    ]
+    return {
+        "preview_fields": fields,
+        "preview_empty": not any(text for _, text in fields),
+    }
+
+
 def _tabs(profile: EmployerProfile, selected: str) -> list[dict]:
     counts = {
         row["status"]: row["n"]
@@ -395,7 +419,13 @@ def job_create(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "employers/job_form.html",
-        {"form": form, "job": None},
+        {
+            "form": form,
+            "job": None,
+            **_preview_context(
+                {name: form[name].value() for _, name in PREVIEW_FIELDS}
+            ),
+        },
     )
 
 
@@ -440,7 +470,36 @@ def job_edit(request: HttpRequest, job_id) -> HttpResponse:
     return render(
         request,
         "employers/job_form.html",
-        {"form": form, "job": job},
+        {
+            "form": form,
+            "job": job,
+            **_preview_context(
+                {name: form[name].value() for _, name in PREVIEW_FIELDS}
+            ),
+        },
+    )
+
+
+@never_cache
+@employer_required
+@require_POST
+def job_markdown_preview(request: HttpRequest) -> HttpResponse:
+    """Page #36's live preview (design.md 7.22).
+
+    Read-only by construction: it renders the four submitted strings, writes no
+    row, writes no audit entry and does not look up a job -- so it works on the
+    create page before the first draft exists. `employer_required` plus the same
+    onboarding redirect as the form keeps it from becoming an anonymous Markdown
+    renderer; `core.markdown` escapes the input either way.
+    """
+    _profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    return render(
+        request,
+        "employers/_job_markdown_preview.html",
+        _preview_context(request.POST),
     )
 
 

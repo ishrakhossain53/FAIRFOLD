@@ -31,6 +31,11 @@ urlpatterns = [
     # reject it either way.
     path("jobs/", views.jobs, name="jobs"),
     path("jobs/new/", views.job_create, name="job-create"),
+    # Page #36's live preview (design.md 7.22). Fixed path, no job id: it renders
+    # the four posted strings and never reads a row, so the create page can use
+    # it before a draft exists. It must precede the UUID route for readability;
+    # the converter would reject "preview" either way.
+    path("jobs/preview/", views.job_markdown_preview, name="job-preview"),
     path("jobs/<uuid:job_id>/", views.job_overview, name="job-overview"),
     path("jobs/<uuid:job_id>/edit/", views.job_edit, name="job-edit"),
     path("jobs/<uuid:job_id>/autosave/", views.job_autosave, name="job-autosave"),

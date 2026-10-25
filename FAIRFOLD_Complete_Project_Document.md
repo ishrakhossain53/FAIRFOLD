@@ -749,6 +749,7 @@ class EmployerTeamMember(models.Model):
 class Job(models.Model):
     employer = models.ForeignKey(EmployerProfile, on_delete=models.CASCADE, related_name="jobs")
     title = models.CharField(max_length=300)
+    # The four long-text fields store Markdown source, rendered escaped (design.md 7.22).
     description = models.TextField()  # full JD
     responsibilities = models.TextField(blank=True)
     requirements = models.TextField(blank=True)

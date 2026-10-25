@@ -59,6 +59,7 @@ layer's answer or is refused before the serializer runs.
 | `/employer/jobs/{id}/edit/` | GET | 302 | 403 | 302 | 403 | employer-only edit form (page #36); published jobs redirect to the overview (batch 1.30) |
 | `/employer/jobs/{id}/edit/` | POST | 302 | 403 | 302 | 403 | saves a draft, writes `job.updated` only for changed fields (batch 1.30) |
 | `/employer/jobs/{id}/autosave/` | POST | 302 | 403 | 302 | 403 | HTMX auto-save for a draft; published jobs are 409 (batch 1.30) |
+| `/employer/jobs/preview/` | POST | 302 | 403 | 302 | 403 | HTMX Markdown preview for the four long-text fields (design.md 7.22); renders only, never writes or audits |
 | `/employer/jobs/{id}/activate/` | POST | 302 | 403 | 302 | 403 | §4.3 `draft\|paused -> active` as a form, audited (batch 1.30) |
 | `/employer/jobs/{id}/pause/` | POST | 302 | 403 | 302 | 403 | §4.3 `active -> paused` as a form, audited (batch 1.30) |
 | `/employer/jobs/{id}/close/` | POST | 302 | 403 | 302 | 403 | §4.3 `active\|paused -> closed` as a form, audited (batch 1.30) |

@@ -4200,3 +4200,101 @@ confirm(...)"` rather than S11's `⋯` menu with a dialog; the server refuses a
 non-draft delete regardless. No pagination on page #35: the spec does not give a
 page size and an employer with many jobs would get one long table. REQ-FR-027
 remains `partial` until the public board (1.31) serves `active` jobs.
+
+### 2026-10-24 — Job text Markdown (pages #36, #37)
+
+**What this is.** An ad-hoc product change requested outside the numbered
+batches: the four employer-authored job fields (`description`,
+`responsibilities`, `requirements`, `nice_to_have`) now store Markdown source,
+render a fixed safe subset on page #37, and are edited on page #36 with a small
+formatting toolbar and a live server-rendered preview. No model, column,
+migration, FR or API endpoint changed; the REST payload still carries the
+Markdown source as plain text.
+
+**Spec first.** `design.md` 7.22 is the contract: the exact subset, the
+`#`→`h3`/`##`→`h4`/`###`→`h5` shift, the escaping rule, the editor and the
+preview. `design.md`'s version header is now 1.6, S11 and W11 describe the
+editor and the rendered posting, Arch Doc §5.1 records the four columns as
+Markdown source, and Complete Doc §C.11 repeats it on the model. The new route
+is in `docs/AUTHZ_MATRIX.md` and in the matrix test. `verify_docs.py` passes.
+
+**Why a hand-written renderer.** A general Markdown library accepts raw HTML,
+images and protocol handlers by default; each is an injection path for
+employer text on a candidate page (REQ-SEC-006). `core/markdown.py` escapes the
+whole input with `html.escape()` *before* any pattern runs, then emits only the
+tags in `ALLOWED_TAGS`. Links are `<a>` only for `http`, `https` and `mailto`
+with a character check; `javascript:`, `data:`, relative URLs and quoted
+attributes stay literal. Code spans, links and emphasis are protected with
+placeholder tokens, so `***x***` cannot produce crossed tags and a URL is never
+re-formatted. The trade-off is documented in 7.22: images, tables, fenced code,
+nested lists and inline HTML are not supported.
+
+**Editor and preview.** `_markdown_toolbar.html` adds a labelled button group
+(B, I, code, link, bullet, numbered, quote, heading) to each long-text field via
+`accounts/_field.html`; the buttons are `type="button"`, insert at the
+selection, return focus and fire `input` + `change` so auto-save and preview
+both react. A 500 ms-debounced `POST /employer/jobs/preview/` renders the same
+four values through `core/_markdown.html`, the include page #37 uses, and the
+response carries the section's HTMX attributes so the panel keeps listening.
+The trigger is `input delay:500ms from:#job-form` (plus `change`), not
+`keyup changed`: htmx's `changed` modifier reads `value` from the element the
+listener is attached to, and with `from:` that element is the `<form>`, which
+has no `value` -- the comparison is always equal, so a `keyup` trigger never
+fires. `input` bubbles from the textarea to the form; the 500 ms delay is the
+debounce.
+The endpoint is read-only: no job lookup, no write, no audit entry, so it works
+on the create page. It is employer-only with the same onboarding redirect as
+the form, covered by a new authorization-matrix row.
+
+**Tests added.** `tests/core/test_markdown.py` (24: blocks, inline, links,
+untrusted HTML, tag allowlist, filter safety) and
+`tests/employers/test_job_markdown_preview.py` (18: preview access and
+read-only behaviour, HTMX contract, escaping, toolbar presence on create/edit,
+page #37 rendering of all four fields). Plus one matrix row.
+
+**Commands run and results** (README CI environment; see the 2026-10-23 entry
+for why `env -u DEBUG` alone is not enough in this shell).
+
+- `pytest tests/core/test_markdown.py -q` -> **24 passed**.
+- `pytest tests/employers/test_job_markdown_preview.py tests/employers/test_job_management_ui.py tests/core/test_authz_matrix.py -q` -> **143 passed**.
+- `pytest tests/ -q --cov --cov-fail-under=80` -> **1141 passed, 4 skipped**,
+  **95.02%** total (`core/markdown.py` and `core/templatetags/markdown_extras.py`
+  100%, `employers/views.py` 98%).
+- `manage.py check` -> "System check identified no issues (0 silenced)."
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `mypy` (CI
+  scope) -> "Success: no issues found in 105 source files".
+- `black --check .` -> only the pre-existing `scripts/verify_docs.py`.
+- `scripts/verify_docs.py` -> "All checks passed."
+- `scripts/verify_bias_set.py` -> "All 2 version(s) internally consistent."
+- `npm run build` -> rebuilt `static/css/tailwind.css` (gitignored);
+  `npm run check-budget` -> under 30720 bytes gzipped.
+- `bandit` -> **not run** for the same environment reason as the previous
+  entries. CI must confirm.
+
+**Known limitations.** The preview endpoint has no rate limit of its own; it is
+employer-only and renders without touching the database. Toolbars use a
+labelled `role="group"` rather than `role="toolbar"` because arrow-key roving
+is not implemented. The public job board (batch 1.33) does not exist yet, so
+page #37 is the only rendered surface; when 1.33 ships it must reuse
+`core/_markdown.html` rather than adding a second renderer. `docs/PROGRESS.md`
+and `docs/TRACEABILITY.md` were deliberately not edited: this change is not one
+of the numbered batches and adds no FR acceptance criterion.
+
+**Follow-up 2026-10-25 — live preview did not update while typing.** The first
+trigger was `keyup changed delay:500ms from:#job-form`. htmx's `changed`
+modifier reads `value` from the element the listener is attached to; with
+`from:` that element is the `<form>`, whose `value` is `undefined`, so the
+comparison always matched and the trigger never fired. The panel therefore only
+refreshed on `change` (blur). Changed to
+`input delay:500ms from:#job-form, change from:#job-form`: `input` bubbles from
+the textarea and covers typing, paste and the toolbar's own `input` event.
+
+Verified against the development database with a throwaway employer, profile and
+job, all deleted afterwards: the edit page carries the new trigger and an
+initial `<strong>`; the preview POST returns 200 `text/html` containing
+`<h4>`, `<strong>` and `<ul>`, with `<script>` escaped and no raw `**` source.
+`pytest tests/employers/test_job_markdown_preview.py tests/core/test_markdown.py -q`
+-> **42 passed**; `verify_docs.py` -> "All checks passed." The runtime image was
+rebuilt with `docker compose up -d --build django` because gunicorn serves the
+templates copied at build time, not the working tree.

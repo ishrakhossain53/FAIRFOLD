@@ -52,7 +52,8 @@ id to POST to, so the first save is the Save draft button.
   </nav>
   {% endif %}
 
-  <form method="post"
+  <form id="job-form"
+        method="post"
         action="{% if job %}{% url 'employer_portal:job-edit' job.pk %}{% else %}{% url 'employer_portal:job-create' %}{% endif %}"
         {% if job %}hx-post="{% url 'employer_portal:job-autosave' job.pk %}"
         hx-trigger="change delay:600ms"
@@ -101,7 +102,7 @@ id to POST to, so the first save is the Save draft button.
         Write it for a person deciding whether to apply, not for a keyword filter.
       </p>
       <div class="mt-4">
-        {% include "accounts/_field.html" with field=form.description %}
+        {% include "accounts/_field.html" with field=form.description markdown=True %}
       </div>
     </section>
 
@@ -112,9 +113,9 @@ id to POST to, so the first save is the Save draft button.
         Free text for now. Structured skills arrive with the screening phase.
       </p>
       <div class="mt-4 space-y-5">
-        {% include "accounts/_field.html" with field=form.responsibilities %}
-        {% include "accounts/_field.html" with field=form.requirements %}
-        {% include "accounts/_field.html" with field=form.nice_to_have %}
+        {% include "accounts/_field.html" with field=form.responsibilities markdown=True %}
+        {% include "accounts/_field.html" with field=form.requirements markdown=True %}
+        {% include "accounts/_field.html" with field=form.nice_to_have markdown=True %}
       </div>
     </section>
 
@@ -135,6 +136,8 @@ id to POST to, so the first save is the Save draft button.
       </p>
       {% endif %}
     </section>
+
+    {% include "employers/_job_markdown_preview.html" %}
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
       <button type="submit"
@@ -163,6 +166,109 @@ id to POST to, so the first save is the Save draft button.
   (function () {
     var summary = document.getElementById('error-summary');
     if (summary) { summary.focus(); }
+  })();
+
+  // Markdown toolbar (design.md 7.22). Each button edits the textarea directly
+  // and then fires `input` and `change`: `change` is what both the auto-save and
+  // the preview listen for, so a toolbar click is saved and previewed exactly
+  // like typing. The handler is delegated so the four toolbars share one script
+  // and no per-field initialisation is needed.
+  (function () {
+    var form = document.getElementById('job-form');
+    if (!form) { return; }
+
+    function dispatch(field) {
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function replace(field, text, selectStart, selectEnd) {
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var value = field.value;
+      field.value = value.slice(0, start) + text + value.slice(end);
+      field.focus();
+      if (typeof selectStart === 'number') {
+        field.setSelectionRange(start + selectStart, start + selectEnd);
+      } else {
+        field.setSelectionRange(start + text.length, start + text.length);
+      }
+      dispatch(field);
+    }
+
+    function wrap(field, before, after, placeholder) {
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var selected = field.value.slice(start, end) || placeholder;
+      replace(field, before + selected + after, before.length, before.length + selected.length);
+    }
+
+    function link(field) {
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var text = field.value.slice(start, end) || 'link text';
+      var url = 'https://example.com';
+      replace(
+        field,
+        '[' + text + '](' + url + ')',
+        text.length + 3,
+        text.length + 3 + url.length
+      );
+    }
+
+    // `prefix` is null for a numbered list, where each selected line gets its
+    // own number. A list is one level deep; nested lists are not supported.
+    function prefixLines(field, prefix) {
+      var value = field.value;
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      var lineEnd = value.indexOf('\n', end);
+      if (lineEnd === -1) { lineEnd = value.length; }
+      var lines = value.slice(lineStart, lineEnd).split('\n');
+      var replacement = lines.map(function (line, index) {
+        return (prefix === null ? (index + 1) + '. ' : prefix) + line;
+      }).join('\n');
+      field.value = value.slice(0, lineStart) + replacement + value.slice(lineEnd);
+      field.focus();
+      field.setSelectionRange(lineStart, lineStart + replacement.length);
+      dispatch(field);
+    }
+
+    // Keep the textarea selection when a toolbar button is pressed. Without
+    // this, mousedown moves focus to the button and some browsers reset
+    // `selectionStart`, so the markers would land at the wrong place or at 0.
+    form.addEventListener('mousedown', function (event) {
+      if (event.target.closest('[data-markdown-action]')) {
+        event.preventDefault();
+      }
+    });
+
+    form.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-markdown-action]');
+      if (!button) { return; }
+      var field = document.getElementById(button.getAttribute('data-markdown-target'));
+      if (!field) { return; }
+      event.preventDefault();
+      var action = button.getAttribute('data-markdown-action');
+      if (action === 'bold') {
+        wrap(field, '**', '**', 'bold text');
+      } else if (action === 'italic') {
+        wrap(field, '*', '*', 'italic text');
+      } else if (action === 'code') {
+        wrap(field, '`', '`', 'code');
+      } else if (action === 'link') {
+        link(field);
+      } else if (action === 'bullet') {
+        prefixLines(field, '- ');
+      } else if (action === 'number') {
+        prefixLines(field, null);
+      } else if (action === 'quote') {
+        prefixLines(field, '> ');
+      } else if (action === 'heading') {
+        prefixLines(field, '## ');
+      }
+    });
   })();
 </script>
 {% endblock %}

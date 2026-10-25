@@ -1,0 +1,47 @@
+{% comment %}
+Page #36's Markdown preview (design.md 7.22).
+
+The section carries the HTMX attributes, not the page, because the response
+replaces it with `outerHTML`: if the attributes lived only in `job_form.html`
+they would disappear after the first preview. `hx-include` sends the whole form,
+including its CSRF token; the endpoint requires a POST and the employer guard.
+
+The preview is a labelled region, not a live region: announcing the posting on
+every keystroke would talk over the person typing. Screen-reader users already
+have the textarea; this panel is for sighted verification of the formatting.
+
+Every field renders through `core/_markdown.html`, the same include page #37
+uses, so the preview cannot show different typography from the saved posting.
+{% endcomment %}
+<section id="job-preview"
+         role="region" aria-label="Preview of the job posting"
+         hx-post="{% url 'employer_portal:job-preview' %}"
+         hx-trigger="input delay:500ms from:#job-form, change from:#job-form"
+         hx-include="#job-form"
+         hx-swap="outerHTML"
+         class="rounded-md border border-border bg-surface-muted p-5">
+  <h2 class="text-h4 font-semibold text-ink">Preview</h2>
+  <p class="mt-1 text-body-sm text-ink-3">
+    How the four text fields will read. The preview refreshes as you type; it is
+    not saved until you choose Save draft.
+  </p>
+
+  {% if preview_empty %}
+  <p class="mt-3 text-body-sm text-ink-3">
+    Nothing to preview yet. Start with the Description.
+  </p>
+  {% else %}
+  <div class="mt-4 space-y-4">
+    {% for label, text in preview_fields %}
+    {% if text %}
+    <div>
+      <p class="text-body-sm font-semibold text-ink">{{ label }}</p>
+      <div class="mt-1">
+        {% include "core/_markdown.html" with text=text %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
