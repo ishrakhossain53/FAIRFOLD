@@ -27,15 +27,20 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsEmployer
+from core.pagination import PublicJobPagination
 from employers.models import EmployerProfile
 from employers.serializers import (
     EmployerProfileSerializer,
     EmployerProfileUpdateSerializer,
     JobCreateSerializer,
+    JobPublicDetailSerializer,
+    JobPublicFilterSerializer,
+    JobPublicListSerializer,
     JobSerializer,
     JobUpdateSerializer,
 )
@@ -44,6 +49,7 @@ from employers.services import (
     change_job_status,
     delete_draft_job,
     job_status,
+    public_job_queryset,
     record_job_audit,
 )
 from matching.models import Job
@@ -198,6 +204,85 @@ class JobCreateView(APIView):
             )
 
         return Response(JobSerializer(job).data, status=status.HTTP_201_CREATED)
+
+
+class JobPublicListView(APIView):
+    """`GET /api/v1/jobs/public/` -- the public job board (REQ-FR-042, batch 1.31).
+
+    **Anonymous on purpose.** `permission_classes` is `[AllowAny]` because the
+    project default is `IsAuthenticated`, and an explicit override is the only
+    documented way to open a route. Signed-in callers use the same endpoint: the
+    board is not personalised, and no viewer identity is a ranking input
+    (REQ-FR-053).
+
+    **Only `active` jobs.** Drafts are unpublished text, `paused` has stopped
+    accepting applications and `closed` is retired. Complete Doc §C.12 returns
+    those as a 404 on the detail route and they are absent from this list.
+
+    **Filters, newest first, paginated** (batch 1.32). `q`, `location`, `remote`
+    and `experience_level` are validated by `JobPublicFilterSerializer` and
+    applied by `public_job_queryset()`, the same function page #4 uses. An
+    unknown level or a non-boolean `remote` is a 400 rather than an ignored
+    parameter. `PublicJobPagination` caps `page_size` at §C.12's 50.
+
+    The response never carries the employer row, only `employer_name` through
+    `public_employer_name()`; the whitelist is in `JobPublicListSerializer`.
+    """
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        parameters=[JobPublicFilterSerializer],
+        responses={200: JobPublicListSerializer(many=True)},
+        summary="List active jobs on the public board",
+        description=(
+            "Public. Active jobs only, newest first, paginated (page_size up to "
+            "50). Filters: q (title, description, skill name), location, remote, "
+            "experience_level; they combine. The employer name is `null` unless "
+            "that employer opted into candidate-facing disclosure (REQ-FR-042)."
+        ),
+    )
+    def get(self, request) -> Response:
+        filters = JobPublicFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+
+        queryset = public_job_queryset(filters.validated_data)
+
+        paginator = PublicJobPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = JobPublicListSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+class JobPublicDetailView(APIView):
+    """`GET /api/v1/jobs/public/{id}/` -- public job detail (REQ-FR-042).
+
+    **404 for every non-active status**, not 403 (Complete Doc §C.12). A 403
+    would confirm that the id exists, turning the route into an enumeration
+    oracle for drafts. The 404 body comes from `core.exceptions`, so it names
+    neither the job nor its employer.
+
+    The row is fetched with `select_related("employer")` for the same reason as
+    the list: the serializer reads the employer's disclosure flag and name.
+    """
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        responses={200: JobPublicDetailSerializer},
+        summary="Open an active job on the public board",
+        description=(
+            "Public. 404 unless the job is `active`, and 404 for an unknown "
+            "id. The employer name is `null` unless that employer opted into "
+            "candidate-facing disclosure (REQ-FR-042)."
+        ),
+    )
+    def get(self, request, job_id) -> Response:
+        # The same queryset as the list: active-only, employer joined and skills
+        # prefetched in one query. A detail page with a hidden employer name must
+        # not pay a different query shape than the card that led here.
+        job = get_object_or_404(public_job_queryset({}), pk=job_id)
+        return Response(JobPublicDetailSerializer(job).data)
 
 
 def owned_job(profile: EmployerProfile, job_id) -> Job:

@@ -50,3 +50,16 @@ class CompactPagination(StandardPagination):
 
     page_size = 50
     max_page_size = 200
+
+
+class PublicJobPagination(StandardPagination):
+    """The public job board's page size (REQ-FR-042, batch 1.32).
+
+    Complete Doc §C.12 caps `page_size` at 50 for `jobs/public/`, below the
+    global 100-row ceiling. A subclass, rather than a change to
+    `StandardPagination`, because the higher ceiling is deliberate for the
+    employer-side lists and lowering it would alter endpoints this decision is
+    not about.
+    """
+
+    max_page_size = 50

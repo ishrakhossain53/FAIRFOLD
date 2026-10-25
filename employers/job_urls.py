@@ -1,8 +1,8 @@
 """API v1 routes for jobs (REQ-FR-025-027, Complete Doc §C.12).
 
 Mounted at `/api/v1/jobs/`, not under `/api/v1/employers/`: §C.12 puts the job
-resource at that prefix, and the public board (batch 1.31) will read the same
-collection. The ownership rule is not in the path -- it is `request.user`'s
+resource at that prefix, and the public board reads `/api/v1/jobs/public/`
+(batch 1.31). The ownership rule is not in the path -- it is `request.user`'s
 profile -- so one prefix serves both surfaces without leaking another employer's
 row.
 
@@ -24,12 +24,23 @@ from employers.api_views import (
     JobCreateView,
     JobDetailView,
     JobPauseView,
+    JobPublicDetailView,
+    JobPublicListView,
 )
 
 app_name = "jobs"
 
 urlpatterns = [
     path("", JobCreateView.as_view(), name="job-create"),
+    # Public routes before the private detail route: `public/` is a literal
+    # segment and `uuid` cannot match it, but keeping the public pair first
+    # makes the order explicit for anyone adding a route later.
+    path("public/", JobPublicListView.as_view(), name="job-public-list"),
+    path(
+        "public/<uuid:job_id>/",
+        JobPublicDetailView.as_view(),
+        name="job-public-detail",
+    ),
     path("<uuid:job_id>/", JobDetailView.as_view(), name="job-detail"),
     path("<uuid:job_id>/activate/", JobActivateView.as_view(), name="job-activate"),
     path("<uuid:job_id>/pause/", JobPauseView.as_view(), name="job-pause"),

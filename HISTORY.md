@@ -4298,3 +4298,90 @@ initial `<strong>`; the preview POST returns 200 `text/html` containing
 -> **42 passed**; `verify_docs.py` -> "All checks passed." The runtime image was
 rebuilt with `docker compose up -d --build django` because gunicorn serves the
 templates copied at build time, not the working tree.
+
+### 2026-10-25 — Batches 1.31-1.33: public job board (API, search/filters, pages #4/#5)
+
+Completed at the user's explicit instruction to continue through the three
+pasted batches; each was kept separate in the working tree and tested after it
+landed.
+
+**1.31 — public list and detail API.** `GET /api/v1/jobs/public/` and
+`GET /api/v1/jobs/public/{id}/`, both `AllowAny` (the project default is
+`IsAuthenticated`, so the override is deliberate). Only `status=active` is
+reachable; the detail route answers 404 for draft, paused, closed and unknown
+ids, so it is not an enumeration oracle. The response is a whitelist
+(`JobPublicListSerializer` / `JobPublicDetailSerializer`): no employer row, no
+screening config/questions, no model name or cost estimate. The only employer
+value is `employer_name`, null unless `show_company_name` is true and empty
+otherwise. Routes are in `employers/job_urls.py`; the authz matrix and
+`docs/AUTHZ_MATRIX.md` carry both rows.
+
+**1.32 — search, filters, ordering, pagination.** Added the `JobSkill` model and
+`matching/migrations/0002_jobskill.py` against Arch Doc §5.1 `job_skills`
+(D-6(c)): unique `(job, skill)`, `required` default true, cascades from both
+sides. `public_job_queryset()` in `employers/services.py` is the single
+implementation used by the API and the pages: active only; `q` matches title,
+description or `Skill.canonical_name`; `location` is a case-insensitive
+substring; `remote` is a tri-state (absent/true/false); `experience_level` is
+exact; filters AND together; order is `-created_at, -id` for stable pagination;
+`distinct()` prevents a job matching two skills from appearing twice. The
+serializers now expose `skills` as sorted names only. `PublicJobPagination`
+caps `page_size` at Complete Doc §C.12's 50. Invalid `experience_level` or
+`remote` is a 400; a non-positive `page_size` falls back to the default, which
+is DRF's behaviour.
+
+**1.33 — pages #4 and #5.** `/jobs/` and `/jobs/<uuid>/` in
+`employers/public_views.py` + `public_urls.py`, mounted outside `/employer/` so
+they cannot inherit the portal guard. The list has a search form, location /
+remote / level filters, active-filter chips, a count announced with
+`aria-live="polite"`, pagination that preserves the query string, no-results
+and 400 states. The detail renders the four Markdown fields through
+`core/_markdown.html`, the structured skills, and an Apply area: a guest gets
+"Log in to apply" with a return path, a candidate gets a clearly disabled
+button and "Applying opens in the next release", an employer gets an
+explanatory note. The hidden employer name is resolved once in the view and is
+never referenced as `job.employer` in a template. A "Find jobs" link was added
+to the global nav so the public board is discoverable.
+
+**Deliberate omissions** (no schema or endpoint exists yet, and inventing one
+is out of scope): the "Promoted" label (no promotion column), the employer
+"Verified" badge (no verification model), Share/Copy link (REQ-FR-036 is Phase
+3), and "How we screen applications" (no page). Applying itself remains batch
+1.36/1.37; the disabled button is not a POST.
+
+**Commands and results.**
+
+- `pytest tests/employers/test_public_job_api.py -q` -> **28 passed**.
+- `pytest tests/employers/test_public_job_search_api.py tests/matching/test_job_application_models.py -q` -> **58 passed** (33 + 25; 5 of the
+  model tests are new for `JobSkill`).
+- `pytest tests/employers/test_job_board_ui.py -q` -> **29 passed**.
+- `pytest tests/employers/test_job_board_ui.py tests/employers/test_public_job_api.py tests/employers/test_public_job_search_api.py tests/matching/test_job_application_models.py tests/core/test_authz_matrix.py -q` -> **190 passed**.
+- Full suite (`DJANGO_SETTINGS_MODULE=config.settings.ci`, `DEBUG` unset) ->
+  **1240 passed, 4 skipped** in 44.99s (the four skips are the S3 tests with no
+  bucket configured). The first run exposed a multi-line `{# ... #}` comment in
+  `base.html` leaking into public pages; replaced with `{% comment %}` and the
+  full suite then passed.
+- `manage.py check` -> no issues (0 silenced).
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `mypy` (CI
+  scope) -> "Success: no issues found in 108 source files".
+- `black --check .` -> only the pre-existing `scripts/verify_docs.py`.
+- `scripts/verify_docs.py` -> "All checks passed." (counts unchanged: 33
+  tables, 53 FKs, 27 indexes, 63 FRs). `scripts/verify_bias_set.py` -> both
+  versions internally consistent.
+- `npm run build:css` -> rebuilt `static/css/tailwind.css`; `npm run
+  check-budget` -> under 30720 bytes gzipped.
+- `bandit -r . -c bandit.yaml -s ...` -> still stops on the pre-existing
+  "Unknown test found in profile: B104" environment/tooling error; not fixed
+  here because it is unrelated.
+
+**Known limitations.** Employers have no write path for `job_skills` yet (the
+job form/API does not accept skills), so structured skills and skill-keyword
+search only work for rows created by seed data, admin or tests; adding that
+write path is a later batch. Search matches `Skill.canonical_name` but not
+`Skill.aliases`. The mobile filter control is a visible card, not S04's
+JavaScript bottom sheet, and filter updates are plain GETs rather than HTMX
+partials; both keep the state in the URL and work without JavaScript. Job
+detail links use the UUID because `jobs` has no slug column. The Arch Doc
+§4.1 note claiming §C.12 lacks public job endpoints is stale -- Complete Doc
+§C.12 lists them -- and was not edited in this batch.
