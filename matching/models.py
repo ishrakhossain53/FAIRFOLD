@@ -1,10 +1,10 @@
 """AI matching engine, pgvector storage and ranking.
 
-`Job` (Arch Doc §5.1 `jobs`, batch 1.26) and `Application` (§5.1
-`applications`, batch 1.34) live here because Complete Doc §C.4 assigns both to
-`matching/models.py`, and because the ranking service that reads them is in this
-app. `ai/` still holds no models of its own and `AuditLogEntry` lives in `core/`
-(Complete Doc §4.2).
+`Job` (Arch Doc §5.1 `jobs`, batch 1.26), `JobSkill` (§5.1 `job_skills`,
+batch 1.32) and `Application` (§5.1 `applications`, batch 1.34) live here
+because Complete Doc §C.4 assigns all three to `matching/models.py`, and because
+the ranking service that reads them is in this app. `ai/` still holds no models
+of its own and `AuditLogEntry` lives in `core/` (Complete Doc §4.2).
 
 Two deliberate departures from the DDL, both narrow:
 
@@ -128,6 +128,49 @@ class Job(models.Model):
         # employer has not opted to show, not public (REQ-FR-042); an admin list
         # that rendered it would leak it into every page and log line.
         return self.title
+
+
+class JobSkill(models.Model):
+    """A skill a job asks for (Arch Doc §5.1 `job_skills`, D-6(c)).
+
+    REQ-FR-042 searches "title, description and skills", so the skill list is a
+    join table rather than a JSONB column: the join is indexable, and a keyword
+    match against `Skill.canonical_name` does not depend on how the employer
+    typed it into the description.
+
+    **`required` separates must-have from nice-to-have.** The DDL defaults it to
+    true, and the public detail page can show the two groups separately without
+    a second table. No ranking input reads this column yet; batch 2.16 owns the
+    stage-1 hard filter.
+
+    **The FK to `core.Skill`, not a candidate-side model.** The taxonomy is
+    shared: the same row is what a candidate claims and what a job requires, so
+    a second skill table would make "Python" two different strings.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="job_skills")
+    skill = models.ForeignKey(
+        "core.Skill",
+        on_delete=models.CASCADE,
+        related_name="required_by_jobs",
+    )
+
+    required = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "job_skills"
+        verbose_name = "job skill"
+        verbose_name_plural = "job skills"
+        # The DDL's UNIQUE(job_id, skill_id). Without it, the same skill can be
+        # attached twice and the public card renders it twice.
+        unique_together = [("job", "skill")]
+        ordering = ["skill__canonical_name"]
+
+    def __str__(self) -> str:
+        return f"{self.job_id}: {self.skill_id}"
 
 
 class Application(models.Model):

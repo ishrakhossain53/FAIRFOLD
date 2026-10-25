@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% comment %}
+Page #4 (design.md S04): the public job board.
+
+**One GET, no HTMX.** design.md S04 asks for `hx-push-url` so Back restores the
+filters. A normal GET form already does that, works on a first load with no
+JavaScript, and keeps the result region a server-rendered list a screen reader
+can announce. Adding an HTMX partial here would duplicate the card markup for a
+page whose latency budget is one query set.
+
+**Search and filters are two forms on purpose.** The search bar is above the
+results and the filters are in the sidebar; one form would have to wrap the
+results to keep the layout. Each form carries the other's current values as
+hidden inputs, so pressing Search does not silently drop the level filter.
+
+**The mobile sheet is a visible card.** A bottom sheet needs JavaScript to
+open, trap focus and close, and the same fields fit above the results at 360px.
+The fieldsets are the same ones the desktop sidebar uses; only the position
+changes.
+{% endcomment %}
+
+{% block title %}Find jobs · FairFold{% endblock %}
+{% block description %}Browse active jobs on FairFold. Search by title or skill, filter by location, remote work and experience level.{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-content px-4 py-4 sm:py-8">
+  <div class="flex flex-col gap-1">
+    <h1 class="text-h1 font-bold text-ink">Find jobs</h1>
+    <p class="text-body text-ink-3">
+      Every posting here is active. Screening is advisory: a person makes the
+      final decision.
+    </p>
+  </div>
+
+  <form method="get" action="{% url 'job_board:list' %}"
+        role="search" class="mt-4 flex flex-col gap-2 sm:flex-row">
+    <label for="job-search" class="sr-only">Search title or skill</label>
+    <input id="job-search" name="q" type="search"
+           value="{{ form_values.q }}"
+           placeholder="Search title or skill"
+           class="h-touch w-full rounded-sm border border-border-input bg-surface px-3 text-body text-ink placeholder:text-ink-4">
+    {% if form_values.location %}
+    <input type="hidden" name="location" value="{{ form_values.location }}">
+    {% endif %}
+    {% if form_values.remote == "true" %}
+    <input type="hidden" name="remote" value="true">
+    {% endif %}
+    {% if form_values.experience_level %}
+    <input type="hidden" name="experience_level" value="{{ form_values.experience_level }}">
+    {% endif %}
+    <button type="submit"
+            class="inline-flex h-touch shrink-0 items-center justify-center rounded-md bg-primary px-5 text-body font-semibold text-white hover:bg-primary-strong">
+      Search
+    </button>
+  </form>
+
+  <div class="mt-6 grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
+    <aside aria-labelledby="filters-heading"
+           class="rounded-md border border-border bg-surface p-4 shadow-card">
+      <h2 id="filters-heading" class="text-h4 font-semibold text-ink">Filters</h2>
+
+      <form method="get" action="{% url 'job_board:list' %}" class="mt-3 space-y-4">
+        {% if form_values.q %}
+        <input type="hidden" name="q" value="{{ form_values.q }}">
+        {% endif %}
+
+        <fieldset>
+          <legend class="text-body-sm font-medium text-ink">Location</legend>
+          <label for="filter-location" class="sr-only">Location</label>
+          <input id="filter-location" name="location" type="text"
+                 value="{{ form_values.location }}"
+                 placeholder="City or country"
+                 class="mt-1 h-touch w-full rounded-sm border border-border-input bg-surface px-3 text-body text-ink placeholder:text-ink-4">
+        </fieldset>
+
+        <fieldset>
+          <legend class="text-body-sm font-medium text-ink">Work arrangement</legend>
+          <div class="mt-1 flex items-center gap-2">
+            <input id="filter-remote" name="remote" type="checkbox" value="true"
+                   {% if form_values.remote == "true" %}checked{% endif %}
+                   class="h-4 w-4 rounded-sm border border-border-input text-primary">
+            <label for="filter-remote" class="text-body-sm text-ink">Remote ok</label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend class="text-body-sm font-medium text-ink">Level</legend>
+          <div class="mt-1 space-y-1">
+            <div class="flex items-center gap-2">
+              <input id="filter-level-any" name="experience_level" type="radio" value=""
+                     {% if not form_values.experience_level %}checked{% endif %}
+                     class="h-4 w-4 border border-border-input text-primary">
+              <label for="filter-level-any" class="text-body-sm text-ink">Any</label>
+            </div>
+            {% for value, label in level_choices %}
+            <div class="flex items-center gap-2">
+              <input id="filter-level-{{ value }}" name="experience_level" type="radio"
+                     value="{{ value }}"
+                     {% if form_values.experience_level == value %}checked{% endif %}
+                     class="h-4 w-4 border border-border-input text-primary">
+              <label for="filter-level-{{ value }}" class="text-body-sm text-ink">{{ label }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="flex flex-col gap-2">
+          <button type="submit"
+                  class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-4 text-body-sm font-semibold text-white hover:bg-primary-strong">
+            Apply filters
+          </button>
+          <a href="{% url 'job_board:list' %}"
+             class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-ink-2 underline hover:text-ink">
+            Clear filters
+          </a>
+        </div>
+      </form>
+    </aside>
+
+    <section aria-labelledby="results-heading" class="min-w-0">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="results-heading" class="text-h4 font-semibold text-ink">Results</h2>
+        <p id="job-results-count" aria-live="polite" class="text-body-sm text-ink-2">
+          {{ total }} job{{ total|pluralize }} · Newest first
+        </p>
+      </div>
+
+      {% if filter_chips %}
+      <div class="mt-2 flex flex-wrap gap-2" aria-label="Active filters">
+        {% for chip in filter_chips %}
+        <a href="{{ chip.remove_url }}"
+           aria-label="Remove filter: {{ chip.label }}"
+           class="inline-flex items-center gap-1 rounded-sm border border-border bg-surface-muted px-2 py-1 text-body-sm text-ink-2 hover:border-border-input">
+          {{ chip.label }} <span aria-hidden="true">×</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if filter_errors %}
+      <div role="alert" class="mt-4 rounded-md border border-danger bg-danger-soft p-4">
+        <h3 class="text-h4 font-semibold text-danger-ink">Check the filters</h3>
+        <ul class="mt-2 list-inside list-disc space-y-1 text-body-sm text-danger-ink">
+          {% for error in filter_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if cards %}
+      <ul class="mt-4 space-y-3">
+        {% for card in cards %}
+        <li>
+          <article class="rounded-md border border-border bg-surface p-5 shadow-card">
+            <h3 class="text-h4 font-semibold text-ink">
+              <a href="{% url 'job_board:detail' card.job.pk %}"
+                 class="underline decoration-transparent hover:decoration-current">
+                {{ card.job.title }}
+              </a>
+            </h3>
+
+            {% if card.employer_name %}
+            <p class="mt-1 text-body-sm font-medium text-ink-2">{{ card.employer_name }}</p>
+            {% endif %}
+
+            <p class="mt-1 text-body-sm text-ink-3">
+              {{ card.job.location }}{% if card.job.remote_allowed %} · Remote ok{% endif %} · {{ card.job.get_experience_level_display }}
+            </p>
+
+            {% if card.skills %}
+            <p class="mt-2 text-body-sm text-ink-2">{{ card.skills|join:" · " }}</p>
+            {% endif %}
+
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p class="text-caption text-ink-4">Posted {{ card.job.created_at|timesince }} ago</p>
+              <a href="{% url 'job_board:detail' card.job.pk %}"
+                 class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+                View job
+              </a>
+            </div>
+          </article>
+        </li>
+        {% endfor %}
+      </ul>
+
+      {% if page_obj.has_other_pages %}
+      <nav aria-label="Pagination" class="mt-6 flex flex-wrap items-center justify-center gap-1">
+        {% if page_obj.has_previous %}
+        <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"
+           rel="prev"
+           class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-primary-strong underline">
+          ‹ Previous
+        </a>
+        {% endif %}
+
+        {% for number in page_range %}
+          {% if number == page_obj.paginator.ELLIPSIS %}
+          <span class="px-2 text-body-sm text-ink-3" aria-hidden="true">…</span>
+          {% elif number == page_obj.number %}
+          <span aria-current="page" class="inline-flex h-touch min-w-touch items-center justify-center rounded-md bg-primary-soft px-2 text-body-sm font-semibold text-primary-strong">
+            {{ number }}
+          </span>
+          {% else %}
+          <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ number }}"
+             class="inline-flex h-touch min-w-touch items-center justify-center rounded-md px-2 text-body-sm font-medium text-primary-strong underline">
+            {{ number }}
+          </a>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}"
+           rel="next"
+           class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-primary-strong underline">
+          Next ›
+        </a>
+        {% endif %}
+      </nav>
+      {% endif %}
+
+      {% elif not filter_errors %}
+      <div class="mt-4 rounded-md border border-border bg-surface p-6 text-center">
+        <p class="text-body font-medium text-ink">No jobs match.</p>
+        <p class="mt-1 text-body-sm text-ink-3">Try a shorter search or fewer filters.</p>
+        <a href="{% url 'job_board:list' %}"
+           class="mt-4 inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+          Clear filters
+        </a>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

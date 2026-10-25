@@ -57,6 +57,15 @@
       {% endcomment %}
       {% block header_actions %}
       <nav aria-label="Account" class="ml-auto flex items-center gap-1 sm:gap-2">
+        {% comment %}
+        Public page #4. It is the only discovery route, so it is visible to
+        guests as well as signed-in users; hiding it behind login would make
+        the public board reachable only by typing its URL.
+        {% endcomment %}
+        <a href="{% url 'job_board:list' %}"
+           class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">
+          Find jobs
+        </a>
         {% if user.is_authenticated %}
           {% if user.is_employer %}
           <a href="{% url 'employer_portal:jobs' %}"

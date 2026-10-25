@@ -47,9 +47,9 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.28 Edit and delete draft jobs (2026-10-24; GET/PATCH/DELETE /api/v1/jobs/{id}/; 32 passed in tests/employers/test_job_edit_delete_api.py, 217 in tests/employers/ + authz matrix; full suite 1033 passed / 4 skipped, coverage 94% with `employers` now in the gate)
 - [x] 1.29 Activate, pause and close jobs (2026-10-24; Arch Doc §4.3 transition matrix; 24 passed in tests/employers/test_job_lifecycle_api.py; full suite 1033 passed / 4 skipped)
 - [x] 1.30 Employer job management UI (2026-10-24; pages #35/#36/#37 at `/employer/jobs/`, `/employer/jobs/new/`, `/employer/jobs/{id}/edit/`, `/employer/jobs/{id}/`; 54 passed in tests/employers/test_job_management_ui.py, 11 new authz matrix cases, full suite 1098 passed / 4 skipped, coverage 95%)
-- [ ] 1.31 Public job list and detail API
-- [ ] 1.32 Search, filters, ordering and pagination
-- [ ] 1.33 Public job board UI
+- [x] 1.31 Public job list and detail API (2026-10-25; `GET /api/v1/jobs/public/` + `{id}/`, `AllowAny`, active only, employer name via `show_company_name`; 28 passed in tests/employers/test_public_job_api.py)
+- [x] 1.32 Search, filters, ordering and pagination (2026-10-25; `job_skills` model + migration, keyword search over title/description/skill name, location/remote/level filters, stable newest-first, `page_size` capped at 50; 33 passed in tests/employers/test_public_job_search_api.py + 5 `JobSkill` model tests)
+- [x] 1.33 Public job board UI (2026-10-25; pages #4/#5 at `/jobs/` and `/jobs/{id}/`, guest/signed-in, filters, pagination, empty/error states, concealment in HTML; 29 passed in tests/employers/test_job_board_ui.py; full suite 1240 passed / 4 skipped)
 - [ ] 1.34 Application model (model + migration landed 2026-10-22 as a prerequisite of 2.27; awaiting your test output)
 - [ ] 1.35 Per-employer candidate alias service
 - [ ] 1.36 Apply to a job API

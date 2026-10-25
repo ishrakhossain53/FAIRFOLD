@@ -20,12 +20,14 @@ rolled-back write cannot leave an entry claiming it happened.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from django.db import transaction
+from django.db.models import Prefetch, Q, QuerySet
 
 from core.models import AuditLogEntry
-from matching.models import Job
+from matching.models import Job, JobSkill
 
 
 #: The job moved to the target status and one audit entry was written.
@@ -136,3 +138,68 @@ def delete_draft_job(*, job_id, employer, actor) -> tuple[str, Job]:
         job.delete()
 
     return DELETED, job
+
+
+def public_job_queryset(filters: Mapping[str, object]) -> QuerySet[Job]:
+    """Active jobs matching the public-board filters (REQ-FR-042, batch 1.32).
+
+    `filters` is the validated `JobPublicFilterSerializer` data, so invalid
+    values never reach here. The four filters combine with AND; only `q` fans out
+    (title OR description OR skill name), because a keyword that matches any of
+    the documented fields is a match.
+
+    **One implementation for the API and the page.** Batch 1.33 renders the same
+    filters server-side, and two copies would eventually disagree about whether
+    an empty `q` filters anything or whether `remote=false` means "on-site" or
+    "no filter". The URL contract is Complete Doc §C.12.
+
+    **`distinct()` is required, not defensive.** A keyword matching two of a
+    job's skills joins two `job_skills` rows; without it the same job would
+    appear twice in one page.
+
+    **Ordering is stable.** `-created_at` is "newest first"; `-id` breaks a tie
+    deterministically, so pagination cannot show the same row twice or skip one
+    when two jobs share a timestamp.
+
+    `select_related` and `prefetch_related` keep the query count independent of
+    the page size: the serializer reads the employer's disclosure flag and the
+    skill names.
+    """
+    queryset = Job.objects.filter(status=Job.Status.ACTIVE)
+
+    query = str(filters.get("q") or "").strip()
+    if query:
+        queryset = queryset.filter(
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(job_skills__skill__canonical_name__icontains=query)
+        )
+
+    location = str(filters.get("location") or "").strip()
+    if location:
+        # Substring, case-insensitive: the column is free text ("Dhaka",
+        # "Dhaka, Bangladesh"), and a job seeker typing "Dhaka" expects both.
+        queryset = queryset.filter(location__icontains=location)
+
+    if filters.get("remote") is not None:
+        queryset = queryset.filter(remote_allowed=filters["remote"])
+
+    if filters.get("experience_level"):
+        queryset = queryset.filter(experience_level=str(filters["experience_level"]))
+
+    return (
+        queryset.select_related("employer")
+        # One prefetch query that joins the skill row, rather than two
+        # (`job_skills` then `skills`): the page's query count stays at three --
+        # count, page, prefetch -- whatever the page size.
+        .prefetch_related(
+            Prefetch(
+                "job_skills",
+                queryset=JobSkill.objects.select_related("skill").order_by(
+                    "skill__canonical_name"
+                ),
+            )
+        )
+        .distinct()
+        .order_by("-created_at", "-id")
+    )

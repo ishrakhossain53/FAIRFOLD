@@ -540,6 +540,41 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 404,
         "admin": 403,
     },
+    # Public job board (REQ-FR-042, batch 1.31). Open by design: the project
+    # default is IsAuthenticated, so `AllowAny` here is a decision. The detail
+    # sample is the nil UUID, which exists nowhere, so every actor gets the same
+    # 404; a non-active job answers identically (Complete Doc §C.12).
+    "/api/v1/jobs/public/": {
+        "method": "get",
+        "anonymous": 200,
+        "candidate": 200,
+        "employer": 200,
+        "admin": 200,
+    },
+    "/api/v1/jobs/public/00000000-0000-0000-0000-000000000000/": {
+        "method": "get",
+        "anonymous": 404,
+        "candidate": 404,
+        "employer": 404,
+        "admin": 404,
+    },
+    # Public job-board pages #4 and #5 (REQ-FR-042, batch 1.33). Anonymous by
+    # design, like the API above. The detail sample is the nil UUID, so the
+    # active-only query returns the same 404 for every actor.
+    "/jobs/": {
+        "method": "get",
+        "anonymous": 200,
+        "candidate": 200,
+        "employer": 200,
+        "admin": 200,
+    },
+    "/jobs/00000000-0000-0000-0000-000000000000/": {
+        "method": "get",
+        "anonymous": 404,
+        "candidate": 404,
+        "employer": 404,
+        "admin": 404,
+    },
     # Job detail and the three state actions (REQ-FR-026/027, batches 1.28/1.29).
     # Same shape as the collection: the employer actor has no company profile in
     # this fixture, so the onboarding check answers 404 after the permission
@@ -668,6 +703,10 @@ PARAMETERISED_SAMPLES = {
     "/employer/jobs/<uuid:job_id>/close/": (f"/employer/jobs/{SAMPLE_UUID}/close/"),
     "/employer/jobs/<uuid:job_id>/delete/": (f"/employer/jobs/{SAMPLE_UUID}/delete/"),
     "/api/v1/jobs/<uuid:job_id>/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/",
+    "/api/v1/jobs/public/<uuid:job_id>/": (
+        "/api/v1/jobs/public/00000000-0000-0000-0000-000000000000/"
+    ),
+    "/jobs/<uuid:job_id>/": "/jobs/00000000-0000-0000-0000-000000000000/",
     "/api/v1/jobs/<uuid:job_id>/activate/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/activate/",
     "/api/v1/jobs/<uuid:job_id>/pause/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/pause/",
     "/api/v1/jobs/<uuid:job_id>/close/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/close/",

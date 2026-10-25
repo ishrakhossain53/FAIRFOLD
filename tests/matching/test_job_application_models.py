@@ -18,8 +18,9 @@ from django.db import IntegrityError, transaction
 
 from accounts.models import User
 from candidates.models import CandidateProfile
+from core.models import Skill
 from employers.models import EmployerProfile
-from matching.models import Application, Job
+from matching.models import Application, Job, JobSkill
 
 pytestmark = pytest.mark.django_db
 
@@ -217,3 +218,48 @@ def test_a_not_matched_candidate_is_not_blocked_by_the_gate(job, candidate_profi
         filter_rules_version=3,
     )
     assert application.can_shortlist() is True
+
+
+# --------------------------------------------------------------- job skills
+
+
+class TestJobSkill:
+    """`job_skills` from Arch Doc §5.1 (D-6(c), batch 1.32)."""
+
+    def test_required_defaults_to_true(self, job):
+        skill = Skill.objects.create(canonical_name="Python")
+        link = JobSkill.objects.create(job=job, skill=skill)
+
+        assert link.required is True
+
+    def test_the_same_skill_cannot_be_attached_twice(self, job):
+        skill = Skill.objects.create(canonical_name="Python")
+        JobSkill.objects.create(job=job, skill=skill)
+
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                JobSkill.objects.create(job=job, skill=skill)
+
+    def test_deleting_the_job_removes_its_skill_links(self, job):
+        skill = Skill.objects.create(canonical_name="Python")
+        JobSkill.objects.create(job=job, skill=skill)
+
+        job.delete()
+
+        assert JobSkill.objects.count() == 0
+
+    def test_deleting_the_skill_removes_the_link_but_keeps_the_job(self, job):
+        skill = Skill.objects.create(canonical_name="Python")
+        JobSkill.objects.create(job=job, skill=skill)
+
+        skill.delete()
+
+        assert JobSkill.objects.count() == 0
+        assert Job.objects.filter(pk=job.pk).exists()
+
+    def test_the_job_and_skill_related_names_are_usable(self, job):
+        skill = Skill.objects.create(canonical_name="Python")
+        JobSkill.objects.create(job=job, skill=skill)
+
+        assert list(job.job_skills.all()) == [JobSkill.objects.get()]
+        assert list(skill.required_by_jobs.all()) == [JobSkill.objects.get()]

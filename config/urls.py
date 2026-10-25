@@ -26,6 +26,10 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
     path("candidate/", include("candidates.urls")),
     path("employer/", include("employers.urls")),
+    # Public job board, pages #4 and #5 (REQ-FR-042). A separate mount and
+    # namespace from `/employer/`: these routes are anonymous and must not
+    # acquire the portal's employer guard by being nested under it.
+    path("jobs/", include("employers.public_urls")),
     path("assessments/", include("assessments.urls")),
     path("interviews/", include("interviews.urls")),
     # Public auth pages at the root: `/register/` and `/verify-email/`
