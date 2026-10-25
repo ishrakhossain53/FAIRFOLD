@@ -713,6 +713,8 @@ CREATE TABLE jobs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employer_id     UUID REFERENCES employer_profiles(id) ON DELETE CASCADE,
     title           VARCHAR(300) NOT NULL,
+    -- The four long-text fields store Markdown source, never HTML. The renderer
+    -- escapes HTML and applies a fixed subset (design.md 7.22).
     description     TEXT,
     responsibilities TEXT,
     requirements    TEXT,

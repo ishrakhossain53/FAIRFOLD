@@ -136,7 +136,10 @@ TEXTAREA_CLASS = (
 )
 
 JOB_TITLE_HELP = "The role as candidates will see it."
-JOB_DESCRIPTION_HELP = "What the work is, in your own words."
+JOB_DESCRIPTION_HELP = (
+    "What the work is, in your own words. Markdown works: **bold**, *italic*, "
+    "`code`, [links](https://example.com), - lists, > quotes and ## headings."
+)
 JOB_RESPONSIBILITIES_HELP = "What the person in this role will own."
 JOB_REQUIREMENTS_HELP = "Skills and experience the role needs."
 JOB_NICE_TO_HAVE_HELP = "Anything that helps but is not required."

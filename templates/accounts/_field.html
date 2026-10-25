@@ -17,6 +17,10 @@ more damaging failure (design.md §6.2, §9).
   <p id="{{ field.id_for_label }}-help" class="mt-1 text-body-sm text-ink-3">{{ field.help_text }}</p>
   {% endif %}
 
+  {% if markdown %}
+  {% include "employers/_markdown_toolbar.html" with field=field %}
+  {% endif %}
+
   <div class="mt-1{% if field.field.widget.input_type == 'password' %} relative{% endif %}">
     {{ field }}
     {% if field.field.widget.input_type == 'password' %}

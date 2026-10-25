@@ -276,6 +276,16 @@ AUTHZ_MATRIX: dict[str, dict] = {
             },
         },
     },
+    # Page #36's live Markdown preview (design.md 7.22). Read-only: it renders
+    # the posted strings and never looks up a job, so the profile redirect is
+    # the only thing between an employer and the fragment.
+    "/employer/jobs/preview/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
     # Page #37. Without a profile the redirect happens before the job lookup,
     # so the nil UUID never has to exist for this row to be meaningful. The
     # owner path and the 404 for another employer are in

@@ -2,7 +2,11 @@
 
 **Product:** FairFold — AI-Powered, Explainable Recruitment Platform
 **Owner:** Mohammad Abdul Ahad (UI/UX) · **Implementers:** Sardar Shihab, Arnob Biswas Antu (Django Templates + HTMX + Tailwind)
-**Companion to:** `prd.md` (requirements) · **Version:** 1.5 (Verified Badge repositioning, W36 note) · **Date:** October 13, 2026
+**Companion to:** `prd.md` (requirements) · **Version:** 1.6 (job text Markdown) · **Date:** October 24, 2026
+
+> **Changes in v1.6** (2026-10-24)
+> - Added component 7.22: Markdown text and editor for the four long-text job fields (`description`, `responsibilities`, `requirements`, `nice_to_have`).
+> - Page #36 gains a markdown toolbar and a server-rendered live preview; page #37 renders the same subset. The subset, heading mapping and escaping rule are normative in 7.22.
 
 > **Changes in v1.5** (2026-10-13)
 > - Verified Badge (§7.16) repositioned: appears next to candidate ALIAS only (REQ-FR-054), not on the public job board (which lists jobs, not candidates). Company "Verified" badge on job board clarified as an employer-identity check.
@@ -554,6 +558,58 @@ A card for a single curated resource: title (link), skill tag, cost badge (Free 
 ### 7.21 Scorecard Criteria Publish (REQ-FR-059)
 
 A toggle on the job edit page ("Publish scorecard criteria for practice"). When enabled, shows a notice: "Only your evaluation criteria are shared — never interview or assessment questions. Candidates will practice against these criteria." Lists the currently published criteria with edit/remove links.
+
+### 7.22 Markdown Text and Editor (pages #36, #37)
+
+Employer-authored job text (`description`, `responsibilities`, `requirements`,
+`nice_to_have`) is stored as Markdown source and rendered server-side by
+`core.markdown.render_markdown()`. The same function renders page #37 and the
+page #36 preview, so what the employer previews is what candidates will read.
+
+**Supported subset — this is the whole contract.** Everything not in this table
+is shown as literal text; the renderer does not guess.
+
+| Syntax | Renders as |
+|---|---|
+| `**bold**` | `<strong>` |
+| `*italic*` | `<em>` (`_italic_` and `snake_case` stay literal) |
+| `` `code` `` | `<code>` (inline only; fenced blocks are not supported) |
+| `[text](https://example.com)` | `<a>`; only `http`, `https` and `mailto` URLs are linkified |
+| `- item` / `* item` / `+ item` | `<ul><li>` (one level) |
+| `1. item` | `<ol><li>` (one level) |
+| `# Heading`, `## Heading`, `### Heading` | `<h3>`, `<h4>`, `<h5>` |
+| `> quote` | `<blockquote>` |
+| `---` on its own line | `<hr>` |
+| a blank line | a new paragraph |
+| a single newline | `<br>` (the plain-text pages also preserved line breaks) |
+
+Not supported: images, tables, footnotes, fenced code blocks, nested lists,
+autolinks, inline HTML and backslash escapes. Raw HTML is escaped and displayed
+as text — never rendered. A link whose scheme is not on the allowlist stays
+literal text. Headings are shifted two levels down (`#` → `h3`) because the
+fragment always sits under the page's `h2`; rendering an `h1` inside a posting
+would break the document outline.
+
+**Editor (page #36).** Each of the four fields has a small toolbar (a labelled
+button group, not a `role="toolbar"`, because arrow-key roving is not implemented)
+above its textarea: **B**, *I*, code, link, bullet list, numbered list, quote and heading.
+The buttons are `type="button"`, have an `aria-label` naming the action and the
+field, insert the markers around the current selection (or at the caret), and
+return focus to the textarea. The toolbar is optional — the textarea accepts the
+syntax directly, which is why the supported subset is also printed as help text
+under the Description field.
+
+Below the form, a **Preview** region shows all four fields rendered by the server.
+It refreshes through HTMX from `POST /employer/jobs/preview/` after 500 ms of
+inactivity, and on `change` so the auto-save and preview stay in step. The
+preview is a labelled `role="region"`, not `aria-live`: announcing a paragraph on
+every keystroke would talk over the user. The response is the rendered fragment
+only; the endpoint never writes and never audits.
+
+**Security.** The renderer escapes `&`, `<`, `>`, `"` and `'` before applying any
+formatting, and only emits the tags in the table above plus `href` values that
+passed the scheme allowlist. Employer text therefore cannot introduce a script,
+an event handler or a `javascript:` URL (REQ-SEC-006). No new dependency is used.
 
 ---
 
@@ -1120,13 +1176,19 @@ CREATE / EDIT (#36)   Draft saved 12:04
 (Basics ✔)─(Description ●)─(Requirements ○)─(Questions ○)─(Review ○)
 Title [________________]   Department [________]
 Location [_________]  [x] Remote allowed   Level [ Senior ▾ ]
+Description  [ B ] [ I ] [ </> ] [ Link ] [ • List ] [ 1. List ] [ ❝ ] [ H ]
+[ ...................................................... ]
 Required skills:   [Python ×] [Django ×] [+ Add]
 ✦ Suggested by AI: [PostgreSQL +] [Docker +]            ← accept or dismiss
 Screening questions:
 ✦ Suggested: "Describe a project you owned end to end."   [ Add ] [ Dismiss ]
+────────────────────────────────────────────────────────────
+Preview  (server-rendered from the four text fields)
                                        [ Save draft ]  [ Next ]
 ```
-**A11y:** suggestion chips are buttons with "Add skill: PostgreSQL"; added/removed skills announce through a live region; autosave status text is polite; Delete/Close live in the `⋯` menu with a confirm dialog.
+**A11y:** suggestion chips are buttons with "Add skill: PostgreSQL"; added/removed skills announce through a live region; autosave status text is polite; Delete/Close live in the `⋯` menu with a confirm dialog. The markdown toolbar buttons name the action and the field ("Bold, Description") and return focus to the textarea; the preview is a labelled region, not a live region, so it does not talk over typing.
+
+The four long-text fields accept the Markdown subset in 7.22. The preview is not a second renderer: it is the same server-side function that page #37 uses, so a preview cannot disagree with the saved posting.
 
 ---
 
@@ -1733,6 +1795,12 @@ important element on this page**: 6 applicants were excluded by an automatic rul
 REQ-FR-029 requires them to stay visible and reviewable. It states the count and links to
 the list *before* anyone reads the ranked list, so a rule nobody knows about cannot
 quietly decide who was considered.
+
+The **Posting** block renders Description, Responsibilities, Requirements and Nice to have
+through the 7.22 subset: paragraphs, bold/italic, inline code, safe links, one-level lists,
+headings shifted to `h3`–`h5`, blockquotes and dividers. A field with no text keeps the plain
+"Not written yet." state rather than an empty formatted block. The raw Markdown source is not
+shown here; page #36 is where it is edited.
 
 ---
 
