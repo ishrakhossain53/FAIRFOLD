@@ -1,0 +1,51 @@
+{% comment %}
+The Apply control on page #5 (design.md S05), shared by the desktop sticky card
+and the mobile bottom bar so the two cannot disagree about which state the
+candidate is in.
+
+`application` is the caller's own row for this job or `None`; the view resolves
+it, so this template never queries. `compact=True` is the mobile bar: centred
+text and no top margin. `note_id` must be unique on the page because both
+instances can be in the DOM (the desktop card is `hidden` below `lg`, but a
+screen reader still sees it).
+{% endcomment %}
+{% if application %}
+<p class="rounded-sm border border-border bg-surface-muted px-3 py-2 text-body-sm text-ink-2{% if compact %} text-center{% endif %}">
+  <span class="block font-semibold text-ink">Application sent</span>
+  You applied {{ application.created_at|date:"j M Y" }}.
+</p>
+{% elif user.is_authenticated and user.is_candidate %}
+  {% if candidate_has_profile %}
+  <form method="post" action="{% url 'job_board:apply' job.pk %}">
+    {% csrf_token %}
+    <button type="submit" aria-describedby="{{ note_id }}"
+            class="inline-flex h-touch w-full items-center justify-center rounded-md bg-primary px-5 text-body font-semibold text-white hover:bg-primary-strong">
+      Apply
+    </button>
+  </form>
+  <p id="{{ note_id }}" class="mt-2 text-body-sm text-ink-3{% if compact %} text-center{% endif %}">
+    Your name and contact details stay hidden until a shortlist.
+  </p>
+  {% else %}
+  <a href="{% url 'candidate_portal:onboarding' %}"
+     class="inline-flex h-touch w-full items-center justify-center rounded-md bg-primary px-5 text-body font-semibold text-white hover:bg-primary-strong">
+    Complete your profile to apply
+  </a>
+  <p id="{{ note_id }}" class="mt-2 text-body-sm text-ink-3{% if compact %} text-center{% endif %}">
+    A candidate profile is required before you can apply.
+  </p>
+  {% endif %}
+{% elif user.is_authenticated %}
+<p class="text-body-sm text-ink-3{% if compact %} text-center{% endif %}">
+  Applications are submitted by candidate accounts.
+</p>
+{% else %}
+<a href="{% url 'accounts_public:login' %}?next={{ request.path|urlencode }}"
+   class="inline-flex h-touch w-full items-center justify-center rounded-md bg-primary px-5 text-body font-semibold text-white hover:bg-primary-strong">
+  Log in to apply
+</a>
+<p class="mt-2 text-body-sm text-ink-3{% if compact %} text-center{% endif %}">
+  New here?
+  <a href="{% url 'accounts_public:register' %}" class="font-semibold text-primary-strong underline">Create an account</a>.
+</p>
+{% endif %}

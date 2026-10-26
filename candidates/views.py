@@ -1,4 +1,9 @@
-"""Candidate onboarding and profile pages (REQ-FR-009, design.md pages #14/#16).
+"""Candidate onboarding, profile, resume and apply pages (design.md pages #14/#16/#17/#5).
+
+The apply action (REQ-FR-022, batch 1.37) lives here rather than in the public
+job-board module because it needs the candidate guard and the candidate profile
+lookup; the route is still `/jobs/{id}/apply/` so the form posts to the page it
+belongs to.
 
 Two guards, in this order:
 
@@ -31,7 +36,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBadRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
@@ -39,6 +44,14 @@ from django.views.decorators.http import require_http_methods, require_POST
 from candidates.forms import SECTION_FORMS, SECTION_LABELS, CandidateProfileForm
 from candidates.models import CandidateProfile, CandidateResume
 from candidates.services import delete_resume
+from employers.services import public_job_queryset
+from matching.services import (
+    ALREADY_APPLIED,
+    JOB_NOT_OPEN,
+    DuplicateApplication,
+    JobNotOpen,
+    apply_to_job,
+)
 
 
 def candidate_required(view: Callable) -> Callable:
@@ -384,3 +397,51 @@ def resume_delete(request: HttpRequest) -> HttpResponse:
         "candidates/resume_confirm_delete.html",
         {"resume": resume},
     )
+
+
+# ---------------------------------------------------------------------------
+# Apply to a job (REQ-FR-022, page #5, batch 1.37)
+# ---------------------------------------------------------------------------
+
+
+@never_cache
+@candidate_required
+@require_POST
+def job_apply(request: HttpRequest, job_id) -> HttpResponse:
+    """The Apply button on page #5: one POST, then back to the job.
+
+    **The job is looked up through `public_job_queryset()`, not `Job.objects`.**
+    That is the same active-only rule the detail page and the public API use, so
+    a draft, paused or closed job is a 404 here even if the form was rendered
+    before the employer closed it. A second "is it active?" check would be a
+    second definition of the rule, and the service checks it again anyway for the
+    race between this lookup and the insert.
+
+    **A missing profile is a redirect, not a 403.** The button is replaced by a
+    "Complete your profile" link on the detail page, but a hand-crafted POST (or
+    a stale tab) still has to land somewhere useful. Onboarding is that place.
+
+    **Post/Redirect/Get.** A refresh after the redirect cannot resubmit the form,
+    and the flash message is the confirmation. The duplicate case is an `info`
+    message rather than an error: a double-click is not a mistake the candidate
+    has to correct.
+    """
+    job = get_object_or_404(public_job_queryset({}), pk=job_id)
+    profile = CandidateProfile.objects.filter(user=request.user).first()
+
+    if profile is None:
+        messages.info(request, "Complete your candidate profile before applying.")
+        return redirect("candidate_portal:onboarding")
+
+    try:
+        apply_to_job(candidate=profile, job=job)
+    except DuplicateApplication:
+        messages.info(request, ALREADY_APPLIED)
+    except JobNotOpen:
+        # Only reachable if the job left `active` between the lookup above and
+        # the insert; the public queryset has already filtered the common case.
+        messages.error(request, JOB_NOT_OPEN)
+    else:
+        messages.success(request, "Application sent.")
+
+    return redirect("job_board:detail", job_id=job.pk)

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from django.urls import path
 
+from candidates.views import job_apply
 from employers import public_views
 
 app_name = "job_board"
@@ -21,4 +22,8 @@ app_name = "job_board"
 urlpatterns = [
     path("", public_views.job_list, name="list"),
     path("<uuid:job_id>/", public_views.job_detail, name="detail"),
+    # Candidate-only POST from page #5 (REQ-FR-022, batch 1.37). The view lives
+    # with the candidate guard; the route lives here because the form posts to
+    # the page it belongs to.
+    path("<uuid:job_id>/apply/", job_apply, name="apply"),
 ]

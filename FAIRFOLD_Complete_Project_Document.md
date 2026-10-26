@@ -1871,7 +1871,33 @@ POST /api/v1/candidates/assessments/{id}/start/  # Start assessment attempt
 POST /api/v1/candidates/assessments/{id}/answer/ # Submit answer
 GET    /api/v1/candidates/applications/          # List applications (with match scores)
 GET    /api/v1/candidates/applications/{id}/     # Get application details + AI rationale
+POST   /api/v1/jobs/{id}/apply/                  # Apply to an active job (REQ-FR-022; added 2026-10-26)
 ```
+
+> **`POST /api/v1/jobs/{id}/apply/` contract (batch 1.36).** Candidate group only
+> (`IsCandidate`), and the applicant is always `request.user`'s candidate profile:
+> there is no candidate id in the path or the body, so one account cannot apply on
+> another's behalf. The route is under `jobs/` because applying is an action on a
+> job, the same shape as `activate/`/`pause/`/`close/`; it is listed with the
+> candidate endpoints because the caller is a candidate. Responses:
+>
+> - `201` with `{"id", "job_id", "status", "created_at"}`. `status` is `applied`;
+>   the row is created by `matching.services.apply_to_job()`. The body is a
+>   whitelist: no candidate id, name, email, alias or match score.
+> - `404` for an unknown job **and for a `draft`**, which is employer-only
+>   (REQ-FR-025) and must not be disclosed by a distinguishable error.
+> - `409` for a `paused` or `closed` job. Arch Doc §4.3 rule 5 makes only `active`
+>   appliable; the job was public, so naming the reason is not a disclosure.
+> - `409` when this candidate already has an application for this job. The
+>   `UNIQUE(job_id, candidate_id)` constraint is the authority; the view translates
+>   the `IntegrityError`, so two concurrent requests cannot create two rows.
+> - `409` when the caller has no `CandidateProfile`. REQ-FR-022 assumes a candidate
+>   account; a role grant without onboarding is a state conflict, not a malformed
+>   request.
+>
+> The request has no body. **A resume is not required**: REQ-FR-022 names none, and
+> §5.1 `applications` has no resume foreign key, so requiring one would invent a
+> rule. Notifications are batch 1.43 and are not sent here.
 
 #### Employer Endpoints
 ```http

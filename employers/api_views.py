@@ -31,7 +31,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import IsEmployer
+from accounts.permissions import IsCandidate, IsEmployer
+from candidates.models import CandidateProfile
 from core.pagination import PublicJobPagination
 from employers.models import EmployerProfile
 from employers.serializers import (
@@ -53,12 +54,29 @@ from employers.services import (
     record_job_audit,
 )
 from matching.models import Job
+from matching.serializers import ApplicationCreatedSerializer
+from matching.services import (
+    ALREADY_APPLIED,
+    JOB_NOT_OPEN,
+    DuplicateApplication,
+    JobNotOpen,
+    apply_to_job,
+)
 
 # One sentence for both "you have not onboarded yet" and "the row is gone".
 # A 404 here does not enumerate anything: the only row it could describe is the
 # caller's own, and a distinguishable 403/404 would tell an account whether a
 # given user has a profile.
 NO_PROFILE_DETAIL = "No employer profile yet. Complete onboarding first."
+
+# The candidate side of the same state conflict. A role grant without onboarding
+# is a 409, not a 400: the request is well formed, the account is incomplete.
+NO_CANDIDATE_PROFILE_DETAIL = "Complete your candidate profile before applying."
+
+# A draft is not public (REQ-FR-025), so it answers exactly like an id that does
+# not exist. Paused and closed jobs are named in JOB_NOT_OPEN because they were
+# public; hiding that fact would make a just-closed job look deleted.
+JOB_NOT_FOUND_DETAIL = "No such job."
 
 # REQ-FR-045 says the profile is created during onboarding *with a company
 # name*. A PATCH that would create a row without one is a 400 rather than an
@@ -515,3 +533,72 @@ class JobCloseView(_JobStateView):
     allowed_from = (job_status(Job.Status.ACTIVE), job_status(Job.Status.PAUSED))
     audit_action = "job.closed"
     conflict_detail = "Only an active or paused job can be closed."
+
+
+@extend_schema(
+    request=None,
+    responses={201: ApplicationCreatedSerializer},
+    summary="Apply to an active job",
+    description=(
+        "Candidate group only. Creates one `applied` application for the "
+        "caller's candidate profile. 404 for an unknown or draft job; 409 for a "
+        "paused/closed job, a duplicate application, or a caller with no "
+        "candidate profile. The request has no body and the response carries no "
+        "candidate identity."
+    ),
+)
+class JobApplyView(APIView):
+    """`POST /api/v1/jobs/{id}/apply/` -- REQ-FR-022 (batch 1.36).
+
+    **The applicant is `request.user`, structurally.** There is no candidate id
+    in the path or the body, so a caller cannot apply on another candidate's
+    behalf; an undeclared `candidate` key is ignored by DRF. This is the same
+    ownership rule as `/api/v1/employers/me/`, expressed by the absence of a
+    parameter rather than by a comparison a later edit could drop.
+
+    **A draft is a 404, not a 409.** A draft was never public (REQ-FR-025), so a
+    distinguishable answer would confirm that an employer is preparing a posting.
+    Paused and closed jobs were public; their 409 says why they cannot be applied
+    to instead of pretending they vanished.
+
+    **No resume is required.** REQ-FR-022 names an authenticated candidate and an
+    active job, and §5.1 `applications` has no resume foreign key. Page #30's
+    resume picker is a later UI decision, not a precondition this batch may
+    invent.
+
+    **Notifications are not sent here.** REQ-FR-022 says the candidate and the
+    employer are notified; batch 1.43 owns the notification model and delivery,
+    and the call site is left out rather than faked.
+    """
+
+    permission_classes = [IsCandidate]
+
+    def post(self, request, job_id) -> Response:
+        job = get_object_or_404(Job, pk=job_id)
+        if job.status == Job.Status.DRAFT:
+            raise NotFound(JOB_NOT_FOUND_DETAIL)
+
+        profile = CandidateProfile.objects.filter(user=request.user).first()
+        if profile is None:
+            return Response(
+                {"detail": NO_CANDIDATE_PROFILE_DETAIL},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        try:
+            application = apply_to_job(candidate=profile, job=job)
+        except JobNotOpen:
+            return Response(
+                {"detail": JOB_NOT_OPEN},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except DuplicateApplication:
+            return Response(
+                {"detail": ALREADY_APPLIED},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(
+            ApplicationCreatedSerializer(application).data,
+            status=status.HTTP_201_CREATED,
+        )

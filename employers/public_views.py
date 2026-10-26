@@ -28,9 +28,10 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
+from candidates.models import CandidateProfile
 from employers.serializers import JobPublicFilterSerializer, public_employer_name
 from employers.services import public_job_queryset
-from matching.models import Job
+from matching.models import Application, Job
 
 #: Page #4's cards are denser than the API's default 20, but 20 is what the
 #: existing `StandardPagination` uses and what a 360px viewport can scroll
@@ -186,11 +187,33 @@ def job_list(request: HttpRequest) -> HttpResponse:
 
 
 def job_detail(request: HttpRequest, job_id) -> HttpResponse:
-    """Page #5: one active job. A draft, paused or closed job is a 404."""
+    """Page #5: one active job. A draft, paused or closed job is a 404.
+
+    **The apply state is resolved here, not in the template.** The template gets
+    `application` (the caller's own row, or `None`) and `candidate_has_profile`,
+    so it cannot accidentally query the candidate table or show an Apply button
+    to an account that cannot use it. An anonymous visitor triggers neither
+    query: the page must stay free of candidate lookups for guests.
+    """
     job = get_object_or_404(public_job_queryset({}), pk=job_id)
+
+    application = None
+    candidate_has_profile = False
+    if request.user.is_authenticated and request.user.is_candidate:
+        profile = CandidateProfile.objects.filter(user=request.user).first()
+        candidate_has_profile = profile is not None
+        if profile is not None:
+            application = (
+                Application.objects.filter(job=job, candidate=profile)
+                .only("created_at")
+                .first()
+            )
+
     context = {
         "job": job,
         "employer_name": public_employer_name(job.employer),
         "skills": list(job.job_skills.all()),
+        "application": application,
+        "candidate_has_profile": candidate_has_profile,
     }
     return render(request, "jobs/detail.html", context)

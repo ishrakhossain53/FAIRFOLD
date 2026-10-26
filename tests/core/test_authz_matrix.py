@@ -575,6 +575,16 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 404,
         "admin": 404,
     },
+    # Candidate-only POST from page #5 (REQ-FR-022, batch 1.37). Anonymous gets
+    # the login redirect; the nil UUID is a 404 after the guard passes; the other
+    # roles are refused before the job lookup.
+    "/jobs/00000000-0000-0000-0000-000000000000/apply/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 404,
+        "employer": 403,
+        "admin": 403,
+    },
     # Job detail and the three state actions (REQ-FR-026/027, batches 1.28/1.29).
     # Same shape as the collection: the employer actor has no company profile in
     # this fixture, so the onboarding check answers 404 after the permission
@@ -622,6 +632,16 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "anonymous": 401,
         "candidate": 403,
         "employer": 404,
+        "admin": 403,
+    },
+    # Candidate-only apply (REQ-FR-022, batch 1.36). The nil UUID is a 404 after
+    # the role check; a candidate in this fixture has no profile, but the job
+    # lookup runs first, so the answer is still 404 rather than 409.
+    "/api/v1/jobs/00000000-0000-0000-0000-000000000000/apply/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 404,
+        "employer": 403,
         "admin": 403,
     },
     # DRF router roots for apps whose viewsets have not landed yet. They inherit
@@ -707,6 +727,10 @@ PARAMETERISED_SAMPLES = {
         "/api/v1/jobs/public/00000000-0000-0000-0000-000000000000/"
     ),
     "/jobs/<uuid:job_id>/": "/jobs/00000000-0000-0000-0000-000000000000/",
+    "/jobs/<uuid:job_id>/apply/": ("/jobs/00000000-0000-0000-0000-000000000000/apply/"),
+    "/api/v1/jobs/<uuid:job_id>/apply/": (
+        "/api/v1/jobs/00000000-0000-0000-0000-000000000000/apply/"
+    ),
     "/api/v1/jobs/<uuid:job_id>/activate/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/activate/",
     "/api/v1/jobs/<uuid:job_id>/pause/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/pause/",
     "/api/v1/jobs/<uuid:job_id>/close/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/close/",
