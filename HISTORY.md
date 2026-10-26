@@ -4458,3 +4458,81 @@ the page #5 button is a single POST. There is no client-side double-submit guard
 constraint and the 409 are the server-side guard. No `application.created` audit entry is written:
 no document names one, and this batch did not invent an action vocabulary. The `bandit` B104 failure
 and the `black` failure on `scripts/verify_docs.py` are pre-existing.
+
+### Batch 1.38: Candidate application history API (2026-10-26)
+
+**Spec first:** no amendment needed. Complete Doc §C.12 already declares
+`GET /api/v1/candidates/applications/` and `GET …/{id}/`; REQ-FR-023 is the
+requirement and Arch Doc §5.1 already has the `applications` columns this reads.
+
+**Added** `matching/serializers.py`:
+`ApplicationJobSerializer` (job id, title, location, remote flag, level and
+`employer_name`) and `CandidateApplicationSerializer` (`id`, nested `job`,
+`status`, `status_display`, `match_score`, `screening_status`, `created_at`,
+`screened_at`). The employer name goes through `public_employer_name()`, so the
+tracker cannot disclose a company the public job board withholds (REQ-FR-042).
+`match_score` and `screened_at` are declared and null until Phase 2; the
+rationale is deliberately not exposed because its payload is 2.21-2.25's contract.
+
+**Added** `candidates/api_views.py:CandidateApplicationListView` and
+`CandidateApplicationDetailView` (`IsCandidate`): owner-only through
+`request.user`, 404 before onboarding on the list, one 404 for "not yours" and
+"no such row" on the detail, project pagination with the 100-row ceiling, stable
+newest-first ordering. Routes in `candidates/api_urls.py` as
+`application-list` / `application-detail`. 39 tests in
+`tests/matching/test_application_list_detail_api.py`.
+
+### Batch 1.39: Candidate application list and detail UI (2026-10-26)
+
+**Pages:** #28 Applications tracker (design.md S06) and #29 Application detail
+(S07). **Added** `candidates/views.py:applications` and `application_detail` with
+the existing `candidate_required` guard, the shared owner-scoped queryset and
+`public_employer_name()` for the company column; routes added to
+`candidates/urls.py`. **Added** `templates/candidates/applications.html` (desktop
+table + 360px cards from one row set, icon+text status pills, status filter,
+true-empty and filtered-empty states), `templates/candidates/application_detail.html`
+(six-step ordered-list stepper with `aria-current="step"`, empty score slot,
+rejected/not-matched explanations, job link only while the job is active) and
+`templates/candidates/_status_pill.html` (all eight model statuses, icon + text;
+`not_matched` uses the warning tone and ⚑ so it does not read as `rejected` per
+Gap G3). The candidate header in `templates/base.html` gained an "Applications"
+link. 32 tests in `tests/candidates/test_application_ui.py`; four rows added to
+the authorization matrix and `docs/AUTHZ_MATRIX.md`.
+
+**Deliberate deviations, reported rather than hidden.** S06's "Updated" column is
+rendered as "Applied": §5.1 `applications` has no `updated_at`, and adding a
+column to fill a heading would be a schema change this batch did not need. The
+S07 "View my story" and "Message the employer" controls are absent because their
+requirements (REQ-FR-016/017, REQ-FR-043) are later phases. Band labels for the
+score are not rendered because design.md §3.4 marks the thresholds unconfirmed and
+Phase 1 never writes a score.
+
+**Commands and results (this environment, 2026-10-26).**
+
+- `pytest tests/matching/test_application_list_detail_api.py -q` -> **39 passed**.
+- `pytest tests/candidates/test_application_ui.py -q` -> **32 passed**.
+- `pytest tests/core/test_authz_matrix.py -q` -> **81 passed**.
+- `pytest tests/ -q` with `DEBUG` unset -> **1368 passed, 4 skipped** in 53.76s
+  (the four skips are the S3 tests with no bucket configured).
+- `manage.py check` -> no issues (0 silenced).
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `black --check .` -> only the pre-existing
+  `scripts/verify_docs.py`. `isort --check-only .` -> clean. `mypy` (CI scope) ->
+  "Success: no issues found in 111 source files".
+- `scripts/verify_docs.py` -> exit 0 (counts unchanged: 33 tables, 53 FKs, 27
+  indexes, 63 FRs). `scripts/verify_bias_set.py` -> both versions consistent.
+- `npm run build` -> rebuilt `static/css/tailwind.css`; `npm run check-budget` ->
+  under the 30 KB gzipped budget.
+- `bandit -r . -c bandit.yaml -s B104,...` -> still stops on the pre-existing
+  "Unknown test found in profile: B104" (bandit 1.7.10 on Python 3.14). Not
+  fixed here: unrelated tooling failure.
+
+**Known limitations.** REQ-FR-023's notification is not sent (batch 1.43) and no
+status-change action exists yet (batch 1.41), so the requirement is `partial`.
+There is no page #15 dashboard link; the tracker is reached from the header nav
+until #15 lands. The tracker has no pagination because the page spec has none and
+the resume manager is likewise unpaginated; a candidate with hundreds of
+applications would render them all. The header nav for a signed-in candidate
+already crowded a 360px viewport before this batch; the new "Applications" item
+makes that pre-existing pressure slightly worse, and the app shell's proper
+mobile drawer (design.md §5.4) is still unbuilt.

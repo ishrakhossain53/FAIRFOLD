@@ -39,12 +39,18 @@ from candidates.uploads import (
     presign_resume_put,
 )
 from core.pagination import StandardPagination
+from matching.models import Application
+from matching.serializers import CandidateApplicationSerializer
 
 # One sentence for both "you have not onboarded yet" and "the row is gone".
 # A 404 here does not enumerate anything: the only row it could describe is the
 # caller's own, and a distinguishable 403/404 would tell an employer whether a
 # given account has a profile.
 NO_PROFILE_DETAIL = "No candidate profile yet. Complete onboarding first."
+
+# One sentence for both "no such row" and "not yours". A distinguishable answer
+# would let one candidate probe another candidate's application ids.
+NO_APPLICATION_DETAIL = "Application not found."
 
 # One sentence for both "no such row" and "not yours". A distinguishable answer
 # would let one candidate probe another candidate's resume ids.
@@ -443,3 +449,93 @@ class CandidateResumeDetailView(APIView):
         delete_resume(resume, actor=request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CandidateApplicationListView(APIView):
+    """`GET /api/v1/candidates/applications/` -- REQ-FR-023 (batch 1.38).
+
+    **Owner-only, structurally.** The candidate comes from `request.user`; there
+    is no candidate id in the path or in a query parameter, so a caller cannot
+    ask for another candidate's history. The list is a whitelist through
+    `CandidateApplicationSerializer`, not the model row.
+
+    **A candidate with no profile gets 404, not an empty list.** The same answer
+    as `/me/` and `/resumes/`: onboarding (REQ-FR-009) is the step that precedes
+    an application, so "no profile yet" and "no applications yet" are different
+    facts and the client is told which one it hit.
+
+    **The ordering is total.** `-created_at` is "newest first" (design.md S06);
+    `-id` breaks a tie deterministically so a page boundary cannot repeat or skip
+    a row when two applications share a timestamp.
+
+    **No job-status filter.** An application to a job that has since been paused
+    or closed is still part of the candidate's history. Hiding it would make an
+    application vanish without the requirement saying so.
+    """
+
+    permission_classes = [IsCandidate]
+
+    @extend_schema(
+        responses={200: CandidateApplicationSerializer(many=True)},
+        summary="List the current candidate's applications",
+        description=(
+            "Candidate group only. Newest first, paginated (page_size up to 100). "
+            "Each row carries the job, the pipeline status and the match score "
+            "fields; the score is null until Phase 2 screening. 404 until the "
+            "candidate has a profile."
+        ),
+    )
+    def get(self, request) -> Response:
+        profile = _profile_for(request.user)
+        queryset = (
+            Application.objects.filter(candidate=profile)
+            # One join for the employer name: `public_employer_name()` reads the
+            # disclosure flag, and without the join each row would query again.
+            .select_related("job__employer").order_by("-created_at", "-id")
+        )
+
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = CandidateApplicationSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+class CandidateApplicationDetailView(APIView):
+    """`GET /api/v1/candidates/applications/{id}/` -- REQ-FR-023 (batch 1.38).
+
+    Same body as a list entry, so a client that already has an id from the list
+    needs no second parser. Complete Doc §C.12 also promises the AI rationale on
+    this route; batch 1.38's scope stops at the status and the empty score
+    fields, and the rationale payload belongs to Phase 2 (2.21-2.25).
+
+    **Ownership is part of the lookup.** `candidate__user` is in the filter, so
+    another candidate's id, an id that exists nowhere and a caller without a
+    profile all produce the same 404. A distinguishable 403/404 would let one
+    candidate enumerate another's application ids, and would confirm to an
+    employer that a given application exists.
+
+    Read-only by construction: there is no `PUT`, `PATCH` or `DELETE` on this
+    view. Status changes are audited actions (batch 1.41), not a field write.
+    """
+
+    permission_classes = [IsCandidate]
+
+    @extend_schema(
+        responses={200: CandidateApplicationSerializer},
+        summary="Get one of the current candidate's applications",
+        description=(
+            "Candidate group only, owner-only. One application with its job, "
+            "pipeline status and match score fields; 404 for an id the caller "
+            "does not own. No candidate identity in the body."
+        ),
+    )
+    def get(self, request, pk) -> Response:
+        application = (
+            Application.objects.filter(pk=pk, candidate__user=request.user)
+            .select_related("job__employer")
+            .first()
+        )
+        if application is None:
+            raise NotFound(NO_APPLICATION_DETAIL)
+
+        return Response(CandidateApplicationSerializer(application).data)

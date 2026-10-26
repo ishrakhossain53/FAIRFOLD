@@ -1,6 +1,6 @@
 # Authorization matrix
 
-**Enforced by:** `tests/core/test_authz_matrix.py` (batches 1.13, 1.15, 1.16, 1.22, 1.24, 1.25, 1.31, 1.33, 1.36, 1.37).
+**Enforced by:** `tests/core/test_authz_matrix.py` (batches 1.13, 1.15, 1.16, 1.22, 1.24, 1.25, 1.31, 1.33, 1.36, 1.37, 1.38, 1.39).
 **Requirement:** REQ-SEC-010 (security headers) and the fail-closed rule in the
 batch: `REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"]` is `IsAuthenticated`, and a
 view that needs to be public must say so explicitly.
@@ -48,6 +48,8 @@ layer's answer or is refused before the serializer runs.
 | `/candidate/resumes/` | GET | 302 | 302 | 403 | 403 | candidate-only Resume manager (page #17); no profile → onboarding (batch 1.22) |
 | `/candidate/resumes/delete/` | GET | 302 | 404 | 403 | 403 | candidate-only delete confirmation; no `resume` parameter → 404 (batch 1.22) |
 | `/candidate/resumes/delete/` | POST | 302 | 404 | 403 | 403 | candidate-only, owner-only; the POST is the only mutation (batch 1.22) |
+| `/candidate/applications/` | GET | 302 | 302 | 403 | 403 | candidate-only application tracker (page #28, REQ-FR-023); no profile → onboarding (batch 1.39) |
+| `/candidate/applications/{id}/` | GET | 302 | 404 | 403 | 403 | candidate-only and owner-only application detail (page #29); the nil UUID is a 404 (batch 1.39) |
 | `/employer/onboarding/` | GET | 302 | 403 | 200 | 403 | employer-only onboarding form (page #33); anonymous → login (batch 1.25) |
 | `/employer/onboarding/` | POST | 302 | 403 | 200 | 403 | employer-only create; an empty body re-renders with the required-field error (batch 1.25) |
 | `/employer/company/` | GET | 302 | 403 | 302 | 403 | employer-only company page; no profile → onboarding (batch 1.25) |
@@ -86,6 +88,8 @@ layer's answer or is refused before the serializer runs.
 | `/api/v1/candidates/resumes/{id}/complete/` | POST | **401** | 404 | 403 | 403 | candidate-only and owner-only; the matrix requests the nil UUID, which exists nowhere, so 404 (batch 1.20) |
 | `/api/v1/candidates/resumes/{id}/` | GET | **401** | 404 | 403 | 403 | candidate-only and owner-only; "not yours" and "no such row" are the same 404 (batch 1.21) |
 | `/api/v1/candidates/resumes/{id}/` | DELETE | **401** | 404 | 403 | 403 | candidate-only and owner-only; hard delete of row + object, audited without PII (batch 1.21) |
+| `/api/v1/candidates/applications/` | GET | **401** | 404 | 403 | 403 | candidate-only application history (REQ-FR-023); 404 until onboarding; match score null until Phase 2 (batch 1.38) |
+| `/api/v1/candidates/applications/{id}/` | GET | **401** | 404 | 403 | 403 | candidate-only and owner-only detail; "not yours" and "no such row" are the same 404 (batch 1.38) |
 | `/api/v1/employers/me/` | GET | **401** | 403 | 404 | 403 | employer-only; 404 until onboarding; PATCH is covered by `tests/employers/test_employer_profile_api.py` (batch 1.24) |
 | `/api/v1/jobs/` | POST | **401** | 403 | 404 | 403 | employer-only; 404 until onboarding; creates a draft only, `status` is not writable (batch 1.27) |
 | `/api/v1/jobs/public/` | GET | 200 | 200 | 200 | 200 | public job board (REQ-FR-042); active jobs only, newest first, paginated (batch 1.31) |
