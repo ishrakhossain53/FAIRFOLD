@@ -4385,3 +4385,76 @@ partials; both keep the state in the URL and work without JavaScript. Job
 detail links use the UUID because `jobs` has no slug column. The Arch Doc
 §4.1 note claiming §C.12 lacks public job endpoints is stale -- Complete Doc
 §C.12 lists them -- and was not edited in this batch.
+
+### Batch 1.34: Application model (2026-10-26)
+
+**No code change in this session.** The `Application` model and
+`matching/migrations/0001_initial.py` had already landed on 2026-10-22 as a prerequisite of 2.27.
+This batch verified the documented constraints against PostgreSQL: `UNIQUE(job_id, candidate_id)`
+blocks a duplicate at the database, both `chk_override_has_reason` and `ck_screening_status` fire at
+the database, and deleting the job or the candidate profile cascades to the application.
+`tests/matching/test_job_application_models.py` is the proof (25 passed, including the `JobSkill`
+cases); `makemigrations --check` reports no drift.
+
+### Batch 1.35: Per-employer candidate alias service (2026-10-26)
+
+**Added** `CandidateAlias` (`candidates/models.py`, `candidates/migrations/0003_candidatealias.py`)
+against Arch Doc §5.1 `candidate_aliases`: `employer_org_id` + `candidate_id`,
+`UNIQUE(employer, candidate)`, `UNIQUE(employer, alias)`, both foreign keys `ON DELETE CASCADE`.
+**Added** `candidates.services.alias_for()` — `C-` plus six symbols from an unambiguous alphabet,
+generated with `secrets`, stable per `(employer, candidate)`, collision retry, and a concurrent first
+use that returns the winner's alias after the unique-pair `IntegrityError`.
+`candidate_for_employer()` is the whitelist for employer-facing surfaces: alias, title, location,
+remote_ok and skills; no name, email, internal UUID, `visibility_tier` or `is_promoted`. 16 tests in
+`tests/candidates/test_candidate_alias.py`.
+
+### Batch 1.36: Apply to a job API (2026-10-26)
+
+**Spec first:** added `POST /api/v1/jobs/{id}/apply/` and its contract note to Complete Doc §C.12;
+TRACEABILITY gap note 1 was open before this batch. **Added** `matching/services.py:apply_to_job()`
+(active-only, explicit `status='applied'`, duplicate translated from the unique constraint),
+`matching/serializers.py` (`id`, `job_id`, `status`, `created_at` only),
+`employers/api_views.py:JobApplyView` (`IsCandidate`) and the route in `employers/job_urls.py`.
+404 for an unknown or draft job; 409 for paused/closed, duplicate, and a caller with no candidate
+profile. The request has no body and the applicant is always `request.user`. No resume requirement:
+REQ-FR-022 names none and §5.1 has no resume foreign key. No notifications: batch 1.43. 18 tests in
+`tests/matching/test_apply_api.py`.
+
+### Batch 1.37: Apply UI (2026-10-26)
+
+**Added** the Apply action to page #5 (`design.md` S05): `templates/jobs/_apply_action.html` is shared
+by the desktop sticky card and the mobile bottom bar; `employers/public_views.py:job_detail()`
+resolves `application` and `candidate_has_profile`; `candidates/views.py:job_apply` is a candidate-only
+POST that reuses `public_job_queryset()` (so a closed or draft job is 404), redirects to onboarding
+when the profile is missing, and uses Post/Redirect/Get for the confirmation. States: guest "Log in to
+apply", candidate form, no-profile link, already applied (date shown), employer note. 17 tests in
+`tests/employers/test_apply_ui.py`; the obsolete "disabled Apply" test in `test_job_board_ui.py` was
+replaced; two authorization-matrix rows were added.
+
+**Commands and results (this environment, 2026-10-26).**
+
+- `pytest tests/matching/test_job_application_models.py -q` -> **25 passed**.
+- `pytest tests/candidates/test_candidate_alias.py -q` -> **16 passed**.
+- `pytest tests/matching/test_apply_api.py -q` -> **18 passed**.
+- `pytest tests/employers/test_apply_ui.py -q` -> **17 passed**.
+- `pytest tests/core/test_authz_matrix.py -q` -> **77 passed**.
+- `pytest tests/ -q` with `DEBUG` unset -> **1293 passed, 4 skipped** in 73.14s (the four skips are
+  the S3 tests with no bucket configured).
+- `manage.py check` -> no issues (0 silenced).
+- `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- `flake8` (CI scope) -> clean. `black --check .` -> only the pre-existing
+  `scripts/verify_docs.py`. `isort --check-only .` -> clean. `mypy` (CI scope) -> "Success: no issues
+  found in 111 source files".
+- `scripts/verify_docs.py` -> "All checks passed." (counts unchanged: 33 tables, 53 FKs, 27 indexes,
+  63 FRs). `scripts/verify_bias_set.py` -> both versions internally consistent.
+- `bandit -r . -c bandit.yaml -s B104,...` -> still stops on the pre-existing "Unknown test found in
+  profile: B104" (bandit 1.7.10 on Python 3.14); a run without `-s` also reports "exception while
+  scanning file" for every file. Not fixed here: unrelated tooling failure.
+
+**Known limitations.** REQ-FR-022's two notifications are not sent (batch 1.43). REQ-FR-054's alias is
+built and tested but not yet rendered by an employer-facing list (batches 1.40/1.42); the reveal at
+shortlist is batch 2.39. Page #30's stepper (resume picker, screening questions, review) is not built;
+the page #5 button is a single POST. There is no client-side double-submit guard; the unique
+constraint and the 409 are the server-side guard. No `application.created` audit entry is written:
+no document names one, and this batch did not invent an action vocabulary. The `bandit` B104 failure
+and the `black` failure on `scripts/verify_docs.py` are pre-existing.

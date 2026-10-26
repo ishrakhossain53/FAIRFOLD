@@ -19,6 +19,7 @@ import pytest
 from django.test import Client
 from django.utils import timezone
 
+from candidates.models import CandidateProfile
 from core.models import Skill
 from employers.models import EmployerProfile
 from matching.models import Job, JobSkill
@@ -310,20 +311,22 @@ class TestDetail:
         assert "Log in to apply" in content
         assert f"?next=/jobs/{job.pk}/" in content
 
-    def test_a_candidate_sees_an_honest_disabled_apply(self, make_user, profile):
-        candidate = make_user("candidate")
+    def test_a_candidate_with_a_profile_gets_a_real_apply_form(
+        self, make_user, profile
+    ):
+        """Batch 1.37 replaced the disabled placeholder with the POST form."""
+        user = make_user("candidate")
+        CandidateProfile.objects.create(user=user, title="Backend developer")
         job = make_job(profile)
         client = Client()
-        client.force_login(candidate)
+        client.force_login(user)
 
         response = client.get(f"/jobs/{job.pk}/")
 
         content = response.content.decode()
         assert response.status_code == 200
-        assert "disabled" in content
-        assert "Applying opens in the next release." in content
-        # A disabled control, not a POST to an endpoint that does not exist.
-        assert 'action="/jobs/' not in content
+        assert f'action="/jobs/{job.pk}/apply/"' in content
+        assert "Applying opens in the next release." not in content
 
     def test_an_employer_sees_the_board_without_an_apply_action(
         self, make_user, profile

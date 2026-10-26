@@ -1,6 +1,6 @@
 # Authorization matrix
 
-**Enforced by:** `tests/core/test_authz_matrix.py` (batches 1.13, 1.15, 1.16, 1.22, 1.24, 1.25, 1.31, 1.33).
+**Enforced by:** `tests/core/test_authz_matrix.py` (batches 1.13, 1.15, 1.16, 1.22, 1.24, 1.25, 1.31, 1.33, 1.36, 1.37).
 **Requirement:** REQ-SEC-010 (security headers) and the fail-closed rule in the
 batch: `REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"]` is `IsAuthenticated`, and a
 view that needs to be public must say so explicitly.
@@ -66,6 +66,7 @@ layer's answer or is refused before the serializer runs.
 | `/employer/jobs/{id}/delete/` | POST | 302 | 403 | 302 | 403 | deletes a draft only; a published job is refused (batch 1.30) |
 | `/jobs/` | GET | 200 | 200 | 200 | 200 | public job board, page #4 (REQ-FR-042); active jobs only (batch 1.33) |
 | `/jobs/{id}/` | GET | 404 | 404 | 404 | 404 | public job detail, page #5; the nil UUID exists nowhere, and draft/paused/closed answer the same 404 (batch 1.33) |
+| `/jobs/{id}/apply/` | POST | 302 | 404 | 403 | 403 | candidate-only Apply button; anonymous → login, the nil UUID is a 404 after the guard (batch 1.37) |
 | `/employer/applications/{id}/` | GET | 302 | 403 | 404 | 403 | employer-only page #41 (S13) AI assessment; scoped to the caller's own jobs, so an unknown or another employer's application is a 404 (batches 2.26-2.29) |
 | `/django-admin/` | GET | 302 | 302 | 302 | 200 | staff-only; non-staff go to the admin login |
 | `/api/v1/` | GET | 200 | 200 | 200 | 200 | public API index (URL prefixes only) |
@@ -95,6 +96,7 @@ layer's answer or is refused before the serializer runs.
 | `/api/v1/jobs/{id}/activate/` | POST | **401** | 403 | 404 | 403 | `draft`/`paused` -> `active`; closed is 409, active is a no-op (batch 1.29) |
 | `/api/v1/jobs/{id}/pause/` | POST | **401** | 403 | 404 | 403 | `active` -> `paused`; anything else but a repeat is 409 (batch 1.29) |
 | `/api/v1/jobs/{id}/close/` | POST | **401** | 403 | 404 | 403 | `active`/`paused` -> `closed`; a draft is 409 (batch 1.29) |
+| `/api/v1/jobs/{id}/apply/` | POST | **401** | 404 | 403 | 403 | candidate-only apply; the nil UUID is a 404 after the role check (batch 1.36) |
 | `/api/v1/accounts/` | GET | **401** | 200 | 200 | 200 | DRF router root inherits the global default |
 | `/api/v1/candidates/` | GET | **401** | 200 | 200 | 200 | same |
 | `/api/v1/employers/` | GET | **401** | 200 | 200 | 200 | same |

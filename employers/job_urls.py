@@ -11,7 +11,9 @@ and `employers` (the company-profile API). The collection answers `POST` and the
 detail route answers `GET`/`PATCH`/`DELETE`; the collection's `GET` (the jobs
 list, page #35) is a later batch, and an absent row is a 405 rather than a stub
 that returns an empty list. The three state actions are separate paths because
-Arch Doc §4.3 makes each one an audited transition, not a field update.
+Arch Doc §4.3 makes each one an audited transition, not a field update. The
+candidate-facing `apply/` action is here too: it addresses a job, and the rule it
+triggers lives in `matching.services.apply_to_job` (REQ-FR-022, batch 1.36).
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from django.urls import path
 
 from employers.api_views import (
     JobActivateView,
+    JobApplyView,
     JobCloseView,
     JobCreateView,
     JobDetailView,
@@ -42,6 +45,11 @@ urlpatterns = [
         name="job-public-detail",
     ),
     path("<uuid:job_id>/", JobDetailView.as_view(), name="job-detail"),
+    # Candidate action on a job (REQ-FR-022, batch 1.36). Declared before the
+    # state actions so the candidate-facing verb sits with the public routes;
+    # `path()` anchors each pattern, so the order is documentation, not
+    # disambiguation.
+    path("<uuid:job_id>/apply/", JobApplyView.as_view(), name="job-apply"),
     path("<uuid:job_id>/activate/", JobActivateView.as_view(), name="job-activate"),
     path("<uuid:job_id>/pause/", JobPauseView.as_view(), name="job-pause"),
     path("<uuid:job_id>/close/", JobCloseView.as_view(), name="job-close"),

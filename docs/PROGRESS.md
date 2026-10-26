@@ -50,10 +50,10 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.31 Public job list and detail API (2026-10-25; `GET /api/v1/jobs/public/` + `{id}/`, `AllowAny`, active only, employer name via `show_company_name`; 28 passed in tests/employers/test_public_job_api.py)
 - [x] 1.32 Search, filters, ordering and pagination (2026-10-25; `job_skills` model + migration, keyword search over title/description/skill name, location/remote/level filters, stable newest-first, `page_size` capped at 50; 33 passed in tests/employers/test_public_job_search_api.py + 5 `JobSkill` model tests)
 - [x] 1.33 Public job board UI (2026-10-25; pages #4/#5 at `/jobs/` and `/jobs/{id}/`, guest/signed-in, filters, pagination, empty/error states, concealment in HTML; 29 passed in tests/employers/test_job_board_ui.py; full suite 1240 passed / 4 skipped)
-- [ ] 1.34 Application model (model + migration landed 2026-10-22 as a prerequisite of 2.27; awaiting your test output)
-- [ ] 1.35 Per-employer candidate alias service
-- [ ] 1.36 Apply to a job API
-- [ ] 1.37 Apply UI
+- [x] 1.34 Application model (2026-10-26, model + migration already landed 2026-10-22 as a prerequisite of 2.27; 25 passed in tests/matching/test_job_application_models.py incl. duplicate, both check constraints and both cascades; full suite 1293 passed / 4 skipped)
+- [x] 1.35 Per-employer candidate alias service (2026-10-26, 16 passed in tests/candidates/test_candidate_alias.py; full suite 1293 passed / 4 skipped)
+- [x] 1.36 Apply to a job API (2026-10-26, 18 passed in tests/matching/test_apply_api.py; full suite 1293 passed / 4 skipped)
+- [x] 1.37 Apply UI (2026-10-26, 17 passed in tests/employers/test_apply_ui.py, 29 in test_job_board_ui.py, 2 new authz rows; full suite 1293 passed / 4 skipped)
 - [ ] 1.38 Candidate application history API
 - [ ] 1.39 Candidate application list and detail UI
 - [ ] 1.40 Employer application inbox API
