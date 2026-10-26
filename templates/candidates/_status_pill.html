@@ -1,0 +1,51 @@
+{% comment %}
+One application status pill (design.md §6 "STATUS PILL (always icon + text)").
+
+The class names are written here as literals rather than passed in from the view
+because `tailwind.config.js` scans templates and not Python. A class assembled in
+`candidates/views.py` would be purged from the stylesheet and the pill would
+render unstyled -- the same silent failure the config warns about.
+
+`not_matched` is not in design.md's pill set: that set predates Gap G3, which
+says a hard-filter outcome stays reviewable and is not a rejection. It gets the
+warning tone and the ⚑ icon ("needs review"), never the danger tone and ✖ that
+`rejected` uses. Colour is never the only signal: every branch carries an icon
+and the model's own label.
+{% endcomment %}
+{% if status == "applied" %}
+<span class="inline-flex items-center gap-1 rounded-sm border border-border bg-surface-muted px-2 py-1 text-caption font-semibold text-ink-2">
+  <span aria-hidden="true">○</span>{{ label }}
+</span>
+{% elif status == "screened" %}
+<span class="inline-flex items-center gap-1 rounded-sm bg-info-soft px-2 py-1 text-caption font-semibold text-info-ink">
+  <span aria-hidden="true">●</span>{{ label }}
+</span>
+{% elif status == "shortlisted" %}
+<span class="inline-flex items-center gap-1 rounded-sm bg-success-soft px-2 py-1 text-caption font-semibold text-success-ink">
+  <span aria-hidden="true">✔</span>{{ label }}
+</span>
+{% elif status == "interview" %}
+<span class="inline-flex items-center gap-1 rounded-sm bg-primary-soft px-2 py-1 text-caption font-semibold text-primary-strong">
+  <span aria-hidden="true">◐</span>{{ label }}
+</span>
+{% elif status == "offered" %}
+<span class="inline-flex items-center gap-1 rounded-sm bg-success-soft px-2 py-1 text-caption font-semibold text-success-ink">
+  <span aria-hidden="true">✔</span>{{ label }}
+</span>
+{% elif status == "hired" %}
+<span class="inline-flex items-center gap-1 rounded-sm bg-success-soft px-2 py-1 text-caption font-semibold text-success-ink">
+  <span aria-hidden="true">✔</span>{{ label }}
+</span>
+{% elif status == "rejected" %}
+<span class="inline-flex items-center gap-1 rounded-sm bg-danger-soft px-2 py-1 text-caption font-semibold text-danger-ink">
+  <span aria-hidden="true">✖</span>{{ label }}
+</span>
+{% elif status == "not_matched" %}
+<span class="inline-flex items-center gap-1 rounded-sm bg-warning-soft px-2 py-1 text-caption font-semibold text-warning-ink">
+  <span aria-hidden="true">⚑</span>{{ label }}
+</span>
+{% else %}
+<span class="inline-flex items-center gap-1 rounded-sm border border-border bg-surface-muted px-2 py-1 text-caption font-semibold text-ink-2">
+  <span aria-hidden="true">●</span>{{ label }}
+</span>
+{% endif %}

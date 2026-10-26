@@ -54,8 +54,8 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.35 Per-employer candidate alias service (2026-10-26, 16 passed in tests/candidates/test_candidate_alias.py; full suite 1293 passed / 4 skipped)
 - [x] 1.36 Apply to a job API (2026-10-26, 18 passed in tests/matching/test_apply_api.py; full suite 1293 passed / 4 skipped)
 - [x] 1.37 Apply UI (2026-10-26, 17 passed in tests/employers/test_apply_ui.py, 29 in test_job_board_ui.py, 2 new authz rows; full suite 1293 passed / 4 skipped)
-- [ ] 1.38 Candidate application history API
-- [ ] 1.39 Candidate application list and detail UI
+- [x] 1.38 Candidate application history API (2026-10-26, 39 passed in tests/matching/test_application_list_detail_api.py; full suite 1368 passed / 4 skipped)
+- [x] 1.39 Candidate application list and detail UI (2026-10-26, 32 passed in tests/candidates/test_application_ui.py, 81 in tests/core/test_authz_matrix.py; full suite 1368 passed / 4 skipped)
 - [ ] 1.40 Employer application inbox API
 - [ ] 1.41 Application status actions
 - [ ] 1.42 Employer application review UI

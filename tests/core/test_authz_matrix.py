@@ -210,6 +210,23 @@ AUTHZ_MATRIX: dict[str, dict] = {
             },
         },
     },
+    # Pages #28/#29 (REQ-FR-023, batch 1.39). Candidate-only. The fixture
+    # candidate has no profile, so the tracker forwards to onboarding; the detail
+    # of the nil UUID is the owner-scoped lookup's 404.
+    "/candidate/applications/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 302,
+        "employer": 403,
+        "admin": 403,
+    },
+    "/candidate/applications/00000000-0000-0000-0000-000000000000/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 404,
+        "employer": 403,
+        "admin": 403,
+    },
     # ---- employer portal pages (design.md page #33, batch 1.25) --------
     # Employer-only. Anonymous goes to /login/ with a `next`; a candidate,
     # interviewer or admin gets 403. The employer actor has no profile in this
@@ -516,6 +533,25 @@ AUTHZ_MATRIX: dict[str, dict] = {
             },
         },
     },
+    # Candidate application history (REQ-FR-023, batch 1.38). Candidate-only and
+    # owner-scoped. The fixture candidate has no profile, so the list answers the
+    # documented 404-before-onboarding (same as `/me/`) and the nil UUID is a 404
+    # from the ownership filter. The 200 path is in
+    # tests/matching/test_application_list_detail_api.py.
+    "/api/v1/candidates/applications/": {
+        "method": "get",
+        "anonymous": 401,
+        "candidate": 404,
+        "employer": 403,
+        "admin": 403,
+    },
+    "/api/v1/candidates/applications/00000000-0000-0000-0000-000000000000/": {
+        "method": "get",
+        "anonymous": 401,
+        "candidate": 404,
+        "employer": 403,
+        "admin": 403,
+    },
     # Employer-only. 404 is the documented "not onboarded yet" state: the
     # employer passed the permission check, while the candidate/interviewer and
     # admin did not. PATCH is covered by
@@ -707,6 +743,12 @@ PARAMETERISED_SAMPLES = {
     ),
     "/api/v1/candidates/resumes/<uuid:pk>/": (
         f"/api/v1/candidates/resumes/{SAMPLE_UUID}/"
+    ),
+    "/api/v1/candidates/applications/<uuid:pk>/": (
+        f"/api/v1/candidates/applications/{SAMPLE_UUID}/"
+    ),
+    "/candidate/applications/<uuid:application_id>/": (
+        f"/candidate/applications/{SAMPLE_UUID}/"
     ),
     "/employer/applications/<uuid:application_id>/": (
         f"/employer/applications/{SAMPLE_UUID}/"

@@ -17,6 +17,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from candidates.api_views import (
+    CandidateApplicationDetailView,
+    CandidateApplicationListView,
     CandidateMeView,
     CandidateResumeCompleteView,
     CandidateResumeDetailView,
@@ -47,6 +49,20 @@ urlpatterns = [
         "resumes/<uuid:pk>/",
         CandidateResumeDetailView.as_view(),
         name="resume-detail",
+    ),
+    # Candidate application history (REQ-FR-023, batch 1.38). §C.12 puts both
+    # reads under `candidates/applications/`; the model lives in `matching`
+    # because Complete Doc §C.4 assigns `applications` there, and the view lives
+    # here because the owner is always `request.user`.
+    path(
+        "applications/",
+        CandidateApplicationListView.as_view(),
+        name="application-list",
+    ),
+    path(
+        "applications/<uuid:pk>/",
+        CandidateApplicationDetailView.as_view(),
+        name="application-detail",
     ),
     path("", include(router.urls)),
 ]

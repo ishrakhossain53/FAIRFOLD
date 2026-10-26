@@ -1,9 +1,9 @@
-"""Candidate onboarding, profile, resume and apply pages (design.md pages #14/#16/#17/#5).
+"""Candidate onboarding, profile, resume, apply and application pages.
 
-The apply action (REQ-FR-022, batch 1.37) lives here rather than in the public
-job-board module because it needs the candidate guard and the candidate profile
-lookup; the route is still `/jobs/{id}/apply/` so the form posts to the page it
-belongs to.
+Pages #14/#16 (onboarding, profile), #17 (resumes), #5 (apply) and #28/#29
+(application tracker and detail) live here because they are all candidate-portal
+pages and share the same two guards. The `Application` model itself is in
+`matching` (Complete Doc §C.4); this module only reads it for its owner.
 
 Two guards, in this order:
 
@@ -44,7 +44,9 @@ from django.views.decorators.http import require_http_methods, require_POST
 from candidates.forms import SECTION_FORMS, SECTION_LABELS, CandidateProfileForm
 from candidates.models import CandidateProfile, CandidateResume
 from candidates.services import delete_resume
+from employers.serializers import public_employer_name
 from employers.services import public_job_queryset
+from matching.models import Application, Job
 from matching.services import (
     ALREADY_APPLIED,
     JOB_NOT_OPEN,
@@ -445,3 +447,167 @@ def job_apply(request: HttpRequest, job_id) -> HttpResponse:
         messages.success(request, "Application sent.")
 
     return redirect("job_board:detail", job_id=job.pk)
+
+
+# ---------------------------------------------------------------------------
+# Application tracker and detail (REQ-FR-023, pages #28/#29, batch 1.39)
+# ---------------------------------------------------------------------------
+
+# The linear pipeline design.md S07 draws, in the model's own vocabulary. The
+# wireframe stops at "Offered"; `hired` is included because an application that
+# reached it must not render as if the last step were still "Offered". The two
+# non-linear outcomes (`rejected`, `not_matched`) are deliberately not steps:
+# Gap G3 says `not_matched` is a filter outcome the employer can pull back, not
+# a stage of the same ladder.
+APPLICATION_PIPELINE = (
+    Application.Status.APPLIED,
+    Application.Status.SCREENED,
+    Application.Status.SHORTLISTED,
+    Application.Status.INTERVIEW,
+    Application.Status.OFFERED,
+    Application.Status.HIRED,
+)
+
+
+def _application_row(application: Application) -> dict:
+    """The template's view of one application, with no candidate identity.
+
+    The employer's name goes through `public_employer_name()`: REQ-FR-042 says it
+    is withheld until the employer opts in, and design.md S06's "Company" column
+    must therefore render empty for an un-disclosed employer rather than leak a
+    name the public board hides. `None` is the template's "say nothing".
+    """
+    job = application.job
+    return {
+        "id": application.id,
+        "job_id": job.pk,
+        "job_title": job.title,
+        "job_is_active": job.status == Job.Status.ACTIVE,
+        "employer_name": public_employer_name(job.employer),
+        "location": job.location,
+        "remote_allowed": job.remote_allowed,
+        "experience_level": job.get_experience_level_display(),
+        "status": application.status,
+        "status_label": application.get_status_display(),
+        "match_score": application.match_score,
+        "created_at": application.created_at,
+        "screened_at": application.screened_at,
+    }
+
+
+def _application_steps(status: str) -> list[dict]:
+    """The pipeline stepper for page #29, or `[]` for a non-linear outcome.
+
+    A row per stage with `state` in `done`/`current`/`upcoming`. The template
+    renders `aria-current="step"` on the current one; a rejected or not-matched
+    application gets an explanation instead of a stepper that would imply it is
+    still moving through the pipeline.
+    """
+    if status not in APPLICATION_PIPELINE:
+        return []
+
+    current = APPLICATION_PIPELINE.index(status)
+    return [
+        {
+            "label": Application.Status(value).label,
+            "state": (
+                "done"
+                if index < current
+                else "current" if index == current else "upcoming"
+            ),
+        }
+        for index, value in enumerate(APPLICATION_PIPELINE)
+    ]
+
+
+def _application_queryset(user):
+    """The caller's applications, newest first, with the job and employer joined.
+
+    Ownership is part of the filter, so an application id that belongs to someone
+    else cannot be addressed by a page at all. `-id` breaks a `created_at` tie so
+    the order is total.
+    """
+    return (
+        Application.objects.filter(candidate__user=user)
+        .select_related("job__employer")
+        .order_by("-created_at", "-id")
+    )
+
+
+@never_cache
+@candidate_required
+@require_http_methods(["GET"])
+def applications(request: HttpRequest) -> HttpResponse:
+    """Page #28: the application tracker (design.md S06, REQ-FR-023).
+
+    The status filter is a plain GET `<select>`, so the page works without
+    JavaScript and the URL survives a reload or Back. An unknown `status` value
+    is treated as "all" rather than a 400: the only way to send one is to edit
+    the URL by hand, and a filter that silently shows nothing would look like an
+    empty history.
+
+    A candidate with no profile is sent to onboarding, exactly like pages #16 and
+    #17: an application hangs off the profile (REQ-FR-009 precedes REQ-FR-023).
+    """
+    candidate_profile = CandidateProfile.objects.filter(user=request.user).first()
+    if candidate_profile is None:
+        return redirect("candidate_portal:onboarding")
+
+    raw_status = request.GET.get("status", "")
+    status_filter = raw_status if raw_status in Application.Status.values else ""
+
+    queryset = _application_queryset(request.user)
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+
+    rows = [_application_row(application) for application in queryset]
+
+    # Distinguishes "you have never applied" from "nothing matches this filter".
+    # The second state needs a way back to the full list, not a "Find jobs"
+    # button that hides the applications the candidate does have.
+    has_any = bool(rows) or (
+        Application.objects.filter(candidate=candidate_profile).exists()
+        if status_filter
+        else False
+    )
+
+    return render(
+        request,
+        "candidates/applications.html",
+        {
+            "applications": rows,
+            "status_filter": status_filter,
+            "status_choices": Application.Status.choices,
+            "has_any": has_any,
+        },
+    )
+
+
+@never_cache
+@candidate_required
+@require_http_methods(["GET"])
+def application_detail(request: HttpRequest, application_id) -> HttpResponse:
+    """Page #29: one application, its pipeline status and its score slot.
+
+    **Ownership is in the lookup**, like the resume pages: another candidate's id
+    is the same 404 as an id that exists nowhere, so the page cannot be used to
+    enumerate rows or to confirm that a given application exists.
+
+    **The score card is a slot in Phase 1.** REQ-FR-024 is Phase 2: nothing
+    writes `match_score` yet, so the page says the application is not screened
+    rather than rendering an empty card or inventing a band label. The
+    "View my story" and "Message the employer" actions in S07 belong to later
+    phases (REQ-FR-016/017, REQ-FR-043) and are not rendered as dead controls.
+    """
+    application = _application_queryset(request.user).filter(pk=application_id).first()
+    if application is None:
+        raise Http404("Application not found.")
+
+    return render(
+        request,
+        "candidates/application_detail.html",
+        {
+            "application": _application_row(application),
+            "steps": _application_steps(application.status),
+        },
+    )

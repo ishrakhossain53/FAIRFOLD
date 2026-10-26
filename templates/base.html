@@ -78,6 +78,10 @@
           </a>
           {% endif %}
           {% if user.is_candidate %}
+          <a href="{% url 'candidate_portal:applications' %}"
+             class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">
+            Applications
+          </a>
           <a href="{% url 'candidate_portal:profile' %}"
              class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">
             My profile
