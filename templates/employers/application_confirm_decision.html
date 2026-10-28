@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% comment %}
+The confirmation page for one decision (S13's "Reject opens a dialog asking for
+a reason", made a page).
+
+A page rather than a `<dialog>` for the same reason the resume delete is: the
+action has to work without JavaScript, and this is where the gate warning, the
+consequences and the target status live. The `<dialog>` in S13 is the Phase 2
+review page's presentation; the control underneath it is this POST.
+
+The POST goes to `post_url`, which the view builds with `reverse()` from the
+action -- so the form target and the action cannot drift apart, and editing the
+form cannot turn a shortlist into a reject.
+{% endcomment %}
+
+{% block title %}{{ action_label }} candidate · {{ application.job.title }} · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10">
+  <a href="{% url 'employer_portal:application-review' application.pk %}"
+     class="text-body-sm font-medium text-primary-strong underline">← Back to the application</a>
+
+  <div class="mt-3 flex flex-wrap items-center gap-3">
+    <h1 class="text-h1 font-bold text-ink">{{ action_label }} candidate</h1>
+    {% include "employers/_alias_badge.html" with alias=alias %}
+  </div>
+  <p class="mt-2 text-body-sm text-ink-3">
+    {{ application.job.title }} · currently
+    {% include "core/_application_status.html" with status=application.status label=application.get_status_display %}
+  </p>
+
+  {% if state.available %}
+
+  <section aria-labelledby="what-happens-heading"
+           class="mt-6 rounded-md border border-border bg-surface p-5 shadow-card">
+    <h2 id="what-happens-heading" class="text-h4 font-semibold text-ink">What happens</h2>
+    <ul class="mt-3 space-y-2 text-body-sm text-ink-2">
+      <li>The application moves from <strong class="text-ink">{{ application.get_status_display }}</strong> to <strong class="text-ink">{{ target_label }}</strong>.</li>
+      <li>The decision is recorded in the audit log with your account and the two statuses. No candidate details are written to it.</li>
+      <li>The candidate is notified in their dashboard and by email.</li>
+      {% if action == "shortlist" %}
+      <li>Their name and contact details stay hidden. Revealing them is a separate action that is not part of this version.</li>
+      {% else %}
+      <li>Rejecting is final in this version: there is no way back from rejected.</li>
+      {% endif %}
+    </ul>
+  </section>
+
+  <form method="post" action="{{ post_url }}" class="mt-6 flex flex-wrap items-center gap-3">
+    {% csrf_token %}
+    <button type="submit"
+            class="inline-flex h-touch items-center justify-center rounded-md px-5 text-body-sm font-semibold {% if action == 'shortlist' %}bg-primary text-white hover:bg-primary-strong{% else %}bg-danger text-white hover:opacity-90{% endif %}">
+      {{ action_label }} {{ alias }}
+    </button>
+    <a href="{% url 'employer_portal:application-review' application.pk %}"
+       class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+      Cancel
+    </a>
+  </form>
+
+  {% else %}
+
+  <section role="alert" aria-labelledby="blocked-heading"
+           class="mt-6 rounded-md border border-warning bg-warning-soft p-5">
+    <h2 id="blocked-heading" class="text-h4 font-semibold text-warning-ink">
+      {% if state.noop %}Nothing to do{% else %}This action is not available{% endif %}
+    </h2>
+    <p class="mt-2 text-body-sm text-warning-ink">
+      {% if state.noop %}
+        This application is already {{ application.get_status_display|lower }}.
+      {% else %}
+        {{ state.reason }}
+      {% endif %}
+    </p>
+    <a href="{% url 'employer_portal:application-review' application.pk %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+      Back to the application
+    </a>
+  </section>
+
+  {% endif %}
+</div>
+{% endblock %}

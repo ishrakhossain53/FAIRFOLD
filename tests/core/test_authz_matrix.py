@@ -371,16 +371,63 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 302,
         "admin": 403,
     },
-    # Page #41 (S13), the AI assessment column. The matrix requests the nil
+    # Page #41 (S13), the candidate review page. The matrix requests the nil
     # UUID, which exists nowhere, so the employer actor gets the same 404 another
     # employer would for a real application. The 200 path is proved by
-    # tests/employers/test_application_rationale_ui.py, which builds a job.
+    # tests/employers/test_employer_applications_ui.py, which builds a job.
     "/employer/applications/00000000-0000-0000-0000-000000000000/": {
         "method": "get",
         "anonymous": 302,
         "candidate": 403,
         "employer": 404,
         "admin": 403,
+    },
+    # Page #40 (S12), the job's applications, by alias (batch 1.42). Like every
+    # other job route, the profile redirect comes before the ownership lookup, so
+    # the matrix's profile-less employer actor gets 302. The 404 for a job that is
+    # not the caller's, and the 200, are proved by
+    # tests/employers/test_employer_applications_ui.py.
+    "/employer/jobs/00000000-0000-0000-0000-000000000000/applications/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
+    # The two decisions (REQ-FR-051/052). GET is the confirmation page and writes
+    # nothing; the POST path is covered by the UI tests, which also assert that a
+    # refused actor leaves the status unchanged.
+    "/employer/applications/00000000-0000-0000-0000-000000000000/shortlist/": {
+        "methods": {
+            "get": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 404,
+                "admin": 403,
+            },
+            "post": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 404,
+                "admin": 403,
+            },
+        },
+    },
+    "/employer/applications/00000000-0000-0000-0000-000000000000/reject/": {
+        "methods": {
+            "get": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 404,
+                "admin": 403,
+            },
+            "post": {
+                "anonymous": 302,
+                "candidate": 403,
+                "employer": 404,
+                "admin": 403,
+            },
+        },
     },
     # Django admin: anonymous and non-staff are redirected to its login page.
     # This is the only route where the admin actor sees something the employer
@@ -680,6 +727,39 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 403,
         "admin": 403,
     },
+    # The employer's inbox for one job (REQ-FR-029, batch 1.40). Employer-only
+    # and owner-only; the employer actor has no company profile in this fixture,
+    # so the onboarding check answers 404 after the permission check passes --
+    # the same shape as the job detail route. Ownership, the alias-only body and
+    # the `?status=` filter are covered by tests/employers/test_job_applications_api.py.
+    "/api/v1/jobs/00000000-0000-0000-0000-000000000000/applications/": {
+        "method": "get",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
+    # The two human decisions on one application (REQ-FR-023, REQ-FR-052, batch
+    # 1.41). Employer-only, and owner-only through the lookup, so the employer
+    # actor gets their 404 for a row that exists nowhere -- the same answer as
+    # another employer's application. The empty POST body never reaches the
+    # decision table for any denied actor. The transitions, the assessment gate
+    # and the audit entries are covered by
+    # tests/matching/test_application_decision_api.py.
+    "/api/v1/applications/00000000-0000-0000-0000-000000000000/shortlist/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
+    "/api/v1/applications/00000000-0000-0000-0000-000000000000/reject/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 403,
+        "employer": 404,
+        "admin": 403,
+    },
     # DRF router roots for apps whose viewsets have not landed yet. They inherit
     # the global IsAuthenticated default; they must not become public just
     # because they list nothing.
@@ -753,6 +833,15 @@ PARAMETERISED_SAMPLES = {
     "/employer/applications/<uuid:application_id>/": (
         f"/employer/applications/{SAMPLE_UUID}/"
     ),
+    "/employer/applications/<uuid:application_id>/shortlist/": (
+        f"/employer/applications/{SAMPLE_UUID}/shortlist/"
+    ),
+    "/employer/applications/<uuid:application_id>/reject/": (
+        f"/employer/applications/{SAMPLE_UUID}/reject/"
+    ),
+    "/employer/jobs/<uuid:job_id>/applications/": (
+        f"/employer/jobs/{SAMPLE_UUID}/applications/"
+    ),
     "/employer/jobs/<uuid:job_id>/": (f"/employer/jobs/{SAMPLE_UUID}/"),
     "/employer/jobs/<uuid:job_id>/edit/": (f"/employer/jobs/{SAMPLE_UUID}/edit/"),
     "/employer/jobs/<uuid:job_id>/autosave/": (
@@ -772,6 +861,15 @@ PARAMETERISED_SAMPLES = {
     "/jobs/<uuid:job_id>/apply/": ("/jobs/00000000-0000-0000-0000-000000000000/apply/"),
     "/api/v1/jobs/<uuid:job_id>/apply/": (
         "/api/v1/jobs/00000000-0000-0000-0000-000000000000/apply/"
+    ),
+    "/api/v1/jobs/<uuid:job_id>/applications/": (
+        "/api/v1/jobs/00000000-0000-0000-0000-000000000000/applications/"
+    ),
+    "/api/v1/applications/<uuid:application_id>/shortlist/": (
+        "/api/v1/applications/00000000-0000-0000-0000-000000000000/shortlist/"
+    ),
+    "/api/v1/applications/<uuid:application_id>/reject/": (
+        "/api/v1/applications/00000000-0000-0000-0000-000000000000/reject/"
     ),
     "/api/v1/jobs/<uuid:job_id>/activate/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/activate/",
     "/api/v1/jobs/<uuid:job_id>/pause/": "/api/v1/jobs/00000000-0000-0000-0000-000000000000/pause/",

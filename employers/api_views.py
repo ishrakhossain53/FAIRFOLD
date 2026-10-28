@@ -33,7 +33,8 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsCandidate, IsEmployer
 from candidates.models import CandidateProfile
-from core.pagination import PublicJobPagination
+from candidates.services import aliases_for
+from core.pagination import PublicJobPagination, StandardPagination
 from employers.models import EmployerProfile
 from employers.serializers import (
     EmployerProfileSerializer,
@@ -53,8 +54,12 @@ from employers.services import (
     public_job_queryset,
     record_job_audit,
 )
-from matching.models import Job
-from matching.serializers import ApplicationCreatedSerializer
+from matching.models import Application, Job
+from matching.serializers import (
+    ApplicationCreatedSerializer,
+    EmployerApplicationFilterSerializer,
+    EmployerApplicationListSerializer,
+)
 from matching.services import (
     ALREADY_APPLIED,
     JOB_NOT_OPEN,
@@ -566,9 +571,10 @@ class JobApplyView(APIView):
     resume picker is a later UI decision, not a precondition this batch may
     invent.
 
-    **Notifications are not sent here.** REQ-FR-022 says the candidate and the
-    employer are notified; batch 1.43 owns the notification model and delivery,
-    and the call site is left out rather than faked.
+    **Notifications are sent by the service, not here.** REQ-FR-022 says the
+    candidate and the employer are notified; `matching.services.apply_to_job`
+    writes both rows (batch 1.43), so the apply page and this endpoint cannot
+    disagree about who is told.
     """
 
     permission_classes = [IsCandidate]
@@ -602,3 +608,83 @@ class JobApplyView(APIView):
             ApplicationCreatedSerializer(application).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class JobApplicationListView(APIView):
+    """`GET /api/v1/jobs/{id}/applications/` -- REQ-FR-029, batch 1.40.
+
+    **The employer's inbox, scoped by the job.** Complete Doc §C.12 declares this
+    route and `?status=`; Phase 1 is the list without the ranking, which arrives
+    with 2.19/2.20. The caller must hold an employer role and own the job:
+    `owned_job()` filters on the caller's profile, so another employer's job is
+    the same 404 as an id that exists nowhere and the route cannot be used to
+    enumerate postings. A caller with no profile gets the onboarding 404, the
+    same answer as `/api/v1/employers/me/`.
+
+    **Identity is the alias** (`EmployerApplicationListSerializer`, REQ-FR-054).
+    No name, photo, contact detail or internal candidate UUID reaches the body,
+    at any status -- the alias is the identity until shortlist (REQ-FR-029).
+
+    **A `not_matched` row is returned, not hidden.** Gap G3: the hard filter's
+    output is reviewable, and `?status=not_matched` is the documented way to ask
+    for it. The reason and the rule-set version are batch 2.18's payload.
+
+    **Ordering is total and stable.** Ranking does not exist yet, so `-created_at`
+    ("newest first") with `-id` as a tie-break is the only honest order: it makes
+    a page boundary deterministic, so pagination cannot repeat or skip a row.
+    When the ranked list lands, this order is replaced by the documented one and
+    the response gains `rank`.
+
+    **Read-only.** Status changes are audited actions (batch 1.41), so there is no
+    `POST`/`PATCH` here; applying is the candidate's `POST /jobs/{id}/apply/`.
+    """
+
+    permission_classes = [IsEmployer]
+
+    @extend_schema(
+        parameters=[EmployerApplicationFilterSerializer],
+        responses={200: EmployerApplicationListSerializer(many=True)},
+        summary="List the applications to one of the caller's jobs",
+        description=(
+            "Employer group only, owner only. Newest first, paginated (page_size "
+            "up to 100). `?status=` filters on one pipeline status, including "
+            "`not_matched`, which shows the candidates the hard filter excluded "
+            "(Gap G3). Each row carries the per-employer candidate alias, the "
+            "status and the (Phase 2) match score; never a name, photo, contact "
+            "detail or internal candidate UUID (REQ-FR-029, REQ-FR-054)."
+        ),
+    )
+    def get(self, request, job_id) -> Response:
+        profile = employer_profile_for(request.user)
+        job = owned_job(profile, job_id)
+
+        filters = EmployerApplicationFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+
+        queryset = (
+            Application.objects.filter(job=job)
+            # The whitelist reads the profile's own columns; one join keeps the
+            # page at a constant number of queries instead of one per row.
+            .select_related("candidate").order_by("-created_at", "-id")
+        )
+
+        status_filter = filters.validated_data.get("status") or ""
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = EmployerApplicationListSerializer(
+            page,
+            many=True,
+            context={
+                "employer": profile,
+                # One query for the page, from `candidates.services`: the same
+                # read the employer's other candidate surfaces use, so the label
+                # cannot differ between them (REQ-FR-054).
+                "aliases": aliases_for(
+                    profile, [application.candidate for application in page]
+                ),
+            },
+        )
+        return paginator.get_paginated_response(serializer.data)

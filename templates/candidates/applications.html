@@ -98,7 +98,7 @@ Deviations from the wireframe, all deliberate and reported with the batch:
             {% if application.employer_name %}{{ application.employer_name }}{% else %}<span class="text-ink-3">Not disclosed</span>{% endif %}
           </td>
           <td class="py-3 pr-3">
-            {% include "candidates/_status_pill.html" with status=application.status label=application.status_label %}
+            {% include "core/_application_status.html" with status=application.status label=application.status_label %}
           </td>
           <td class="py-3 pr-3 whitespace-nowrap">
             {% if application.match_score is None %}
@@ -140,7 +140,7 @@ Deviations from the wireframe, all deliberate and reported with the batch:
         </p>
 
         <div class="mt-3 flex flex-wrap items-center gap-2">
-          {% include "candidates/_status_pill.html" with status=application.status label=application.status_label %}
+          {% include "core/_application_status.html" with status=application.status label=application.status_label %}
           {% if application.match_score is None %}
           <span class="text-body-sm text-ink-3">Not screened</span>
           {% else %}

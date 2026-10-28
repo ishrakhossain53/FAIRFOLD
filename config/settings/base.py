@@ -427,6 +427,15 @@ PASSWORD_RESET_URL = env("PASSWORD_RESET_URL", "http://localhost:8000/reset-pass
 # code. It also expires a link that is never used.
 PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_RESET_TIMEOUT", "3600"))
 
+# Origin of the application's own links, used to turn a stored notification path
+# into an absolute URL in the email that mirrors it (REQ-FR-022, batch 1.43).
+# `notifications.url` holds a path -- the DDL's VARCHAR(500) is a link to a page,
+# not a per-environment absolute URL -- and the Celery task that sends the email
+# has no request to build one from. Same reasoning as `EMAIL_VERIFICATION_URL`,
+# and the host differs per environment, so it is a setting rather than a
+# constant.
+SITE_URL = env("SITE_URL", "http://localhost:8000")
+
 
 # ---------------------------------------------------------------------------
 # Internationalisation

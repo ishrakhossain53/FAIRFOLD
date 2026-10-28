@@ -88,7 +88,7 @@ def application(job, candidate):
 
 @pytest.fixture
 def page_url(application):
-    return reverse("employer_portal:application-rationale", args=[application.pk])
+    return reverse("employer_portal:application-review", args=[application.pk])
 
 
 def score(application, *, rationale=None, model=MODEL, actor=None):
@@ -260,7 +260,7 @@ def test_another_employer_cannot_read_the_assessment(client, application, make_u
     client.force_login(other)
 
     response = client.get(
-        reverse("employer_portal:application-rationale", args=[application.pk])
+        reverse("employer_portal:application-review", args=[application.pk])
     )
 
     assert response.status_code == 404
@@ -271,7 +271,7 @@ def test_a_candidate_cannot_open_the_page(client, application, make_user):
     client.force_login(candidate_user)
 
     response = client.get(
-        reverse("employer_portal:application-rationale", args=[application.pk])
+        reverse("employer_portal:application-review", args=[application.pk])
     )
 
     assert response.status_code == 403

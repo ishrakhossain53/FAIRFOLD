@@ -26,16 +26,19 @@ from typing import Callable, Mapping
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
 from ai.citation import CitationError, load_rationale
 from ai.screening import bias_status_for
+from candidates.services import alias_for, aliases_for
 from employers.forms import EmployerProfileForm, JobForm
 from employers.models import EmployerProfile
 from employers.services import (
@@ -47,6 +50,16 @@ from employers.services import (
     record_job_audit,
 )
 from matching.models import Application, Job
+from matching.services import (
+    DECISION_ACTIONS,
+    DECISION_CHANGED,
+    DECISION_GATE_BLOCKED,
+    DECISION_NOOP,
+    NOT_MATCHED_SHORTLIST_DETAIL,
+    SHORTLIST_GATE_DETAIL,
+    application_status,
+    decide_application,
+)
 
 
 def employer_required(view: Callable) -> Callable:
@@ -179,32 +192,211 @@ def company_edit(request: HttpRequest) -> HttpResponse:
     )
 
 
+# ---------------------------------------------------------------------------
+# Applications inbox and review (REQ-FR-029, pages #40/#41, batch 1.42)
+# ---------------------------------------------------------------------------
+
+#: Page #40's page size. Twenty, the same as the public job board and the
+#: applications API (`core.pagination.StandardPagination`), so "next page" means
+#: the same thing on the page and in the API.
+APPLICATIONS_PAGE_SIZE = 20
+
+#: Page #41's two decision actions, in S13's button order. The keys are
+#: `matching.services.DECISION_ACTIONS`'s, so the page cannot offer an action the
+#: transition table does not have.
+DECISION_BUTTONS = (
+    ("shortlist", "Shortlist", "employer_portal:application-shortlist"),
+    ("reject", "Reject", "employer_portal:application-reject"),
+)
+
+
+def _job_application_queryset(job: Job):
+    """One job's applications, newest first, with the candidate joined.
+
+    `candidate` is joined because every row needs its alias: the page reads the
+    aliases in one query (`aliases_for`) and passes them in, and without the join
+    the per-row fallback would be a second query per candidate seen for the first
+    time.
+    """
+    return (
+        Application.objects.filter(job=job)
+        .select_related("candidate")
+        .order_by("-created_at")
+    )
+
+
+def _application_rows(profile: EmployerProfile, applications) -> list[dict]:
+    """The template's view of one page of applications, by alias only.
+
+    A row carries the alias and nothing that identifies the candidate: no name,
+    no email, no photo, no internal UUID (REQ-FR-029/054). The page's aliases are
+    read in one query and passed in as a cache hint; a candidate the employer has
+    never seen falls back to `alias_for()`, which creates the label exactly once.
+
+    A list of dicts rather than attributes set on the model instance: a transient
+    `application.alias` would shadow nothing today and silently shadow a real
+    field the day `Application` grows one.
+    """
+    aliases = aliases_for(
+        profile, [application.candidate for application in applications]
+    )
+    rows = []
+    for application in applications:
+        rows.append(
+            {
+                "application": application,
+                "alias": aliases.get(application.candidate_id)
+                or alias_for(profile, application.candidate),
+                "status": application.status,
+                "status_label": application.get_status_display(),
+                "gate": application.assessment_gate_status,
+                "created_at": application.created_at,
+            }
+        )
+    return rows
+
+
 @never_cache
 @employer_required
 @require_http_methods(["GET"])
-def application_rationale(request: HttpRequest, application_id) -> HttpResponse:
-    """Page #41 (S13): the AI assessment column for one application.
+def job_applications(request: HttpRequest, job_id) -> HttpResponse:
+    """Page #40 (S12): one job's applications, by alias (REQ-FR-029).
 
-    **Only the rationale column is built here.** S13 is a split view: the
-    anonymised resume pane is `design.md` 7.14 and batch 2.9, the assessment-gate
-    panel is REQ-FR-051, and the sticky decision bar is REQ-FR-051/052. Those are
-    later batches; offering the controls now would show buttons nothing enforces.
+    **Phase 1 shows what exists.** S12 draws rank, score chip, bias check,
+    override marker and a bulk bar; none of those has data before Phase 2
+    (REQ-FR-024/028/035), so the table is the alias (7.13), the candidate's own
+    headline, the status pill, the assessment-gate pill (7.12, REQ-FR-051), the
+    applied date and the way into the review page. A column of dashes would
+    promise data the product does not have, and a bulk bar would need a bulk
+    endpoint that does not exist.
+
+    **The status tabs are derived from this job's own rows.** W28 draws All /
+    Screened / Shortlisted / Not matched on the ranked list; in Phase 1 no row is
+    `screened` or `not_matched` yet, and a tab that always returns nothing is the
+    empty state W28 exists to prevent. `?status=` still accepts any documented
+    status, and an unknown value means "all" -- the page #28 rule, because the
+    only way to send one is to edit the URL by hand.
+
+    **Ownership is in the lookup** (`_owned_job`), so another employer's job is
+    the same 404 as a job that does not exist.
+    """
+    profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+    job = _owned_job(request, profile, job_id)
+
+    raw_status = request.GET.get("status", "")
+    status_filter = raw_status if raw_status in Application.Status.values else ""
+
+    queryset = _job_application_queryset(job)
+    # `.order_by()` clears the model's default ordering first: with an ordering in
+    # place Django adds those columns to the GROUP BY, which turns this into one
+    # row per application instead of one per status.
+    counts = {
+        row["status"]: row["total"]
+        for row in queryset.order_by().values("status").annotate(total=Count("id"))
+    }
+    total = sum(counts.values())
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+
+    paginator = Paginator(queryset, APPLICATIONS_PAGE_SIZE)
+    # `get_page` clamps a hand-edited page number instead of 404ing the list; a
+    # browser link is not a client and must not lose the page over `?page=abc`.
+    page_obj = paginator.get_page(request.GET.get("page"))
+    rows = _application_rows(profile, page_obj)
+
+    tabs = [{"status": "", "label": "All", "count": total}]
+    tabs.extend(
+        {"status": value, "label": label, "count": counts[value]}
+        for value, label in Application.Status.choices
+        if counts.get(value)
+    )
+
+    return render(
+        request,
+        "employers/applications.html",
+        {
+            "job": job,
+            "rows": rows,
+            "tabs": tabs,
+            "status_filter": status_filter,
+            "page_obj": page_obj,
+            "page_range": list(
+                page_obj.paginator.get_elided_page_range(page_obj.number)
+            ),
+            "total": total,
+            "filtered_total": paginator.count,
+        },
+    )
+
+
+def _decision_state(application: Application, action: str) -> dict:
+    """What page #41 may offer for one action, and why not (REQ-FR-051/052).
+
+    Read from the service's own table, so the page and the API cannot disagree
+    about which transitions exist. This is presentation only: the confirmation
+    POST calls `decide_application()` again, and that is what actually refuses.
+
+    Three outcomes, because W27 draws three: `available` (the button works),
+    `noop` (the row already holds the target status -- no button, just a
+    sentence), and a `reason` (the button is rendered `aria-disabled` and stays
+    focusable, so a keyboard user can reach it and hear why).
+    """
+    spec = DECISION_ACTIONS[action]
+    state: dict = {"action": action, "available": False, "noop": False, "reason": None}
+
+    if application.status == spec.to_status:
+        state["noop"] = True
+        return state
+    if action == "shortlist" and application.status == application_status(
+        Application.Status.NOT_MATCHED
+    ):
+        state["reason"] = NOT_MATCHED_SHORTLIST_DETAIL
+        return state
+    if application.status not in spec.allowed_from:
+        state["reason"] = spec.conflict_detail
+        return state
+    # REQ-FR-051: the gate disables the control *and* the service refuses it.
+    if action == "shortlist" and not application.can_shortlist():
+        state["reason"] = SHORTLIST_GATE_DETAIL
+        return state
+
+    state["available"] = True
+    return state
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET"])
+def application_review(request: HttpRequest, application_id) -> HttpResponse:
+    """Page #41 (S13): one application, its AI assessment column and its decisions.
+
+    **Only what Phase 1 has.** S13 is a split view: the anonymised resume pane is
+    `design.md` 7.14 and batch 2.9, the assessment-gate panel (W29) needs the
+    assessment attempts of Phase 2, and the integrity panel is REQ-FR-055. This
+    page renders the candidate summary the alias whitelist allows, the AI
+    assessment column that already existed (batch 2.29), and the decision bar --
+    the one part of S13 whose backend is now complete (REQ-FR-051/052, batch 1.41).
 
     **Scoped to the caller's own applications.** The lookup filters on
     `job__employer__user`, so another employer's application is a 404, not a 403
     that would confirm the row exists. The candidate's identity is never in the
     context: REQ-FR-029 keeps the name, photo and contact details hidden until
-    shortlist, and this page does not shortlist.
+    shortlist, and this page does not reveal them on shortlist either (the reveal
+    is REQ-FR-054's separate audited action, batch 2.17).
 
     A stored rationale that no longer parses renders the error state rather than a
     500. The score and the audit row are still true even when the payload is not
     readable, and the employer is told exactly that.
     """
     application = get_object_or_404(
-        Application.objects.select_related("job", "job__employer"),
+        Application.objects.select_related("job__employer", "candidate"),
         pk=application_id,
         job__employer__user=request.user,
     )
+    profile = application.job.employer
+    alias = alias_for(profile, application.candidate)
 
     bias_status = bias_status_for(application)
     checked: list[str] = []
@@ -233,9 +425,14 @@ def application_rationale(request: HttpRequest, application_id) -> HttpResponse:
 
     return render(
         request,
-        "employers/application_rationale.html",
+        "employers/application_review.html",
         {
             "application": application,
+            "alias": alias,
+            "decisions": [
+                (action, label, route, _decision_state(application, action))
+                for action, label, route in DECISION_BUTTONS
+            ],
             "rationale": rationale,
             "bias_status": bias_status,
             "checked": checked,
@@ -243,6 +440,119 @@ def application_rationale(request: HttpRequest, application_id) -> HttpResponse:
             "error": error,
         },
     )
+
+
+def _decision_application(request: HttpRequest, application_id):
+    """The caller's application and the employer profile that owns it.
+
+    One query, and the profile comes from the row rather than from
+    `_portal_profile()`: the application already proves the caller is that
+    employer, and a second lookup could only disagree with it.
+    """
+    application = get_object_or_404(
+        Application.objects.select_related("job__employer", "candidate"),
+        pk=application_id,
+        job__employer__user=request.user,
+    )
+    return application, application.job.employer
+
+
+def _refusal_reason(action: str, application: Application) -> str:
+    """The sentence for a decision the service refused (REQ-FR-051/052).
+
+    `not_matched` has its own wording because G3 makes it a review-first state
+    rather than a plain conflict: the employer is told to review it, not told
+    that the transition does not exist.
+    """
+    if action == "shortlist" and application.status == application_status(
+        Application.Status.NOT_MATCHED
+    ):
+        return NOT_MATCHED_SHORTLIST_DETAIL
+    return DECISION_ACTIONS[action].conflict_detail
+
+
+def _decision_view(request: HttpRequest, application_id, action: str) -> HttpResponse:
+    """One decision: a confirmation page on GET, the service call on POST.
+
+    **The confirmation is a page, not a `<dialog>`.** The same rule the resume
+    delete follows: the action has to work without JavaScript, and a page gives
+    the reason field and the gate warning somewhere to live that a modal does not.
+
+    **The POST is the only write.** A GET renders the confirmation and changes
+    nothing, so a prefetch, a crawler or a reload cannot shortlist anybody.
+
+    **The service decides, the page reports.** `decide_application()` is the same
+    call the API makes, so the transition table, the gate (REQ-FR-051), the audit
+    entry and the candidate notification (REQ-FR-023) are written once. A refusal
+    is a message on the review page, not a 500 and not a silent no-op.
+    """
+    application, profile = _decision_application(request, application_id)
+    alias = alias_for(profile, application.candidate)
+    spec = DECISION_ACTIONS[action]
+    target_label = Application.Status(spec.to_status).label
+    state = _decision_state(application, action)
+
+    if request.method == "POST":
+        try:
+            outcome, decided = decide_application(
+                application_id=application.pk,
+                employer=profile,
+                action=action,
+                actor=request.user,
+            )
+        except Application.DoesNotExist as exc:  # deleted between fetch and lock
+            raise Http404 from exc
+
+        if outcome == DECISION_CHANGED:
+            messages.success(
+                request, f"{target_label}. The candidate has been notified."
+            )
+        elif outcome == DECISION_NOOP:
+            messages.info(
+                request,
+                f"This application is already "
+                f"{decided.get_status_display().lower()}.",
+            )
+        elif outcome == DECISION_GATE_BLOCKED:
+            messages.error(request, SHORTLIST_GATE_DETAIL)
+        else:
+            messages.error(request, _refusal_reason(action, decided))
+
+        return redirect(
+            "employer_portal:application-review", application_id=application.pk
+        )
+
+    return render(
+        request,
+        "employers/application_confirm_decision.html",
+        {
+            "application": application,
+            "alias": alias,
+            "action": action,
+            "action_label": "Shortlist" if action == "shortlist" else "Reject",
+            "target_label": target_label,
+            "post_url": reverse(
+                f"employer_portal:application-{action}", args=[application.pk]
+            ),
+            "state": state,
+        },
+    )
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET", "POST"])
+def application_shortlist(request: HttpRequest, application_id) -> HttpResponse:
+    """`shortlist`: confirmation page, then the REQ-FR-052 service call."""
+    return _decision_view(request, application_id, "shortlist")
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET", "POST"])
+def application_reject(request: HttpRequest, application_id) -> HttpResponse:
+    """`reject`: confirmation page, then the REQ-FR-052 service call."""
+    return _decision_view(request, application_id, "reject")
 
 
 # ---------------------------------------------------------------------------

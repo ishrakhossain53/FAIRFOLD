@@ -28,6 +28,7 @@ from candidates.services import (
     ALIAS_PREFIX,
     AliasGenerationError,
     alias_for,
+    aliases_for,
     candidate_for_employer,
 )
 from employers.models import EmployerProfile
@@ -322,3 +323,43 @@ def test_deleting_the_employer_removes_the_alias(employer, candidate):
     employer.delete()
 
     assert not CandidateAlias.objects.filter(employer_id=employer.pk).exists()
+
+
+# ------------------------------------------------------- the page batch read
+
+
+def test_the_batch_read_returns_only_stored_aliases(employer, candidate, make_user):
+    """A candidate the employer has not met is absent, not created."""
+    known = alias_for(employer, candidate)
+    stranger = CandidateProfile.objects.create(user=make_user("candidate"))
+
+    assert aliases_for(employer, [candidate, stranger]) == {candidate.pk: known}
+    assert not CandidateAlias.objects.filter(candidate=stranger).exists()
+
+
+def test_the_batch_read_is_scoped_to_one_employer(employer, other_employer, candidate):
+    mine = alias_for(employer, candidate)
+    theirs = alias_for(other_employer, candidate)
+
+    assert aliases_for(employer, [candidate]) == {candidate.pk: mine}
+    assert aliases_for(other_employer, [candidate]) == {candidate.pk: theirs}
+    assert mine != theirs
+
+
+def test_the_batch_read_of_nothing_does_not_query(
+    employer, candidate, django_assert_num_queries
+):
+    with django_assert_num_queries(0):
+        assert aliases_for(employer, []) == {}
+
+
+def test_the_batch_read_is_one_query_for_many_candidates(
+    employer, candidate, other_candidate, django_assert_num_queries
+):
+    alias_for(employer, candidate)
+    alias_for(employer, other_candidate)
+
+    with django_assert_num_queries(1):
+        aliases = aliases_for(employer, [candidate, other_candidate])
+
+    assert set(aliases) == {candidate.pk, other_candidate.pk}
