@@ -9,7 +9,8 @@ Two rules live here because each has more than one caller:
 * **The per-employer alias** (REQ-FR-054, D-4, batch 1.35). The employer inbox
   (1.40/1.42), notifications and exports must all show the same label for the
   same candidate, and the label must be created exactly once under concurrency.
-  `alias_for()` is that single entry point.
+  `alias_for()` is the single write path, and `aliases_for()` is the batch read a
+  page uses instead of one lookup per row.
 
 This is not a generic "services layer"; it holds operations with a rule that
 would otherwise be duplicated.
@@ -27,6 +28,9 @@ from candidates.uploads import discard_object
 from core.models import AuditLogEntry
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, avoids a runtime app import
+    from collections.abc import Iterable
+    from uuid import UUID
+
     from candidates.models import CandidateProfile
     from employers.models import EmployerProfile
 
@@ -162,9 +166,39 @@ def alias_for(employer: EmployerProfile, candidate: CandidateProfile) -> str:
     )
 
 
+def aliases_for(
+    employer: EmployerProfile,
+    candidates: Iterable[CandidateProfile],
+) -> dict[UUID, str]:
+    """The aliases this employer already holds for `candidates`, in one query.
+
+    **A batch read, not a second source of truth.** The employer inbox (batch
+    1.40) and the employer pages that follow it render one alias per row, and
+    calling `alias_for()` per row would be one lookup for every application on the
+    page. Reading the page's aliases up front keeps that at one query; a candidate
+    the employer has not met yet is simply absent from the mapping, and the caller
+    falls back to `alias_for()`, which creates the label exactly once.
+
+    **Scoped by employer.** The filter is on `employer`, so a row can only ever
+    carry this employer's label; two employers that receive the same candidate get
+    two rows. An empty input returns an empty mapping without touching the
+    database, which is the normal state of a page with no applications.
+    """
+    candidate_ids = {candidate.pk for candidate in candidates}
+    if not candidate_ids:
+        return {}
+    return dict(
+        CandidateAlias.objects.filter(
+            employer=employer, candidate_id__in=candidate_ids
+        ).values_list("candidate_id", "alias")
+    )
+
+
 def candidate_for_employer(
     employer: EmployerProfile,
     candidate: CandidateProfile,
+    *,
+    alias: str | None = None,
 ) -> dict[str, object]:
     """The whitelist an employer-facing surface may render for a candidate.
 
@@ -178,9 +212,16 @@ def candidate_for_employer(
     (REQ-FR-053). `bio` and `journey_timeline` are free text the candidate wrote
     about themselves and are not needed to identify an application; a later
     detail page can add them with its own decision, not by inheritance.
+
+    **`alias` is a cache hint, not a second source of truth.** The inbox (batch
+    1.40) reads the aliases for one page in a single query and passes each row's
+    value here, so a page of a hundred applications does not run a hundred
+    lookups. When it is omitted -- the normal single-candidate call -- the alias
+    is read or created by `alias_for()`. A caller cannot forge a label: the
+    value only ever comes from `CandidateAlias`, filtered by the same employer.
     """
     return {
-        "alias": alias_for(employer, candidate),
+        "alias": alias if alias is not None else alias_for(employer, candidate),
         "title": candidate.title,
         "location": candidate.location,
         "remote_ok": candidate.remote_ok,

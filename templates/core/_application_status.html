@@ -1,6 +1,12 @@
 {% comment %}
 One application status pill (design.md §6 "STATUS PILL (always icon + text)").
 
+Shared by both portals: the candidate tracker (pages #28/#29) and the employer
+list and review pages (#40/#41, batch 1.42). A status is one status, so a second
+copy in `templates/employers/` would let the two surfaces drift on the word and
+the icon for the same value. It lives in `core/` rather than `candidates/`
+because neither app owns it.
+
 The class names are written here as literals rather than passed in from the view
 because `tailwind.config.js` scans templates and not Python. A class assembled in
 `candidates/views.py` would be purged from the stylesheet and the pill would

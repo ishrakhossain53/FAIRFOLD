@@ -127,10 +127,20 @@ that keeps `not_matched` candidates reviewable (REQ-FR-029).
         </tbody>
       </table>
     </div>
-    <p class="mt-2 text-body-sm text-ink-3">
-      {{ applicant_total }} application{{ applicant_total|pluralize }} in total.
-      {% if applicant_total == 0 %}Nothing has been submitted to this job yet.{% endif %}
-    </p>
+    <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <p class="text-body-sm text-ink-3">
+        {{ applicant_total }} application{{ applicant_total|pluralize }} in total.
+        {% if applicant_total == 0 %}Nothing has been submitted to this job yet.{% endif %}
+      </p>
+      {% comment %}
+      Page #40 (batch 1.42). It is job-scoped, so this is the way in: the jobs
+      list leads to the overview, and the overview leads to the applications.
+      {% endcomment %}
+      <a href="{% url 'employer_portal:job-applications' job.pk %}"
+         class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+        Review applications
+      </a>
+    </div>
   </section>
 
   <section aria-labelledby="posting-heading" class="mt-6">
