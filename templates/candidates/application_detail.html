@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% comment %}
+Page #29 — Application detail (design.md §10.0 row 29, wireframe S07,
+REQ-FR-023, batch 1.39).
+
+Deviations from the wireframe, all deliberate and reported with the batch:
+
+* **The score card is a Phase-1 slot.** REQ-FR-024 is Phase 2: nothing writes
+  `match_score` yet. The card says "Not screened yet" instead of drawing an empty
+  score, a bias badge, matched/missing skills or an expandable rationale -- all of
+  which need the screening payload (2.21-2.25) and would be invented here.
+* **"View my story for this job" and "Message the employer" are absent.** They
+  are REQ-FR-016/017 (Phase 3) and REQ-FR-043 (Phase 2) and would be dead
+  controls. No notification link either (batch 1.43).
+* **The stepper has six steps, not five.** S07 stops at "Offered"; `hired` is in
+  the model's pipeline and an application that reached it must not render as if
+  "Offered" were still the last stage.
+* `rejected` and `not_matched` are not steps. Gap G3 says `not_matched` is a
+  filter outcome the employer can review and pull back, not a rung on the same
+  ladder, and `rejected` is a closed outcome.
+{% endcomment %}
+
+{% block title %}Application · {{ application.job_title }} · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-3xl">
+
+  <a href="{% url 'candidate_portal:applications' %}"
+     class="inline-flex h-touch items-center text-body-sm font-medium text-primary-strong underline">
+    ← Applications
+  </a>
+
+  <div class="mt-2">
+    <h1 class="text-h1 font-bold text-ink break-words">{{ application.job_title }}</h1>
+    <p class="mt-1 text-body text-ink-2">
+      {% if application.employer_name %}{{ application.employer_name }} · {% endif %}{{ application.location }}{% if application.location and application.remote_allowed %} · {% endif %}{% if application.remote_allowed %}Remote ok{% endif %}{% if application.experience_level %}{% if application.location or application.remote_allowed %} · {% endif %}{{ application.experience_level }}{% endif %}
+    </p>
+  </div>
+
+  <div class="mt-4 flex flex-wrap items-center gap-3">
+    {% include "core/_application_status.html" with status=application.status label=application.status_label %}
+    <p class="text-body-sm text-ink-3">Applied {{ application.created_at|date:"j M Y" }}</p>
+    {% if application.screened_at %}
+    <p class="text-body-sm text-ink-3">Screened {{ application.screened_at|date:"j M Y" }}</p>
+    {% endif %}
+  </div>
+
+  {% if steps %}
+  {% comment %}
+  S07's A11y line: the stepper is an ordered list and the current stage carries
+  `aria-current="step"`. At 360px it scrolls horizontally rather than wrapping
+  into a shape that no longer reads as a sequence.
+  {% endcomment %}
+  <ol aria-label="Application progress"
+      class="mt-5 flex gap-2 overflow-x-auto rounded-md border border-border bg-surface px-4 py-3">
+    {% for step in steps %}
+    <li class="flex items-center gap-1 whitespace-nowrap text-body-sm {% if step.state == 'current' %}font-semibold text-ink{% elif step.state == 'done' %}text-success-ink{% else %}text-ink-3{% endif %}"
+        {% if step.state == 'current' %}aria-current="step"{% endif %}>
+      <span aria-hidden="true">{% if step.state == 'done' %}✔{% elif step.state == 'current' %}●{% else %}○{% endif %}</span>
+      {{ step.label }}
+    </li>
+    {% if not forloop.last %}<li aria-hidden="true" class="text-ink-4">→</li>{% endif %}
+    {% endfor %}
+  </ol>
+  {% else %}
+  <div class="mt-5 rounded-md border border-border bg-surface-muted px-4 py-3 text-body-sm text-ink-2">
+    {% if application.status == "rejected" %}
+    This application is closed.
+    {% elif application.status == "not_matched" %}
+    This application did not meet the job's required criteria. It stays available
+    to the employer for review.
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <section aria-labelledby="score-heading"
+           class="mt-6 rounded-md border border-border bg-surface p-5 shadow-card">
+    <h2 id="score-heading" class="text-h4 font-semibold text-ink">Match score</h2>
+
+    {% if application.match_score is None %}
+    <p class="mt-2 text-body text-ink-2">Not screened yet.</p>
+    <p class="mt-1 text-body-sm text-ink-3">
+      A match score and its explanation appear here once the application has been
+      screened. Personal details are removed before AI screening, and a person
+      makes the final decision.
+    </p>
+    {% else %}
+    <p class="mt-2 text-score font-bold text-ink"
+       aria-label="Match score {{ application.match_score }} out of 100">
+      {{ application.match_score }} <span class="text-body font-normal text-ink-3">out of 100</span>
+    </p>
+    {% endif %}
+  </section>
+
+  {% if application.job_is_active %}
+  <p class="mt-6">
+    <a href="{% url 'job_board:detail' application.job_id %}"
+       class="inline-flex h-touch items-center text-body-sm font-medium text-primary-strong underline">
+      View the job posting
+    </a>
+  </p>
+  {% else %}
+  <p class="mt-6 text-body-sm text-ink-3">This job is no longer open for applications.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -84,6 +84,7 @@ class ApiRootView(APIView):
                     "candidates": "/api/v1/candidates/",
                     "employers": "/api/v1/employers/",
                     "jobs": "/api/v1/jobs/",
+                    "applications": "/api/v1/applications/",
                     "assessments": "/api/v1/assessments/",
                     "interviews": "/api/v1/interviews/",
                     "gdpr": "/api/v1/gdpr/",
@@ -109,6 +110,12 @@ urlpatterns = [
     path("accounts/", include("accounts.api_urls")),
     path("candidates/", include("candidates.api_urls")),
     path("employers/", include("employers.api_urls")),
+    path("jobs/", include("employers.job_urls")),
+    # The application *decisions* (batch 1.41) belong to the matching app, not to
+    # employers: `/jobs/{id}/applications/` lists a job's inbox, but an action on
+    # one application is about the application itself and is what §C.12 lists
+    # under the screening-integrity endpoints.
+    path("applications/", include("matching.api_urls")),
     path("assessments/", include("assessments.api_urls")),
     path("interviews/", include("interviews.api_urls")),
     path("notifications/", include("notifications.api_urls")),

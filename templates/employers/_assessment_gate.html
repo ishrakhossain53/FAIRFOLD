@@ -1,0 +1,30 @@
+{% comment %}
+The assessment-gate pill (design.md §7.12, REQ-FR-051, batch 1.42).
+
+Four states, and one of them is deliberately invisible: `not_required` renders
+nothing at all, because a pill saying "no assessment needed" is a label for an
+absence and would train the employer to ignore the column.
+
+`pending` and `failed` both block shortlisting. They are different words because
+they need different actions: pending means wait (or ask for a retake, batch 3.x),
+failed means the attempt is over. Both stay *text plus a mark* -- W27's a11y note:
+`◷`, `✓` and `⚠` each carry a word, because an icon alone is not a label, and the
+pill's text is part of the row's accessible name rather than a `title`.
+
+This pill says the state; it does not disable the button. The button's own
+`aria-disabled` and `aria-describedby` are on the review page, where the reason
+can be read in context.
+{% endcomment %}
+{% if gate == "pending" %}
+<span class="inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted px-2 py-1 text-caption font-semibold text-ink-2">
+  <span aria-hidden="true">◷</span>Assessment pending
+</span>
+{% elif gate == "passed" %}
+<span class="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-1 text-caption font-semibold text-success-ink">
+  <span aria-hidden="true">✓</span>Assessment passed
+</span>
+{% elif gate == "failed" %}
+<span class="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-1 text-caption font-semibold text-warning-ink">
+  <span aria-hidden="true">⚠</span>Assessment not passed
+</span>
+{% endif %}

@@ -24,4 +24,54 @@ urlpatterns = [
     path("onboarding/", views.onboarding, name="onboarding"),
     path("company/", views.company, name="company"),
     path("company/edit/", views.company_edit, name="company-edit"),
+    # Pages #35-#37 (REQ-FR-025-027, batch 1.30). The job id is in the path
+    # because a page is about one row; ownership is still decided by
+    # `request.user`'s profile inside the view, so the id never grants access.
+    # `new/` comes before the UUID route for readability; the converter would
+    # reject it either way.
+    path("jobs/", views.jobs, name="jobs"),
+    path("jobs/new/", views.job_create, name="job-create"),
+    # Page #36's live preview (design.md 7.22). Fixed path, no job id: it renders
+    # the four posted strings and never reads a row, so the create page can use
+    # it before a draft exists. It must precede the UUID route for readability;
+    # the converter would reject "preview" either way.
+    path("jobs/preview/", views.job_markdown_preview, name="job-preview"),
+    # Page #40 (S12), batch 1.42: one job's applications, by alias. Under the
+    # job because S12's breadcrumb is job-scoped and because the applications
+    # API (`GET /api/v1/jobs/{id}/applications/`) is too.
+    path(
+        "jobs/<uuid:job_id>/applications/",
+        views.job_applications,
+        name="job-applications",
+    ),
+    path("jobs/<uuid:job_id>/", views.job_overview, name="job-overview"),
+    path("jobs/<uuid:job_id>/edit/", views.job_edit, name="job-edit"),
+    path("jobs/<uuid:job_id>/autosave/", views.job_autosave, name="job-autosave"),
+    path("jobs/<uuid:job_id>/activate/", views.job_activate, name="job-activate"),
+    path("jobs/<uuid:job_id>/pause/", views.job_pause, name="job-pause"),
+    path("jobs/<uuid:job_id>/close/", views.job_close, name="job-close"),
+    path("jobs/<uuid:job_id>/delete/", views.job_delete, name="job-delete"),
+    # design.md page #41 (S13). The path is keyed on the application, not the
+    # candidate: the candidate's identifier must never appear in an employer
+    # surface (REQ-FR-029).
+    path(
+        "applications/<uuid:application_id>/",
+        views.application_review,
+        name="application-review",
+    ),
+    # The two decisions (REQ-FR-051/052, batch 1.42). GET is the confirmation
+    # page and changes nothing; POST calls `matching.services.decide_application`,
+    # the same function the API's action endpoints use. Separate routes rather
+    # than one with an `action` parameter, so the confirmation page's form target
+    # cannot be edited into the other decision.
+    path(
+        "applications/<uuid:application_id>/shortlist/",
+        views.application_shortlist,
+        name="application-shortlist",
+    ),
+    path(
+        "applications/<uuid:application_id>/reject/",
+        views.application_reject,
+        name="application-reject",
+    ),
 ]

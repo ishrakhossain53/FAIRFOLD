@@ -749,6 +749,7 @@ class EmployerTeamMember(models.Model):
 class Job(models.Model):
     employer = models.ForeignKey(EmployerProfile, on_delete=models.CASCADE, related_name="jobs")
     title = models.CharField(max_length=300)
+    # The four long-text fields store Markdown source, rendered escaped (design.md 7.22).
     description = models.TextField()  # full JD
     responsibilities = models.TextField(blank=True)
     requirements = models.TextField(blank=True)
@@ -769,7 +770,7 @@ class JobSkill(models.Model):
     """A skill a job requires. D-6(c) / REQ-FR-042: job search filters over title,
     description *and skills*, so this is a queryable join rather than a JSONB column."""
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="job_skills")
-    skill = models.ForeignKey("candidates.Skill", on_delete=models.CASCADE, related_name="required_by_jobs")
+    skill = models.ForeignKey("core.Skill", on_delete=models.CASCADE, related_name="required_by_jobs")  # core/, not candidates/: the taxonomy is shared (core/models.py)
     required = models.BooleanField(default=True)  # required vs nice-to-have
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -781,7 +782,7 @@ class Application(models.Model):
     candidate = models.ForeignKey(CandidateProfile, on_delete=models.CASCADE, related_name="applications")
     status = models.CharField(max_length=20, default="applied")  # applied, screened, not_matched, shortlisted, interview, offered, hired, rejected
     match_score = models.IntegerField(null=True, blank=True)  # 0-100 from AI
-    match_rationale = models.TextField(blank=True)  # AI-generated explanation
+    match_rationale = models.TextField(blank=True)  # validated payload as JSON text (Arch Doc §7.5); ai.citation is the only reader
     ai_model_used = models.CharField(max_length=100, blank=True)
     # D-6(b) / REQ-FR-028: per-application state of the "Screen All" batch run
     screening_status = models.CharField(max_length=20, default="not_screened")  # not_screened, queued, running, completed, failed
@@ -1870,17 +1871,46 @@ POST /api/v1/candidates/assessments/{id}/start/  # Start assessment attempt
 POST /api/v1/candidates/assessments/{id}/answer/ # Submit answer
 GET    /api/v1/candidates/applications/          # List applications (with match scores)
 GET    /api/v1/candidates/applications/{id}/     # Get application details + AI rationale
+POST   /api/v1/jobs/{id}/apply/                  # Apply to an active job (REQ-FR-022; added 2026-10-26)
 ```
+
+> **`POST /api/v1/jobs/{id}/apply/` contract (batch 1.36).** Candidate group only
+> (`IsCandidate`), and the applicant is always `request.user`'s candidate profile:
+> there is no candidate id in the path or the body, so one account cannot apply on
+> another's behalf. The route is under `jobs/` because applying is an action on a
+> job, the same shape as `activate/`/`pause/`/`close/`; it is listed with the
+> candidate endpoints because the caller is a candidate. Responses:
+>
+> - `201` with `{"id", "job_id", "status", "created_at"}`. `status` is `applied`;
+>   the row is created by `matching.services.apply_to_job()`. The body is a
+>   whitelist: no candidate id, name, email, alias or match score.
+> - `404` for an unknown job **and for a `draft`**, which is employer-only
+>   (REQ-FR-025) and must not be disclosed by a distinguishable error.
+> - `409` for a `paused` or `closed` job. Arch Doc §4.3 rule 5 makes only `active`
+>   appliable; the job was public, so naming the reason is not a disclosure.
+> - `409` when this candidate already has an application for this job. The
+>   `UNIQUE(job_id, candidate_id)` constraint is the authority; the view translates
+>   the `IntegrityError`, so two concurrent requests cannot create two rows.
+> - `409` when the caller has no `CandidateProfile`. REQ-FR-022 assumes a candidate
+>   account; a role grant without onboarding is a state conflict, not a malformed
+>   request.
+>
+> The request has no body. **A resume is not required**: REQ-FR-022 names none, and
+> §5.1 `applications` has no resume foreign key, so requiring one would invent a
+> rule. Notifications are batch 1.43 and are not sent here.
 
 #### Employer Endpoints
 ```http
 GET    /api/v1/employers/me/                     # Get employer profile
 PATCH  /api/v1/employers/me/                     # Update employer profile
 GET    /api/v1/jobs/                             # List jobs
-POST   /api/v1/jobs/                             # Create job
+POST   /api/v1/jobs/                             # Create job (draft; REQ-FR-025)
 GET    /api/v1/jobs/{id}/                        # Get job details
-PATCH  /api/v1/jobs/{id}/                        # Update job
-POST   /api/v1/jobs/{id}/activate/               # Activate job posting
+PATCH  /api/v1/jobs/{id}/                        # Update a draft (REQ-FR-026); 409 for any other status
+DELETE /api/v1/jobs/{id}/                        # Delete a draft (added 2026-10-24); drafts only
+POST   /api/v1/jobs/{id}/activate/               # draft|paused -> active (REQ-FR-027)
+POST   /api/v1/jobs/{id}/pause/                  # active -> paused (added 2026-10-24)
+POST   /api/v1/jobs/{id}/close/                  # active|paused -> closed (added 2026-10-24)
 POST   /api/v1/jobs/{id}/screen/                 # Trigger AI screening (with cost estimate)
 GET    /api/v1/jobs/{id}/applications/           # List applications for job (ranked); ?status=not_matched shows filter-excluded candidates (REQ-FR-029)
 POST   /api/v1/jobs/{id}/interview-pack/         # Generate AI interview pack
@@ -1888,6 +1918,11 @@ GET    /api/v1/jobs/{id}/analytics/              # Get job analytics
 GET    /api/v1/jobs/{id}/analytics/override-rate/ # Override rate by user + job, each linking to its reason (REQ-FR-035, REQ-FR-052)
 POST   /api/v1/jobs/{id}/share/                  # Generate shareable link
 ```
+
+> **Job state changes are action endpoints.** The transition matrix, the `409` cases and the audit
+> actions are normative in Arch Doc §4.3. `PATCH /api/v1/jobs/{id}/` never writes `status`; `DELETE`
+> deletes a draft only, because every §5.1 reference to `jobs` is `ON DELETE CASCADE` and would
+> otherwise reach applications.
 
 #### Screening Integrity Endpoints (added 2026-10-03 — REQ-FR-051, REQ-FR-052, REQ-FR-029)
 

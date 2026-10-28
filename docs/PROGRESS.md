@@ -42,24 +42,24 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.23 Employer profile model (2026-10-22, 13 passed in tests/employers/test_employer_profile_model.py; full suite 855 passed / 4 skipped)
 - [x] 1.24 Employer onboarding API (2026-10-22, 28 passed in tests/employers/test_employer_profile_api.py, 121 with the authz matrix; full suite 855 passed / 4 skipped)
 - [x] 1.25 Employer onboarding UI (2026-10-22, 29 passed in tests/employers/test_employer_onboarding_ui.py, 70 in tests/employers/; full suite 855 passed / 4 skipped)
-- [ ] 1.26 Job model
-- [ ] 1.27 Create draft job API
-- [ ] 1.28 Edit and delete draft jobs
-- [ ] 1.29 Activate, pause and close jobs
-- [ ] 1.30 Employer job management UI
-- [ ] 1.31 Public job list and detail API
-- [ ] 1.32 Search, filters, ordering and pagination
-- [ ] 1.33 Public job board UI
-- [ ] 1.34 Application model
-- [ ] 1.35 Per-employer candidate alias service
-- [ ] 1.36 Apply to a job API
-- [ ] 1.37 Apply UI
-- [ ] 1.38 Candidate application history API
-- [ ] 1.39 Candidate application list and detail UI
-- [ ] 1.40 Employer application inbox API
-- [ ] 1.41 Application status actions
-- [ ] 1.42 Employer application review UI
-- [ ] 1.43 Notification model and delivery
+- [x] 1.26 Job model (2026-10-24; `matching/models.py` `Job` + `matching/migrations/0001_initial.py`; 20 passed in tests/matching/test_job_application_models.py, matching/models.py 100% line coverage)
+- [x] 1.27 Create draft job API (2026-10-23, 20 passed in tests/employers/test_job_create_api.py, 175 in tests/employers/ + tests/matching/ + authz matrix; full suite 971 passed / 4 skipped with the README CI env)
+- [x] 1.28 Edit and delete draft jobs (2026-10-24; GET/PATCH/DELETE /api/v1/jobs/{id}/; 32 passed in tests/employers/test_job_edit_delete_api.py, 217 in tests/employers/ + authz matrix; full suite 1033 passed / 4 skipped, coverage 94% with `employers` now in the gate)
+- [x] 1.29 Activate, pause and close jobs (2026-10-24; Arch Doc §4.3 transition matrix; 24 passed in tests/employers/test_job_lifecycle_api.py; full suite 1033 passed / 4 skipped)
+- [x] 1.30 Employer job management UI (2026-10-24; pages #35/#36/#37 at `/employer/jobs/`, `/employer/jobs/new/`, `/employer/jobs/{id}/edit/`, `/employer/jobs/{id}/`; 54 passed in tests/employers/test_job_management_ui.py, 11 new authz matrix cases, full suite 1098 passed / 4 skipped, coverage 95%)
+- [x] 1.31 Public job list and detail API (2026-10-25; `GET /api/v1/jobs/public/` + `{id}/`, `AllowAny`, active only, employer name via `show_company_name`; 28 passed in tests/employers/test_public_job_api.py)
+- [x] 1.32 Search, filters, ordering and pagination (2026-10-25; `job_skills` model + migration, keyword search over title/description/skill name, location/remote/level filters, stable newest-first, `page_size` capped at 50; 33 passed in tests/employers/test_public_job_search_api.py + 5 `JobSkill` model tests)
+- [x] 1.33 Public job board UI (2026-10-25; pages #4/#5 at `/jobs/` and `/jobs/{id}/`, guest/signed-in, filters, pagination, empty/error states, concealment in HTML; 29 passed in tests/employers/test_job_board_ui.py; full suite 1240 passed / 4 skipped)
+- [x] 1.34 Application model (2026-10-26, model + migration already landed 2026-10-22 as a prerequisite of 2.27; 25 passed in tests/matching/test_job_application_models.py incl. duplicate, both check constraints and both cascades; full suite 1293 passed / 4 skipped)
+- [x] 1.35 Per-employer candidate alias service (2026-10-26, 16 passed in tests/candidates/test_candidate_alias.py; full suite 1293 passed / 4 skipped)
+- [x] 1.36 Apply to a job API (2026-10-26, 18 passed in tests/matching/test_apply_api.py; full suite 1293 passed / 4 skipped)
+- [x] 1.37 Apply UI (2026-10-26, 17 passed in tests/employers/test_apply_ui.py, 29 in test_job_board_ui.py, 2 new authz rows; full suite 1293 passed / 4 skipped)
+- [x] 1.38 Candidate application history API (2026-10-26, 39 passed in tests/matching/test_application_list_detail_api.py; full suite 1368 passed / 4 skipped)
+- [x] 1.39 Candidate application list and detail UI (2026-10-26, 32 passed in tests/candidates/test_application_ui.py, 81 in tests/core/test_authz_matrix.py; full suite 1368 passed / 4 skipped)
+- [x] 1.40 Employer application inbox API (2026-10-27, 47 passed in tests/employers/test_job_applications_api.py; full suite 1416 passed, 4 skipped)
+- [x] 1.41 Application status actions (2026-10-27, 57 passed in tests/matching/test_application_decision_api.py; full suite 1475 passed, 4 skipped)
+- [x] 1.42 Employer application review UI (2026-10-28, 41 passed in tests/employers/test_employer_applications_ui.py, 12 in test_application_rationale_ui.py, 5 new authz rows; full suite 1562 passed, 4 skipped)
+- [x] 1.43 Notification model and delivery (2026-10-28, 37 passed in tests/notifications/; full suite 1516 passed, 4 skipped)
 - [ ] 1.44 Notification list and unread UI
 - [ ] 1.45 Phase 1 end-to-end test
 - [ ] 1.46 Phase 1 closeout
@@ -91,10 +91,10 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [ ] 2.23 Outbound PII gate
 - [ ] 2.24 Rationale schema and validation
 - [ ] 2.25 Rationale generation for one application
-- [ ] 2.26 Integrate the bias audit
-- [ ] 2.27 Store rationale with audit entry
-- [ ] 2.28 Evidence traceability tests
-- [ ] 2.29 Rationale detail UI
+- [ ] 2.26 Integrate the bias audit (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
+- [ ] 2.27 Store rationale with audit entry (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
+- [ ] 2.28 Evidence traceability tests (code + tests landed 2026-10-22; citation validator at 100% line coverage; awaiting your test output)
+- [ ] 2.29 Rationale detail UI (page #41 rationale column built 2026-10-22; evidence, missing skills, bias status, AI mark, error/empty states; awaiting your test output)
 - [ ] 2.30 Decide where screening-run state lives (spec first)
 - [ ] 2.31 Server-side cost estimator
 - [ ] 2.32 Preflight and explicit confirmation

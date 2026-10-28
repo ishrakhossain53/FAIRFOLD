@@ -547,6 +547,50 @@ a person can reject a candidate.
 
 ---
 
+### 4.3 Job Posting Lifecycle (REQ-FR-025–027, batches 1.27–1.29)
+
+`jobs.status` holds the four values in the §5.1 DDL: `draft`, `active`, `paused`, `closed`. The
+transition matrix below is normative; a transition not in it is a `409`, and the HTTP verbs match
+Complete Doc §C.12.
+
+| From | Action | Endpoint | To | Audit `action` |
+|---|---|---|---|---|
+| — | create | `POST /api/v1/jobs/` | `draft` | `job.created` |
+| `draft` | edit | `PATCH /api/v1/jobs/{id}/` | `draft` | `job.updated` |
+| `draft` | delete | `DELETE /api/v1/jobs/{id}/` | *(row removed)* | `job.deleted` |
+| `draft`, `paused` | activate | `POST /api/v1/jobs/{id}/activate/` | `active` | `job.activated` |
+| `active` | pause | `POST /api/v1/jobs/{id}/pause/` | `paused` | `job.paused` |
+| `active`, `paused` | close | `POST /api/v1/jobs/{id}/close/` | `closed` | `job.closed` |
+
+Rules:
+
+1. **Every state change is an action endpoint, not a `PATCH status`.** A generic update could skip
+   the transition check and the audit entry. `PATCH` never writes `status`; the state endpoints never
+   write any other field.
+2. **A state action whose target already holds is a no-op**: `200` with the job, and no audit entry.
+   This makes a double-clicked button or a retried request safe. Every other off-matrix transition is
+   `409` with a sentence naming what is allowed. `closed` is therefore terminal: `close/` again is a
+   no-op, `activate/` and `pause/` are `409`.
+3. **Only a draft may be edited or deleted.** Editing an active job would change the text candidates
+   applied to without a revision trail, which is not in scope; the honest answer is `409`, not a
+   silent partial update. Retiring a published job is `close/`, not deletion.
+4. **Deletion is a hard delete of a draft only.** Every §5.1 reference to `jobs` is
+   `ON DELETE CASCADE`, so deleting a published job would destroy its applications, assessments and
+   interviews. A draft has no applications by construction (REQ-FR-022 applies to active jobs), so
+   nothing of record is lost.
+5. **Only `active` is visible and appliable.** `draft` is employer-only (REQ-FR-025), `paused` and
+   `closed` are not appliable. Pausing and closing keep the row, its applications and its audit trail
+   reviewable; they do not change any application's status.
+6. **Ownership is the caller's profile, and it is not in the path.** A job id that does not belong to
+   the caller's `EmployerProfile` answers `404`, exactly like an id that does not exist, so the API
+   does not disclose that another employer's job exists. This is the same rule as the company-profile
+   endpoint.
+7. **Audit details carry no candidate data and no rationale text.** `job.created` and `job.deleted`
+   record the title; `job.updated` records the names of the changed fields, never their values;
+   the state actions record `{"from", "to"}`.
+
+---
+
 ## 5. Data Architecture
 
 ### 5.1 Complete Database Schema (SQL)
@@ -669,6 +713,8 @@ CREATE TABLE jobs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employer_id     UUID REFERENCES employer_profiles(id) ON DELETE CASCADE,
     title           VARCHAR(300) NOT NULL,
+    -- The four long-text fields store Markdown source, never HTML. The renderer
+    -- escapes HTML and applies a fixed subset (design.md 7.22).
     description     TEXT,
     responsibilities TEXT,
     requirements    TEXT,
@@ -728,6 +774,8 @@ CREATE TABLE applications (
     decision_override        BOOLEAN DEFAULT FALSE,
     decision_override_reason TEXT,                 -- required whenever decision_override is TRUE
     decided_by               UUID REFERENCES users(id) ON DELETE SET NULL,
+    -- No bias-status column. The status is the newest audit_log_entries row for
+    -- this application (resource_type='ai_decision'), see §7.5. One source of truth.
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(job_id, candidate_id),
     -- A recorded override must always carry a reason. Enforced in the database, not only in the form.
@@ -2278,6 +2326,73 @@ SHA did the same.
 v1.0.0; the version bump carries the numeric rules and 27 new cases. That separation is the
 point of versioning — a reader can tell whether a regression came from the phrases or from
 the rules without diffing two large files.
+
+---
+
+### 7.5 Rationale Payload Contract and Bias-Status Storage — Phase 2
+
+REQ-FR-030 requires an evidence-cited rationale, a list of missing skills and a visible
+bias-audit status. Neither the payload shape nor the place the status lives was written
+down, so batches 2.26-2.29 would have had to invent both. This section fixes them. It was
+added in batch 2.26 under the spec-first rule; `ai/citation.py` and `ai/screening.py` are
+its implementation, and `tests/ai/test_citation.py` is its acceptance test.
+
+**The payload.** The generator returns, and `ai.citation.parse_rationale()` validates,
+exactly:
+
+```json
+{
+  "summary": "one paragraph, no candidate name",
+  "claims": [
+    {
+      "claim": "Production Django experience",
+      "evidence": "built a Django REST API serving 120 req/s",
+      "skills": ["Django"]
+    }
+  ],
+  "missing_skills": [
+    {"skill": "Kubernetes", "reason": "not mentioned in the resume"}
+  ]
+}
+```
+
+Rules, all enforced in `ai/citation.py` and tested in `tests/ai/test_citation.py`:
+
+1. `claims` is non-empty. Every claim has a non-empty `claim`, a non-empty `skills` list
+   of non-empty names, and an `evidence` string.
+2. `evidence` is a **verbatim span of the sanitised resume text**, compared after
+   collapsing runs of whitespace and case-folding. Character offsets are deliberately not
+   used: re-stripping or re-wrapping the text would invalidate them.
+3. `evidence` is at least **12 normalised characters** (`MIN_EVIDENCE_CHARS`). A one-word
+   span such as `"the"` is a substring of every resume and proves nothing, which is the
+   hallucination RSK-002 describes.
+4. A skill in `missing_skills` must **not** occur in the sanitised text as a whole word
+   (case-insensitive; `+`, `#` and `.` count as word characters so `C++` and `.NET` work).
+   A "missing" skill the resume states is a fabricated gap.
+5. Unknown keys are rejected rather than ignored, so a schema change cannot pass silently.
+6. The payload is built from stripped text only (REQ-FR-030). A citation that quotes a
+   stripped name would prove the model saw PII it was never sent.
+
+**Storage.** `applications.match_rationale` holds the validated payload serialised as JSON
+text, because §5.1 has one `TEXT` column and page #41 needs claim-level structure. A
+separate JSONB column would duplicate the same payload and let the two copies drift.
+`applications.match_score`, `ai_model_used` and `screened_at` are written in the same
+transaction. `ai.citation.load_rationale()` is the only reader of the column.
+
+**Where the bias status lives.** On the audit trail, not on `applications`. §5.1 has no
+bias column, and adding one would create a second source of truth for something the
+append-only trail already records. One scoring action writes exactly one
+`audit_log_entries` row (`resource_type = 'ai_decision'`, `action = 'bias_audit'`,
+`result = 'pass' | 'flag'`) whose `details` carry `rationale_hash` and `ai_model_used` but
+**never the rationale text**. The employer-facing status is the newest such row for the
+application; "Mark as reviewed" (`design.md` 7.7) appends a `bias_audit_reviewed` row, and
+a review is scoped to the scoring row it followed, so a re-screen requires a new review.
+`ai.screening.bias_status_for()` is the only reader.
+
+**Advisory, always.** The audit never changes `applications.status`, never writes
+`shortlisted_at` or `decided_by`, and never writes `assessment_gate_status`. A flag is a
+queueing constraint on bulk shortlist (`design.md` 7.7), not a decision. REQ-FR-052 keeps
+the human in charge.
 
 ---
 

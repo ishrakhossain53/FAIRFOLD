@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% comment %}
+Page #28 — Applications tracker (design.md §10.0 row 28, wireframe S06,
+REQ-FR-023, batch 1.39).
+
+Deviations from the wireframe, all deliberate and reported with the batch:
+
+* The "Updated" column is "Applied". `applications` (§5.1) has `created_at`,
+  `screened_at` and `shortlisted_at` but no `updated_at`, and this batch will not
+  invent a column to fill a column heading. The applied date is the one timestamp
+  every row has.
+* The mobile card list is server-rendered next to the desktop table rather than
+  reflowed from it. `<table>` markup cannot become a card at 360px, and the
+  hidden branch is `display:none`, so a screen reader is given one copy of each
+  application, not two.
+* The status filter is a plain GET form. S06's `[All ▾]` implies client-side
+  filtering; a server filter works without JavaScript and the URL survives
+  reload and Back.
+* "Not screened" is the whole match column in Phase 1. Nothing writes
+  `match_score` until Phase 2 (REQ-FR-024), so a band label such as "Good" would
+  be invented from a threshold design.md §3.4 itself marks as unconfirmed.
+{% endcomment %}
+
+{% block title %}My applications · FairFold{% endblock %}
+{% block description %}Track the jobs you have applied to and their current status on FairFold.{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-content">
+
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-h1 font-bold text-ink">My applications</h1>
+      <p class="mt-1 text-body-sm text-ink-3">
+        Every job you have applied to and where it stands. A person makes the
+        final decision.
+      </p>
+    </div>
+
+    <form method="get" action="{% url 'candidate_portal:applications' %}"
+          class="flex flex-wrap items-end gap-2">
+      <div>
+        <label for="status-filter" class="block text-body-sm font-medium text-ink">Status</label>
+        <select id="status-filter" name="status"
+                class="mt-1 h-touch rounded-sm border border-border-input bg-surface px-3 text-body text-ink">
+          <option value=""{% if not status_filter %} selected{% endif %}>All</option>
+          {% for value, label in status_choices %}
+          <option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit"
+              class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+        Filter
+      </button>
+      {% if status_filter %}
+      <a href="{% url 'candidate_portal:applications' %}"
+         class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
+        Clear
+      </a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if applications %}
+  <p class="mt-4 text-body-sm text-ink-2">
+    {{ applications|length }} application{{ applications|length|pluralize }}{% if status_filter %} with this status{% endif %}
+  </p>
+
+  {% comment %}
+  Desktop: a real table with `scope` headers, as design.md S06 asks. The wrapper
+  scrolls horizontally if the viewport is narrower than the table (design.md §9
+  "works at 200% zoom without horizontal scroll" applies to the page, and the
+  table is the labelled container that may scroll).
+  {% endcomment %}
+  <div class="mt-3 hidden overflow-x-auto md:block">
+    <table class="w-full min-w-[44rem] border-collapse text-left text-body-sm">
+      <thead>
+        <tr class="border-b border-border text-caption uppercase tracking-wide text-ink-3">
+          <th scope="col" class="py-2 pr-3 font-semibold">Job</th>
+          <th scope="col" class="py-2 pr-3 font-semibold">Company</th>
+          <th scope="col" class="py-2 pr-3 font-semibold">Status</th>
+          <th scope="col" class="py-2 pr-3 font-semibold">Match</th>
+          <th scope="col" class="py-2 pr-3 font-semibold">Applied</th>
+          <th scope="col" class="py-2 text-right font-semibold"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for application in applications %}
+        <tr class="border-b border-border align-top">
+          <td class="py-3 pr-3">
+            <p class="font-semibold text-ink break-words">{{ application.job_title }}</p>
+            <p class="mt-1 text-caption text-ink-3">
+              {{ application.location }}{% if application.location and application.remote_allowed %} · {% endif %}{% if application.remote_allowed %}Remote ok{% endif %}{% if application.experience_level %}{% if application.location or application.remote_allowed %} · {% endif %}{{ application.experience_level }}{% endif %}
+            </p>
+          </td>
+          <td class="py-3 pr-3 text-ink-2">
+            {% if application.employer_name %}{{ application.employer_name }}{% else %}<span class="text-ink-3">Not disclosed</span>{% endif %}
+          </td>
+          <td class="py-3 pr-3">
+            {% include "core/_application_status.html" with status=application.status label=application.status_label %}
+          </td>
+          <td class="py-3 pr-3 whitespace-nowrap">
+            {% if application.match_score is None %}
+            <span class="text-ink-3">Not screened</span>
+            {% else %}
+            <span aria-label="Match score {{ application.match_score }} out of 100">{{ application.match_score }} / 100</span>
+            {% endif %}
+          </td>
+          <td class="py-3 pr-3 whitespace-nowrap text-ink-3">{{ application.created_at|date:"j M Y" }}</td>
+          <td class="py-3 text-right whitespace-nowrap">
+            <a href="{% url 'candidate_portal:application-detail' application.id %}"
+               aria-label="View application for {{ application.job_title }}"
+               class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
+              View
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% comment %}
+  Mobile: S06's cards, in the same reading order as the table row (job, company,
+  status, score, date, action).
+  {% endcomment %}
+  <ul class="mt-4 space-y-3 md:hidden">
+    {% for application in applications %}
+    <li>
+      <article class="rounded-md border border-border bg-surface p-4 shadow-card">
+        <h2 class="text-body font-semibold text-ink break-words">{{ application.job_title }}</h2>
+        {% if application.employer_name %}
+        <p class="mt-1 text-body-sm font-medium text-ink-2">{{ application.employer_name }}</p>
+        {% else %}
+        <p class="mt-1 text-body-sm text-ink-3">Company not disclosed</p>
+        {% endif %}
+        <p class="mt-1 text-body-sm text-ink-3">
+          {{ application.location }}{% if application.location and application.remote_allowed %} · {% endif %}{% if application.remote_allowed %}Remote ok{% endif %}{% if application.experience_level %}{% if application.location or application.remote_allowed %} · {% endif %}{{ application.experience_level }}{% endif %}
+        </p>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          {% include "core/_application_status.html" with status=application.status label=application.status_label %}
+          {% if application.match_score is None %}
+          <span class="text-body-sm text-ink-3">Not screened</span>
+          {% else %}
+          <span class="text-body-sm font-semibold text-ink"
+                aria-label="Match score {{ application.match_score }} out of 100">{{ application.match_score }} / 100</span>
+          {% endif %}
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p class="text-caption text-ink-4">Applied {{ application.created_at|date:"j M Y" }}</p>
+          <a href="{% url 'candidate_portal:application-detail' application.id %}"
+             aria-label="View application for {{ application.job_title }}"
+             class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+            View
+          </a>
+        </div>
+      </article>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% elif has_any %}
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 text-center">
+    <p class="text-body font-medium text-ink">No applications with this status.</p>
+    <a href="{% url 'candidate_portal:applications' %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+      Show all applications
+    </a>
+  </div>
+
+  {% else %}
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 text-center">
+    <p class="text-body font-medium text-ink">You haven't applied to anything yet.</p>
+    <p class="mt-1 text-body-sm text-ink-3">
+      When you apply to a job it appears here with its status.
+    </p>
+    <a href="{% url 'job_board:list' %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md bg-primary px-5 text-body-sm font-semibold text-white hover:bg-primary-strong">
+      Find jobs
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

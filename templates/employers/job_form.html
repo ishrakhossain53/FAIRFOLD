@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% comment %}
+Page #36 (design.md S11): create or edit a draft job.
+
+**Why one page and not S11's five-step stepper.** Every section here is part of
+one form and one save. A stepper without per-step validation only hides fields
+and adds a state machine the server would have to trust; the section links below
+scroll instead. The sections themselves are S11's: Basics, Description,
+Requirements, Review.
+
+**What is not on the page, and why** (also in `JobForm`):
+
+* AI-suggested skills and questions -- Phase 2 (REQ-FR-025's second clause);
+* structured required/nice-to-have skills -- `job_skills` has no model yet, so
+  the free-text requirement fields are what the ranker can read;
+* screening questions -- no document defines the JSONB element shape, and the
+  API refuses the field for the same reason;
+* required assessments -- REQ-FR-051 has no model yet;
+* Scorecard Criteria Publish (design.md 7.21) -- no batch has built it.
+
+Auto-save exists only once the draft row exists. On the create page there is no
+id to POST to, so the first save is the Save draft button.
+{% endcomment %}
+
+{% block title %}{% if job %}Edit {{ job.title }}{% else %}New job{% endif %} · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-3xl px-4 py-4 sm:py-8">
+  <div class="flex flex-wrap items-center gap-3">
+    <h1 class="text-h1 font-bold text-ink">{% if job %}Edit job{% else %}New job{% endif %}</h1>
+    {% if job %}
+    {% include "employers/_job_status.html" with status=job.status label=job.get_status_display %}
+    {% endif %}
+  </div>
+
+  <p class="mt-2 text-body text-ink-3">
+    A job starts as a draft. It is only visible to you until you activate it from
+    the job overview.
+  </p>
+
+  {% if job %}
+  <div class="mt-3">
+    {% include "employers/_autosave_status.html" with saved=True detail="Draft saved" saved_at=job.updated_at %}
+  </div>
+
+  <nav aria-label="Job form sections" class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-body-sm">
+    <a href="#basics" class="font-medium text-primary-strong underline">Basics</a>
+    <a href="#description" class="font-medium text-primary-strong underline">Description</a>
+    <a href="#requirements" class="font-medium text-primary-strong underline">Requirements</a>
+    <a href="#review" class="font-medium text-primary-strong underline">Review</a>
+  </nav>
+  {% endif %}
+
+  <form id="job-form"
+        method="post"
+        action="{% if job %}{% url 'employer_portal:job-edit' job.pk %}{% else %}{% url 'employer_portal:job-create' %}{% endif %}"
+        {% if job %}hx-post="{% url 'employer_portal:job-autosave' job.pk %}"
+        hx-trigger="change delay:600ms"
+        hx-target="#autosave-status"
+        hx-swap="outerHTML"
+        hx-include="this"{% endif %}
+        novalidate class="mt-6 space-y-8">
+    {% csrf_token %}
+
+    {% include "employers/_error_summary.html" %}
+
+    <section id="basics" aria-labelledby="basics-heading"
+             class="rounded-md border border-border bg-surface p-5 shadow-card">
+      <h2 id="basics-heading" class="text-h4 font-semibold text-ink">Basics</h2>
+      <div class="mt-4 space-y-5">
+        {% include "accounts/_field.html" with field=form.title %}
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "accounts/_field.html" with field=form.location %}
+          {% include "accounts/_field.html" with field=form.experience_level %}
+        </div>
+
+        <div class="rounded-md border border-border bg-surface-muted p-4">
+          <div class="flex items-start gap-3">
+            {{ form.remote_allowed }}
+            <div>
+              <label for="{{ form.remote_allowed.id_for_label }}" class="text-body-sm font-semibold text-ink">
+                {{ form.remote_allowed.label }}
+              </label>
+              <p id="id_remote_allowed-help" class="mt-1 text-body-sm text-ink-3">
+                {{ form.remote_allowed.help_text }}
+              </p>
+            </div>
+          </div>
+          <p id="id_remote_allowed-error" class="mt-1 text-body-sm text-danger"{% if not form.remote_allowed.errors %} hidden{% endif %}>
+            {% if form.remote_allowed.errors %}<span aria-hidden="true">✖</span> {{ form.remote_allowed.errors.0 }}{% endif %}
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="description" aria-labelledby="description-heading"
+             class="rounded-md border border-border bg-surface p-5 shadow-card">
+      <h2 id="description-heading" class="text-h4 font-semibold text-ink">Description</h2>
+      <p class="mt-1 text-body-sm text-ink-3">
+        Write it for a person deciding whether to apply, not for a keyword filter.
+      </p>
+      <div class="mt-4">
+        {% include "accounts/_field.html" with field=form.description markdown=True %}
+      </div>
+    </section>
+
+    <section id="requirements" aria-labelledby="requirements-heading"
+             class="rounded-md border border-border bg-surface p-5 shadow-card">
+      <h2 id="requirements-heading" class="text-h4 font-semibold text-ink">Requirements</h2>
+      <p class="mt-1 text-body-sm text-ink-3">
+        Free text for now. Structured skills arrive with the screening phase.
+      </p>
+      <div class="mt-4 space-y-5">
+        {% include "accounts/_field.html" with field=form.responsibilities markdown=True %}
+        {% include "accounts/_field.html" with field=form.requirements markdown=True %}
+        {% include "accounts/_field.html" with field=form.nice_to_have markdown=True %}
+      </div>
+    </section>
+
+    <section id="review" aria-labelledby="review-heading"
+             class="rounded-md border border-border bg-surface p-5 shadow-card">
+      <h2 id="review-heading" class="text-h4 font-semibold text-ink">Review</h2>
+      {% if job %}
+      <p class="mt-2 text-body-sm text-ink-2">
+        Saving keeps this job a draft. When the text is ready, open the
+        <a href="{% url 'employer_portal:job-overview' job.pk %}" class="font-medium text-primary-strong underline">job overview</a>
+        and activate it. Activation is recorded in the audit trail and is what
+        makes the job visible to candidates.
+      </p>
+      {% else %}
+      <p class="mt-2 text-body-sm text-ink-2">
+        Saving creates a draft. You can edit it as often as you like; nothing is
+        visible to candidates until you activate it.
+      </p>
+      {% endif %}
+    </section>
+
+    {% include "employers/_job_markdown_preview.html" %}
+
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <button type="submit"
+              class="inline-flex h-touch items-center justify-center rounded-md bg-primary px-6 text-body font-semibold text-white hover:bg-primary-strong">
+        Save draft
+      </button>
+      {% if job %}
+      <a href="{% url 'employer_portal:job-overview' job.pk %}"
+         class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-ink-2 underline hover:text-ink">
+        Cancel
+      </a>
+      {% else %}
+      <a href="{% url 'employer_portal:jobs' %}"
+         class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-ink-2 underline hover:text-ink">
+        Cancel
+      </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<script>
+  // Move focus to the summary after a failed save (design.md §6.2, §8.3), as the
+  // company page does. The script only exists on this page, so no other form
+  // pays for it.
+  (function () {
+    var summary = document.getElementById('error-summary');
+    if (summary) { summary.focus(); }
+  })();
+
+  // Markdown toolbar (design.md 7.22). Each button edits the textarea directly
+  // and then fires `input` and `change`: `change` is what both the auto-save and
+  // the preview listen for, so a toolbar click is saved and previewed exactly
+  // like typing. The handler is delegated so the four toolbars share one script
+  // and no per-field initialisation is needed.
+  (function () {
+    var form = document.getElementById('job-form');
+    if (!form) { return; }
+
+    function dispatch(field) {
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function replace(field, text, selectStart, selectEnd) {
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var value = field.value;
+      field.value = value.slice(0, start) + text + value.slice(end);
+      field.focus();
+      if (typeof selectStart === 'number') {
+        field.setSelectionRange(start + selectStart, start + selectEnd);
+      } else {
+        field.setSelectionRange(start + text.length, start + text.length);
+      }
+      dispatch(field);
+    }
+
+    function wrap(field, before, after, placeholder) {
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var selected = field.value.slice(start, end) || placeholder;
+      replace(field, before + selected + after, before.length, before.length + selected.length);
+    }
+
+    function link(field) {
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var text = field.value.slice(start, end) || 'link text';
+      var url = 'https://example.com';
+      replace(
+        field,
+        '[' + text + '](' + url + ')',
+        text.length + 3,
+        text.length + 3 + url.length
+      );
+    }
+
+    // `prefix` is null for a numbered list, where each selected line gets its
+    // own number. A list is one level deep; nested lists are not supported.
+    function prefixLines(field, prefix) {
+      var value = field.value;
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      var lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      var lineEnd = value.indexOf('\n', end);
+      if (lineEnd === -1) { lineEnd = value.length; }
+      var lines = value.slice(lineStart, lineEnd).split('\n');
+      var replacement = lines.map(function (line, index) {
+        return (prefix === null ? (index + 1) + '. ' : prefix) + line;
+      }).join('\n');
+      field.value = value.slice(0, lineStart) + replacement + value.slice(lineEnd);
+      field.focus();
+      field.setSelectionRange(lineStart, lineStart + replacement.length);
+      dispatch(field);
+    }
+
+    // Keep the textarea selection when a toolbar button is pressed. Without
+    // this, mousedown moves focus to the button and some browsers reset
+    // `selectionStart`, so the markers would land at the wrong place or at 0.
+    form.addEventListener('mousedown', function (event) {
+      if (event.target.closest('[data-markdown-action]')) {
+        event.preventDefault();
+      }
+    });
+
+    form.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-markdown-action]');
+      if (!button) { return; }
+      var field = document.getElementById(button.getAttribute('data-markdown-target'));
+      if (!field) { return; }
+      event.preventDefault();
+      var action = button.getAttribute('data-markdown-action');
+      if (action === 'bold') {
+        wrap(field, '**', '**', 'bold text');
+      } else if (action === 'italic') {
+        wrap(field, '*', '*', 'italic text');
+      } else if (action === 'code') {
+        wrap(field, '`', '`', 'code');
+      } else if (action === 'link') {
+        link(field);
+      } else if (action === 'bullet') {
+        prefixLines(field, '- ');
+      } else if (action === 'number') {
+        prefixLines(field, null);
+      } else if (action === 'quote') {
+        prefixLines(field, '> ');
+      } else if (action === 'heading') {
+        prefixLines(field, '## ');
+      }
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% comment %}
+Page #36's Markdown toolbar (design.md 7.22). One instance per long-text field.
+
+Buttons, not links: each one inserts markers around the textarea selection and
+returns focus, so the toolbar is usable with a keyboard and never submits the
+form. The visible glyph is short because the toolbar sits above a form control;
+`aria-label` carries the full action plus the field name, which is what a screen
+reader announces. The script that implements the actions lives on the form page
+so no other page pays for it.
+{% endcomment %}
+<div class="mt-1 flex flex-wrap items-center gap-1"
+     role="group" aria-label="Formatting for {{ field.label }}"
+     aria-controls="{{ field.id_for_label }}">
+  <button type="button" data-markdown-action="bold" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Bold, {{ field.label }}" title="Bold"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 text-body-sm font-bold text-ink hover:bg-surface-muted">
+    B
+  </button>
+  <button type="button" data-markdown-action="italic" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Italic, {{ field.label }}" title="Italic"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 text-body-sm italic text-ink hover:bg-surface-muted">
+    I
+  </button>
+  <button type="button" data-markdown-action="code" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Inline code, {{ field.label }}" title="Inline code"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 font-mono text-body-sm text-ink hover:bg-surface-muted">
+    &lt;/&gt;
+  </button>
+  <button type="button" data-markdown-action="link" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Link, {{ field.label }}" title="Link"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+    Link
+  </button>
+  <button type="button" data-markdown-action="bullet" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Bullet list, {{ field.label }}" title="Bullet list"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+    <span aria-hidden="true">•</span>
+  </button>
+  <button type="button" data-markdown-action="number" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Numbered list, {{ field.label }}" title="Numbered list"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+    <span aria-hidden="true">1.</span>
+  </button>
+  <button type="button" data-markdown-action="quote" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Quote, {{ field.label }}" title="Quote"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+    <span aria-hidden="true">❝</span>
+  </button>
+  <button type="button" data-markdown-action="heading" data-markdown-target="{{ field.id_for_label }}"
+          aria-label="Heading, {{ field.label }}" title="Heading"
+          class="inline-flex h-touch min-w-touch items-center justify-center rounded-sm border border-border-input bg-surface px-2 text-body-sm font-bold text-ink hover:bg-surface-muted">
+    H
+  </button>
+</div>

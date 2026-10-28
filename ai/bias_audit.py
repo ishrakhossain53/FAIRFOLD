@@ -206,6 +206,7 @@ def audit_payload(
     resource_id: str,
     actor_id: str | None = None,
     action: str = ACTION_SCREENED,
+    model: str | None = None,
 ) -> dict:
     """Build the ``audit_log_entries`` row payload for one audit.
 
@@ -219,24 +220,37 @@ def audit_payload(
     ran, what fired, the reference year and window in force, and a hash of the
     rationale. The hash rather than the text, because this table has a retention
     class and the rationale belongs to the application record.
+
+    ``model`` is the provider model that produced the rationale, when the caller
+    scored something. ``REQ-FR-030`` and Arch Doc 7.3 require every screening
+    entry to name the model as well as the rationale hash, and the row is the only
+    place that survives a re-screen: ``applications.ai_model_used`` is overwritten
+    by the next run, so a story about last month's scoring needs the audit row to
+    carry it. It is a model identifier, not candidate data, so it is safe on a
+    retained table. Omitted when there is nothing to name, so the pre-existing
+    payloads (a review, an offline audit) do not gain a null field.
     """
+    details = {
+        "pass_version": audit.rules_version,
+        "rationale_hash": audit.rationale_hash,
+        "checked": audit.checked,
+        "matched_groups": sorted(audit.result.groups),
+        "highlights": audit.highlights,
+        "explanation": audit.result.explain(),
+        "reference_year": audit.context.reference_year,
+        "graduation_window_years": audit.context.graduation_window_years,
+        "blocks_bulk_shortlist": audit.blocks_bulk_shortlist,
+    }
+    if model:
+        details["ai_model_used"] = model
+
     return {
         "action": action,
         "resource_type": AUDIT_RESOURCE_TYPE,
         "resource_id": resource_id,
         "actor_id": actor_id,
         "result": audit.outcome,
-        "details": {
-            "pass_version": audit.rules_version,
-            "rationale_hash": audit.rationale_hash,
-            "checked": audit.checked,
-            "matched_groups": sorted(audit.result.groups),
-            "highlights": audit.highlights,
-            "explanation": audit.result.explain(),
-            "reference_year": audit.context.reference_year,
-            "graduation_window_years": audit.context.graduation_window_years,
-            "blocks_bulk_shortlist": audit.blocks_bulk_shortlist,
-        },
+        "details": details,
     }
 
 

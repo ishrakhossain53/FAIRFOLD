@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% comment %}
+design.md §10 page #40 (S12 "Ranked applications"), Phase 1 columns only.
+
+S12 draws rank, a score chip, a bias-check column, an override marker and a bulk
+bar. None of those has data before Phase 2 (REQ-FR-024/028/035), so this table is
+what exists: the per-employer alias (7.13, REQ-FR-054), the status pill, the
+assessment-gate pill (7.12, REQ-FR-051), the applied date and the way into the
+review page. A column of dashes would promise
+data the product does not have, and a bulk bar would need a bulk endpoint that
+does not exist.
+
+REQ-FR-029: no name, no photo, no email and no internal UUID in the DOM. The
+alias is the row's identity and the only one it has -- the free-text headline the
+API returns is deliberately not rendered here, because a headline can name an
+employer and this page does not need one to work.
+
+The table becomes cards below `md`: a horizontally scrolling table on a 360px
+phone hides the status and the action, which are the two things this page exists
+for. Both views are in the DOM, one of them `display:none`, so neither a screen
+reader nor a keyboard tab order sees the row twice.
+{% endcomment %}
+
+{% block title %}Applications · {{ job.title }} · FairFold{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-content px-4 py-4 sm:py-8">
+  <a href="{% url 'employer_portal:job-overview' job.pk %}"
+     class="text-body-sm font-medium text-primary-strong underline">← {{ job.title }}</a>
+
+  <div class="mt-3">
+    <h1 class="text-h1 font-bold text-ink">Applications</h1>
+    <p class="mt-2 text-body-sm text-ink-3">
+      {{ total }} application{{ total|pluralize }}.
+      Candidates appear by their alias for this company until you shortlist one.
+    </p>
+  </div>
+
+  {% comment %}
+  W28's tab row. Only statuses this job actually has become tabs: a tab that
+  always returns nothing is the state W28 was written to prevent. "All" is always
+  first and always present.
+  {% endcomment %}
+  <nav aria-label="Filter by status" class="mt-4 flex flex-wrap items-center gap-2">
+    {% for tab in tabs %}
+    <a href="{% url 'employer_portal:job-applications' job.pk %}{% if tab.status %}?status={{ tab.status }}{% endif %}"
+       {% if tab.status == status_filter %}aria-current="page"{% endif %}
+       class="inline-flex h-touch items-center gap-2 rounded-full border px-3 text-body-sm font-semibold {% if tab.status == status_filter %}border-primary bg-primary-soft text-primary-strong{% else %}border-border bg-surface text-ink-2 hover:bg-surface-muted{% endif %}">
+      {{ tab.label }}
+      <span class="text-caption font-normal text-ink-3">{{ tab.count }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% if rows %}
+
+  {% comment %}
+  Desktop: a real table with `scope` headers, as S12 asks. The wrapper scrolls
+  horizontally if the viewport is narrower than the table; the page itself does
+  not (design.md §9).
+  {% endcomment %}
+  <div class="mt-4 hidden overflow-x-auto md:block">
+    <table class="w-full min-w-[40rem] border-collapse text-left text-body-sm">
+      <caption class="sr-only">Applications to {{ job.title }}, by candidate alias</caption>
+      <thead>
+        <tr class="border-b border-border text-caption uppercase tracking-wide text-ink-3">
+          <th scope="col" class="py-2 pr-3 font-semibold">Candidate</th>
+          <th scope="col" class="py-2 pr-3 font-semibold">Status</th>
+          <th scope="col" class="py-2 pr-3 font-semibold">Assessment</th>
+          <th scope="col" class="py-2 pr-3 font-semibold">Applied</th>
+          <th scope="col" class="py-2 text-right font-semibold"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="border-b border-border align-top">
+          <td class="py-3 pr-3">
+            {% include "employers/_alias_badge.html" with alias=row.alias %}
+          </td>
+          <td class="py-3 pr-3">
+            {% include "core/_application_status.html" with status=row.status label=row.status_label %}
+          </td>
+          <td class="py-3 pr-3">
+            {% include "employers/_assessment_gate.html" with gate=row.gate %}
+            {% if row.gate == "not_required" %}
+            <span class="text-body-sm text-ink-3">Not required</span>
+            {% endif %}
+          </td>
+          <td class="py-3 pr-3 whitespace-nowrap text-ink-3">
+            <time datetime="{{ row.created_at|date:'c' }}">{{ row.created_at|date:"j M Y" }}</time>
+          </td>
+          <td class="py-3 text-right whitespace-nowrap">
+            <a href="{% url 'employer_portal:application-review' row.application.pk %}"
+               aria-label="Review candidate {{ row.alias }}"
+               class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
+              Review
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% comment %}
+  Mobile: the same row, in the same reading order (identity, status, gate, date,
+  action), as cards.
+  {% endcomment %}
+  <ul class="mt-4 space-y-3 md:hidden">
+    {% for row in rows %}
+    <li>
+      <article class="rounded-md border border-border bg-surface p-4 shadow-card">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          {% include "employers/_alias_badge.html" with alias=row.alias %}
+          {% include "core/_application_status.html" with status=row.status label=row.status_label %}
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          {% include "employers/_assessment_gate.html" with gate=row.gate %}
+          {% if row.gate == "not_required" %}
+          <span class="text-body-sm text-ink-3">Assessment not required</span>
+          {% endif %}
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p class="text-caption text-ink-4">
+            Applied <time datetime="{{ row.created_at|date:'c' }}">{{ row.created_at|date:"j M Y" }}</time>
+          </p>
+          <a href="{% url 'employer_portal:application-review' row.application.pk %}"
+             aria-label="Review candidate {{ row.alias }}"
+             class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+            Review
+          </a>
+        </div>
+      </article>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if page_obj.has_other_pages %}
+  <nav aria-label="Pagination" class="mt-6 flex flex-wrap items-center justify-center gap-1">
+    {% if page_obj.has_previous %}
+    <a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"
+       rel="prev"
+       class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-primary-strong underline">
+      ‹ Previous
+    </a>
+    {% endif %}
+
+    {% for number in page_range %}
+      {% if number == page_obj.paginator.ELLIPSIS %}
+      <span class="px-2 text-body-sm text-ink-3" aria-hidden="true">…</span>
+      {% elif number == page_obj.number %}
+      <span aria-current="page" class="inline-flex h-touch min-w-touch items-center justify-center rounded-md bg-primary-soft px-2 text-body-sm font-semibold text-primary-strong">
+        {{ number }}
+      </span>
+      {% else %}
+      <a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ number }}"
+         class="inline-flex h-touch min-w-touch items-center justify-center rounded-md px-2 text-body-sm font-medium text-primary-strong underline">
+        {{ number }}
+      </a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.next_page_number }}"
+       rel="next"
+       class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-primary-strong underline">
+      Next ›
+    </a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% elif total %}
+
+  {% comment %}
+  W28's state: a filter that returns nothing is where an employer concludes the
+  product is broken. The way back is the point of the state, not an afterthought.
+  {% endcomment %}
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 text-center">
+    <p class="text-body font-medium text-ink">No applications with this status.</p>
+    <p class="mt-1 text-body-sm text-ink-3">
+      This job has {{ total }} application{{ total|pluralize }} in total.
+    </p>
+    <a href="{% url 'employer_portal:job-applications' job.pk %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+      Show all {{ total }} application{{ total|pluralize }}
+    </a>
+  </div>
+
+  {% else %}
+
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 text-center">
+    <p class="text-body font-medium text-ink">No applications yet.</p>
+    <p class="mt-1 text-body-sm text-ink-3">
+      Applications appear here as candidates apply. Candidates are shown by their
+      alias for this company, never by name.
+    </p>
+    <a href="{% url 'employer_portal:job-overview' job.pk %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+      Back to the job
+    </a>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}

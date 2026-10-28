@@ -1,0 +1,16 @@
+{% comment %}
+The per-employer candidate alias (design.md §7.13, REQ-FR-054).
+
+This pill is the candidate's **whole identity** on an employer surface. REQ-FR-029
+keeps the name, the photo, the email and the internal UUID off every employer
+page, so a row that renders this badge and nothing else is complete, not
+truncated.
+
+7.13 names `--alias-fg` on `--alias-soft`. Neither token exists in design.md §3
+or `static/css/tokens.css`, and this file must not invent hex values that §3.2's
+contrast table was not computed against, so the badge uses the neutral surface
+tokens until the design system defines them. Monospace because an alias is a code
+read off a screen and typed into a search box: `0`/`O` and `1`/`I` must not be
+mistakable for each other.
+{% endcomment %}
+<span class="inline-flex items-center rounded-sm border border-border bg-surface-muted px-2 py-1 font-mono text-caption font-semibold tracking-wide text-ink-2">{{ alias }}</span>
