@@ -195,6 +195,10 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # The header bell's unread count (design.md §5.4, W19, batch
+                # 1.44). It returns 0 for anonymous requests without querying,
+                # so the public pages pay nothing for it.
+                "notifications.context_processors.unread_notification_count",
             ],
         },
     },
@@ -658,6 +662,13 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "AI-Powered, Explainable Recruitment Platform",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Swagger UI's default template loads its CSS, JS and favicon from
+    # cdn.jsdelivr.net. CONTENT_SECURITY_POLICY allows only 'self', so every one
+    # of those requests was blocked and /api/docs/ rendered an empty page. The
+    # assets are vendored from the pinned swagger-ui-dist devDependency by
+    # `npm run vendor`, the same way htmx and Chart.js are.
+    "SWAGGER_UI_DIST": f"{STATIC_URL}vendor/swagger-ui",
+    "SWAGGER_UI_FAVICON_HREF": f"{STATIC_URL}vendor/swagger-ui/favicon-32x32.png",
 }
 
 

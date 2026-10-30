@@ -132,6 +132,11 @@ A user can register, verify, sign in, maintain a profile, employers can post job
 | 1.44 | Notification list and unread UI | ui |
 | 1.45 | Phase 1 end-to-end test | tests |
 | 1.46 | Phase 1 closeout | audit |
+| 1.47 | CI green: black, deploy check, dependency audit | backend+tests |
+| 1.48 | Transactional email provider wiring | backend+tests |
+| 1.49 | Flower service in Compose | ops |
+| 1.50 | Candidate dashboard page #15 | ui |
+| 1.51 | REQ-FR-010 browser upload verification and production bucket decision | audit |
 
 ### Phase 2: AI screening pipeline
 

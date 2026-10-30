@@ -4912,3 +4912,257 @@ AI-generated content and the alias is not AI output.
 **Verification note.** The repo-wide count moved from 1516 to 1562 because of the
 41 new UI tests and 2 new authz parametrisations (5 new matrix rows); 3 existing
 authz rows were unchanged. Nothing was committed or pushed.
+
+### Batch 1.44: Notification list and unread UI (2026-10-29)
+
+**Scope.** REQ-FR-023 and design.md page #54 (W19, "Notifications centre", shared
+by both portals). This is the UI half of batch 1.43: the model, the write service
+and the email delivery already existed; 1.44 renders a recipient's rows and lets
+the recipient mark them read. Out of scope per the prompt: real-time delivery
+(Phase 5).
+
+**What changed.**
+
+- `notifications/views.py` (new) — `notification_list` is page #54: the caller's
+  own rows, newest first, filtered by a closed vocabulary (`all` / `unread` /
+  `applications`), 20 per page. `mark_read` and `mark_all_read` are POST-only and
+  scoped by `recipient=request.user`; a foreign or unknown id is a 404, an
+  already-read row is a no-op. `safe_link()` only lets a single-slash path become
+  an `href`, so a stored `javascript:` or `//evil.example` value renders as a
+  title with no link rather than as an open redirect. No audit entry: opening
+  your own message is not a decision the audit trail has to explain.
+- `notifications/urls.py` — three fixed routes under a new `notification_center`
+  namespace (`list`, `read`, `read-all`). The namespace is not `notifications`
+  because `notifications.api_urls` already owns that name under `/api/v1/`; the
+  id travels in the POST body, so no route is parameterised and each one has a
+  single authorization-matrix row.
+- `notifications/context_processors.py` (new) — `unread_notification_count`:
+  zero for anonymous requests and for template renders without a request (email
+  templates), one count query for a signed-in page. Registered in
+  `config/settings/base.py`.
+- `templates/notifications/list.html` (new) — W19's layout at 360px first: an
+  `<ol>` of labelled `<article>`s, the tab row, "Mark all as read (n)" only when
+  something is unread, per-row "Mark read", truncated previews, `<time>`, both
+  empty states (W19's "You're all caught up." verbatim), and pagination that
+  carries the filter.
+- `templates/notifications/_bell.html` (new) — the header bell (design.md §5.4),
+  included by `templates/base.html` for every signed-in account. The unread count
+  is in the link's accessible name ("Notifications, 3 unread"); the visible badge
+  is `aria-hidden`, and the text label collapses to the icon below `sm` so the
+  360px header does not overflow.
+- `config/urls.py` — mounts `notifications.urls` at `/notifications/`.
+- `tests/notifications/test_notification_ui.py` (new) — 32 tests.
+- `tests/core/test_authz_matrix.py` + `docs/AUTHZ_MATRIX.md` — 3 rows: anonymous
+  302 on all three, signed-in 200 on the page, 404/302 on the two POSTs for the
+  empty matrix body. The docs header now also lists batch 1.42, which had added
+  rows without updating that line.
+
+**Decisions taken.**
+
+- **No "Messages" tab.** W19 draws `[All] [Unread 3] [Applications] [Messages]`,
+  but the documented notification vocabulary (`Complete Doc` §C.4) has no message
+  type; messaging is REQ-FR-043, Phase 3. A tab that can only return nothing is
+  the state W28 was written to prevent, so it is omitted until the type exists.
+- **No "Notification settings" link** in the empty state. W19 draws one, but page
+  #32's Notifications tab does not exist; a link to a 404 is a dead control. The
+  empty state offers the role-appropriate route that does exist instead (the job
+  board for candidates, the jobs list for an employer with a company profile).
+- **Unread is announced, not only drawn.** W19's dot stays for sighted users
+  (`aria-hidden`); the title link starts with a screen-reader-only "Unread: ".
+- **Pagination was added** although W19 does not draw it: the page caps at 20
+  previews, because W19 itself names the 500-notification case as a performance
+  problem. "Mark all as read" still marks the whole account, not the visible page.
+- **The page is per recipient, not per role.** Batch 1.43 writes a notification to
+  both sides of an application, so an employer needs the page as much as a
+  candidate; any authenticated account reads only its own rows.
+
+**Tests.** `tests/notifications/test_notification_ui.py` (32): anonymous redirect
+on the page and the POSTs, `never_cache`, employer access, ownership isolation,
+newest-first ordering, relative time, markup truncation, HTML escaping, a relative
+link rendered and an unsafe URL not, candidate/employer empty states, unread and
+type filters, unknown filter, tab count and `aria-current`, filtered-empty way
+back, the 20-row page split with filter preservation, mark-read persistence and
+redirect, filter-preserving redirect, repeat no-op, foreign 404, unknown/malformed
+id 404, GET 405 on both POST routes, mark-all scoping to the caller, mark-all
+filter and empty no-op, and the bell's count/no-count accessible names. Three
+authorization-matrix rows were added.
+
+**Commands and results (this environment, 2026-10-29).**
+
+- `pytest tests/notifications/test_notification_ui.py -q` -> **32 passed**.
+- `pytest tests/notifications/ tests/core/test_authz_matrix.py -q` -> **161 passed** (69 notification tests + 92 matrix tests).
+- `pytest tests/ -q` with `DJANGO_SETTINGS_MODULE=config.settings.ci` and `DEBUG` unset -> **1597 passed, 4 skipped** (80.94s). The same run with the harness's inherited `DEBUG=True` produced 15 failures in `tests/core/test_production_settings.py`, all "DEBUG must be False in production" and unrelated to this batch; `env -u DEBUG` removes them, as AGENTS.md warns.
+- `manage.py check` -> no issues (0 silenced).
+- `manage.py makemigrations --check --dry-run` -> "No changes detected" (the pre-existing warning that `fairfold_test` does not exist).
+- `flake8` (CI scope, `notifications/` included) -> clean. `isort --check-only .` -> clean. `black --check .` -> only the pre-existing `scripts/verify_docs.py` (not modified by this batch). `mypy` (CI scope) -> "Success: no issues found in 113 source files"; `mypy notifications/` separately -> 13 files, no issues.
+- `manage.py spectacular` -> 1 warning, the pre-existing enum-name collision for fields named `status`; 0 errors.
+- `scripts/verify_docs.py` -> exit 0 (33 tables, 53 FKs, 27 indexes, 63 FRs untouched); `scripts/verify_bias_set.py` -> exit 0.
+- `npm run build` -> rebuilt the vendored JS and `static/css/tailwind.css`; `npm run check-budget` -> exit 0 (under the 30 KB gzipped budget).
+- `bandit` not re-run to a pass: it still stops on the pre-existing "Unknown test found in profile: B108" (bandit 1.7.10 on Python 3.14); this batch adds no shell, network or crypto code.
+
+**Known limitations.** No real-time update (Phase 5, REQ-NFR / batch 5.6): the
+count refreshes on reload, which is the batch's acceptance line. No notification
+preferences or per-type opt-out (page #32 does not exist). The "Messages" tab and
+message notifications wait for REQ-FR-043. The two JSON endpoints `Complete Doc`
+§C.12 lists (`GET /api/v1/notifications/`, `POST /api/v1/notifications/{id}/read/`)
+are **not built**: this is a UI batch and no template page in the repo consumes the
+product's own API. They remain scheduled by no batch in `docs/ROADMAP.md` and are
+reported as an observation. A notification that was read once stays read; there is
+no "mark unread" action because W19 has none. Email styling and copy are still
+unstyled text (design.md §10.4 lists email/notification microcopy as not started).
+
+**Verification note.** The repo-wide count moved from 1562 to 1597 because of the
+32 new UI tests and 3 new authz parametrisations. Nothing was committed or
+pushed.
+
+### Batch 1.45: Phase 1 end-to-end test (2026-10-30)
+
+**Scope.** Arch Doc §10 Phase 1. One test that walks the whole Phase 1 chain
+through the HTML surfaces against PostgreSQL. No new feature, no schema change,
+no functional requirement of its own, so `docs/TRACEABILITY.md` is untouched
+(the batch prompt says to skip it).
+
+**What changed.**
+
+- `tests/core/test_phase1_end_to_end.py` (new) — one `transaction=True` test:
+  employer registers (and is refused sign-in before verification), verifies,
+  onboards, creates a draft job, activates it; candidate registers, verifies,
+  logs in, is sent from the profile page to onboarding, builds a profile, sees
+  the activated job and applies; the employer's inbox renders the per-employer
+  alias and none of the name, email, internal user id or candidate profile id; a
+  candidate GET and POST against the employer's review/shortlist routes are 403
+  and leave the row `applied`; the employer shortlists; the candidate's detail
+  page and tracker show Shortlisted; both sides have notification rows, the
+  employer's message is alias-only, both notification pages render them, and the
+  decision's audit entry holds no identity. The verification and notification
+  `.delay` calls are captured, so the test also proves two verification emails
+  and three notification emails were queued on commit without a broker.
+
+**Why PostgreSQL and `transaction=True`.** `tests/conftest.py` has no SQLite
+fallback. `transaction=True` is required because both email halves dispatch from
+`transaction.on_commit`, which never fires inside the wrapped test transaction
+(the same reason `tests/notifications/test_notification_wiring.py` sets it).
+
+**Decisions taken.**
+
+- **In `tests/core/`, not a new `tests/e2e/`.** The convention is
+  `tests/<app>/test_*.py`, and this is a cross-app journey; `core` already holds
+  the cross-cutting authorization matrix. The `role_groups` fixture is repeated
+  locally rather than imported from a sibling `conftest.py`, which pytest does
+  not share.
+- **The journey builds its own rows.** Only the role groups are seeded. A fixture
+  that pre-created the job or the application would skip the create/activate and
+  apply steps, which are the seams the batch exists to prove.
+- **Failure and permission states are inside the journey, not a second setup.**
+  The unverified login refusal and the candidate's 403 on the employer decision
+  are the two places the real flow can stop, so they are asserted where they
+  occur instead of in a duplicated fixture-built test.
+
+**Commands and results (this environment, 2026-10-30).**
+
+- `pytest tests/core/test_phase1_end_to_end.py -v` with `DJANGO_SETTINGS_MODULE=config.settings.ci` and `DEBUG` unset -> **1 passed in 3.08s**.
+- `pytest tests/core/ -q` -> **236 passed, 4 skipped**.
+- `pytest tests/ -q` (same env) -> **1598 passed, 4 skipped** (67.30s). The previous full-suite count was 1597; the one new test accounts for the difference.
+- `manage.py check` -> no issues (0 silenced).
+- `manage.py makemigrations --check --dry-run` -> "No changes detected" (the pre-existing warning that `fairfold_test` does not exist).
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `black --check .` -> only the pre-existing `scripts/verify_docs.py`; the new file was reformatted by black and re-checked clean. `mypy` (CI scope) -> "Success: no issues found in 113 source files".
+- `scripts/verify_docs.py` -> exit 0 (33 tables, 53 FKs, 27 indexes, 63 FRs untouched); `scripts/verify_bias_set.py` -> exit 0.
+
+**Known limitations.** This is a Phase 1 server-rendered journey, not a browser
+run: HTMX/JavaScript behaviour, CSS at 360px and the real email transport are
+still covered by their own tests or manual checks, not here. The test does not
+exercise the JSON API, the resume upload flow or the other Phase 1 branches
+(reject, pause, close, filters); each has its own suite. It is deliberately one
+happy-path sequence plus the two refusals above, so it stays under a minute.
+
+**Verification note.** The repo-wide count moved from 1597 to 1598. Nothing was
+committed or pushed.
+
+### Batch 1.46: Phase 1 closeout (2026-10-30)
+
+**Scope.** Arch Doc §10 Phase 1 acceptance walkthrough and a CI check. Audit
+only: no product code, schema, endpoint or requirement changed.
+
+**Outcome.** **Phase 1 is not closed.** Seven of the ten acceptance bullets pass
+with command evidence; three fail. The written report is
+`docs/PHASE1_CLOSEOUT.md`.
+
+| Acceptance bullet | Result |
+|---|---|
+| Compose starts PostgreSQL, Redis, Django, Celery, Flower | FAIL — no `flower` service |
+| Register; verification email sent (Resend API) | FAIL — production `EMAIL_BACKEND` is still console |
+| Login; JWT access + refresh | PASS |
+| Resume upload via presigned S3 URL, type validation | PASS (backend and real MinIO; browser gesture manual) |
+| Employer create/edit/delete jobs, fields validated | PASS |
+| Apply; unique constraint prevents duplicates | PASS |
+| Employer sees applications for the job | PASS |
+| Security headers (HSTS, CSP, X-Frame-Options, nosniff) | PASS |
+| 80%+ coverage on models, auth, job CRUD | PASS |
+| CI lint and security scan | FAIL — black, pip-audit, deploy check |
+
+**What changed (documentation only).**
+
+- `docs/PHASE1_CLOSEOUT.md` (new) — the report: per-bullet evidence, coverage
+  table, CI reproduction, defects, deferred work, audit limitations.
+- `docs/TRACEABILITY.md` — REQ-FR-027 `partial` -> `done` (candidate-side
+  visibility was built in 1.31/1.33 and is demonstrated by the 1.45 test);
+  REQ-FR-045 and REQ-FR-054 "Missing" text corrected (the activation guard
+  exists; detail and notification surfaces are alias-only now); REQ-FR-010 test
+  counts corrected; REQ-FR-001 gained a deployment note about the production
+  email backend.
+- `docs/ROADMAP.md` — added 1.47 (CI green), 1.48 (email provider), 1.49
+  (Flower), 1.50 (candidate dashboard #15), 1.51 (REQ-FR-010 browser/production
+  bucket closeout) before Phase 2.
+- `docs/PROGRESS.md` — 1.46 marked done with the audit result.
+
+**Commands and results (this environment, 2026-10-30).**
+
+- `pytest tests/ -q --cov --cov-report=term` -> **1598 passed, 4 skipped**; configured-scope coverage **95.49%** (gate 80%).
+- `pytest tests/ -q --cov=. --cov-fail-under=80` -> **1598 passed, 4 skipped**; CI-style total **98.37%**.
+- `pytest tests/ --cov=candidates --cov=notifications --cov=api --cov=assessments --cov=interviews --cov=journey --cov-fail-under=0` -> **1598 passed, 4 skipped**; those apps **97%**.
+- Targeted Phase 1 suites (registration, verification, tokens, job CRUD/lifecycle/UI, apply, decisions, security headers, 1.45 E2E) -> **311 passed in 13.89s**.
+- Per-module coverage: `accounts/models.py` 99%, `accounts/services.py` 96%, `employers/models.py` 100%, `employers/api_views.py` 100%, `matching/models.py` 99%, `matching/services.py` 100%, `core/models.py` 87%, `candidates/models.py` 99%, `notifications/models.py` 100%.
+- `docker compose config --services` -> clamav, minio, postgres, redis, django, celery, celery-beat (no flower). `docker compose ps` -> all Up, health-checked ones healthy. `/health/ready/` -> `{"status": "ok", "checks": {"database": "ok", "cache": "ok"}}`; `/jobs/` -> 200.
+- `docker compose exec django python manage.py check_storage` -> storage round-trip verified (S3Storage, bucket `fairfold-media`, 35 bytes).
+- `pytest tests/core/test_storage.py` with `AWS_*` pointed at the live MinIO -> **20 passed, 1 skipped**; `pytest tests/core/test_presign_endpoint.py` -> **8 passed**.
+- Production settings inspected: `EMAIL_BACKEND = django.core.mail.backends.console.EmailBackend` while `ANYMAIL = {'BASE_URL': ...}` is set, so no provider call occurs.
+- `manage.py check` -> no issues. `manage.py check --deploy --fail-level WARNING` (production settings) -> **exit 1**, `drf_spectacular.W001` enum collision.
+- `flake8` (CI scope) -> clean; `isort --check-only .` -> clean; `black --check .` -> **exit 1**, `scripts/verify_docs.py`; `mypy` (CI scope) -> Success, 113 files.
+- `bandit -r . -c bandit.yaml -s B104,...,B403` -> **exit 2**, `Unknown test found in profile: B105` on Python 3.14 with bandit 1.7.10; CI's Python 3.12 result is unverified.
+- `pip-audit -r requirements.txt` -> **exit 1**, three advisories in `djangorestframework 3.17.2` (GHSA-33wh-fxxf-88vv, GHSA-3547-9m27-7rxg, GHSA-xw6w-gcfp-cf8m; fixed in 3.18.2).
+- `scripts/verify_docs.py` -> exit 0 (re-run after the traceability edits); `scripts/verify_bias_set.py` -> exit 0.
+- GitHub Actions run **#101** for `7517a10` (current HEAD) created 2026-10-30T08:57:05Z concluded **failure** (https://github.com/ishrakhossain53/FAIRFOLD/actions/runs/41029893681).
+
+**Known limitations of the audit.** GitHub's jobs/logs API returned no data
+without authentication, so the exact first failing CI step is not claimed; the
+three reproducible failing steps are. `bandit` cannot load its profile on this
+machine's Python 3.14, so it is neither passed nor failed here. No Resend key and
+no browser automation were available; those parts are evidenced from settings
+and server-rendered tests, not from a live send or a real browser.
+
+**Verification note.** Documentation and tracking files only; no count asserted
+by `verify_docs.py` changed. Nothing was committed or pushed.
+
+### Post-1.46 fix: vendored Swagger UI assets (2026-10-30)
+
+`/api/docs/` returned 200 but rendered an empty page. drf-spectacular's default
+template loads Swagger UI's CSS, JS and favicon from `cdn.jsdelivr.net`, and
+`CONTENT_SECURITY_POLICY` allows only `'self'`, so the browser blocked every
+asset and `SwaggerUIBundle` was never defined.
+
+- `package.json` — added `swagger-ui-dist@5.34.0` as a devDependency and extended
+  `npm run vendor` to copy `swagger-ui.css`, `swagger-ui-bundle.js`,
+  `swagger-ui-standalone-preset.js` and `favicon-32x32.png` into
+  `static/vendor/swagger-ui/`, alongside the existing htmx/Chart.js vendoring.
+- `config/settings/base.py` — `SPECTACULAR_SETTINGS` now sets
+  `SWAGGER_UI_DIST` and `SWAGGER_UI_FAVICON_HREF` to those static paths. The CSP
+  is unchanged; the page is same-origin.
+- `tests/core/test_api_docs.py` (new, 3 tests) — the dist path is local, every
+  vendored file exists, and the rendered page references the local assets with
+  no `cdn.jsdelivr.net` URL.
+
+Verified after `docker compose build django && docker compose up -d django`:
+`/api/docs/` -> 200 and its HTML names `/static/vendor/swagger-ui/*`;
+`/static/vendor/swagger-ui/swagger-ui.css` -> 200. Full suite: **1601 passed,
+4 skipped** (the three new tests). `manage.py check` clean; black/isort/flake8
+clean on the changed Python files; mypy clean on `config/`.

@@ -1,6 +1,6 @@
 # Authorization matrix
 
-**Enforced by:** `tests/core/test_authz_matrix.py` (batches 1.13, 1.15, 1.16, 1.22, 1.24, 1.25, 1.31, 1.33, 1.36, 1.37, 1.38, 1.39, 1.40, 1.41).
+**Enforced by:** `tests/core/test_authz_matrix.py` (batches 1.13, 1.15, 1.16, 1.22, 1.24, 1.25, 1.31, 1.33, 1.36, 1.37, 1.38, 1.39, 1.40, 1.41, 1.42, 1.44).
 **Requirement:** REQ-SEC-010 (security headers) and the fail-closed rule in the
 batch: `REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"]` is `IsAuthenticated`, and a
 view that needs to be public must say so explicitly.
@@ -69,6 +69,9 @@ layer's answer or is refused before the serializer runs.
 | `/jobs/` | GET | 200 | 200 | 200 | 200 | public job board, page #4 (REQ-FR-042); active jobs only (batch 1.33) |
 | `/jobs/{id}/` | GET | 404 | 404 | 404 | 404 | public job detail, page #5; the nil UUID exists nowhere, and draft/paused/closed answer the same 404 (batch 1.33) |
 | `/jobs/{id}/apply/` | POST | 302 | 404 | 403 | 403 | candidate-only Apply button; anonymous → login, the nil UUID is a 404 after the guard (batch 1.37) |
+| `/notifications/` | GET | 302 | 200 | 200 | 200 | per-recipient notification centre, page #54 (W19, REQ-FR-023); a notification belongs to a person, not a role, so every signed-in account reads its own rows (batch 1.44) |
+| `/notifications/read/` | POST | 302 | 404 | 404 | 404 | marks one of the caller's own rows read; empty body has no id, so it is a 404 (batch 1.44) |
+| `/notifications/read-all/` | POST | 302 | 302 | 302 | 302 | marks every unread row of the caller read; an empty body is a valid no-op (batch 1.44) |
 | `/employer/jobs/{id}/applications/` | GET | 302 | 403 | 302 | 403 | employer-only page #40 (S12) inbox for one job, by alias; no profile → onboarding, another employer's job is a 404 (REQ-FR-029/054, batch 1.42) |
 | `/employer/applications/{id}/` | GET | 302 | 403 | 404 | 403 | employer-only page #41 (S13) review; scoped to the caller's own jobs, so an unknown or another employer's application is a 404 (batches 2.26-2.29; decision bar added in 1.42) |
 | `/employer/applications/{id}/shortlist/` | GET | 302 | 403 | 404 | 403 | employer-only confirmation page (REQ-FR-052); the row is resolved before the profile, so the nil UUID is a 404, and a GET writes nothing (batch 1.42) |

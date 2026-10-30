@@ -668,6 +668,32 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 403,
         "admin": 403,
     },
+    # Notification centre, page #54 (W19, REQ-FR-023, batch 1.44). Any
+    # authenticated account reads its own rows -- a notification belongs to a
+    # person, not to a role -- and anonymous is sent to login. The two POST
+    # routes take the id in the body: an empty body is a 404 for the per-row
+    # action (nothing to address) and a valid no-op for "mark all".
+    "/notifications/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 200,
+        "employer": 200,
+        "admin": 200,
+    },
+    "/notifications/read/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 404,
+        "employer": 404,
+        "admin": 404,
+    },
+    "/notifications/read-all/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 302,
+        "employer": 302,
+        "admin": 302,
+    },
     # Job detail and the three state actions (REQ-FR-026/027, batches 1.28/1.29).
     # Same shape as the collection: the employer actor has no company profile in
     # this fixture, so the onboarding check answers 404 after the permission

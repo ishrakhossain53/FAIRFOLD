@@ -32,6 +32,11 @@ urlpatterns = [
     path("jobs/", include("employers.public_urls")),
     path("assessments/", include("assessments.urls")),
     path("interviews/", include("interviews.urls")),
+    # Notification centre, page #54 (W19, REQ-FR-023). Its own mount and
+    # namespace: every signed-in account reads its own notifications, so nesting
+    # it under `/candidate/` or `/employer/` would attach a role guard the page
+    # must not have.
+    path("notifications/", include("notifications.urls")),
     # Public auth pages at the root: `/register/` and `/verify-email/`
     # (design.md pages #6 and #11). `EMAIL_VERIFICATION_URL` points at the
     # latter, so the prefix is fixed by that setting, not a preference.

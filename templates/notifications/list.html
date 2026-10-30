@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% comment %}
+Page #54 — Notifications centre (design.md §10.0 row 54, W19, REQ-FR-023,
+batch 1.44).
+
+Deliberate deviations from the wireframe, all reported with the batch:
+
+* **No "Messages" tab.** W19 draws one, but the documented notification types
+  (`Complete Doc` §C.4) contain no message type: messaging is REQ-FR-043, Phase
+  3. A tab that can only ever return nothing is the state W28 exists to prevent,
+  so it is omitted until the type exists. The "Applications" tab maps to
+  `application_update`, the type an application event writes.
+* **No "Notification settings" link.** W19 puts one in the empty state, but page
+  #32's Notifications tab does not exist yet (no settings page does). Rendering
+  a link to a 404 would be a dead control, so the empty state offers the one
+  route that does exist for the recipient's role.
+* **"Mark all as read" carries the count** in its visible label and only appears
+  when something is unread, as W19's accessibility note requires.
+* **The unread marker is announced, not just drawn.** The dot is `aria-hidden`;
+  the link text starts with a screen-reader-only "Unread: " so the state survives
+  with images, CSS or colour stripped out.
+* **Previews are truncated in the markup** (`truncatechars`), not with CSS line
+  clamping: a 500-notification page with full bodies is the screen-reader and
+  performance problem W19 names.
+* **Pagination.** W19 does not draw it; the page is capped at 20 rows so a
+  recipient with hundreds of notifications does not render them all. The filter
+  survives paging.
+{% endcomment %}
+
+{% block title %}Notifications · FairFold{% endblock %}
+{% block description %}Your notifications on FairFold: application updates and other messages addressed to you.{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-content">
+
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-h1 font-bold text-ink">Notifications</h1>
+      <p class="mt-1 text-body-sm text-ink-3">
+        Messages addressed to you. A person makes every hiring decision.
+      </p>
+    </div>
+
+    {% comment %}
+    W19: shown only when something is unread, with the count in the label. The
+    filter is carried so the recipient returns to the list they were reading.
+    {% endcomment %}
+    {% if unread_count %}
+    <form method="post" action="{% url 'notification_center:read-all' %}" class="shrink-0">
+      {% csrf_token %}
+      <input type="hidden" name="filter" value="{{ filter_name }}">
+      <button type="submit"
+              class="inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+        Mark all as read ({{ unread_count }})
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% comment %}
+  W19's tab row. `aria-current="page"` is the selected state for a screen reader;
+  the unread count is part of the label so it is read as "Unread 3", and the
+  other tabs carry no count because their number would answer a different
+  question (rows of one type, not unread rows).
+  {% endcomment %}
+  <nav aria-label="Filter notifications" class="mt-4 flex flex-wrap items-center gap-2">
+    {% for tab in tabs %}
+    <a href="{% url 'notification_center:list' %}{% if tab.key != 'all' %}?filter={{ tab.key }}{% endif %}"
+       {% if tab.key == filter_name %}aria-current="page"{% endif %}
+       class="inline-flex h-touch items-center gap-2 rounded-full border px-3 text-body-sm font-semibold {% if tab.key == filter_name %}border-primary bg-primary-soft text-primary-strong{% else %}border-border bg-surface text-ink-2 hover:bg-surface-muted{% endif %}">
+      {{ tab.label }}{% if tab.count %} <span class="text-caption font-normal text-ink-3">{{ tab.count }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% if rows %}
+  <p class="mt-4 text-body-sm text-ink-2">
+    {{ total }} notification{{ total|pluralize }}{% if filter_name == "unread" %} unread{% elif filter_name == "applications" %} about applications{% endif %}
+  </p>
+
+  {% comment %}
+  A reverse-chronological `<ol>` of `<article>`s, as W19's accessibility note
+  requires. Each article is labelled by its heading, so a screen-reader user can
+  jump between notifications instead of reading the page linearly.
+  {% endcomment %}
+  <ol class="mt-3 space-y-3">
+    {% for row in rows %}
+    <li>
+      <article role="article" aria-labelledby="notification-{{ row.notification.id }}-title"
+               class="rounded-md border border-border bg-surface p-4 shadow-card">
+        <div class="flex items-start gap-3">
+          {% if not row.notification.read %}
+          <span aria-hidden="true" class="mt-1 shrink-0 text-primary-strong">●</span>
+          {% else %}
+          <span aria-hidden="true" class="mt-1 shrink-0 text-ink-4">○</span>
+          {% endif %}
+
+          <div class="min-w-0 flex-1">
+            <h2 id="notification-{{ row.notification.id }}-title"
+                class="text-body font-semibold text-ink break-words">
+              {% if row.link %}<a href="{{ row.link }}" class="underline hover:text-primary-strong">{% endif %}{% if not row.notification.read %}<span class="sr-only">Unread: </span>{% endif %}{{ row.notification.title }}{% if row.link %}</a>{% endif %}
+            </h2>
+
+            <p class="mt-1 text-body-sm text-ink-2 break-words">
+              {{ row.notification.message|truncatechars:160 }}
+            </p>
+
+            <div class="mt-2 flex flex-wrap items-center gap-3">
+              <time datetime="{{ row.notification.created_at|date:'c' }}"
+                    title="{{ row.notification.created_at|date:'j M Y, H:i' }}"
+                    class="text-caption text-ink-4">{{ row.notification.created_at|naturaltime }}</time>
+
+              {% if not row.notification.read %}
+              <form method="post" action="{% url 'notification_center:read' %}">
+                {% csrf_token %}
+                <input type="hidden" name="notification_id" value="{{ row.notification.id }}">
+                <input type="hidden" name="filter" value="{{ filter_name }}">
+                <button type="submit"
+                        class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
+                  Mark read<span class="sr-only">: {{ row.notification.title }}</span>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </article>
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% if page_obj.has_other_pages %}
+  <nav aria-label="Pagination" class="mt-6 flex flex-wrap items-center justify-center gap-1">
+    {% if page_obj.has_previous %}
+    <a href="?{% if filter_name != 'all' %}filter={{ filter_name }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"
+       rel="prev"
+       class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-primary-strong underline">
+      ‹ Previous
+    </a>
+    {% endif %}
+
+    {% for number in page_range %}
+      {% if number == page_obj.paginator.ELLIPSIS %}
+      <span class="px-2 text-body-sm text-ink-3" aria-hidden="true">…</span>
+      {% elif number == page_obj.number %}
+      <span aria-current="page" class="inline-flex h-touch min-w-touch items-center justify-center rounded-md bg-primary-soft px-2 text-body-sm font-semibold text-primary-strong">
+        {{ number }}
+      </span>
+      {% else %}
+      <a href="?{% if filter_name != 'all' %}filter={{ filter_name }}&amp;{% endif %}page={{ number }}"
+         class="inline-flex h-touch min-w-touch items-center justify-center rounded-md px-2 text-body-sm font-medium text-primary-strong underline">
+        {{ number }}
+      </a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a href="?{% if filter_name != 'all' %}filter={{ filter_name }}&amp;{% endif %}page={{ page_obj.next_page_number }}"
+       rel="next"
+       class="inline-flex h-touch items-center justify-center rounded-md px-3 text-body-sm font-medium text-primary-strong underline">
+      Next ›
+    </a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% elif has_any %}
+
+  {% comment %}
+  Filtered empty: a filter that returns nothing is not an empty inbox, and the
+  way back to the full list is the point of the state.
+  {% endcomment %}
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 text-center">
+    {% if filter_name == "unread" %}
+    <p class="text-body font-medium text-ink">You're all caught up.</p>
+    <p class="mt-1 text-body-sm text-ink-3">Nothing is unread right now.</p>
+    {% else %}
+    <p class="text-body font-medium text-ink">No notifications with this filter.</p>
+    <p class="mt-1 text-body-sm text-ink-3">You do have other notifications.</p>
+    {% endif %}
+    <a href="{% url 'notification_center:list' %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md border border-border-input bg-surface px-4 text-body-sm font-semibold text-ink hover:bg-surface-muted">
+      Show all notifications
+    </a>
+  </div>
+
+  {% else %}
+
+  {% comment %}
+  True empty: W19's copy verbatim. The action is role-appropriate rather than
+  the settings page W19 draws but no batch has built.
+  {% endcomment %}
+  <div class="mt-6 rounded-md border border-border bg-surface p-6 text-center">
+    <p class="text-body font-medium text-ink">You're all caught up.</p>
+    <p class="mt-1 text-body-sm text-ink-3">
+      {% if user.is_employer %}
+      When a candidate applies to one of your jobs, you are notified here.
+      {% elif user.is_candidate %}
+      Status changes on your applications appear here.
+      {% else %}
+      Messages addressed to you appear here.
+      {% endif %}
+    </p>
+    {% if user.is_employer and user.employer_profile %}
+    <a href="{% url 'employer_portal:jobs' %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md bg-primary px-5 text-body-sm font-semibold text-white hover:bg-primary-strong">
+      Your jobs
+    </a>
+    {% elif user.is_candidate %}
+    <a href="{% url 'job_board:list' %}"
+       class="mt-4 inline-flex h-touch items-center justify-center rounded-md bg-primary px-5 text-body-sm font-semibold text-white hover:bg-primary-strong">
+      Find jobs
+    </a>
+    {% endif %}
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}
