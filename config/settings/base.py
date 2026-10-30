@@ -662,6 +662,13 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "AI-Powered, Explainable Recruitment Platform",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Swagger UI's default template loads its CSS, JS and favicon from
+    # cdn.jsdelivr.net. CONTENT_SECURITY_POLICY allows only 'self', so every one
+    # of those requests was blocked and /api/docs/ rendered an empty page. The
+    # assets are vendored from the pinned swagger-ui-dist devDependency by
+    # `npm run vendor`, the same way htmx and Chart.js are.
+    "SWAGGER_UI_DIST": f"{STATIC_URL}vendor/swagger-ui",
+    "SWAGGER_UI_FAVICON_HREF": f"{STATIC_URL}vendor/swagger-ui/favicon-32x32.png",
 }
 
 

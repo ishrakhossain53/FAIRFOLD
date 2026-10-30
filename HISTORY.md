@@ -5142,3 +5142,27 @@ and server-rendered tests, not from a live send or a real browser.
 
 **Verification note.** Documentation and tracking files only; no count asserted
 by `verify_docs.py` changed. Nothing was committed or pushed.
+
+### Post-1.46 fix: vendored Swagger UI assets (2026-10-30)
+
+`/api/docs/` returned 200 but rendered an empty page. drf-spectacular's default
+template loads Swagger UI's CSS, JS and favicon from `cdn.jsdelivr.net`, and
+`CONTENT_SECURITY_POLICY` allows only `'self'`, so the browser blocked every
+asset and `SwaggerUIBundle` was never defined.
+
+- `package.json` — added `swagger-ui-dist@5.34.0` as a devDependency and extended
+  `npm run vendor` to copy `swagger-ui.css`, `swagger-ui-bundle.js`,
+  `swagger-ui-standalone-preset.js` and `favicon-32x32.png` into
+  `static/vendor/swagger-ui/`, alongside the existing htmx/Chart.js vendoring.
+- `config/settings/base.py` — `SPECTACULAR_SETTINGS` now sets
+  `SWAGGER_UI_DIST` and `SWAGGER_UI_FAVICON_HREF` to those static paths. The CSP
+  is unchanged; the page is same-origin.
+- `tests/core/test_api_docs.py` (new, 3 tests) — the dist path is local, every
+  vendored file exists, and the rendered page references the local assets with
+  no `cdn.jsdelivr.net` URL.
+
+Verified after `docker compose build django && docker compose up -d django`:
+`/api/docs/` -> 200 and its HTML names `/static/vendor/swagger-ui/*`;
+`/static/vendor/swagger-ui/swagger-ui.css` -> 200. Full suite: **1601 passed,
+4 skipped** (the three new tests). `manage.py check` clean; black/isort/flake8
+clean on the changed Python files; mypy clean on `config/`.
