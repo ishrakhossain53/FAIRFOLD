@@ -1,0 +1,30 @@
+{% comment %}
+The header bell (design.md §5.4 "Header: logo · global search · 🔔 notifications ·
+account ▾" and W19).
+
+Rendered by `templates/base.html` only for a signed-in user. The unread count
+comes from `notifications.context_processors.unread_notification_count`, which
+returns zero for anonymous requests, so no page has to pass it in.
+
+Accessibility (W19): the count is in the link's accessible name
+("Notifications, 3 unread"), not conveyed only by the badge colour or by the
+icon. Screen-reader users therefore hear the state without having to interpret a
+dot, and the badge itself is `aria-hidden` so it is not read twice. The visible
+label collapses to the icon below `sm`, which is what keeps the 360px header from
+overflowing; the accessible name is unchanged at every width.
+{% endcomment %}
+<a href="{% url 'notification_center:list' %}"
+   aria-label="Notifications{% if unread_notification_count %}, {{ unread_notification_count }} unread{% endif %}"
+   class="relative inline-flex h-touch shrink-0 items-center gap-1 rounded-md px-2 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">
+  <svg aria-hidden="true" focusable="false" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round"
+          d="M14.857 17.082a23.85 23.85 0 0 0 5.454-1.31A8.97 8.97 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.97 8.97 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.26 24.26 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+  </svg>
+  <span class="hidden sm:inline">Notifications</span>
+  {% if unread_notification_count %}
+  <span aria-hidden="true"
+        class="inline-flex items-center justify-center rounded-full bg-primary px-1.5 text-caption font-semibold text-white">
+    {{ unread_notification_count }}
+  </span>
+  {% endif %}
+</a>

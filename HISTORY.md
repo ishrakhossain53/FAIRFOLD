@@ -4912,3 +4912,105 @@ AI-generated content and the alias is not AI output.
 **Verification note.** The repo-wide count moved from 1516 to 1562 because of the
 41 new UI tests and 2 new authz parametrisations (5 new matrix rows); 3 existing
 authz rows were unchanged. Nothing was committed or pushed.
+
+### Batch 1.44: Notification list and unread UI (2026-10-29)
+
+**Scope.** REQ-FR-023 and design.md page #54 (W19, "Notifications centre", shared
+by both portals). This is the UI half of batch 1.43: the model, the write service
+and the email delivery already existed; 1.44 renders a recipient's rows and lets
+the recipient mark them read. Out of scope per the prompt: real-time delivery
+(Phase 5).
+
+**What changed.**
+
+- `notifications/views.py` (new) — `notification_list` is page #54: the caller's
+  own rows, newest first, filtered by a closed vocabulary (`all` / `unread` /
+  `applications`), 20 per page. `mark_read` and `mark_all_read` are POST-only and
+  scoped by `recipient=request.user`; a foreign or unknown id is a 404, an
+  already-read row is a no-op. `safe_link()` only lets a single-slash path become
+  an `href`, so a stored `javascript:` or `//evil.example` value renders as a
+  title with no link rather than as an open redirect. No audit entry: opening
+  your own message is not a decision the audit trail has to explain.
+- `notifications/urls.py` — three fixed routes under a new `notification_center`
+  namespace (`list`, `read`, `read-all`). The namespace is not `notifications`
+  because `notifications.api_urls` already owns that name under `/api/v1/`; the
+  id travels in the POST body, so no route is parameterised and each one has a
+  single authorization-matrix row.
+- `notifications/context_processors.py` (new) — `unread_notification_count`:
+  zero for anonymous requests and for template renders without a request (email
+  templates), one count query for a signed-in page. Registered in
+  `config/settings/base.py`.
+- `templates/notifications/list.html` (new) — W19's layout at 360px first: an
+  `<ol>` of labelled `<article>`s, the tab row, "Mark all as read (n)" only when
+  something is unread, per-row "Mark read", truncated previews, `<time>`, both
+  empty states (W19's "You're all caught up." verbatim), and pagination that
+  carries the filter.
+- `templates/notifications/_bell.html` (new) — the header bell (design.md §5.4),
+  included by `templates/base.html` for every signed-in account. The unread count
+  is in the link's accessible name ("Notifications, 3 unread"); the visible badge
+  is `aria-hidden`, and the text label collapses to the icon below `sm` so the
+  360px header does not overflow.
+- `config/urls.py` — mounts `notifications.urls` at `/notifications/`.
+- `tests/notifications/test_notification_ui.py` (new) — 32 tests.
+- `tests/core/test_authz_matrix.py` + `docs/AUTHZ_MATRIX.md` — 3 rows: anonymous
+  302 on all three, signed-in 200 on the page, 404/302 on the two POSTs for the
+  empty matrix body. The docs header now also lists batch 1.42, which had added
+  rows without updating that line.
+
+**Decisions taken.**
+
+- **No "Messages" tab.** W19 draws `[All] [Unread 3] [Applications] [Messages]`,
+  but the documented notification vocabulary (`Complete Doc` §C.4) has no message
+  type; messaging is REQ-FR-043, Phase 3. A tab that can only return nothing is
+  the state W28 was written to prevent, so it is omitted until the type exists.
+- **No "Notification settings" link** in the empty state. W19 draws one, but page
+  #32's Notifications tab does not exist; a link to a 404 is a dead control. The
+  empty state offers the role-appropriate route that does exist instead (the job
+  board for candidates, the jobs list for an employer with a company profile).
+- **Unread is announced, not only drawn.** W19's dot stays for sighted users
+  (`aria-hidden`); the title link starts with a screen-reader-only "Unread: ".
+- **Pagination was added** although W19 does not draw it: the page caps at 20
+  previews, because W19 itself names the 500-notification case as a performance
+  problem. "Mark all as read" still marks the whole account, not the visible page.
+- **The page is per recipient, not per role.** Batch 1.43 writes a notification to
+  both sides of an application, so an employer needs the page as much as a
+  candidate; any authenticated account reads only its own rows.
+
+**Tests.** `tests/notifications/test_notification_ui.py` (32): anonymous redirect
+on the page and the POSTs, `never_cache`, employer access, ownership isolation,
+newest-first ordering, relative time, markup truncation, HTML escaping, a relative
+link rendered and an unsafe URL not, candidate/employer empty states, unread and
+type filters, unknown filter, tab count and `aria-current`, filtered-empty way
+back, the 20-row page split with filter preservation, mark-read persistence and
+redirect, filter-preserving redirect, repeat no-op, foreign 404, unknown/malformed
+id 404, GET 405 on both POST routes, mark-all scoping to the caller, mark-all
+filter and empty no-op, and the bell's count/no-count accessible names. Three
+authorization-matrix rows were added.
+
+**Commands and results (this environment, 2026-10-29).**
+
+- `pytest tests/notifications/test_notification_ui.py -q` -> **32 passed**.
+- `pytest tests/notifications/ tests/core/test_authz_matrix.py -q` -> **161 passed** (69 notification tests + 92 matrix tests).
+- `pytest tests/ -q` with `DJANGO_SETTINGS_MODULE=config.settings.ci` and `DEBUG` unset -> **1597 passed, 4 skipped** (80.94s). The same run with the harness's inherited `DEBUG=True` produced 15 failures in `tests/core/test_production_settings.py`, all "DEBUG must be False in production" and unrelated to this batch; `env -u DEBUG` removes them, as AGENTS.md warns.
+- `manage.py check` -> no issues (0 silenced).
+- `manage.py makemigrations --check --dry-run` -> "No changes detected" (the pre-existing warning that `fairfold_test` does not exist).
+- `flake8` (CI scope, `notifications/` included) -> clean. `isort --check-only .` -> clean. `black --check .` -> only the pre-existing `scripts/verify_docs.py` (not modified by this batch). `mypy` (CI scope) -> "Success: no issues found in 113 source files"; `mypy notifications/` separately -> 13 files, no issues.
+- `manage.py spectacular` -> 1 warning, the pre-existing enum-name collision for fields named `status`; 0 errors.
+- `scripts/verify_docs.py` -> exit 0 (33 tables, 53 FKs, 27 indexes, 63 FRs untouched); `scripts/verify_bias_set.py` -> exit 0.
+- `npm run build` -> rebuilt the vendored JS and `static/css/tailwind.css`; `npm run check-budget` -> exit 0 (under the 30 KB gzipped budget).
+- `bandit` not re-run to a pass: it still stops on the pre-existing "Unknown test found in profile: B108" (bandit 1.7.10 on Python 3.14); this batch adds no shell, network or crypto code.
+
+**Known limitations.** No real-time update (Phase 5, REQ-NFR / batch 5.6): the
+count refreshes on reload, which is the batch's acceptance line. No notification
+preferences or per-type opt-out (page #32 does not exist). The "Messages" tab and
+message notifications wait for REQ-FR-043. The two JSON endpoints `Complete Doc`
+§C.12 lists (`GET /api/v1/notifications/`, `POST /api/v1/notifications/{id}/read/`)
+are **not built**: this is a UI batch and no template page in the repo consumes the
+product's own API. They remain scheduled by no batch in `docs/ROADMAP.md` and are
+reported as an observation. A notification that was read once stays read; there is
+no "mark unread" action because W19 has none. Email styling and copy are still
+unstyled text (design.md §10.4 lists email/notification microcopy as not started).
+
+**Verification note.** The repo-wide count moved from 1562 to 1597 because of the
+32 new UI tests and 3 new authz parametrisations. Nothing was committed or
+pushed.

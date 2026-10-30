@@ -195,6 +195,10 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # The header bell's unread count (design.md §5.4, W19, batch
+                # 1.44). It returns 0 for anonymous requests without querying,
+                # so the public pages pay nothing for it.
+                "notifications.context_processors.unread_notification_count",
             ],
         },
     },

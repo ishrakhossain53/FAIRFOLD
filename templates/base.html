@@ -67,6 +67,13 @@
           Find jobs
         </a>
         {% if user.is_authenticated %}
+          {% comment %}
+          The header bell (design.md §5.4). Every signed-in account receives
+          notifications -- candidates and employers both -- so it is not inside
+          either role branch. The count comes from the context processor; the
+          visible label collapses to the icon below `sm`.
+          {% endcomment %}
+          {% include "notifications/_bell.html" %}
           {% if user.is_employer %}
           <a href="{% url 'employer_portal:jobs' %}"
              class="inline-flex h-touch items-center rounded-md px-3 text-body-sm font-semibold text-ink-2 hover:bg-surface-muted">

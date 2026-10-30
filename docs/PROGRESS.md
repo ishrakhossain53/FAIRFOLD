@@ -60,7 +60,7 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.41 Application status actions (2026-10-27, 57 passed in tests/matching/test_application_decision_api.py; full suite 1475 passed, 4 skipped)
 - [x] 1.42 Employer application review UI (2026-10-28, 41 passed in tests/employers/test_employer_applications_ui.py, 12 in test_application_rationale_ui.py, 5 new authz rows; full suite 1562 passed, 4 skipped)
 - [x] 1.43 Notification model and delivery (2026-10-28, 37 passed in tests/notifications/; full suite 1516 passed, 4 skipped)
-- [ ] 1.44 Notification list and unread UI
+- [x] 1.44 Notification list and unread UI (2026-10-29, 32 passed in tests/notifications/test_notification_ui.py; full suite 1597 passed / 4 skipped)
 - [ ] 1.45 Phase 1 end-to-end test
 - [ ] 1.46 Phase 1 closeout
 
