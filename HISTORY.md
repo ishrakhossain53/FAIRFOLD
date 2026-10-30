@@ -5014,3 +5014,131 @@ unstyled text (design.md §10.4 lists email/notification microcopy as not starte
 **Verification note.** The repo-wide count moved from 1562 to 1597 because of the
 32 new UI tests and 3 new authz parametrisations. Nothing was committed or
 pushed.
+
+### Batch 1.45: Phase 1 end-to-end test (2026-10-30)
+
+**Scope.** Arch Doc §10 Phase 1. One test that walks the whole Phase 1 chain
+through the HTML surfaces against PostgreSQL. No new feature, no schema change,
+no functional requirement of its own, so `docs/TRACEABILITY.md` is untouched
+(the batch prompt says to skip it).
+
+**What changed.**
+
+- `tests/core/test_phase1_end_to_end.py` (new) — one `transaction=True` test:
+  employer registers (and is refused sign-in before verification), verifies,
+  onboards, creates a draft job, activates it; candidate registers, verifies,
+  logs in, is sent from the profile page to onboarding, builds a profile, sees
+  the activated job and applies; the employer's inbox renders the per-employer
+  alias and none of the name, email, internal user id or candidate profile id; a
+  candidate GET and POST against the employer's review/shortlist routes are 403
+  and leave the row `applied`; the employer shortlists; the candidate's detail
+  page and tracker show Shortlisted; both sides have notification rows, the
+  employer's message is alias-only, both notification pages render them, and the
+  decision's audit entry holds no identity. The verification and notification
+  `.delay` calls are captured, so the test also proves two verification emails
+  and three notification emails were queued on commit without a broker.
+
+**Why PostgreSQL and `transaction=True`.** `tests/conftest.py` has no SQLite
+fallback. `transaction=True` is required because both email halves dispatch from
+`transaction.on_commit`, which never fires inside the wrapped test transaction
+(the same reason `tests/notifications/test_notification_wiring.py` sets it).
+
+**Decisions taken.**
+
+- **In `tests/core/`, not a new `tests/e2e/`.** The convention is
+  `tests/<app>/test_*.py`, and this is a cross-app journey; `core` already holds
+  the cross-cutting authorization matrix. The `role_groups` fixture is repeated
+  locally rather than imported from a sibling `conftest.py`, which pytest does
+  not share.
+- **The journey builds its own rows.** Only the role groups are seeded. A fixture
+  that pre-created the job or the application would skip the create/activate and
+  apply steps, which are the seams the batch exists to prove.
+- **Failure and permission states are inside the journey, not a second setup.**
+  The unverified login refusal and the candidate's 403 on the employer decision
+  are the two places the real flow can stop, so they are asserted where they
+  occur instead of in a duplicated fixture-built test.
+
+**Commands and results (this environment, 2026-10-30).**
+
+- `pytest tests/core/test_phase1_end_to_end.py -v` with `DJANGO_SETTINGS_MODULE=config.settings.ci` and `DEBUG` unset -> **1 passed in 3.08s**.
+- `pytest tests/core/ -q` -> **236 passed, 4 skipped**.
+- `pytest tests/ -q` (same env) -> **1598 passed, 4 skipped** (67.30s). The previous full-suite count was 1597; the one new test accounts for the difference.
+- `manage.py check` -> no issues (0 silenced).
+- `manage.py makemigrations --check --dry-run` -> "No changes detected" (the pre-existing warning that `fairfold_test` does not exist).
+- `flake8` (CI scope) -> clean. `isort --check-only .` -> clean. `black --check .` -> only the pre-existing `scripts/verify_docs.py`; the new file was reformatted by black and re-checked clean. `mypy` (CI scope) -> "Success: no issues found in 113 source files".
+- `scripts/verify_docs.py` -> exit 0 (33 tables, 53 FKs, 27 indexes, 63 FRs untouched); `scripts/verify_bias_set.py` -> exit 0.
+
+**Known limitations.** This is a Phase 1 server-rendered journey, not a browser
+run: HTMX/JavaScript behaviour, CSS at 360px and the real email transport are
+still covered by their own tests or manual checks, not here. The test does not
+exercise the JSON API, the resume upload flow or the other Phase 1 branches
+(reject, pause, close, filters); each has its own suite. It is deliberately one
+happy-path sequence plus the two refusals above, so it stays under a minute.
+
+**Verification note.** The repo-wide count moved from 1597 to 1598. Nothing was
+committed or pushed.
+
+### Batch 1.46: Phase 1 closeout (2026-10-30)
+
+**Scope.** Arch Doc §10 Phase 1 acceptance walkthrough and a CI check. Audit
+only: no product code, schema, endpoint or requirement changed.
+
+**Outcome.** **Phase 1 is not closed.** Seven of the ten acceptance bullets pass
+with command evidence; three fail. The written report is
+`docs/PHASE1_CLOSEOUT.md`.
+
+| Acceptance bullet | Result |
+|---|---|
+| Compose starts PostgreSQL, Redis, Django, Celery, Flower | FAIL — no `flower` service |
+| Register; verification email sent (Resend API) | FAIL — production `EMAIL_BACKEND` is still console |
+| Login; JWT access + refresh | PASS |
+| Resume upload via presigned S3 URL, type validation | PASS (backend and real MinIO; browser gesture manual) |
+| Employer create/edit/delete jobs, fields validated | PASS |
+| Apply; unique constraint prevents duplicates | PASS |
+| Employer sees applications for the job | PASS |
+| Security headers (HSTS, CSP, X-Frame-Options, nosniff) | PASS |
+| 80%+ coverage on models, auth, job CRUD | PASS |
+| CI lint and security scan | FAIL — black, pip-audit, deploy check |
+
+**What changed (documentation only).**
+
+- `docs/PHASE1_CLOSEOUT.md` (new) — the report: per-bullet evidence, coverage
+  table, CI reproduction, defects, deferred work, audit limitations.
+- `docs/TRACEABILITY.md` — REQ-FR-027 `partial` -> `done` (candidate-side
+  visibility was built in 1.31/1.33 and is demonstrated by the 1.45 test);
+  REQ-FR-045 and REQ-FR-054 "Missing" text corrected (the activation guard
+  exists; detail and notification surfaces are alias-only now); REQ-FR-010 test
+  counts corrected; REQ-FR-001 gained a deployment note about the production
+  email backend.
+- `docs/ROADMAP.md` — added 1.47 (CI green), 1.48 (email provider), 1.49
+  (Flower), 1.50 (candidate dashboard #15), 1.51 (REQ-FR-010 browser/production
+  bucket closeout) before Phase 2.
+- `docs/PROGRESS.md` — 1.46 marked done with the audit result.
+
+**Commands and results (this environment, 2026-10-30).**
+
+- `pytest tests/ -q --cov --cov-report=term` -> **1598 passed, 4 skipped**; configured-scope coverage **95.49%** (gate 80%).
+- `pytest tests/ -q --cov=. --cov-fail-under=80` -> **1598 passed, 4 skipped**; CI-style total **98.37%**.
+- `pytest tests/ --cov=candidates --cov=notifications --cov=api --cov=assessments --cov=interviews --cov=journey --cov-fail-under=0` -> **1598 passed, 4 skipped**; those apps **97%**.
+- Targeted Phase 1 suites (registration, verification, tokens, job CRUD/lifecycle/UI, apply, decisions, security headers, 1.45 E2E) -> **311 passed in 13.89s**.
+- Per-module coverage: `accounts/models.py` 99%, `accounts/services.py` 96%, `employers/models.py` 100%, `employers/api_views.py` 100%, `matching/models.py` 99%, `matching/services.py` 100%, `core/models.py` 87%, `candidates/models.py` 99%, `notifications/models.py` 100%.
+- `docker compose config --services` -> clamav, minio, postgres, redis, django, celery, celery-beat (no flower). `docker compose ps` -> all Up, health-checked ones healthy. `/health/ready/` -> `{"status": "ok", "checks": {"database": "ok", "cache": "ok"}}`; `/jobs/` -> 200.
+- `docker compose exec django python manage.py check_storage` -> storage round-trip verified (S3Storage, bucket `fairfold-media`, 35 bytes).
+- `pytest tests/core/test_storage.py` with `AWS_*` pointed at the live MinIO -> **20 passed, 1 skipped**; `pytest tests/core/test_presign_endpoint.py` -> **8 passed**.
+- Production settings inspected: `EMAIL_BACKEND = django.core.mail.backends.console.EmailBackend` while `ANYMAIL = {'BASE_URL': ...}` is set, so no provider call occurs.
+- `manage.py check` -> no issues. `manage.py check --deploy --fail-level WARNING` (production settings) -> **exit 1**, `drf_spectacular.W001` enum collision.
+- `flake8` (CI scope) -> clean; `isort --check-only .` -> clean; `black --check .` -> **exit 1**, `scripts/verify_docs.py`; `mypy` (CI scope) -> Success, 113 files.
+- `bandit -r . -c bandit.yaml -s B104,...,B403` -> **exit 2**, `Unknown test found in profile: B105` on Python 3.14 with bandit 1.7.10; CI's Python 3.12 result is unverified.
+- `pip-audit -r requirements.txt` -> **exit 1**, three advisories in `djangorestframework 3.17.2` (GHSA-33wh-fxxf-88vv, GHSA-3547-9m27-7rxg, GHSA-xw6w-gcfp-cf8m; fixed in 3.18.2).
+- `scripts/verify_docs.py` -> exit 0 (re-run after the traceability edits); `scripts/verify_bias_set.py` -> exit 0.
+- GitHub Actions run **#101** for `7517a10` (current HEAD) created 2026-10-30T08:57:05Z concluded **failure** (https://github.com/ishrakhossain53/FAIRFOLD/actions/runs/41029893681).
+
+**Known limitations of the audit.** GitHub's jobs/logs API returned no data
+without authentication, so the exact first failing CI step is not claimed; the
+three reproducible failing steps are. `bandit` cannot load its profile on this
+machine's Python 3.14, so it is neither passed nor failed here. No Resend key and
+no browser automation were available; those parts are evidenced from settings
+and server-rendered tests, not from a live send or a real browser.
+
+**Verification note.** Documentation and tracking files only; no count asserted
+by `verify_docs.py` changed. Nothing was committed or pushed.
