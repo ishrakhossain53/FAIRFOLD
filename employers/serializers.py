@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from core.geo import COUNTRIES
 from employers.models import EmployerProfile
 from matching.models import Job
 
@@ -111,6 +112,26 @@ class JobCreateSerializer(serializers.ModelSerializer):
     and page #36 auto-saves a draft while the employer is still typing.
     """
 
+    country_code = serializers.ChoiceField(
+        choices=COUNTRIES, required=False, allow_blank=True
+    )
+
+    def validate(self, attrs):
+        """A city without a country is ambiguous; the form enforces it too.
+
+        `PATCH` is partial, so the value that is not in `attrs` comes from the
+        loaded row. The city does not have to be in the bundled GeoNames list:
+        that extract deliberately stops at 15,000 people, and an API client
+        posting a small district must not be rejected for a missing dataset row.
+        """
+        city = attrs.get("city", getattr(self.instance, "city", ""))
+        country = attrs.get("country_code", getattr(self.instance, "country_code", ""))
+        if city and not country:
+            raise serializers.ValidationError(
+                {"country_code": "Choose a country before a city / district."}
+            )
+        return attrs
+
     class Meta:
         model = Job
         fields = (
@@ -119,6 +140,9 @@ class JobCreateSerializer(serializers.ModelSerializer):
             "responsibilities",
             "requirements",
             "nice_to_have",
+            "address_line",
+            "city",
+            "country_code",
             "location",
             "remote_allowed",
             "experience_level",
@@ -131,7 +155,12 @@ class JobSerializer(serializers.ModelSerializer):
     The `id` is included because the client needs it for `PATCH` and
     `activate/`; the owner is not, because the caller is the owner. Timestamps
     let the jobs list (page #35) show "last activity" without a second request.
+
+    `location` is the raw legacy column; `display_location` is what the cards
+    and pages render (city, country, or the legacy string).
     """
+
+    display_location = serializers.CharField(read_only=True)
 
     class Meta:
         model = Job
@@ -142,7 +171,11 @@ class JobSerializer(serializers.ModelSerializer):
             "responsibilities",
             "requirements",
             "nice_to_have",
+            "address_line",
+            "city",
+            "country_code",
             "location",
+            "display_location",
             "remote_allowed",
             "experience_level",
             "status",
@@ -214,12 +247,16 @@ class JobPublicListSerializer(serializers.ModelSerializer):
 
     employer_name = serializers.SerializerMethodField()
     skills = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
         fields = (
             "id",
             "title",
+            "address_line",
+            "city",
+            "country_code",
             "location",
             "remote_allowed",
             "experience_level",
@@ -231,6 +268,15 @@ class JobPublicListSerializer(serializers.ModelSerializer):
 
     def get_employer_name(self, job: Job) -> str | None:
         return public_employer_name(job.employer)
+
+    def get_location(self, job: Job) -> str:
+        """The display string, so a structured job and a legacy row agree.
+
+        `Job.location` is the legacy column; a job created after 2026-10-30 has
+        `city`/`country_code` instead. Returning the raw column would make the
+        public API disagree with the page the same row renders.
+        """
+        return job.display_location
 
     def get_skills(self, job: Job) -> list[str]:
         # Sorted in Python so the card is deterministic whatever order the join
@@ -258,6 +304,9 @@ class JobPublicDetailSerializer(JobPublicListSerializer):
         fields = (
             "id",
             "title",
+            "address_line",
+            "city",
+            "country_code",
             "location",
             "remote_allowed",
             "experience_level",

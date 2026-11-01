@@ -59,6 +59,8 @@ EXPECTED_FIELDS = {
 EXPECTED_JOB_FIELDS = {
     "id",
     "title",
+    "city",
+    "country_code",
     "location",
     "remote_allowed",
     "experience_level",

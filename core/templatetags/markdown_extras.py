@@ -19,4 +19,7 @@ register = template.Library()
 @register.filter(name="markdown")
 def markdown_filter(value: str | None) -> SafeString:
     """Render job text as the documented Markdown subset."""
-    return mark_safe(render_markdown(value))
+    # `render_markdown()` escapes the input and emits only its own constant
+    # tags, so the result is safe by construction. Bandit cannot see through the
+    # renderer and flags the wrapper; the nosec is scoped to this call.
+    return mark_safe(render_markdown(value))  # nosec B308, B703

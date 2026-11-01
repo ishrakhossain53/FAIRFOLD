@@ -85,6 +85,34 @@ class TestKeywordSearch:
 
         assert ids(response) == {str(match.pk)}
 
+    def test_q_matches_a_structured_city(self, profile):
+        match = make_job(
+            profile, title="Structured", location="", city="Dhaka", country_code="BD"
+        )
+        make_job(profile, title="Other", location="", city="Sylhet", country_code="BD")
+
+        response = APIClient().get(URL, {"q": "dhaka"})
+
+        assert ids(response) == {str(match.pk)}
+
+    def test_q_matches_a_country_name(self, profile):
+        match = make_job(
+            profile, title="Structured", location="", city="Dhaka", country_code="BD"
+        )
+        make_job(profile, title="Other", location="", city="London", country_code="GB")
+
+        response = APIClient().get(URL, {"q": "bangladesh"})
+
+        assert ids(response) == {str(match.pk)}
+
+    def test_q_matches_the_legacy_location(self, profile):
+        match = make_job(profile, title="Legacy", location="Sylhet")
+        make_job(profile, title="Other", location="Dhaka")
+
+        response = APIClient().get(URL, {"q": "sylhet"})
+
+        assert ids(response) == {str(match.pk)}
+
     def test_q_does_not_search_fields_the_requirement_omits(self, profile):
         """REQ-FR-042 names title, description and skills. Responsibilities are
         not a search field; widening it silently would be a different contract."""
@@ -119,6 +147,35 @@ class TestFilters:
         response = APIClient().get(URL, {"location": "dhaka"})
 
         assert titles(response) == ["Dhaka role"]
+
+    def test_location_matches_a_structured_city(self, profile):
+        structured = make_job(
+            profile, title="Structured", location="", city="Dhaka", country_code="BD"
+        )
+        make_job(profile, title="Other", location="Sylhet")
+
+        response = APIClient().get(URL, {"location": "dhaka"})
+
+        assert ids(response) == {str(structured.pk)}
+
+    def test_location_matches_the_country_name(self, profile):
+        structured = make_job(
+            profile, title="Structured", location="", city="Dhaka", country_code="BD"
+        )
+        make_job(profile, title="Other", location="", city="London", country_code="GB")
+
+        response = APIClient().get(URL, {"location": "bangladesh"})
+
+        assert ids(response) == {str(structured.pk)}
+
+    def test_location_matches_the_address_line(self, profile):
+        structured = make_job(
+            profile, title="Structured", location="", address_line="12 Motijheel"
+        )
+
+        response = APIClient().get(URL, {"location": "motijheel"})
+
+        assert ids(response) == {str(structured.pk)}
 
     def test_remote_true_returns_only_remote_jobs(self, profile):
         make_job(profile, title="Remote", remote_allowed=True)

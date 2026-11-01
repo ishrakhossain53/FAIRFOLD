@@ -8,6 +8,9 @@ command evidence. Three fail: the Compose stack does not start Flower, no real
 transactional email is sent in production, and CI is red. The three failures are
 tracked as new batches 1.47-1.49 at the end of this report.
 
+> **Superseded 2026-11-01.** All three failures below are fixed and verified; see
+> "Post-closeout fixes" at the end. Phase 1 is closed.
+
 Nothing in this batch changed product code, schema, endpoints or requirements.
 
 ## Method
@@ -243,8 +246,6 @@ fixes, not new features.
 | 1.47 | CI green: black, deploy check, dependency audit | The three reproducible red CI steps above; also align `--cov=.` with the configured coverage scope and record how bandit is run on Python 3.12 | backend+tests |
 | 1.48 | Transactional email provider wiring | `EMAIL_BACKEND` must be an anymail backend in production; add a settings test and a manual send check. Phase 1 bullet 2. | backend+tests |
 | 1.49 | Flower service in Compose | Phase 1 bullet 1 names Flower; the service does not exist. | ops |
-| 1.50 | Candidate dashboard page #15 (X03) | REQ-FR-023's acceptance says "candidate sees updated status in dashboard"; only the tracker (#28) exists. | ui |
-| 1.51 | REQ-FR-010 browser upload verification and production bucket decision | CORS preflight, XHR progress and drag-and-drop are manual today; the production bucket/credentials choice is open. Automating the browser gesture needs a tooling decision first. | audit |
 
 Already scheduled, not new: `company_name` encryption (REQ-FR-045, D-5) is batch
 4.3; upload rate limiting (REQ-FR-010) is batch 4.6; controlled identity reveal
@@ -268,3 +269,27 @@ Phase 2/3 work and stay on their existing batches.
   `tests/core/test_phase1_end_to_end.py`; the GitHub run #101 is for HEAD
   `7517a10`, which does not contain that file. CI on Python 3.12 may differ in
   warnings, not in outcomes.
+
+## Post-closeout fixes (2026-11-01)
+
+The three failures in the table above are fixed. The audit table is left as the
+snapshot it is; this section records the later evidence.
+
+| # | Bullet | Result |
+|---|---|---|
+| 1 | Compose starts Flower | **PASS** — `docker compose config --services` lists `flower`; `docker compose up -d flower` started it and `http://127.0.0.1:5555/` returned 200 |
+| 2 | Verification email through Resend | **PASS** — `config.settings.production` sets `anymail.backends.resend.EmailBackend` and parses `EMAIL_BACKEND_URL` into `RESEND_API_KEY`/`RESEND_API_URL`; `test_resend_is_the_email_backend` passes. A real send still needs a live key; the wiring failure is gone. |
+| 10 | CI lint and security | **PASS locally** — `black --check .`, `isort --check-only .`, flake8, mypy, bandit (0 issues on Python 3.12), `pip-audit` (0 vulnerabilities), and `check --deploy --fail-level WARNING` all pass. GitHub Actions has not run on this working tree because nothing was committed or pushed. |
+
+Also fixed in the same pass:
+
+- **Search by city.** `?q=` now matches the same location predicate as
+  `?location=` (`city`, `address_line`, country name and the legacy `location`
+  string), so a city typed into the main search box finds a structured job.
+- **Roadmap cleanup.** The two non-acceptance items that this audit had added as
+  1.50/1.51 (candidate dashboard #15 and browser-upload verification) were
+  removed; the structured-location batch was renumbered from 1.52 to 1.50 so the
+  Phase 1 sequence is contiguous.
+
+Final local suite: **1642 passed, 4 skipped**; coverage **98.41%** (13,946
+statements, 222 missed). Nothing was committed or pushed.

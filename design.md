@@ -983,7 +983,7 @@ ERROR  ✖ We couldn't read this file. Upload a PDF, DOC or DOCX under 10 MB.  [
 ```
 DESKTOP                                                MOBILE (360px)
 <h1> Find jobs                                         <h1> Find jobs
-[ Search title or skill_____________ ] [ Search ]      [ Search___________ ]
+[ Search title, skill, city or country ] [ Search ]      [ Search___________ ]
 ┌ Filters ───────┐  143 jobs · Sort: Newest ▾          [ Filters (2) ]  ← opens bottom sheet
 │ Location [___] │  ┌─────────────────────────────┐    Active: [Remote ×][Senior ×]
 │ [x] Remote ok  │  │ Backend Engineer · Acme     │    ┌───────────────────────┐
@@ -1175,7 +1175,9 @@ Data Analyst        41          0    3 d ago         [ Applications ][ Edit ][ �
 CREATE / EDIT (#36)   Draft saved 12:04
 (Basics ✔)─(Description ●)─(Requirements ○)─(Questions ○)─(Review ○)
 Title [________________]   Department [________]
-Location [_________]  [x] Remote allowed   Level [ Senior ▾ ]
+Address [________________________________________]
+Country [ Bangladesh ▾ ]   City / district [ Dhaka ▾ ]
+[x] Remote allowed   Level [ Senior ▾ ]
 Description  [ B ] [ I ] [ </> ] [ Link ] [ • List ] [ 1. List ] [ ❝ ] [ H ]
 [ ...................................................... ]
 Required skills:   [Python ×] [Django ×] [+ Add]
@@ -1189,6 +1191,15 @@ Preview  (server-rendered from the four text fields)
 **A11y:** suggestion chips are buttons with "Add skill: PostgreSQL"; added/removed skills announce through a live region; autosave status text is polite; Delete/Close live in the `⋯` menu with a confirm dialog. The markdown toolbar buttons name the action and the field ("Bold, Description") and return focus to the textarea; the preview is a labelled region, not a live region, so it does not talk over typing.
 
 The four long-text fields accept the Markdown subset in 7.22. The preview is not a second renderer: it is the same server-side function that page #37 uses, so a preview cannot disagree with the saved posting.
+
+**Structured location (amended 2026-10-30).** Country options come from
+`core.reference.COUNTRIES` (Bangladesh first). Changing the country loads that country's
+city/district options over HTMX from `GET /employer/jobs/cities/`; the option label also
+carries the region (division, state or nation) so two same-named places are distinguishable.
+The list is generated from GeoNames `cities15000` (CC BY 4.0) by
+`scripts/build_city_data.py`; `core/geo/README.md` records the source, attribution and
+regeneration step. A job with no structured location keeps the legacy `location` string,
+which is also the display fallback on the cards.
 
 ---
 

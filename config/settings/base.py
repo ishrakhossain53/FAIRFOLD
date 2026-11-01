@@ -669,6 +669,14 @@ SPECTACULAR_SETTINGS = {
     # `npm run vendor`, the same way htmx and Chart.js are.
     "SWAGGER_UI_DIST": f"{STATIC_URL}vendor/swagger-ui",
     "SWAGGER_UI_FAVICON_HREF": f"{STATIC_URL}vendor/swagger-ui/favicon-32x32.png",
+    # `Job.status` and `Application.status` are both called "status" but carry
+    # different choice sets. Without this, drf-spectacular invents a hashed name
+    # (`Status3deEnum`) and `check --deploy --fail-level WARNING` fails on
+    # drf_spectacular.W001. Naming the application enum keeps the schema stable
+    # across refactors.
+    "ENUM_NAME_OVERRIDES": {
+        "ApplicationStatusEnum": "matching.models.Application.Status",
+    },
 }
 
 

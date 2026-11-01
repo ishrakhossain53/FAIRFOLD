@@ -26,6 +26,7 @@ from typing import Any
 from django.db import transaction
 from django.db.models import Prefetch, Q, QuerySet
 
+from core.geo import COUNTRIES
 from core.models import AuditLogEntry
 from matching.models import Job, JobSkill
 
@@ -140,13 +141,36 @@ def delete_draft_job(*, job_id, employer, actor) -> tuple[str, Job]:
     return DELETED, job
 
 
+def _location_q(text: str) -> Q:
+    """A case-insensitive location match over every place column.
+
+    Shared by the `q` keyword and the `location` filter so the two cannot
+    disagree about what "Dhaka" means. The country-name lookup is in Python
+    because the list is a constant, not a table; a name that appears inside
+    another country's name ("India" in "British Indian Ocean Territory") also
+    adds that code, which is why the caller combines this with the direct
+    substring matches rather than treating the code as the only answer.
+    """
+    location_filter = (
+        Q(location__icontains=text)
+        | Q(city__icontains=text)
+        | Q(address_line__icontains=text)
+    )
+    country_codes = [
+        code for code, name in COUNTRIES if text.casefold() in name.casefold()
+    ]
+    if country_codes:
+        location_filter |= Q(country_code__in=country_codes)
+    return location_filter
+
+
 def public_job_queryset(filters: Mapping[str, object]) -> QuerySet[Job]:
     """Active jobs matching the public-board filters (REQ-FR-042, batch 1.32).
 
     `filters` is the validated `JobPublicFilterSerializer` data, so invalid
     values never reach here. The four filters combine with AND; only `q` fans out
-    (title OR description OR skill name), because a keyword that matches any of
-    the documented fields is a match.
+    (title OR description OR skill name OR location), because a keyword that
+    matches any of the documented fields is a match.
 
     **One implementation for the API and the page.** Batch 1.33 renders the same
     filters server-side, and two copies would eventually disagree about whether
@@ -169,17 +193,21 @@ def public_job_queryset(filters: Mapping[str, object]) -> QuerySet[Job]:
 
     query = str(filters.get("q") or "").strip()
     if query:
+        # The search bar is one box, so a city or country typed there must find
+        # a structured job. `_location_q` is the same predicate the Location
+        # filter uses, which keeps "Dhaka" consistent between the two controls.
         queryset = queryset.filter(
             Q(title__icontains=query)
             | Q(description__icontains=query)
             | Q(job_skills__skill__canonical_name__icontains=query)
+            | _location_q(query)
         )
 
     location = str(filters.get("location") or "").strip()
     if location:
-        # Substring, case-insensitive: the column is free text ("Dhaka",
-        # "Dhaka, Bangladesh"), and a job seeker typing "Dhaka" expects both.
-        queryset = queryset.filter(location__icontains=location)
+        # A job saved after 2026-10-30 has no legacy `location` value, so this
+        # must read the structured columns as well as the old string.
+        queryset = queryset.filter(_location_q(location))
 
     if filters.get("remote") is not None:
         queryset = queryset.filter(remote_allowed=filters["remote"])

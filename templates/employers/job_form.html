@@ -71,10 +71,12 @@ id to POST to, so the first save is the Save draft button.
       <div class="mt-4 space-y-5">
         {% include "accounts/_field.html" with field=form.title %}
 
+        {% include "accounts/_field.html" with field=form.address_line %}
         <div class="grid gap-5 sm:grid-cols-2">
-          {% include "accounts/_field.html" with field=form.location %}
-          {% include "accounts/_field.html" with field=form.experience_level %}
+          {% include "accounts/_field.html" with field=form.country_code %}
+          {% include "accounts/_field.html" with field=form.city %}
         </div>
+        {% include "accounts/_field.html" with field=form.experience_level %}
 
         <div class="rounded-md border border-border bg-surface-muted p-4">
           <div class="flex items-start gap-3">

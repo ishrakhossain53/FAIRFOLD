@@ -11,6 +11,8 @@ unlikely. Each entry below is therefore explicit even when the base already
 looks right.
 """
 
+from urllib.parse import urlparse
+
 # STORAGES, like DATABASES, is imported explicitly for the same reason: it is
 # mutated below, and an explicit import keeps the mutation honest if the star
 # import in base.py ever changes.
@@ -122,7 +124,24 @@ if not EMAIL_BACKEND_URL or EMAIL_BACKEND_URL.startswith("console://"):
         "emails, which looks like a working system to everyone testing it."
     )
 
-ANYMAIL = {"BASE_URL": EMAIL_BACKEND_URL}
+# The URL carries the API key as its userinfo: `https://<key>@api.resend.com`.
+# Parsing it here means one secret, not two almost-identical ones, and the
+# backend is set explicitly. `config.settings.base` defaults to the console
+# backend; without this line production accepted the URL, set `ANYMAIL`, and
+# still discarded every message through the base backend (Phase 1 closeout,
+# 2026-10-30).
+_email = urlparse(EMAIL_BACKEND_URL)
+if _email.scheme != "https" or not _email.hostname or not _email.username:
+    raise ImproperlyConfigured(
+        "EMAIL_BACKEND_URL must be https://<resend_api_key>@api.resend.com "
+        "in production."
+    )
+
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+ANYMAIL = {
+    "RESEND_API_KEY": _email.username,
+    "RESEND_API_URL": f"https://{_email.hostname}/",
+}
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "")
 if not DEFAULT_FROM_EMAIL or DEFAULT_FROM_EMAIL.endswith(".local"):

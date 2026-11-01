@@ -37,7 +37,11 @@ EXPECTED_KEYS = {
     "responsibilities",
     "requirements",
     "nice_to_have",
+    "address_line",
+    "city",
+    "country_code",
     "location",
+    "display_location",
     "remote_allowed",
     "experience_level",
     "status",
@@ -124,6 +128,44 @@ class TestCreate:
         )
 
         assert response.status_code == 201
+
+    def test_structured_location_is_saved_and_displayed(self, employer, profile):
+        response = api_client(employer).post(
+            URL,
+            job_payload(
+                address_line="12 Motijheel",
+                city="Dhaka",
+                country_code="BD",
+                location="ignored legacy value",
+            ),
+            format="json",
+        )
+
+        assert response.status_code == 201
+        job = Job.objects.get()
+        assert job.address_line == "12 Motijheel"
+        assert job.city == "Dhaka"
+        assert job.country_code == "BD"
+        assert job.display_location == "Dhaka, Bangladesh"
+        assert response.data["display_location"] == "Dhaka, Bangladesh"
+
+    def test_a_city_without_a_country_is_rejected(self, employer, profile):
+        response = api_client(employer).post(
+            URL, job_payload(city="Dhaka", country_code=""), format="json"
+        )
+
+        assert response.status_code == 400
+        assert "country_code" in response.data
+        assert Job.objects.count() == 0
+
+    def test_an_unknown_country_code_is_rejected(self, employer, profile):
+        response = api_client(employer).post(
+            URL, job_payload(city="Dhaka", country_code="ZZ"), format="json"
+        )
+
+        assert response.status_code == 400
+        assert "country_code" in response.data
+        assert Job.objects.count() == 0
 
 
 class TestAudit:

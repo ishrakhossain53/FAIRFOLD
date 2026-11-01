@@ -260,7 +260,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 | | HTMX (npm) | 1.9 | Vendored to `static/js/htmx.min.js` by `npm run vendor`, so the CSP does not need a third-party script host. Version corrected 2026-10-16 — this row said `1.18`, which does not exist on npm (`HISTORY.md` §2.30) |
 | | Chart.js (npm) | 4.4 | Vendored the same way; loaded only on Journey Map and Analytics pages (`design.md` §11.4) |
 | **Backend** | Django | 5.2+ | LTS — production-proven (Instagram, Pinterest) |
-| | Django REST Framework | 3.17.2 | API layer for the DRF endpoints; pinned in `requirements.txt`. Raised from 3.15.1 to clear PYSEC-2026-1304/-3827/-3828 |
+| | Django REST Framework | 3.18.2 | API layer for the DRF endpoints; pinned in `requirements.txt`. Raised from 3.15.1 through 3.17.2 to 3.18.2: 3.17.2 cleared PYSEC-2026-1304/-3827/-3828, and 3.18.2 cleared the three GHSA advisories that remained in 3.17.2 (GHSA-33wh-fxxf-88vv, GHSA-3547-9m27-7rxg, GHSA-xw6w-gcfp-cf8m) |
 | | DRF Spectacular | 0.28 | OpenAPI 3.0 auto-generation |
 | **Database** | PostgreSQL | 17 | JSON support, row-level security |
 | | psycopg2-binary | 2.9.9+ | PostgreSQL driver |
@@ -356,8 +356,8 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 
 | ID | Requirement | Priority | Acceptance Criteria |
 |---|---|---|---|
-| REQ-FR-025 | Job Creation | High | **Given** authenticated employer; **When** employer fills job form; **Then** Job record created with all fields; **And** screening questions auto-suggested by AI |
-| REQ-FR-026 | Job Editing | High | **Given** existing job (draft status); **When** employer edits; **Then** all fields updated; **And** audit log entry created |
+| REQ-FR-025 | Job Creation | High | **Given** authenticated employer; **When** employer fills job form; **Then** Job record created with all fields; **And** screening questions auto-suggested by AI. **Amended 2026-10-30:** location is captured as `address_line`, `city`/district and `country_code` (ISO 3166-1 alpha-2, chosen from `core.reference.COUNTRIES`; the city options are the bundled GeoNames set for that country), and the legacy `location` column remains a display fallback. |
+| REQ-FR-026 | Job Editing | High | **Given** existing job (draft status); **When** employer edits; **Then** all fields updated, including the structured location fields (`address_line`, `city`, `country_code`); **And** audit log entry created |
 | REQ-FR-027 | Job Activation | High | **Given** draft job; **When** employer publishes; **Then** status changes to "active"; **And** job visible to candidates |
 | REQ-FR-028 | AI Screening Trigger | High | **Given** active job with applications; **When** employer clicks "Screen All"; **Then** cost estimate shown ($0.00 for free tier); **And** user confirms; **And** Celery batch task queued |
 | REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030); **And** candidates the hard filter marked `not_matched` **remain listed and visible to the employer with the reason shown** — a rule-based rejection is never hidden and never final on its own; **And** the employer can pull any `not_matched` candidate into review, which sets `status` back to `screened` and writes an audit entry; **And** the version of the hard-filter rule set that produced each result is recorded on the application (`filter_rules_version`) and shown in the UI. *Amended 2026-10-03 from Gap G3 — see `FAIRFOLD_Feasibility_and_Design.md` §2.4.1. Motivated by EEOC v. iTutorGroup, where a hard-coded age filter was the entire discriminating mechanism (§1.2.1).* |
@@ -390,7 +390,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 
 | ID | Requirement | Priority | Acceptance Criteria |
 |---|---|---|---|
-| REQ-FR-042 | Job Browse and Search | High | **Given** a job with status `active`; **When** any user (including an unauthenticated guest) visits the job board; **Then** active jobs listed, newest first; **And** keyword search over title, description and skills; **And** filters for location, remote flag and experience level combine with search; **And** results paginated; **And** an employer name is not shown until the employer has opted into candidate-facing disclosure |
+| REQ-FR-042 | Job Browse and Search | High | **Given** a job with status `active`; **When** any user (including an unauthenticated guest) visits the job board; **Then** active jobs listed, newest first; **And** keyword search over title, description, skills and location (city, country name and the legacy `location` string); **And** filters for location, remote flag and experience level combine with search; **And** a location filter matches the city, the country name and the legacy `location` string; **And** results paginated; **And** an employer name is not shown until the employer has opted into candidate-facing disclosure |
 | REQ-FR-043 | Candidate–Employer Messaging | Medium | **Given** an application exists; **When** either party opens the message thread for that application; **Then** thread is scoped to that application only; **And** the other party can send and read messages; **And** read state is stored and shown as an unread marker; **And** the recipient is notified in-app; **And** messages are excluded from AI processing and never sent to any external AI provider; **And** deleting one party soft-deletes rather than removes the counterparty's copy: the `messages` row is retained with `content` blanked, `sender_id`/`recipient_id` nulled and `deleted_at` set, since all three FKs are `ON DELETE SET NULL` (§5.1) |
 
 **Related API gap:** `Complete Doc §C.12` does not list public job browse/search
@@ -719,7 +719,13 @@ CREATE TABLE jobs (
     responsibilities TEXT,
     requirements    TEXT,
     nice_to_have    TEXT,
-    location        VARCHAR(200),
+    location        VARCHAR(200),                  -- legacy free text; retained for rows created before 2026-10-30 and as the display fallback
+    -- Structured location (amended 2026-10-30, REQ-FR-025). The employer
+    -- selects a country and a city/district; address_line is the free-text
+    -- street part. Cards render "city, country", never address_line.
+    address_line    VARCHAR(255) NOT NULL DEFAULT '',
+    city            VARCHAR(100) NOT NULL DEFAULT '',
+    country_code    VARCHAR(2) NOT NULL DEFAULT '', -- ISO 3166-1 alpha-2; options are core.reference.COUNTRIES
     remote_allowed  BOOLEAN DEFAULT FALSE,
     experience_level VARCHAR(20),                  -- entry, intermediate, senior, lead
     status          VARCHAR(20) DEFAULT 'draft',   -- draft, active, paused, closed
@@ -1295,10 +1301,10 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 > The built file also runs **gunicorn** rather than `runserver`, sets
 > `DJANGO_SETTINGS_MODULE=config.settings.local` explicitly, and mounts `static_data` for the
 > collected static files. It has **no `nginx` service** and **no `.:/app` bind mount**; both
-> appear in the block below as specification and are not in the file. It also has no **`flower`**
-> service, which is specified in §3.4 and in the Phase 1 acceptance criteria (§10) but is not in
-> the block below either — so its absence is consistent with the specification, not a divergence
-> from it. See [`README.md`](README.md) for the commands that actually work.
+> appear in the block below as specification and are not in the file. **`flower` was added to the
+> block and the real Compose file on 2026-11-01** (Phase 1 closeout); before that the block and
+> the §10 acceptance criterion disagreed, and `docker compose up -d` could not satisfy §10.
+> See [`README.md`](README.md) for the commands that actually work.
 >
 > **Object storage, added 2026-10-22 (batch 1.17).** The block below has no object store,
 > which left REQ-FR-010 with nothing to test against in development. The built file now has
@@ -1454,6 +1460,18 @@ services:
       - .:/app
     command: celery -A config beat -l info
 
+  flower:
+    image: mher/flower:2.0.1
+    container_name: fairfold-flower
+    depends_on:
+      - redis
+    env_file: .env
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    ports:
+      - "5555:5555"
+
   nginx:
     image: nginx:1.25-alpine
     container_name: fairfold-nginx
@@ -1490,6 +1508,7 @@ volumes:
 | `django` | `fairfold-django` | 8000 |
 | `celery` | `fairfold-celery` | — |
 | `celery-beat` | `fairfold-celery-beat` | — |
+| `flower` | `fairfold-flower` | 5555 |
 | `nginx` | `fairfold-nginx` | 8080 |
 | `clamav` | `fairfold-clamav` | 3310 |
 

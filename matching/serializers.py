@@ -52,12 +52,15 @@ class ApplicationJobSerializer(serializers.ModelSerializer):
     """
 
     employer_name = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
         fields = (
             "id",
             "title",
+            "city",
+            "country_code",
             "location",
             "remote_allowed",
             "experience_level",
@@ -67,6 +70,11 @@ class ApplicationJobSerializer(serializers.ModelSerializer):
 
     def get_employer_name(self, job: Job) -> str | None:
         return public_employer_name(job.employer)
+
+    def get_location(self, job: Job) -> str:
+        # Same display rule as the public board: a structured job has no legacy
+        # `location`, and the tracker must not show a blank place.
+        return job.display_location
 
 
 class CandidateApplicationSerializer(serializers.ModelSerializer):

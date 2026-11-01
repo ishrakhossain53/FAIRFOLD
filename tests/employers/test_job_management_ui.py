@@ -323,7 +323,9 @@ class TestEdit:
             {
                 "title": "Senior Backend Engineer",
                 "description": job.description,
-                "location": "Remote",
+                "address_line": "12 Motijheel",
+                "city": "Dhaka",
+                "country_code": "BD",
                 "remote_allowed": "on",
                 "experience_level": "senior",
             },
@@ -332,13 +334,23 @@ class TestEdit:
         job.refresh_from_db()
         assert response.status_code == 302
         assert job.title == "Senior Backend Engineer"
-        assert job.location == "Remote"
+        assert job.address_line == "12 Motijheel"
+        assert job.city == "Dhaka"
+        assert job.country_code == "BD"
+        assert job.display_location == "Dhaka, Bangladesh"
         assert job.remote_allowed is True
 
         entry = AuditLogEntry.objects.get()
         assert entry.action == "job.updated"
         assert entry.details == {
-            "changed": ["experience_level", "location", "remote_allowed", "title"]
+            "changed": [
+                "address_line",
+                "city",
+                "country_code",
+                "experience_level",
+                "remote_allowed",
+                "title",
+            ]
         }
 
     def test_a_save_that_changes_nothing_writes_no_entry(self, employer, profile, job):
@@ -349,7 +361,9 @@ class TestEdit:
             {
                 "title": job.title,
                 "description": job.description,
-                "location": job.location,
+                "address_line": job.address_line,
+                "city": job.city,
+                "country_code": job.country_code,
                 "experience_level": "",
             },
         )

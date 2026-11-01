@@ -55,9 +55,9 @@ blocked.
 || `prd.md` | 1282 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 || `design.md` | 2918 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 447 | Project overview, documentation index, setup |
+| `README.md` | 448 | Project overview, documentation index, setup |
 
-| `.env.example` | 223 | Environment variables, all placeholders (214 before batch 1.22 added `S3_PUBLIC_ENDPOINT_URL`; 220 before batch 1.43 documented `SITE_URL`; the count in this table was corrected 2026-10-22 and again 2026-10-28) |
+| `.env.example` | 228 | Environment variables, all placeholders (214 before batch 1.22 added `S3_PUBLIC_ENDPOINT_URL`; 220 before batch 1.43 documented `SITE_URL`; 223 before batch 1.49 added `FLOWER_PORT`; the count in this table was corrected 2026-10-22, 2026-10-28 and 2026-11-01) |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -5166,3 +5166,128 @@ Verified after `docker compose build django && docker compose up -d django`:
 `/static/vendor/swagger-ui/swagger-ui.css` -> 200. Full suite: **1601 passed,
 4 skipped** (the three new tests). `manage.py check` clean; black/isort/flake8
 clean on the changed Python files; mypy clean on `config/`.
+
+### Batch 1.50 — structured job location (2026-11-01)
+
+`jobs.location` was one free-text column, so page #36 could not offer the
+address / country / city selection the operator asked for. Added `address_line`,
+`city` and `country_code` (ISO 3166-1 alpha-2), keeping `location` for rows
+created before this batch and as the display/search fallback. No table, foreign
+key or index was added, so the asserted **33 tables / 53 FKs / 27 indexes** are
+unchanged.
+
+- **Docs first.** Arch Doc §5.1 DDL and REQ-FR-025/026/042, Complete Doc model
+  block and §C.12, `design.md` S11, `docs/DECISIONS.md` D-13,
+  `docs/AUTHZ_MATRIX.md`. `scripts/verify_docs.py` was run before the code
+  (exit 0) and again at the end (exit 0).
+- **`core/geo/` (new).** 250 countries from GeoNames `countryInfo.txt`
+  (Bangladesh first) and 34,073 places from `cities15000` +
+  `admin1CodesASCII`, CC BY 4.0. `cities.json` is loaded lazily and served one
+  country at a time; `scripts/build_city_data.py` regenerates both files and
+  `core/geo/README.md` records the source, licence and the 15,000-population
+  limit. `core.reference.COUNTRIES` now re-exports the generated tuple, so
+  existing imports keep working.
+- **Model.** `matching.Job` gains the three fields, `display_location`
+  (`city, country`, then `address_line`, then the legacy `location`) and
+  `clean()` (a city needs a country; the code must be in the list); migration
+  `matching/0003_job_address_line_job_city_job_country_code.py`.
+- **Page #36.** Address text input, Country select and City/district select.
+  Changing the country calls the new employer-only `GET /employer/jobs/cities/`
+  over HTMX and replaces the city options; the labels carry the first-level
+  region so two same-named places are distinguishable. The form rejects a city
+  outside the selected country, while a city already stored outside the extract
+  stays editable. `location` is no longer a form field.
+- **API.** Create/update accept the three fields, reject a city without a
+  country, and reject an unknown country code. Owner responses add
+  `display_location`; public list/detail and the candidate application job
+  summary expose the structured fields and return `Job.display_location` as
+  `location`. The legacy `location` is still accepted for old clients.
+- **Search and pages.** `?location=` matches `location`, `city`,
+  `address_line` and a country name resolved to its code. The job cards, public
+  detail, employer overview and candidate application rows use
+  `display_location`.
+
+Commands and results:
+
+- `pytest tests/ -q --cov=. --cov-fail-under=80` → **1635 passed, 4 skipped**,
+  coverage **98%** (13,914 statements, 222 missed) in 60.82s.
+- `manage.py check` → no issues; `makemigrations --check --dry-run` → no
+  changes.
+- `flake8` on the changed apps/tests (120 cols) → clean; `black --check` and
+  `isort --check-only` on the changed files → clean; `mypy` (CI scope) →
+  success, 116 files.
+- `scripts/verify_docs.py` → exit 0; `scripts/verify_bias_set.py` → exit 0.
+
+**Known limitations.** The bundled list stops at 15,000 people, so a small
+district seat is not an option; `address_line` is the escape hatch and the API
+accepts a city outside the list. There is no separate state/district column:
+the first-level region is only a label in the select. `location` is now a legacy
+fallback, not a second writable UI field. `bandit` was not run (Python 3.14
+cannot load its B105 profile; CI uses 3.12), and there was no browser run.
+
+**Not committed or pushed.**
+
+### Phase 1 closeout fixes (1.47-1.49) and search by city (2026-11-01)
+
+The 1.46 audit left three Phase 1 acceptance bullets red. This pass fixes all
+three, and fixes search-by-city, which had been missing from the main search box.
+
+- **1.47 — CI.** `scripts/verify_docs.py` is now black-formatted. `djangorestframework`
+  moved from 3.17.2 to 3.18.2 (the three pip-audit advisories are gone).
+  `SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"]` names
+  `ApplicationStatusEnum`, so `check --deploy` no longer raises
+  `drf_spectacular.W001`. Bandit had two real findings: the `assert` in
+  `ai/citation.py` became an explicit `CitationError`, and the `mark_safe()` in
+  `core/templatetags/markdown_extras.py` is now a scoped `# nosec B308, B703`
+  with the escaping contract written next to it. Bandit 1.7.10 reports **0
+  issues** when run on Python 3.12 in a container. The native 3.14 run exits 2
+  with `Unknown test found in profile: B108`, which is the local tooling fault
+  recorded in earlier entries; CI uses 3.12.
+- **1.48 — transactional email.** `config.settings.production` now sets
+  `EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"` and parses
+  `EMAIL_BACKEND_URL` (`https://<key>@api.resend.com`) into `RESEND_API_KEY` and
+  `RESEND_API_URL`. A missing key or an `http://` URL is a boot failure.
+  `.env.example` now documents the Resend form only. Decision D-10 is recorded
+  as applied.
+- **1.49 — Flower.** `docker-compose.yml` has a pinned `mher/flower:2.0.1`
+  service on port 5555, wired to the same Redis broker and result backend.
+  `docker compose config --services` lists it; the container starts and the UI
+  answers 200. Arch Doc §6.1 (block, service table and note), `README.md` and
+  `.env.example` (`FLOWER_PORT`) were updated.
+- **Search by city.** `employers/services.py` now has one `_location_q()`
+  predicate, used by both `?q=` and `?location=`. The main search box therefore
+  finds `city`, `address_line`, country names and the legacy `location` string,
+  not only title/description/skill. The placeholder and `design.md` S04 say so;
+  REQ-FR-042 and Complete Doc §C.12 were amended. New tests cover q-by-city,
+  q-by-country, q-by-legacy-location and the page search.
+- **Roadmap cleanup.** The two items the 1.46 audit had proposed as 1.50/1.51
+  (candidate dashboard #15 and browser-upload verification) were removed: they
+  are not Phase 1 acceptance bullets and the user did not ask for them. The
+  structured-location batch was renumbered from 1.52 to 1.50 so Phase 1 is
+  contiguous: 1.47, 1.48, 1.49, 1.50.
+
+Commands and results:
+
+- `pytest tests/ -q --cov=. --cov-fail-under=80` -> **1642 passed, 4 skipped**,
+  coverage **98.41%** (13,946 statements, 222 missed) in 70.72s.
+- `pytest tests/core/test_production_settings.py` -> **23 passed**;
+  `tests/ai/test_citation.py tests/core/test_markdown.py tests/core/test_production_settings.py`
+  -> **88 passed**.
+- `black --check .` -> clean; `isort --check-only .` -> clean; flake8 (CI
+  scope) -> clean; mypy -> success, 116 files.
+- `bandit -r . -c bandit.yaml -s B104,B105,B106,B107,B108,B311,B403` on
+  Python 3.12 -> **0 issues**; `pip-audit -r requirements.txt` -> **0 known
+  vulnerabilities**.
+- `manage.py check --deploy --fail-level WARNING` with production settings ->
+  **no issues**.
+- `docker compose config --services` -> includes `flower`;
+  `docker compose up -d flower`; `curl http://127.0.0.1:5555/` -> **200**.
+- `scripts/verify_docs.py` and `scripts/verify_bias_set.py` -> exit 0.
+
+Known limitations: GitHub Actions has not run on this working tree because
+nothing was committed or pushed, so the CI verdict is local-only. A real Resend
+send still needs a live API key. Flower has no authentication in Compose and
+must not be published beyond a trusted host. The browser-upload gesture remains
+manual; it is not a Phase 1 acceptance item.
+
+Nothing committed or pushed.
