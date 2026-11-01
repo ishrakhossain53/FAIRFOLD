@@ -62,7 +62,11 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 1.43 Notification model and delivery (2026-10-28, 37 passed in tests/notifications/; full suite 1516 passed, 4 skipped)
 - [x] 1.44 Notification list and unread UI (2026-10-29, 32 passed in tests/notifications/test_notification_ui.py; full suite 1597 passed / 4 skipped)
 - [x] 1.45 Phase 1 end-to-end test (2026-10-30, 1 passed in tests/core/test_phase1_end_to_end.py in 3.08s; full suite 1598 passed / 4 skipped)
-- [x] 1.46 Phase 1 closeout (2026-10-30, audit complete; 7/10 acceptance bullets pass, 3 fail and are scheduled as 1.47-1.49; full suite 1598 passed / 4 skipped; see docs/PHASE1_CLOSEOUT.md)
+- [x] 1.46 Phase 1 closeout (2026-10-30, audit complete; 7/10 acceptance bullets passed, 3 failed and were fixed in 1.47-1.49; Phase 1 is closed; full suite 1598 passed / 4 skipped; see docs/PHASE1_CLOSEOUT.md)
+- [x] 1.47 CI green: black, deploy check, dependency audit (2026-11-01, flake8/isort/black/mypy clean; bandit 0 issues; pip-audit 0; `check --deploy` clean; full suite 1642 passed / 4 skipped, coverage 98.41%)
+- [x] 1.48 Transactional email provider wiring (2026-11-01, production uses `anymail.backends.resend.EmailBackend` and parses `EMAIL_BACKEND_URL`; 23 settings tests passed)
+- [x] 1.49 Flower service in Compose (2026-11-01, `docker compose up -d flower`; `:5555` returned 200)
+- [x] 1.50 Structured job location (address, city, country) (2026-11-01, 27 new tests in tests/core/test_geo.py + tests/matching/test_job_location.py + tests/employers/test_job_location_ui.py; q now also searches city/country/address; full suite 1642 passed / 4 skipped, coverage 98.41%)
 
 ## Phase 2: AI screening pipeline
 

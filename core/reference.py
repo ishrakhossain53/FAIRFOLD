@@ -31,6 +31,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.geo import COUNTRIES
+
 # ---------------------------------------------------------------------------
 # Score bands (design.md §3.4 — PROVISIONAL, not calibrated)
 # ---------------------------------------------------------------------------
@@ -102,23 +104,10 @@ def is_calibrated() -> bool:
 # ---------------------------------------------------------------------------
 # Countries — ISO 3166-1 alpha-2
 # ---------------------------------------------------------------------------
-# BD first: the PRD's primary market is Bangladesh, so the common case is the
-# first option rather than the twelfth.
-
-COUNTRIES: tuple[tuple[str, str], ...] = (
-    ("BD", "Bangladesh"),
-    ("IN", "India"),
-    ("PK", "Pakistan"),
-    ("GB", "United Kingdom"),
-    ("US", "United States"),
-    ("CA", "Canada"),
-    ("AE", "United Arab Emirates"),
-    ("SG", "Singapore"),
-    ("MY", "Malaysia"),
-    ("AU", "Australia"),
-    ("DE", "Germany"),
-    ("NL", "Netherlands"),
-)
+# Re-exported from core.geo so existing imports (`core.reference.COUNTRIES`)
+# keep working. The list moved there because it is generated together with the
+# city dataset and both share the same country codes; see core/geo/README.md.
+# Bangladesh is first because the PRD's primary market is Bangladesh.
 
 
 # ---------------------------------------------------------------------------

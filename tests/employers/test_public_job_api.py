@@ -46,6 +46,9 @@ SHOWN_NAME = "Shown Labs 91ad"
 LIST_FIELDS = {
     "id",
     "title",
+    "address_line",
+    "city",
+    "country_code",
     "location",
     "remote_allowed",
     "experience_level",

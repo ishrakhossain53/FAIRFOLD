@@ -519,7 +519,17 @@ def check_pricing_wording(r: Result, docs: dict[str, str]) -> None:
             for word in FORBIDDEN_PRICING_WORDS:
                 if word in low:
                     # Exempt dated historical notes.
-                    if any(c in low for c in ("2026-", "superseded", "moved to", "was ", "previously", "corrected")):
+                    if any(
+                        c in low
+                        for c in (
+                            "2026-",
+                            "superseded",
+                            "moved to",
+                            "was ",
+                            "previously",
+                            "corrected",
+                        )
+                    ):
                         continue
                     offenders.append(f"{name}:{i} contains '{word}'")
     r.check(
@@ -530,6 +540,7 @@ def check_pricing_wording(r: Result, docs: dict[str, str]) -> None:
 
 
 # -------------------------------------------------- PII cross-reference
+
 
 def check_pii_crossref(r: Result, docs: dict[str, str]) -> None:
     """REQ-FR-011 must reference REQ-FR-057.
@@ -546,7 +557,9 @@ def check_pii_crossref(r: Result, docs: dict[str, str]) -> None:
             window = text[start:end]
             if "REQ-FR-057" not in window:
                 line = text[: m.start()].count("\n") + 1
-                missing.append(f"{name}:{line} states REQ-FR-011 without REQ-FR-057 nearby")
+                missing.append(
+                    f"{name}:{line} states REQ-FR-011 without REQ-FR-057 nearby"
+                )
     r.check(
         not missing,
         "every REQ-FR-011 mention references REQ-FR-057",
@@ -555,6 +568,7 @@ def check_pii_crossref(r: Result, docs: dict[str, str]) -> None:
 
 
 # -------------------------------------------------- design.md keywords
+
 
 def check_design_keywords(r: Result) -> None:
     """design.md must mention key 2026-10-12 concepts."""
@@ -577,6 +591,7 @@ def check_design_keywords(r: Result) -> None:
 
 # -------------------------------------------------- wireframe coverage
 
+
 def check_wireframe_references(r: Result) -> None:
     """Every defined wireframe must be referenced by a page row or inline."""
     section("8e. Every wireframe is referenced or marked component-only")
@@ -595,8 +610,8 @@ def check_wireframe_references(r: Result) -> None:
     )
 
 
-
 # -------------------------------------------------- W-number gaps
+
 
 def check_w_number_gaps(r: Result) -> None:
     """W-numbers in design.md must not have unexplained gaps.
@@ -621,7 +636,9 @@ def check_w_number_gaps(r: Result) -> None:
             if g_token not in design:
                 missing_notes.append(g_token)
             elif not re.search(
-                rf"W{g:02d}.*unused|W{g:02d}.*reserved|W{g:02d}.*deferred|intentionally unreferenced.*W{g:02d}|W{g:02d}.*planned|W{g:02d}.*Phase 3", design, re.I,
+                rf"W{g:02d}.*unused|W{g:02d}.*reserved|W{g:02d}.*deferred|intentionally unreferenced.*W{g:02d}|W{g:02d}.*planned|W{g:02d}.*Phase 3",
+                design,
+                re.I,
             ):
                 missing_notes.append(g_token)
         gap_note = "; ".join(gap_strs)
@@ -635,6 +652,7 @@ def check_w_number_gaps(r: Result) -> None:
 
 
 # -------------------------------------------------- ASM-001 count
+
 
 def check_asm001_count(r: Result, docs: dict[str, str]) -> None:
     """ASM-001's stated requirement count must equal the current FR count.
@@ -664,6 +682,7 @@ def check_asm001_count(r: Result, docs: dict[str, str]) -> None:
 
 # -------------------------------------------------- employer-facing surface names
 
+
 def check_employer_surface_no_names(r: Result, docs: dict[str, str]) -> None:
     """No employer-facing surface description places Verified, Promoted, or a
     score beside 'name' (as opposed to alias).
@@ -676,7 +695,10 @@ def check_employer_surface_no_names(r: Result, docs: dict[str, str]) -> None:
     patterns = [
         (r"verified[^.]*?name", "Verified beside name"),
         (r"promoted[^.]*?name", "Promoted beside name"),
-        (r"score[^.]*?name[^.]*employer|employer[^.]*score[^.]*?name", "score beside name in employer surface"),
+        (
+            r"score[^.]*?name[^.]*employer|employer[^.]*score[^.]*?name",
+            "score beside name in employer surface",
+        ),
     ]
     for fname in (DESIGN, PRD, ARCH):
         text = docs[fname]
@@ -693,7 +715,18 @@ def check_employer_surface_no_names(r: Result, docs: dict[str, str]) -> None:
         fname, rest = off.split(":", 1)
         line_no = int(rest.strip().split()[0])
         line = docs[fname].splitlines()[line_no - 1].lower()
-        if any(c in line for c in ("not a name", "alias", "not name", "2026-", "superseded", "corrected", "was ")):
+        if any(
+            c in line
+            for c in (
+                "not a name",
+                "alias",
+                "not name",
+                "2026-",
+                "superseded",
+                "corrected",
+                "was ",
+            )
+        ):
             continue
         real.append(off)
     r.check(
@@ -1311,7 +1344,9 @@ def check_validation_kit(r: Result, docs: dict[str, str]) -> None:
 
     Added 2026-10-13. The employer-first validation kit must be ready but not run.
     """
-    section("15. Validation kit: empty results, PROPOSED thresholds, hypothesis traceability")
+    section(
+        "15. Validation kit: empty results, PROPOSED thresholds, hypothesis traceability"
+    )
 
     # (1) Results table must be empty or marked NOT YET COLLECTED
     results_path = ROOT / "validation" / "results.md"
@@ -1321,7 +1356,11 @@ def check_validation_kit(r: Result, docs: dict[str, str]) -> None:
         results = results_path.read_text(encoding="utf-8")
         # Must contain "NOT YET COLLECTED" or empty table markers
         has_not_yet = "NOT YET COLLECTED" in results or "not yet run" in results.lower()
-        r.check(has_not_yet, "results.md marked NOT YET COLLECTED", "found" if has_not_yet else "MISSING")
+        r.check(
+            has_not_yet,
+            "results.md marked NOT YET COLLECTED",
+            "found" if has_not_yet else "MISSING",
+        )
 
     # (2) Thresholds must be marked PROPOSED or [Planned]
     decision_rules_path = ROOT / "validation" / "decision_rules.md"
@@ -1331,7 +1370,11 @@ def check_validation_kit(r: Result, docs: dict[str, str]) -> None:
         decision_rules = decision_rules_path.read_text(encoding="utf-8")
         has_proposed = "PROPOSED" in decision_rules
         has_planned = "[Planned]" in decision_rules or "[PLANNED]" in decision_rules
-        r.check(has_proposed or has_planned, "thresholds marked PROPOSED or [Planned]", "found" if (has_proposed or has_planned) else "MISSING")
+        r.check(
+            has_proposed or has_planned,
+            "thresholds marked PROPOSED or [Planned]",
+            "found" if (has_proposed or has_planned) else "MISSING",
+        )
 
     # (3) Every hypothesis in hypotheses.md must map to a requirement or ASM ID
     hypotheses_path = ROOT / "validation" / "hypotheses.md"

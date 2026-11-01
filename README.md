@@ -110,8 +110,8 @@ the application refuses to start with either one missing, so this step is not op
 docker compose up -d --wait
 ```
 
-This builds the image and starts `postgres`, `redis`, `minio`, `clamav`, `django`, `celery`
-and `celery-beat`. On **every** start the `django` container:
+This builds the image and starts `postgres`, `redis`, `minio`, `clamav`, `django`, `celery`,
+`celery-beat` and `flower`. On **every** start the `django` container:
 
 1. applies migrations (`manage.py migrate`),
 2. loads reference data (`manage.py seed` — role groups, skills, countries, industries,
@@ -149,6 +149,7 @@ Then open **http://localhost:8000/**.
 | http://localhost:8000/api/schema/ | OpenAPI schema |
 | http://localhost:8000/health/ | Liveness probe |
 | http://localhost:8000/health/ready/ | Readiness — reports database and cache |
+| http://localhost:5555/ | Flower — Celery task monitoring (no auth; localhost only) |
 
 ### 5. Create an admin user (optional)
 

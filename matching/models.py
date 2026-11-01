@@ -31,7 +31,12 @@ from __future__ import annotations
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from core.geo import COUNTRIES, country_name
+
+_COUNTRY_CODES = frozenset(code for code, _ in COUNTRIES)
 
 
 class Job(models.Model):
@@ -81,6 +86,18 @@ class Job(models.Model):
     nice_to_have = models.TextField(blank=True)
 
     location = models.CharField(max_length=200, blank=True)
+
+    # Structured location (REQ-FR-025, amended 2026-10-30). `location` is kept
+    # for rows created before this change and as the display fallback; the form
+    # and the API write these three. Country options come from
+    # core.reference.COUNTRIES (generated into core/geo), and `city` holds the
+    # selected city/district name. The first-level region is only a label in the
+    # select, not a stored value: two "Springfield"s are disambiguated while
+    # choosing, and `address_line` is where the employer narrows it further.
+    address_line = models.CharField(max_length=255, blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    country_code = models.CharField(max_length=2, blank=True, default="")
+
     remote_allowed = models.BooleanField(default=False)
     experience_level = models.CharField(
         max_length=20,
@@ -116,6 +133,28 @@ class Job(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self) -> None:
+        super().clean()
+        if self.city and not self.country_code:
+            raise ValidationError(
+                {"country_code": "Choose a country before a city / district."}
+            )
+        if self.country_code and self.country_code not in _COUNTRY_CODES:
+            raise ValidationError({"country_code": "Unknown country code."})
+
+    @property
+    def display_location(self) -> str:
+        """What a card or detail page shows.
+
+        The structured pair wins; `address_line` is deliberately not rendered on
+        a card (it is the detailed part), and a row created before 2026-10-30
+        falls back to the legacy `location` string.
+        """
+        structured = ", ".join(
+            part for part in (self.city, country_name(self.country_code)) if part
+        )
+        return structured or self.address_line or self.location
 
     class Meta:
         db_table = "jobs"

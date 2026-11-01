@@ -32,7 +32,7 @@ that keeps `not_matched` candidates reviewable (REQ-FR-029).
         {% include "employers/_job_status.html" with status=job.status label=job.get_status_display %}
       </div>
       <p class="mt-2 text-body-sm text-ink-3">
-        {% if job.location %}{{ job.location }}{% else %}No location set{% endif %}
+        {% if job.display_location %}{{ job.display_location }}{% else %}No location set{% endif %}
         · {% if job.remote_allowed %}Remote allowed{% else %}On-site or hybrid{% endif %}
         · {% if job.experience_level %}{{ job.get_experience_level_display }}{% else %}Level not set{% endif %}
       </p>

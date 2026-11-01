@@ -754,7 +754,10 @@ class Job(models.Model):
     responsibilities = models.TextField(blank=True)
     requirements = models.TextField(blank=True)
     nice_to_have = models.TextField(blank=True)
-    location = models.CharField(max_length=200)
+    location = models.CharField(max_length=200)  # legacy free text; display fallback for pre-2026-10-30 rows
+    address_line = models.CharField(max_length=255, blank=True)  # structured location (REQ-FR-025, amended 2026-10-30)
+    city = models.CharField(max_length=100, blank=True)  # city / district; options come from the bundled GeoNames set
+    country_code = models.CharField(max_length=2, blank=True)  # ISO 3166-1 alpha-2; core.reference.COUNTRIES
     remote_allowed = models.BooleanField(default=False)
     experience_level = models.CharField(max_length=20, choices=EXP_LEVEL_CHOICES)
     status = models.CharField(max_length=20, default="draft")  # draft, active, paused, closed
@@ -1923,6 +1926,14 @@ POST   /api/v1/jobs/{id}/share/                  # Generate shareable link
 > actions are normative in Arch Doc §4.3. `PATCH /api/v1/jobs/{id}/` never writes `status`; `DELETE`
 > deletes a draft only, because every §5.1 reference to `jobs` is `ON DELETE CASCADE` and would
 > otherwise reach applications.
+>
+> **Job location (amended 2026-10-30, REQ-FR-025).** `POST` and `PATCH /api/v1/jobs/` accept
+> `address_line` (max 255), `city` (max 100) and `country_code` (ISO 3166-1 alpha-2) alongside the
+> legacy `location`. The public read models carry the same three fields plus `location`, which is the
+> display string (`city, country`, or the legacy value when no structured fields exist). The employer
+> form (#36) selects the country from `core.reference.COUNTRIES` and the city/district from the
+> bundled GeoNames list; `GET /employer/jobs/cities/` is the HTML/HTMX option endpoint and is not part
+> of the JSON API.
 
 #### Screening Integrity Endpoints (added 2026-10-03 — REQ-FR-051, REQ-FR-052, REQ-FR-029)
 
@@ -1979,7 +1990,11 @@ POST   /api/v1/messages/                         # Send message
 
 ```http
 GET    /api/v1/jobs/public/                      # Active jobs, newest first.
-                                                    # ?q= &location= &remote= &experience_level=
+                                                    # ?q= searches title, description, skill,
+                                                    # city, address and country name.
+                                                    # &location= matches city, address, country
+                                                    # name and the legacy location string.
+                                                    # &remote= &experience_level=
                                                     # &page= &page_size=   (page_size max 50)
 GET    /api/v1/jobs/public/{id}/                 # Public job detail. 404 if not `active`.
 ```

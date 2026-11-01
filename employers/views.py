@@ -39,6 +39,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from ai.citation import CitationError, load_rationale
 from ai.screening import bias_status_for
 from candidates.services import alias_for, aliases_for
+from core.geo import cities_for
 from employers.forms import EmployerProfileForm, JobForm
 from employers.models import EmployerProfile
 from employers.services import (
@@ -810,6 +811,42 @@ def job_markdown_preview(request: HttpRequest) -> HttpResponse:
         request,
         "employers/_job_markdown_preview.html",
         _preview_context(request.POST),
+    )
+
+
+@never_cache
+@employer_required
+@require_http_methods(["GET"])
+def job_city_options(request: HttpRequest) -> HttpResponse:
+    """Page #36's city/district options for the selected country.
+
+    The country select calls this over HTMX. It renders the same labels the
+    form builds on first paint, so a country change and a full page load cannot
+    show different options. The endpoint is employer-only: city names are public
+    data, but keeping the form's surface closed also keeps the onboarding
+    redirect consistent.
+    """
+    _profile, response = _portal_profile(request)
+    if response is not None:
+        return response
+
+    country_code = (request.GET.get("country_code") or "").strip().upper()
+    rows = cities_for(country_code) if country_code else ()
+    if not country_code:
+        empty_label = "Select a country first"
+    elif not rows:
+        empty_label = "No cities listed for this country"
+    else:
+        empty_label = "Select a city / district"
+
+    return render(
+        request,
+        "employers/_city_options.html",
+        {
+            "cities": rows,
+            "selected": (request.GET.get("city") or "").strip(),
+            "empty_label": empty_label,
+        },
     )
 
 

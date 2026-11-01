@@ -124,6 +124,8 @@ class TestProductionAssertions:
             ({"ALLOWED_HOSTS": "*"}, "wildcard"),
             ({"CSRF_TRUSTED_ORIGINS": "http://app.example.com"}, "https"),
             ({"EMAIL_BACKEND_URL": "console://"}, "EMAIL_BACKEND_URL"),
+            ({"EMAIL_BACKEND_URL": "https://api.resend.com"}, "EMAIL_BACKEND_URL"),
+            ({"EMAIL_BACKEND_URL": "http://key@api.resend.com"}, "EMAIL_BACKEND_URL"),
             ({"DEFAULT_FROM_EMAIL": "noreply@fairfold.local"}, "DEFAULT_FROM_EMAIL"),
             ({"SENTRY_DSN": ""}, "SENTRY_DSN"),
         ],
@@ -148,6 +150,17 @@ class TestProductionAssertions:
         # looks broken from inside the system.
         with pytest.raises(ImproperlyConfigured, match="EMAIL_BACKEND_URL"):
             production_settings(EMAIL_BACKEND_URL="console://")
+
+    def test_resend_is_the_email_backend(self, production_settings):
+        # The closeout found that production set ANYMAIL and validated the URL
+        # but left the base console backend in place, so no message left the
+        # process. This asserts the backend and the parsed key, not just the
+        # setting that looked configured.
+        module = production_settings()
+
+        assert module.EMAIL_BACKEND == "anymail.backends.resend.EmailBackend"
+        assert module.ANYMAIL["RESEND_API_KEY"] == "key"
+        assert module.ANYMAIL["RESEND_API_URL"] == "https://api.resend.com/"
 
     def test_sentry_is_required(self, production_settings):
         # Without it, errors reach users before they reach the team -- which is

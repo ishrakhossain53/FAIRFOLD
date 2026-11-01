@@ -15,7 +15,7 @@ Omission is visible in the report, not hidden behind a dead button.
 {% endcomment %}
 
 {% block title %}{{ job.title }}{% if employer_name %} · {{ employer_name }}{% endif %} · FairFold{% endblock %}
-{% block description %}{{ job.title }} in {{ job.location }}. Apply through FairFold.{% endblock %}
+{% block description %}{{ job.title }} in {{ job.display_location }}. Apply through FairFold.{% endblock %}
 
 {% block content %}
 <div class="mx-auto w-full max-w-content px-4 pb-24 pt-4 sm:py-8 lg:pb-8">
@@ -27,7 +27,7 @@ Omission is visible in the report, not hidden behind a dead button.
       <header>
         <h1 id="job-title" class="text-h1 font-bold text-ink">{{ job.title }}</h1>
         <p class="mt-2 text-body-sm text-ink-2">
-          {% if employer_name %}{{ employer_name }} · {% endif %}{{ job.location }}{% if job.remote_allowed %} · Remote ok{% endif %} · {{ job.get_experience_level_display }}
+          {% if employer_name %}{{ employer_name }} · {% endif %}{{ job.display_location }}{% if job.remote_allowed %} · Remote ok{% endif %} · {{ job.get_experience_level_display }}
         </p>
         <p class="mt-1 text-caption text-ink-4">Posted {{ job.created_at|timesince }} ago</p>
       </header>

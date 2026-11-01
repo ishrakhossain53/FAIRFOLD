@@ -484,7 +484,7 @@ def _application_row(application: Application) -> dict:
         "job_title": job.title,
         "job_is_active": job.status == Job.Status.ACTIVE,
         "employer_name": public_employer_name(job.employer),
-        "location": job.location,
+        "location": job.display_location,
         "remote_allowed": job.remote_allowed,
         "experience_level": job.get_experience_level_display(),
         "status": application.status,

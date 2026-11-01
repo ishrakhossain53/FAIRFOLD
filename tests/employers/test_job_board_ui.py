@@ -190,6 +190,27 @@ class TestSearchAndFilters:
         assert "Data Analyst" in by_skill
         assert "Backend Engineer" not in by_skill
 
+    def test_search_reaches_a_structured_city(self, profile):
+        make_job(
+            profile,
+            title="Structured role",
+            location="",
+            city="Dhaka",
+            country_code="BD",
+        )
+        make_job(
+            profile,
+            title="Other role",
+            location="",
+            city="Sylhet",
+            country_code="BD",
+        )
+
+        content = Client().get(LIST_URL, {"q": "dhaka"}).content.decode()
+
+        assert "Structured role" in content
+        assert "Other role" not in content
+
     def test_a_filter_chip_can_remove_one_filter(self, jobs):
         response = Client().get(
             LIST_URL, {"q": "python", "remote": "true", "experience_level": "entry"}

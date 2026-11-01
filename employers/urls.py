@@ -30,6 +30,7 @@ urlpatterns = [
     # `new/` comes before the UUID route for readability; the converter would
     # reject it either way.
     path("jobs/", views.jobs, name="jobs"),
+    path("jobs/cities/", views.job_city_options, name="job-cities"),
     path("jobs/new/", views.job_create, name="job-create"),
     # Page #36's live preview (design.md 7.22). Fixed path, no job id: it renders
     # the four posted strings and never reads a row, so the create page can use

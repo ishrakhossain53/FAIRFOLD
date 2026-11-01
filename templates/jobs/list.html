@@ -21,7 +21,7 @@ changes.
 {% endcomment %}
 
 {% block title %}Find jobs · FairFold{% endblock %}
-{% block description %}Browse active jobs on FairFold. Search by title or skill, filter by location, remote work and experience level.{% endblock %}
+{% block description %}Browse active jobs on FairFold. Search by title, skill, city or country; filter by location, remote work and experience level.{% endblock %}
 
 {% block content %}
 <div class="mx-auto w-full max-w-content px-4 py-4 sm:py-8">
@@ -35,10 +35,10 @@ changes.
 
   <form method="get" action="{% url 'job_board:list' %}"
         role="search" class="mt-4 flex flex-col gap-2 sm:flex-row">
-    <label for="job-search" class="sr-only">Search title or skill</label>
+    <label for="job-search" class="sr-only">Search title, skill, city or country</label>
     <input id="job-search" name="q" type="search"
            value="{{ form_values.q }}"
-           placeholder="Search title or skill"
+           placeholder="Search title, skill, city or country"
            class="h-touch w-full rounded-sm border border-border-input bg-surface px-3 text-body text-ink placeholder:text-ink-4">
     {% if form_values.location %}
     <input type="hidden" name="location" value="{{ form_values.location }}">
@@ -166,7 +166,7 @@ changes.
             {% endif %}
 
             <p class="mt-1 text-body-sm text-ink-3">
-              {{ card.job.location }}{% if card.job.remote_allowed %} · Remote ok{% endif %} · {{ card.job.get_experience_level_display }}
+              {{ card.job.display_location }}{% if card.job.remote_allowed %} · Remote ok{% endif %} · {{ card.job.get_experience_level_display }}
             </p>
 
             {% if card.skills %}

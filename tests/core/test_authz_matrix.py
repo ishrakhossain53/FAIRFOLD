@@ -293,6 +293,15 @@ AUTHZ_MATRIX: dict[str, dict] = {
             },
         },
     },
+    # Page #36's city/district options (batch 1.50). Employer-only, like the
+    # form it serves; no profile still forwards to onboarding.
+    "/employer/jobs/cities/": {
+        "method": "get",
+        "anonymous": 302,
+        "candidate": 403,
+        "employer": 302,
+        "admin": 403,
+    },
     # Page #36's live Markdown preview (design.md 7.22). Read-only: it renders
     # the posted strings and never looks up a job, so the profile redirect is
     # the only thing between an employer and the fragment.

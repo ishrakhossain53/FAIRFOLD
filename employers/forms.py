@@ -22,8 +22,10 @@ industry lookup table to populate a select from.
 from __future__ import annotations
 
 from django import forms
+from django.urls import reverse_lazy
 
 from accounts.forms import CHECKBOX_CLASS, INPUT_CLASS
+from core.geo import COUNTRIES, cities_for
 from employers.models import EmployerProfile
 from matching.models import Job
 
@@ -143,7 +145,11 @@ JOB_DESCRIPTION_HELP = (
 JOB_RESPONSIBILITIES_HELP = "What the person in this role will own."
 JOB_REQUIREMENTS_HELP = "Skills and experience the role needs."
 JOB_NICE_TO_HAVE_HELP = "Anything that helps but is not required."
-JOB_LOCATION_HELP = "City or region. Leave it blank for a fully remote role."
+JOB_ADDRESS_HELP = (
+    "Street address or area. Shown on the job detail page, not on the card."
+)
+JOB_COUNTRY_HELP = "Where the role is based. Leave it blank for a fully remote role."
+JOB_CITY_HELP = "City or district. The options depend on the country."
 JOB_REMOTE_HELP = (
     "Candidates can work from anywhere. Leave it off for on-site or hybrid " "roles."
 )
@@ -152,11 +158,14 @@ JOB_REMOTE_HELP = (
 class JobForm(forms.ModelForm):
     """Pages #35-#37's job form: the same writable set as `POST /api/v1/jobs/`.
 
-    **One whitelist, two surfaces.** The fields here are exactly
-    `JobCreateSerializer`'s, so the form cannot save something the API refuses
-    (or vice versa). `status` is not a field: publishing is the Activate action
-    in the overview (REQ-FR-027), not a select the browser can set. `employer`
-    is not a field either -- it is the caller's profile, assigned by the view.
+    **One whitelist, two surfaces.** The fields here are
+    `JobCreateSerializer`'s, so the form cannot save something the API refuses.
+    The API also accepts the legacy `location` string for clients created before
+    2026-10-30; the form no longer shows it, because the structured fields are
+    what page #36 draws. `status` is not a field: publishing is the Activate
+    action in the overview (REQ-FR-027), not a select the browser can set.
+    `employer` is not a field either -- it is the caller's profile, assigned by
+    the view.
 
     **What the page spec draws and this form does not have, and why.**
 
@@ -180,6 +189,50 @@ class JobForm(forms.ModelForm):
     diverge.
     """
 
+    # Declared rather than generated from the model so the two selects validate
+    # their values: a plain `CharField` with choices only uses them for display.
+    # `country_code` drives the city list over HTMX; the endpoint returns the
+    # same option labels that `__init__` builds for the initial render.
+    address_line = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Address",
+        help_text=JOB_ADDRESS_HELP,
+        widget=forms.TextInput(
+            attrs={"class": INPUT_CLASS, "autocomplete": "street-address"}
+        ),
+    )
+    country_code = forms.ChoiceField(
+        required=False,
+        choices=[("", "Select a country"), *COUNTRIES],
+        label="Country",
+        help_text=JOB_COUNTRY_HELP,
+        widget=forms.Select(
+            attrs={
+                "class": INPUT_CLASS,
+                "autocomplete": "country",
+                "hx-get": reverse_lazy("employer_portal:job-cities"),
+                "hx-target": "#id_city",
+                "hx-swap": "innerHTML",
+                "hx-trigger": "change",
+                "hx-include": "this",
+            }
+        ),
+    )
+    # A plain CharField with a Select widget, not a ChoiceField: the exact
+    # "choose a city from this country" message belongs in `clean`, where both
+    # fields are available, and a ChoiceField would replace it with Django's
+    # generic "Select a valid choice".
+    city = forms.CharField(
+        required=False,
+        max_length=100,
+        label="City / district",
+        help_text=JOB_CITY_HELP,
+        widget=forms.Select(
+            attrs={"class": INPUT_CLASS, "autocomplete": "address-level2"}
+        ),
+    )
+
     class Meta:
         model = Job
         fields = (
@@ -188,7 +241,9 @@ class JobForm(forms.ModelForm):
             "responsibilities",
             "requirements",
             "nice_to_have",
-            "location",
+            "address_line",
+            "country_code",
+            "city",
             "remote_allowed",
             "experience_level",
         )
@@ -198,7 +253,6 @@ class JobForm(forms.ModelForm):
             "responsibilities": "Responsibilities",
             "requirements": "Requirements",
             "nice_to_have": "Nice to have",
-            "location": "Location",
             "remote_allowed": "Remote allowed",
             "experience_level": "Experience level",
         }
@@ -208,16 +262,12 @@ class JobForm(forms.ModelForm):
             "responsibilities": JOB_RESPONSIBILITIES_HELP,
             "requirements": JOB_REQUIREMENTS_HELP,
             "nice_to_have": JOB_NICE_TO_HAVE_HELP,
-            "location": JOB_LOCATION_HELP,
             "remote_allowed": JOB_REMOTE_HELP,
             "experience_level": "The seniority the role is posted at.",
         }
         widgets = {
             "title": forms.TextInput(
                 attrs={"class": INPUT_CLASS, "autocomplete": "off"}
-            ),
-            "location": forms.TextInput(
-                attrs={"class": INPUT_CLASS, "autocomplete": "address-level2"}
             ),
             "description": forms.Textarea(attrs={"class": TEXTAREA_CLASS, "rows": 5}),
             "responsibilities": forms.Textarea(
@@ -237,6 +287,51 @@ class JobForm(forms.ModelForm):
             ("", "Not specified"),
             *Job.ExperienceLevel.choices,
         ]
+        # The city choices depend on the country. On a bound form the submitted
+        # country wins, so a failed save re-renders the list the user chose
+        # rather than the instance's previous country.
+        country_code = ""
+        if self.is_bound:
+            country_code = (
+                (self.data.get(self.add_prefix("country_code")) or "").strip().upper()
+            )
+        elif self.instance.pk:
+            country_code = self.instance.country_code
+
+        selected_city = ""
+        if self.is_bound:
+            selected_city = (self.data.get(self.add_prefix("city")) or "").strip()
+        elif self.instance.pk:
+            selected_city = self.instance.city
+
+        rows = cities_for(country_code) if country_code else ()
+        if not country_code:
+            empty_label = "Select a country first"
+        elif not rows:
+            empty_label = "No cities listed for this country"
+        else:
+            empty_label = "Select a city / district"
+
+        choices: list[tuple[str, str]] = [("", empty_label)]
+        for row in rows:
+            label = row["name"]
+            if row["region"]:
+                label = f"{label} — {row['region']}"
+            choices.append((row["name"], label))
+
+        # A job saved before this list existed (or with a place the GeoNames
+        # extract does not carry) must remain editable without silently
+        # replacing its city. Only the row's own stored value is re-added.
+        values = {value for value, _ in choices}
+        if selected_city and selected_city not in values:
+            if self.instance.pk and selected_city == self.instance.city:
+                choices.append((selected_city, selected_city))
+        self.fields["city"].choices = choices
+        # A plain `CharField` has no `choices` of its own; the widget reads this
+        # one when it renders the `<option>` list. Both are set so a later
+        # refactor to `ChoiceField` (or back) cannot silently drop the options.
+        self.fields["city"].widget.choices = choices
+
         # Each control points at its help and error paragraphs. `_field.html`
         # always renders both, so the description does not change shape after a
         # failed save (the same rule as the company form).
@@ -247,3 +342,24 @@ class JobForm(forms.ModelForm):
                 "aria-describedby",
                 f"id_{name}-help id_{name}-error",
             )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("city") and not cleaned.get("country_code"):
+            self.add_error("country_code", "Choose a country before a city / district.")
+        if cleaned.get("country_code") and cleaned.get("city"):
+            names = {row["name"] for row in cities_for(cleaned["country_code"])}
+            # The exception is only for an unchanged pair: a stored place that
+            # the extract does not carry stays editable, but changing the
+            # country does not carry the old city into the new one.
+            already_saved = (
+                self.instance.pk
+                and cleaned["city"] == self.instance.city
+                and cleaned["country_code"] == self.instance.country_code
+            )
+            if cleaned["city"] not in names and not already_saved:
+                self.add_error(
+                    "city",
+                    "Choose a city or district from the selected country.",
+                )
+        return cleaned

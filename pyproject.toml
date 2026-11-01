@@ -119,6 +119,11 @@ omit = [
     "*/tests.py",
     "*/tests/conftest.py",
     "*/__pycache__/*",
+    # Developer tooling, not product code. `scripts/build_city_data.py` is a
+    # network-backed generator run by hand; `scripts/verify_*.py` run as their
+    # own CI steps. Counting them in the product gate made the number depend on
+    # how much shell-shaped code a script has.
+    "scripts/*",
 ]
 
 [tool.coverage.report]

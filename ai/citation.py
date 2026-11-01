@@ -354,7 +354,8 @@ def parse_rationale(
 
     if problems:
         raise CitationError(problems)
-    assert rationale is not None  # _coerce returns None only with a problem
+    if rationale is None:  # pragma: no cover - _coerce returns None only with a problem
+        raise CitationError(["rationale could not be parsed"])
     return rationale
 
 
