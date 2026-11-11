@@ -5537,3 +5537,40 @@ smoke test above, not by pytest.
 - Added `tests/bias/v1.0.2/`: v1.0.1 content unchanged plus 20 phrase terms in 5 new groups, 20 must-flag cases (`institution_name`, `employer_name`, `age_revealing_date`, `photo_reference`, `url_or_link`, 4 each) and 5 `proxy_near_miss` guard cases. The manifest SHA and measured block come from a live run.
 - `scripts/verify_bias_set.py`: added `D4_PROXY_TARGETS`, `VERSIONS_WITHOUT_D4_PROXIES`, and `proxy_near_miss` in `MUST_NOT_FLAG_CATEGORIES`. `tests/bias/test_bias_pass.py`: now points at v1.0.2 and has a new D4 category assertion. `tests/bias/CHANGELOG.md`: added the v1.0.2 entry.
 - Commands run: `scripts/verify_bias_set.py` -> all 3 versions consistent; `pytest tests/bias/` -> passed. Measured 95/128 flagged, recall 1.0, 0 false positives, flag rate 0.7422.
+
+### Batch 2.11: Embedding service (2026-11-11)
+
+- Added `ai/embeddings.py`: `MODEL_NAME = "all-MiniLM-L6-v2"`, `EMBEDDING_DIM = 384`, `get_embedding_model()` (lazy-loaded once per process, CPU device, respects `SENTENCE_TRANSFORMERS_HOME` and `HF_HUB_OFFLINE`), `normalize_embedding_text()`, `embed(text, *, model=None) -> list[float]`, and `embed_batch(texts, *, model=None) -> list[list[float]]` returning L2-normalised 384-float vectors.
+- Added `tests/ai/test_embeddings.py` (15 fast unit tests using `DeterministicStubModel` + 1 `@pytest.mark.slow` test exercising real local weights when cached).
+- Commands run: `pytest --ds=config.settings.ci tests/ai/test_embeddings.py -v` -> 15 passed, 1 skipped; `manage.py check` -> 0 issues.
+- Known limitations: `all-MiniLM-L6-v2` weights are not bundled in git; the `@pytest.mark.slow` test skips cleanly when offline without a pre-warmed HuggingFace cache.
+
+### Batch 2.12: pgvector columns and migration (2026-11-11)
+
+- Added `resume_embedding = VectorField(dimensions=384, null=True, blank=True)` on `CandidateProfile` (`candidates/models.py`) and `description_embedding = VectorField(dimensions=384, null=True, blank=True)` on `Job` (`matching/models.py`).
+- Added migrations `candidates/migrations/0004_candidateprofile_resume_embedding.py` and `matching/migrations/0004_job_description_embedding.py`, each running `VectorExtension()` (`CREATE EXTENSION IF NOT EXISTS vector`) before `AddField`. Index creation (HNSW/IVFFlat) is deferred until >10K rows per AD-004.
+- Added `tests/matching/test_vector_columns.py` (4 tests: extension installed in PostgreSQL, 384-dim round-trip on `CandidateProfile` and `Job`, and `CosineDistance` ordering query).
+- Commands run: `pytest --ds=config.settings.ci tests/matching/test_vector_columns.py -v` -> 4 passed; `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- Known limitations: exact scan is used until >10K rows per AD-004.
+
+### Batch 2.13: Resume embedding task (2026-11-11)
+
+- Added `embed_resume(resume_id: str)` Celery task in `candidates/tasks.py` and chained it on commit (`transaction.on_commit`) from `process_resume`. Reads strictly `resume.extracted_text` (already PII-stripped), never raw PDF bytes and never `visibility_tier` or `is_promoted` (REQ-FR-053), stores the 384-dim vector on `CandidateProfile.resume_embedding`, and transitions `CandidateResume.status` from `extracted -> embedded` (or `extracted -> failed` with `status_reason="embedding_failed"` on model/input error). Added `EMBEDDING_FAILED` user-safe message in `candidates/extraction.py`.
+- Added `tests/candidates/test_resume_embedding_task.py` (7 tests covering `extracted -> embedded`, idempotency, re-embedding a newer resume, `visibility_tier`/`is_promoted` isolation, failure handling, empty text failure, and missing/invalid UUID no-op).
+- Commands run: `pytest --ds=config.settings.ci tests/candidates/test_resume_embedding_task.py tests/candidates/test_resume_process_api.py -v` -> 29 passed.
+- Known limitations: none.
+
+### Batch 2.14: Job embedding task (2026-11-11)
+
+- Added `embed_job(job_id: str)`, `build_job_embedding_text(job)`, `has_job_embedding_field_changed()`, and `queue_embed_job()` in `matching/tasks.py`. Canonical job embedding text combines `title`, `description`, `responsibilities`, `requirements`, `nice_to_have`, and sorted `Skill.canonical_name` values while excluding employer company name and location metadata.
+- Wired `queue_embed_job` on `transaction.on_commit` into job activation (`employers/services.py:change_job_status` when transitioning to `Job.Status.ACTIVE`) and draft job edits when text fields change (`employers/api_views.py:JobDetailView.patch` and `employers/views.py:job_edit`).
+- Added `tests/matching/test_job_embedding_task.py` (8 tests).
+- Commands run: `pytest --ds=config.settings.ci tests/matching/test_job_embedding_task.py -v` -> 8 passed.
+- Known limitations: none.
+
+### Batch 2.15: Similarity and deterministic ranking fixtures (2026-11-11)
+
+- Added `matching/similarity.py`: `rank_candidates_by_similarity()`, `rank_job_applications_by_similarity()`, `distance_to_similarity()`, and `similarity_to_score()` using pgvector's `CosineDistance` (`<=>`) in PostgreSQL with deterministic `(cosine_distance, id)` tie-breaking and zero reference to `visibility_tier` or `is_promoted` (REQ-FR-053).
+- Added `tests/matching/test_similarity_ranking.py` (7 tests: helper unit tests, 5 hand-picked unit vectors with known cosine similarities verifying exact rank order across runs, equal-similarity deterministic tie-breaking by `id`, `visibility_tier`/`is_promoted` isolation test, missing job embedding guard, and 100-candidate benchmark against 1 job in PostgreSQL).
+- Commands run & measured benchmark: `pytest --ds=config.settings.ci tests/matching/test_similarity_ranking.py -v --durations=5` -> 7 passed in 1.55s; the 100-candidate vs 1-job PostgreSQL similarity test (`test_100_candidates_against_one_job_under_two_seconds`, which bulk-inserts 100 candidates + 100 applications and runs both `rank_job_applications_by_similarity` and `rank_candidates_by_similarity`) completed in **0.05s** (well under the `< 2.0s` target in Arch Doc §10 Phase 2 / REQ-NFR-004), measured on Linux (AMD Ryzen 7 5700U, 16 vCPU, 13 GiB RAM, PostgreSQL + pgvector on localhost).
+- Known limitations: stage-1 hard filters and `rank_applications()` orchestration land in Group P2.4 (batches 2.16–2.20).

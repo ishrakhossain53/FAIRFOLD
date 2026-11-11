@@ -53,6 +53,7 @@ PASSWORD_PROTECTED = "password_protected"
 NO_TEXT_LAYER = "no_text_layer"
 TOO_LARGE = "too_large"
 TOO_MANY_PAGES = "too_many_pages"
+EMBEDDING_FAILED = "embedding_failed"
 
 #: ``code -> message template``. ``{max_mb}`` and ``{max_pages}`` are filled in
 #: by :func:`extract_text` so the stored code stays independent of the limits.
@@ -73,6 +74,9 @@ FAILURE_MESSAGES: dict[str, str] = {
     TOO_LARGE: "This PDF is larger than {max_mb} MB. Upload a smaller file.",
     TOO_MANY_PAGES: (
         "This PDF has more than {max_pages} pages. Upload a shorter resume."
+    ),
+    EMBEDDING_FAILED: (
+        "We couldn't finish indexing your resume right now. Try again in a moment."
     ),
 }
 

@@ -80,11 +80,11 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 2.8 NER and proxy stripping (2026-11-11, `ai/pii.py` `strip_pii` + `get_nlp`; 66 passed in tests/pii/, 1.0000 recall [229/229 >= 0.95 gate], 1.0000 precision & keep survival [134/134] on `tests/pii/v1.0.0`)
 - [x] 2.9 Persist sanitised text and audit the strip (2026-11-11, `candidates/tasks.py` `process_resume` persists PII-stripped `extracted_text` + `raw_text_hash` and writes `resume.pii_stripped` `AuditLogEntry` with category counts; `pdfminer` DEBUG token logger silenced; 22 passed in tests/candidates/test_resume_process_api.py including planted-PII leak test)
 - [x] 2.10 Bias test set v1.0.2 (proxy cases) (2026-11-11, `tests/bias/v1.0.2/` 128 cases, 5 D4 categories + 5 `proxy_near_miss` guards; recall 1.0, 0 FP, flag rate 0.7422; `verify_bias_set.py` all 3 versions consistent; tests/bias/ passed)
-- [ ] 2.11 Embedding service
-- [ ] 2.12 pgvector columns and migration
-- [ ] 2.13 Resume embedding task
-- [ ] 2.14 Job embedding task
-- [ ] 2.15 Similarity and deterministic ranking fixtures
+- [x] 2.11 Embedding service (2026-11-11, `ai/embeddings.py` `embed`/`embed_batch`/`get_embedding_model` 384-dim `all-MiniLM-L6-v2` lazy-loaded once per process; 15 passed / 1 skipped in tests/ai/test_embeddings.py)
+- [x] 2.12 pgvector columns and migration (2026-11-11, `VectorExtension` + `VectorField(dimensions=384)` on `CandidateProfile.resume_embedding` and `Job.description_embedding` in `candidates/0004` + `matching/0004`; 4 passed in tests/matching/test_vector_columns.py)
+- [x] 2.13 Resume embedding task (2026-11-11, `candidates/tasks.py` `embed_resume` embeds only PII-stripped `extracted_text`, transitions `extracted -> embedded` or `failed` with `embedding_failed`, chained on commit from `process_resume`; 7 passed in tests/candidates/test_resume_embedding_task.py)
+- [x] 2.14 Job embedding task (2026-11-11, `matching/tasks.py` `embed_job` + `build_job_embedding_text`, triggered on job activation and relevant text edits; 8 passed in tests/matching/test_job_embedding_task.py)
+- [x] 2.15 Similarity and deterministic ranking fixtures (2026-11-11, `matching/similarity.py` pgvector `CosineDistance` ranking with deterministic tie-breaker and zero paid-visibility influence; 7 passed in tests/matching/test_similarity_ranking.py; 100 candidates vs 1 job measured at 0.05s on AMD Ryzen 7 5700U / 16 vCPU / 13 GiB RAM / PostgreSQL 16 + pgvector, `< 2.0s` target)
 - [ ] 2.16 Hard-filter rules and versioning
 - [ ] 2.17 rank_applications service
 - [ ] 2.18 Reviewable not_matched candidates

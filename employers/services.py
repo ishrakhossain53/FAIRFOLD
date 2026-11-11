@@ -29,6 +29,7 @@ from django.db.models import Prefetch, Q, QuerySet
 from core.geo import COUNTRIES
 from core.models import AuditLogEntry
 from matching.models import Job, JobSkill
+from matching.tasks import queue_embed_job
 
 
 #: The job moved to the target status and one audit entry was written.
@@ -111,6 +112,8 @@ def change_job_status(
             job=job,
             details={"from": previous, "to": job.status},
         )
+        if job.status == Job.Status.ACTIVE:
+            transaction.on_commit(lambda jid=str(job.pk): queue_embed_job(jid))
 
     return CHANGED, job
 

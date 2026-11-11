@@ -14,11 +14,14 @@ import hashlib
 
 from botocore.exceptions import BotoCoreError, ClientError
 from celery import shared_task
+from celery.exceptions import CeleryError
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
+from kombu.exceptions import OperationalError
 
+from ai.embeddings import EmbeddingError, embed
 from ai.pii import strip_pii
 from candidates.extraction import extract_text
 from candidates.models import CandidateResume
@@ -30,6 +33,7 @@ from core.storage import StorageError
 
 RESUME_PII_STRIPPED_ACTION = "resume.pii_stripped"
 RESUME_AUDIT_RESOURCE_TYPE = "candidate_resume"
+EMBEDDING_FAILED_REASON = "embedding_failed"
 
 # Reading the stored object can fail at the storage layer before ClamAV sees a
 # byte. These are the same failures `candidates.uploads.inspect_upload` handles.
@@ -156,3 +160,65 @@ def process_resume(resume_id: str) -> None:
             },
             result="success",
         )
+        transaction.on_commit(lambda rid=str(resume.id): _queue_embed_resume(rid))
+
+
+def _queue_embed_resume(resume_id: str) -> None:
+    """Best-effort dispatch of :func:`embed_resume` after extraction commits."""
+    try:
+        embed_resume.delay(resume_id)
+    except (CeleryError, OperationalError):
+        pass
+
+
+@shared_task(ignore_result=True)
+def embed_resume(resume_id: str) -> None:
+    """Embed the PII-stripped text for `resume_id` into `CandidateProfile.resume_embedding`.
+
+    REQ-FR-013, REQ-FR-053 (batch 2.13).
+
+    **Sanitised text only.** Reads strictly ``resume.extracted_text`` — which was
+    already PII-stripped in :func:`process_resume` before persistence — and
+    never reads the stored PDF bytes, ``visibility_tier``, or ``is_promoted``
+    (REQ-FR-053).
+
+    **Idempotent.** Runs only while ``resume.status == extracted``. If the row is
+    already ``embedded``, or in any other status, this task is a no-op.
+
+    **Never left stuck.** If ``extracted_text`` is empty or the embedding model
+    raises :class:`ai.embeddings.EmbeddingError` / :class:`ValueError`, the
+    resume transitions ``extracted -> failed`` with
+    ``status_reason="embedding_failed"`` so the candidate can retry from the UI.
+    """
+    try:
+        resume = CandidateResume.objects.select_related("candidate").get(pk=resume_id)
+    except (CandidateResume.DoesNotExist, ValidationError, TypeError, ValueError):
+        return
+
+    if resume.status != CandidateResume.Status.EXTRACTED:
+        return
+
+    sanitised_text = resume.extracted_text or ""
+    if not sanitised_text.strip():
+        transition(
+            resume,
+            CandidateResume.Status.FAILED,
+            reason=EMBEDDING_FAILED_REASON,
+        )
+        return
+
+    try:
+        vector = embed(sanitised_text)
+    except (EmbeddingError, ValueError, TypeError):
+        transition(
+            resume,
+            CandidateResume.Status.FAILED,
+            reason=EMBEDDING_FAILED_REASON,
+        )
+        return
+
+    with transaction.atomic():
+        profile = resume.candidate
+        profile.resume_embedding = vector
+        profile.save(update_fields=["resume_embedding", "updated_at"])
+        transition(resume, CandidateResume.Status.EMBEDDED)
