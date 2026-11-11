@@ -205,7 +205,7 @@ font-src 'self'
   Replacing it with a per-response nonce is a separate change with its own
   template edits; it is not silently claimed here.
 - `connect-src 'self'` plus at most one storage origin. AI calls are server-side:
-  the browser never talks to OpenRouter. The one addition is the object store,
+  the browser never talks to DeepSeek. The one addition is the object store,
   because REQ-FR-010 has the browser `PUT` the file straight to the bucket with
   a presigned URL (batch 1.22). The origin comes from
   `config.settings.base.storage_origin()`, is the same host the presigned URL

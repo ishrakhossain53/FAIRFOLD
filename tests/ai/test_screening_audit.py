@@ -29,8 +29,8 @@ from matching.models import Application, Job
 
 pytestmark = pytest.mark.django_db
 
-MODEL = "deepseek/deepseek-chat"
-MODEL_AFTER_RESCREEN = "deepseek/deepseek-chat-v2"
+MODEL = "deepseek-v4.1-flash"
+MODEL_AFTER_RESCREEN = "deepseek-v4.1-flash-v2"
 
 SOURCE = (
     "Backend developer with six years of experience.\n"

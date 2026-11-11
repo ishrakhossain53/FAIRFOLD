@@ -89,8 +89,9 @@ def production_settings(monkeypatch):
         for key, value in env.items():
             monkeypatch.setenv(key, value)
         # A missing AI key must not raise, but it must warn. Cleared here so each
-        # test starts from a known state.
-        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        # test starts from a known state, unless the test sets one explicitly.
+        if "DEEPSEEK_API_KEY" not in overrides:
+            monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
         sys.modules.pop("config.settings.production", None)
         return importlib.import_module("config.settings.production")
 
@@ -212,8 +213,25 @@ class TestProductionAssertions:
 
         with caplog.at_level(logging.WARNING, logger="fairfold"):
             module = production_settings()
-        assert module.OPENROUTER_API_KEY == ""
+        assert module.DEEPSEEK_API_KEY == ""
+        assert module.AI_PROVIDER == "offline"
+        assert module.DEEPSEEK_MODEL == "deepseek-v4.1-flash"
         assert any("OfflineFallbackProvider" in r.message for r in caplog.records)
+
+    def test_a_deepseek_key_configures_the_provider(self, production_settings):
+        module = production_settings(DEEPSEEK_API_KEY="sk-test")
+
+        assert module.AI_PROVIDER == "deepseek"
+        assert module.DEEPSEEK_BASE_URL == "https://api.deepseek.com/v1"
+        assert module.DEEPSEEK_MODEL == "deepseek-v4.1-flash"
+        assert module.DEEPSEEK_TIMEOUT == 120
+
+    def test_the_deepseek_model_is_configurable(self, production_settings):
+        module = production_settings(
+            DEEPSEEK_API_KEY="sk-test", DEEPSEEK_MODEL="deepseek-v4.1-flash-preview"
+        )
+
+        assert module.DEEPSEEK_MODEL == "deepseek-v4.1-flash-preview"
 
 
 @pytest.mark.django_db

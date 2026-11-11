@@ -132,7 +132,7 @@ Full detail and sources: Feasibility Doc §1.2.1 in
 | **Explainable ranking** | Every score carries an evidence-cited rationale (matched skills with resume evidence, missing skills, reasoning). Candidates can see their own breakdown. |
 | **Bias audit trail** | Each rationale is checked for biased language; every AI action writes an append-only audit entry. |
 | **Journey Mapping** | Resume becomes an interactive career timeline with skill evolution and narrative tailored to a target job. None of the eleven systems analysed in `prd.md` §4 offers this; Applied and Vervoe overlap partially, so it is **less unique than the Complete Doc originally claimed**. |
-| **Accessible pricing** | Free-tier AI via OpenRouter, local embeddings, offline fallbacks. $0 AI cost on the free tier; transparent paid tiers. |
+| **Accessible pricing** | Low-cost hosted AI via the DeepSeek API, local embeddings, offline fallbacks. Usage-based AI cost; transparent paid tiers. |
 
 ### 1.4 Differentiators vs. Market
 
@@ -156,7 +156,7 @@ Full detail and sources: Feasibility Doc §1.2.1 in
 | O1 | No PII reaches an AI provider | 100% of AI payloads pass the PII filter | REQ-SEC-002 |
 | O2 | Every ranking is explainable | 100% of scores carry evidence-cited rationale | REQ-FR-030 |
 | O3 | Screening bias is auditable | Every AI action has an immutable audit entry | REQ-COM-008 |
-| O4 | Cost does not block adoption | $0.00 AI cost on the free tier | REQ-FR-028 |
+| O4 | Cost does not block adoption | Near-zero AI cost; $0.00 with the offline fallback | REQ-FR-028 |
 | O5 | Candidates can prove skill, not just tenure | Assessments and journey map shipped | REQ-FR-016, FR-019 |
 
 ### 2.2 Success Metrics
@@ -164,7 +164,7 @@ Full detail and sources: Feasibility Doc §1.2.1 in
 | Metric | Target |
 |---|---|
 | Time-to-screen | < 5 minutes for 100 applications |
-| AI cost per screening batch | $0.00 on free tier |
+| AI cost per screening batch | Near-zero; $0.00 with the offline fallback |
 | Candidate satisfaction (NPS survey, from Phase 3) | > 80% would recommend |
 | Bias audit pass rate | 100% of displayed rationales pass the audit |
 | Data breach incidents | 0 |
@@ -290,7 +290,7 @@ Eleven systems were analyzed (Complete Doc §2).
 | Enterprise | HireVue, Eightfold AI, SeekOut, Paradox, LinkedIn Recruiter, Manatal, Workable, Phenom, HackerEarth | Powerful but expensive, opaque, or single-slice |
 | Open source | CandiSift, OpenCATS, candidacy, SkillAI, Vekt, others | CandiSift is the closest comparator (PII stripping, cost estimate before processing, evidence-cited breakdowns, bias-audit endpoint) but has no candidate portal and depends on paid Claude |
 
-**Four gaps FairFold fills:** (1) Journey Mapping, (2) explainable and candidate-visible AI, (3) free-tier AI for screening, (4) powerful candidate-side tools at free or low cost.
+**Four gaps FairFold fills:** (1) Journey Mapping, (2) explainable and candidate-visible AI, (3) low-cost AI for screening with an offline fallback, (4) powerful candidate-side tools at free or low cost.
 
 ### 4.1 Does something like this already exist?
 
@@ -315,7 +315,7 @@ have made, not results we have produced.
 | **Who it serves** | Employer only | **Both sides** — the candidate sees their own score, rationale, journey map and coaching | **Designed** |
 | **Bias handling** | Marketed as "bias-free" | PII stripped before any AI call; bias audit on every rationale; a human always decides; immutable audit | **Designed — not yet measured** |
 | **Explainability** | Score only, or a black box | Evidence-cited rationale shown to employer *and* candidate; "no evidence found" is an explicit outcome | **Designed** — REQ-FR-030 |
-| **Cost** | Quote-based or enterprise | $0 AI cost on the free tier via local embeddings, free LLMs and an offline fallback | **Assumption** — depends on free-tier availability (RSK-001) |
+| **Cost** | Quote-based or enterprise | Near-zero AI cost via local embeddings, a low-cost hosted model and an offline fallback | **Assumption** — depends on provider pricing (RSK-001) |
 | **Skills evidence** | A separate tool | Assessments and the Journey Map in one flow, with employer-required assessments (REQ-FR-051) | **Partly designed** — Gap G1 |
 | **Market** | US/EU enterprise | Bangladesh and emerging-market SMEs first | **Unvalidated** — RSK-008 |
 | **Compliance** | Varies | Audit trail, GDPR export/delete, EU AI Act human oversight | **Designed — verification in Phase 4** |
@@ -412,7 +412,7 @@ say whether FairFold is registrable and enforceable there.
 
 - Employer can post a job.
 - Candidates can apply with a resume.
-- AI screens and ranks applicants with explainable scores on the free tier.
+- AI screens and ranks applicants with explainable scores using a low-cost hosted model and an offline fallback.
 - Candidates see their match scores and get interview coaching.
 
 ### 5.3 MoSCoW Summary (from user stories)
@@ -440,7 +440,7 @@ Register (consent captured) → verify email → onboarding (upload resume or bu
 Register (MFA required for HR admin) → company profile
    → Create job (AI-suggested screening questions) → activate / share link
    → Applications arrive
-   → "Screen All" → cost estimate ($0.00 on free tier) → explicit confirmation
+   → "Screen All" → live cost estimate ($0.00 with the offline fallback) → explicit confirmation
    → Celery pipeline: hard filter → pgvector rank → LLM analysis of top N → bias audit
    → Ranked list; open any candidate for evidence-cited rationale + bias audit status
    → Shortlist / reject (human decision) → generate interview pack → schedule
@@ -461,7 +461,7 @@ Employer clicks "Screen All"
                         → stays LISTED and reviewable, never hidden, never "rejected"
         Stage 2  Ensure resume + job embeddings exist
         Stage 3  pgvector cosine ranking (384-dim)                    [free, local]
-        Stage 4  Top N only: PII strip → LLM analysis (OpenRouter, offline fallback)
+        Stage 4  Top N only: PII strip → LLM analysis (DeepSeek, offline fallback)
                  → evidence-cited rationale → bias audit
                  fail bias audit → flag for human review, exclude from auto-shortlist
         Stage 5  Assessment gate (REQ-FR-051) — no required assessment on the job
@@ -488,7 +488,7 @@ chart (REQ-FR-035).
 action is disabled and says why. A failed gate blocks it for the same reason. A job
 with no required assessment is unchanged.
 
-Cost property: the LLM sees only the top 5–10 candidates, so 100 applications cost roughly 5–10 AI calls, well inside the free tier.
+Cost property: the LLM sees only the top 5–10 candidates, so 100 applications cost roughly 5–10 AI calls, well inside a small usage budget.
 
 ---
 
@@ -538,7 +538,7 @@ Priority: **H** = High, **M** = Medium, **L** = Low. Phase = first phase in whic
 | REQ-FR-025 | Create job; AI auto-suggests screening questions | H | 1 (suggestions: 2) |
 | REQ-FR-026 | Edit draft job; audit entry | H | 1 |
 | REQ-FR-027 | Activate job; visible to candidates | H | 1 |
-| REQ-FR-028 | "Screen All": show cost estimate ($0.00 on free tier), require explicit confirmation, queue Celery batch | H | 2 |
+| REQ-FR-028 | "Screen All": show a live cost estimate ($0.00 with the offline fallback), require explicit confirmation, queue Celery batch | H | 2 |
 | REQ-FR-029 | Ranked application list with scores; click through for rationale | H | 2 |
 | REQ-FR-030 | Evidence-cited rationale: resume text per claim, missing skills listed, bias audit status shown | H | 2 |
 | REQ-FR-031 | Generate AI interview pack (structured questions + scoring rubric), linked to the job | M | 3 |
@@ -614,7 +614,7 @@ which are marketing pages and correctly need no requirement.
 ### 8.1 Principles
 
 1. **AI is advisory.** A human recruiter makes every accept/reject/shortlist decision (EU AI Act human oversight).
-2. **Cheapest path first.** Deterministic rules, then local vector math, then free LLMs, and paid models only on explicit opt-in.
+2. **Cheapest path first.** Deterministic rules, then local vector math, then the hosted model — and only after the employer confirms the cost estimate.
 3. **Never block on AI.** Every AI task has an offline fallback; users see an "AI delayed" badge, not an error page (REQ-NFR-017).
 4. **Show the cost first.** Employers see the estimated cost before confirming any AI batch (REQ-FR-028).
 5. **Evidence or silence.** If no resume evidence supports a claim, the rationale says "no evidence found" instead of inventing one.
@@ -634,26 +634,26 @@ which are marketing pages and correctly need no requirement.
 |---|---|---|---|
 | 1. Hard filters | Deterministic rules | Free | Location, visa, min years, certifications, experience level |
 | 2. Semantic ranking | `all-MiniLM-L6-v2` (384-dim) + pgvector cosine (`<=>`) | Free | Runs on CPU, offline |
-| 3. Qualitative analysis | OpenRouter free models, top N only (5–10) | Free tier | Evidence-cited breakdown |
+| 3. Qualitative analysis | DeepSeek (`deepseek-v4.1-flash`), top N only (5–10) | Low-cost hosted API | Evidence-cited breakdown |
 | 4. Bias audit | Deterministic keyword/pattern check (+ LLM where available) | Free | Flags e.g. "culture fit" without evidence, gendered or age-related terms |
 
 ### 8.4 Task → Model Mapping
 
 | Task | Primary | Fallback |
 |---|---|---|
-| Resume / JD parsing | `openai/gpt-oss-20b:free` or `cohere/north-mini-code:free` | spaCy NER |
-| Candidate–job match explanation | `google/gemma-4-26b-a4b-it:free` | pgvector score only |
-| Interview question generation | `openrouter/free` | Role-category templates |
-| Interview coaching | `cohere/north-mini-code:free` | Rule-based keyword coverage |
-| Journey: skill extraction | `google/gemma-4-26b-a4b-it:free` | Skill-dictionary lookup |
-| Journey: narrative | `openrouter/free` | Template narrative from extracted skills |
-| Bias audit | `cohere/north-mini-code:free` | Deterministic keyword check |
+| Resume / JD parsing | `deepseek-v4.1-flash` | spaCy NER |
+| Candidate–job match explanation | `deepseek-v4.1-flash` | pgvector score only |
+| Interview question generation | `deepseek-v4.1-flash` | Role-category templates |
+| Interview coaching | `deepseek-v4.1-flash` | Rule-based keyword coverage |
+| Journey: skill extraction | `deepseek-v4.1-flash` | Skill-dictionary lookup |
+| Journey: narrative | `deepseek-v4.1-flash` | Template narrative from extracted skills |
+| Bias audit | `deepseek-v4.1-flash` | Deterministic keyword check |
 
-Free-model availability changes; model names must be configuration, not code (see [Section 19](#19-open-questions-and-source-document-inconsistencies)).
+Model availability and pricing change; the model name must be configuration, not code (see [Section 19](#19-open-questions-and-source-document-inconsistencies)).
 
 ### 8.5 Provider Abstraction
 
-An `AIProvider` abstract base class (`chat_completion`, `embed`) with implementations `OpenRouterProvider` and `OfflineSpaCyProvider`. Switching to another aggregator or a self-hosted model (vLLM / Llama) must be a one-class change with no change to views or Celery tasks.
+An `AIProvider` abstract base class (`chat_completion`, `embed`) with implementations `DeepSeekProvider` and `OfflineSpaCyProvider`. Switching to another provider or a self-hosted model (vLLM / Llama) must be a one-class change with no change to views or Celery tasks.
 
 ### 8.6 Graceful Degradation
 
@@ -871,7 +871,7 @@ the rule holds even for a write that did not come through the UI.
 |---|---|
 | AD-001 | Full Python stack (Django 5.2+ LTS, DRF, Celery). No Rust. |
 | AD-002 | Django Templates + HTMX + Tailwind for MVP frontend; React 18 + Vite reserved for Phase 5 (PWA, WebSockets). The DRF API is built from day one. |
-| AD-003 | OpenRouter (`openrouter/free`) as primary AI provider behind an `AIProvider` abstraction with offline fallbacks. |
+| AD-003 | DeepSeek API (`deepseek-v4.1-flash`) as primary AI provider behind an `AIProvider` abstraction with offline fallbacks. |
 | AD-004 | PostgreSQL 17 + pgvector for semantic matching; local sentence-transformers embeddings. |
 | AD-005 | PII stripped before any external processing; every stripping event audited. |
 | AD-006 | Monolith first, with app-level boundaries; split into services only when scaling demands it. |
@@ -885,7 +885,7 @@ Users ──HTTPS/TLS1.3──▶ Nginx (TLS, edge rate-limit, security headers,
          ┌────────────────┼─────────────────┐
          ▼                ▼                 ▼
    Django/Gunicorn   Celery workers     Celery Beat
-   (templates, HTMX, (OpenRouter,       (quota reset, retention
+   (templates, HTMX, (DeepSeek,         (quota reset, retention
     DRF API)          embeddings, NER)   purge, backup checks)
          └────────────────┼─────────────────┘
                           ▼
@@ -906,7 +906,7 @@ Celery workers have no internet egress except the AI provider. PostgreSQL and Re
 | Backend | Python ≥ 3.12, Django ≥ 5.2 LTS, DRF, drf-spectacular, SimpleJWT, django-otp, django-ratelimit |
 | Data | PostgreSQL 17, pgvector, pgcrypto, Redis 7 |
 | Async | Celery 5.4+, Celery Beat, django-celery-results, Flower |
-| AI/ML | `openai` SDK (OpenRouter), sentence-transformers, spaCy, torch, pdfplumber |
+| AI/ML | `openai` SDK (DeepSeek-compatible), sentence-transformers, spaCy, torch, pdfplumber |
 | Storage | django-storages, boto3, MinIO or Cloudflare R2, python-magic, ClamAV |
 | Security | argon2-cffi, cryptography, django-encrypted-model-fields |
 | Email / billing | django-anymail (Resend/SendGrid/SES), Stripe (Phase 5) |
@@ -922,7 +922,7 @@ Celery workers have no internet egress except the AI provider. PostgreSQL and Re
 | `job_embeddings:{id}` | 24 h |
 | `similarity_matrix:{job_id}` | 2 h |
 | `rate_limit:{user}:{endpoint}` | 15 min |
-| `openrouter_quota:{day}` | until midnight |
+| `deepseek_quota:{day}` | until midnight |
 | `skill_taxonomy:v1` | 7 days |
 | `ai_response:{hash}` | 6 h |
 
@@ -1048,7 +1048,7 @@ Unit and integration (pytest, factory-boy), security (bandit, pip-audit, ZAP), l
 | Django 5xx rate | > 5% over 5 min | Critical |
 | Celery failure rate | > 15% over 10 min | Critical |
 | Audit log write failures | > 5 in 5 min | Critical (halt processing) |
-| OpenRouter error rate | > 20% over 5 min | High (auto offline fallback) |
+| DeepSeek API error rate | > 20% over 5 min | High (auto offline fallback) |
 | pgvector latency | > 500 ms avg | Warning |
 | DB pool | > 90% for 2 min | Warning |
 | Redis memory | > 80% | Warning |
@@ -1086,7 +1086,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 |---|---|---|
 | Sardar Shihab | Full-Stack Engineer | Templates/HTMX, Tailwind, journey charts; backend endpoints as needed |
 | Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI |
-| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security (also covers DevOps) |
+| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, DeepSeek, PII stripping, pgvector, security (also covers DevOps) |
 | Mohammad Abdul Ahad | UI/UX Designer | Design system, tokens, accessibility (WCAG 2.1 AA), wireframes, employer dashboard UX, journey-map design |
 
 **Known gap:** no dedicated DevOps role; the backend engineer absorbs it. This is the largest operational risk (RSK-009).
@@ -1117,13 +1117,13 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 
 | ID | Risk | Prob. | Impact | Mitigation |
 |---|---|---|---|---|
-| RSK-001 | OpenRouter free tier removed or changed | Med | High | `AIProvider` abstraction; offline spaCy + pgvector; offline-first for matching |
+| RSK-001 | DeepSeek API outage, pricing or model change | Med | High | `AIProvider` abstraction; offline spaCy + pgvector; offline-first for matching |
 | RSK-002 | LLM hallucination in rationale | Med | Med | Evidence-cited format; "no evidence found" rule; human review; bias audit |
 | RSK-003 | Resume parsing accuracy < 80% | Med | Med | Manual profile edit; future IBM Granite Docling upgrade |
 | RSK-004 | Data breach | Low | Critical | Defense in depth, encryption, PII stripping, quarterly pentests |
 | RSK-005 | Competitor copies Journey Mapping | Low | Med | System-level integration, switching costs, data network effects |
 | RSK-006 | EU AI Act non-compliance | Low | High | Human-in-the-loop docs, transparency, disparity analysis |
-| RSK-007 | Outgrowing free tier | High (eventual) | Med | Cheap paid models → self-hosted vLLM; usage-based billing |
+| RSK-007 | Outgrowing the hosted-AI budget | High (eventual) | Med | Cheaper hosted models → self-hosted vLLM; usage-based billing |
 | RSK-008 | Bangladesh market does not convert | Med | High | Target BD plus global SMBs; self-hostable option |
 | RSK-009 | No DevOps expertise | Med | Med | Docker Compose; managed services; freelance DevOps for Phase 4 |
 | RSK-010 | Python/Django talent | Med | Med | Hire Python-experienced; train; use open-source community |
@@ -1134,7 +1134,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 
 ### 18.2 Assumptions
 
-- Free OpenRouter models stay available at roughly 20 req/min and 50 req/day without payment details (verify before each phase).
+- The DeepSeek API is usage-based and requires a funded account; re-check its current pricing and rate limits before each phase.
 - CPU-only inference for sentence-transformers is adequate on a 2–4 vCPU VPS.
 - Recruiters accept a human-in-the-loop model and will use the cost-estimate confirmation step.
 - Team has working Django experience.
@@ -1172,7 +1172,7 @@ Scrum with 1-week sprints (about three sprints per phase). Definition of Done: c
 
 ### 18.3 External Dependencies
 
-OpenRouter, S3-compatible storage (MinIO/R2), email provider (Resend/SendGrid/SES), Sentry, Stripe (Phase 5), Piston or similar sandbox for coding assessments, Let's Encrypt, GitHub Actions.
+DeepSeek, S3-compatible storage (MinIO/R2), email provider (Resend/SendGrid/SES), Sentry, Stripe (Phase 5), Piston or similar sandbox for coding assessments, Let's Encrypt, GitHub Actions.
 
 ---
 
@@ -1201,7 +1201,7 @@ Items to resolve before the PRD is frozen. Where one source was needed to procee
 | 5 | **Audit log retention vs. GDPR retention** | Audit logs rotate at 90 days (REQ-COM-008) while candidate data is retained 2 years and hired-employee data 5 years; AI-decision evidence may be needed longer than 90 days for AI Act accountability. | **Resolved 2026-10-03 — two retention classes.** `resource_type = 'access'` entries (who looked at what) rotate at 90 days and are operational only. Entries with `resource_type = 'ai_decision'` (every screening, rationale and bias check, per REQ-FR-030) are **retained with the application record** — 2 years, 5 years if hired. 90 days would have destroyed the only evidence that a hiring decision was unbiased. |
 | 6 | **Audit log key type** | `AuditLogEntry.resource_id` was `INTEGER` in the Feasibility Doc while core entities use `UUID` primary keys. | **Resolved 2026-10-03** — `UUID` in the Feasibility Doc class diagram, ER diagram and data dictionary, matching Arch Doc §5.1. The Arch Doc was already correct. |
 | 7 | **Auth model** | Sessions (Django) vs JWT are both specified; HTMX/templates would normally use sessions, while JWT is specified for the API/SPA. | **Resolved 2026-10-03 — both, for different consumers.** Django sessions (httpOnly, `SameSite=Lax`) for the server-rendered HTMX UI; short-lived JWT for the DRF API and any mobile client. Same user table, same permissions, one logout endpoint that revokes both. |
-| 8 | **OpenRouter free-tier limits** | Quoted as "20 req/min, 50 req/day" and also "per IP"; free model IDs listed are as of September 2026. | **Resolved 2026-10-03 — configuration, not a design assumption.** Free model IDs and rate limits are settings, read from `.env`, not hard-coded; the offline fallback (REQ-FR-028) is what keeps $0-cost operation true if the free tier changes. Re-verify the numbers at implementation. |
+| 8 | **Hosted-AI rate limits** | The provider's model IDs, prices and rate limits are quoted from a date and drift. | **Resolved 2026-10-03 — configuration, not a design assumption.** Model IDs and rate limits are settings, read from `.env`, not hard-coded; the offline fallback (REQ-FR-028) is what keeps $0-cost operation true if the provider changes. Re-verify the numbers at implementation. |
 | 9 | **Django version** | One line of the Complete Doc says ≥ 5.2 LTS with a note that 5.0 is EOL; others say "Django 5". | 5.2+ LTS used. |
 | 10 | **Gantt dates** | The Gantt in the Feasibility Doc started 2026-01-05, nine months before the documents were dated. | **Resolved 2026-10-03** — re-based to a kickoff of Mon 2026-10-05, the first working day after the specs were completed. Feasibility Doc §2.7.2 now carries a milestone table and a warning that the Phase 4 milestone lands on Christmas Day. |
 | 11 | **Phase story points** | Per-phase estimates (~21/34/31/30/25) did not sum to the stated 170 total. | **Resolved 2026-10-03** — re-split to 41/41/45/39/33 = 199, matching the 49 stories at their actual point values. Then re-split again on 2026-10-03 (c) to 41/49/50/39/33 = 212, then re-split once more the same day to **41/49/50/44/33 = 217** after `REQ-FR-050` was re-estimated from 3 to 8 points, adding the screening-integrity work to Phases 2 and 3. Still a planning estimate; re-estimate at sprint planning. |
@@ -1242,7 +1242,7 @@ The product can go to public launch when all of the following hold:
 
 | Term | Definition |
 |---|---|
-| **AI Provider** | Abstract interface (`ai.base.AIProvider`) wrapping OpenRouter or offline fallbacks |
+| **AI Provider** | Abstract interface (`ai.base.AIProvider`) wrapping DeepSeek or offline fallbacks |
 | **Bias Audit** | Automated check of AI rationales for biased language (for example "cultural fit" without evidence, gendered or age-related terms) |
 | **Hard Filter** | Deterministic pre-AI criteria (location, visa, certifications, min years, experience level) |
 | **Journey Mapping** | AI-Powered Professional Journey Mapping: resume → interactive timeline with skill evolution, impact visualization and per-job storytelling |
@@ -1259,7 +1259,7 @@ The product can go to public launch when all of the following hold:
 | O1 No PII to AI | REQ-FR-011 (incl. proxy fields per REQ-FR-057, amended 2026-10-12), REQ-SEC-002, REQ-COM-001/009 | AI request-body inspection, audit log |
 | O2 Explainable ranking | REQ-FR-024, REQ-FR-029, REQ-FR-030 | Acceptance tests on rationale content |
 | O3 Auditable bias | REQ-COM-006/008, REQ-FR-039 | Audit entry per AI action; bias test set |
-| O4 Zero-cost AI | REQ-FR-028, REQ-NFR-015/017 | Cost-estimate tests, degradation tests |
+| O4 Affordable AI | REQ-FR-028, REQ-NFR-015/017 | Cost-estimate tests, degradation tests |
 | O5 Prove skill | REQ-FR-016–021 | Phase 3 acceptance criteria |
 
 ### 21.3 Reference Map

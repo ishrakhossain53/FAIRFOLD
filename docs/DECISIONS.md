@@ -22,6 +22,11 @@ answers; it does not start until every `[ ]` below is answered.
 > **Update 2026-11-01.** D-13 was accepted on 2026-10-30 and applied in batch 1.50; its row
 > and the section at the end record it. The rest of this document remains the batch-0.4
 > proposal record.
+>
+> **Update 2026-11-11.** The AI provider moved from OpenRouter to the DeepSeek API, with
+> `deepseek-v4.1-flash` as the default model (AD-003 amended). The change is applied in
+> `config/settings/production.py`, `docker-compose.yml`, `.env.example`, `README.md` and the
+> canonical docs. The `AIProvider` abstraction and the offline fallback are unchanged.
 
 | ID | Question | Recommendation | Files that change | Your answer |
 |---|---|---|---|---|

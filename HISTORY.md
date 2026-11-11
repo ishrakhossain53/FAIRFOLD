@@ -55,9 +55,9 @@ blocked.
 || `prd.md` | 1282 | **Canonical** product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 || `design.md` | 2918 | Supplement — UI design system, 78 page specifications, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |
 || `FAIRFOLD_Feasibility_and_Design.md` | 3011 | Supplement — feasibility study, user stories, UML diagrams, Gantt, data dictionary, accessibility, pre-development readiness review |
-| `README.md` | 448 | Project overview, documentation index, setup |
+| `README.md` | 449 | Project overview, documentation index, setup |
 
-| `.env.example` | 228 | Environment variables, all placeholders (214 before batch 1.22 added `S3_PUBLIC_ENDPOINT_URL`; 220 before batch 1.43 documented `SITE_URL`; 223 before batch 1.49 added `FLOWER_PORT`; the count in this table was corrected 2026-10-22, 2026-10-28 and 2026-11-01) |
+| `.env.example` | 233 | Environment variables, all placeholders (214 before batch 1.22 added `S3_PUBLIC_ENDPOINT_URL`; 220 before batch 1.43 documented `SITE_URL`; 223 before batch 1.49 added `FLOWER_PORT`; 228 before the 2026-11-11 DeepSeek provider switch; the count in this table was corrected 2026-10-22, 2026-10-28, 2026-11-01 and 2026-11-11) |
 || `requirements.txt` / `requirements-dev.txt` | 92 / 25 | Pinned Python dependencies (planned stack) |
 || `scripts/generate_secret_key.py` | 139 | Generates a per-developer `DJANGO_SECRET_KEY` + `ENCRYPTION_KEY` into `.env` |
 
@@ -1852,7 +1852,7 @@ scaffold booting. The design can start immediately and in parallel with backend 
 
 - **No dedicated DevOps role.** Absorbed by Ishrak Hossain; recorded as the largest
   operational risk (R3 / RSK-009).
-- **OpenRouter free-tier limits** are quoted from September 2026 and must be re-verified at
+- **Hosted-AI limits and pricing** are quoted from a date and must be re-verified at
   implementation. They are configuration, not a design assumption, so this cannot break the
   $0-cost claim — the offline fallback covers it.
 - **Pricing** is canonical in the Complete Doc; `prd.md` §15 and Complete Doc §C.14 should
@@ -5443,3 +5443,23 @@ Known limitations:
 - The "Check resume" trigger is manual; automatic `clean -> processing` on scan completion
   is not wired (the batch specifies an explicit endpoint, not an implicit kick-off).
 - bandit cannot be run in this environment (see above).
+
+### AI provider switch: DeepSeek API (2026-11-11)
+
+The canonical provider moved from OpenRouter to the DeepSeek API at the founder's request.
+`deepseek-v4.1-flash` is the default model, read from `DEEPSEEK_MODEL`; the endpoint is
+`https://api.deepseek.com/v1`. AD-003, the Complete Doc §6/§C.9/§C.12, the feasibility and PRD
+provider tables, the Phase 2 batch specs, the README and the env templates now name DeepSeek.
+
+- `config/settings/production.py`: `DEEPSEEK_API_KEY`; `AI_PROVIDER` is `"deepseek"` when a key
+  is set and `"offline"` when it is not. `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL` and
+  `DEEPSEEK_TIMEOUT` are settings, not hard-coded.
+- `docker-compose.yml` passes `DEEPSEEK_API_KEY` to `django` and `celery`; `.env` and
+  `.env.example` carry the new block.
+- `tests/core/test_production_settings.py` asserts the offline default and the DeepSeek
+  defaults; `tests/core/test_security_headers.py` keeps the AI host out of `connect-src`.
+- Competitor-analysis mentions of OpenRouter (candidacy/steelburn) are facts about those
+  projects and are deliberately unchanged.
+
+The `AIProvider` abstraction, the offline fallback and every AI call site are unchanged: no
+provider client exists yet (batch 2.21), so this is configuration and documentation only.

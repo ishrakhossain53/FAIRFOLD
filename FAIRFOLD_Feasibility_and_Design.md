@@ -233,7 +233,7 @@ in industry. A mid-size company posts an entry-level role.
 1. Rafi uploads his resume. Name, photo, phone, address and university identifiers
    are stripped before any AI sees it (REQ-FR-011, amended 2026-10-12 to include proxy fields per REQ-FR-057).
 2. The employer's HR officer clicks **Screen All**, sees the cost estimate
-   ($0.00 on the free tier) and confirms (REQ-FR-028).
+   ($0.00 when the offline fallback is used, otherwise the live estimate) and confirms (REQ-FR-028).
 3. Applicants are ranked by anonymised ID. Rafi's score carries evidence from his
    own resume — the project where he used the required skill (REQ-FR-029/030).
 4. Rafi sees his own score and the missing skills (REQ-FR-024) and takes the skill
@@ -395,7 +395,7 @@ have made, not results we have produced.
 | **Who it serves** | Employer only | **Both sides** — the candidate sees their own score, rationale, journey map and coaching | **Designed** — §1.5 |
 | **Bias handling** | Marketed as "bias-free" | PII stripped before any AI call; bias audit on every rationale; a human always decides; immutable audit trail | **Designed — not yet measured** |
 | **Explainability** | Score only, or a black box | Evidence-cited rationale shown to employer *and* candidate; "no evidence found" is an explicit outcome | **Designed** — REQ-FR-030 |
-| **Cost** | Quote-based or enterprise | $0 AI cost on the free tier via local embeddings, free LLMs and an offline fallback | **Assumption** — depends on free-tier availability (RSK-001) |
+| **Cost** | Quote-based or enterprise | Near-zero AI cost via local embeddings, a low-cost hosted model and an offline fallback | **Assumption** — depends on provider pricing (RSK-001) |
 | **Skills evidence** | A separate tool the employer buys | Assessments and the Journey Map in one flow, with employer-required assessments (REQ-FR-051) | **Partly designed** — Gap G1, §2.4.1 |
 | **Market** | US/EU enterprise | Bangladesh and emerging-market SMEs first | **Unvalidated** — RSK-008 |
 | **Compliance** | Varies widely | Audit trail, GDPR export/delete, EU AI Act human oversight | **Designed — verification in Phase 4** |
@@ -424,7 +424,7 @@ and (d) inverts the market's pricing by offering strong candidate-side tooling f
 | O1 | Zero PII reaches an AI provider | 100% of AI payloads pass PII filter | REQ-SEC-002 |
 | O2 | Every ranking is explainable | 100% of scores carry evidence-cited rationale | FR-030 |
 | O3 | Screening bias is auditable | Every AI action has an immutable audit entry | REQ-COM-008 |
-| O4 | Cost does not block adoption | $0.00 AI cost on free tier | FR-028 |
+| O4 | Cost does not block adoption | Near-zero AI cost; $0.00 with the offline fallback | FR-028 |
 | O5 | Candidates can prove skill, not just tenure | Assessments + journey map shipped | FR-019, FR-016 |
 
 **Scope.**
@@ -832,7 +832,7 @@ available at the scale planned.
 | Web framework | Django 5 + DRF | Mature LTS-style framework, largest Python ecosystem | §4.1, §4.2 |
 | Database | PostgreSQL 17 + pgvector | `CREATE EXTENSION vector`; cosine-distance ranking in SQL | §6.5 |
 | Background jobs | Celery + Redis | Industry standard; retry pattern given in code | §C.1 |
-| AI/LLM | OpenRouter (free tier first) | Free models mapped per task; template fallback | §6.1, §6.2 |
+| AI/LLM | DeepSeek API (`deepseek-v4.1-flash`) | One low-cost model mapped per task; template fallback | §6.1, §6.2 |
 | Semantic matching | sentence-transformers 384-dim | Embedding pipeline shown; zero marginal API cost | §6.5 |
 | PII stripping | regex + spaCy NER | Two-layer approach; standard tooling | §9 Phase 2 |
 | Document parsing | pdfplumber | Established library | FR-012 |
@@ -859,7 +859,7 @@ revenue model whose cheapest tier is genuinely free to enter.
 |---|---|---|
 | Language, framework, libraries | $0 | All open source |
 | Database, Redis, Celery | $0 | Self-hosted via Docker |
-| AI inference (development) | $0 | Free OpenRouter tier + offline fallback |
+| AI inference (development) | Low, usage-based | DeepSeek API + offline fallback |
 | Hosting (development) | $0 | Local Docker Compose |
 | Hosting (MVP, single VPS) | ~$20–50/mo | Phase 4 target |
 | Domain + TLS (Let's Encrypt) | ~$15/yr | |
@@ -881,7 +881,7 @@ compete on this segment.
 | Employer — Growth | $500/mo | Mid-market |
 | Employer — Enterprise | $5000/mo | Large org |
 
-**Cost-control design.** Free-tier operation is viable because embeddings are
+**Cost-control design.** Low-cost operation is viable because embeddings are
 generated locally with sentence-transformers rather than through a paid API (§6.5),
 and every LLM task has a template/offline fallback that costs nothing (§6.2). AI
 screening shows a cost estimate *before* execution and requires confirmation
@@ -1081,7 +1081,7 @@ rather than a compliance chore.
 **Third-party terms of service.** LLM providers' terms generally prohibit sending
 personal data. PII stripping before the API call (§5.4) is therefore a **legal
 requirement, not only a privacy feature** — without it the integration may breach
-OpenRouter's terms. Credential IDs, company names and locations are stored
+DeepSeek's terms. Credential IDs, company names and locations are stored
 encrypted (`EncryptedCharField`) rather than in plaintext.
 
 **Residual legal risk to declare:** employment AI regulation is still evolving, and
@@ -1162,7 +1162,7 @@ gantt
     Phase 1 deliverable                 :milestone, m1, after p1i, 0d
 
     section Phase 2 — AI Integration
-    OpenRouter provider + offline fallback :p2a, after m1, 4d
+    DeepSeek provider + offline fallback :p2a, after m1, 4d
     PII stripping pipeline               :p2b, after p2a, 4d
     Embedding + pgvector pipeline        :p2c, after p2b, 3d
     Celery screen_applications task      :p2d, after p2c, 4d
@@ -1220,7 +1220,7 @@ Complete Doc §10.4:
 |---|---|---|---|
 | Sardar Shihab | Full-Stack Engineer | Django templates/HTMX, TailwindCSS, journey mapping charts; backend endpoints as needed | US-013, US-014, US-030–032 |
 | Arnob Biswas Antu | Frontend Engineer | Employer dashboard, application review, scheduling UI, real-time status | US-033–035, US-040, **US-065** |
-| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, OpenRouter, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062, **US-063, US-064** |
+| Ishrak Hossain | Backend & AI Engineer | Django, DRF, Celery, DeepSeek, PII stripping, pgvector, security | US-011, US-012, US-020, US-033, US-051–054, US-057, US-059, US-061, US-062, **US-063, US-064** |
 | Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — tokens, component library, accessibility (WCAG 2.1 AA), candidate journey wireframes, employer dashboard UX, journey mapping interaction design | US-013, US-040, all wireframes, all design tokens and UI specs, **US-064** (override dialog flow) |
 
 **Declared gap:** no dedicated DevOps/Infrastructure role — currently absorbed by the
@@ -1236,7 +1236,7 @@ Risk register maintained at Arch Doc §9; top risks below with likelihood × imp
 | R2 | Bias detection insufficient | M | H | Bias audit status surfaced on every rationale; human-in-the-loop decisions | §2.2 |
 | R3 | DevOps capacity (no dedicated role) | H | M | Docker-first simplicity; single-VPS target; documented runbooks | §2.6.3 |
 | R4 | Phase 3 scope too dense for 3 weeks | H | M | Journey-mapping MVP isolated as must-have; other two separable | §2.6.4 |
-| R5 | OpenRouter free-tier exhaustion | M | M | Template fallback ensures $0-cost operation; rate-limit handling | §C.9 |
+| R5 | DeepSeek API outage or budget exhaustion | M | M | Offline fallback keeps $0-cost operation; rate-limit handling | §C.9 |
 | R6 | GDPR/AI Act compliance gap | L | H | DataExportRequest / DataDeletionRequest models; consent capture; audit trail | §5.7 |
 | R7 | PII leakage to third-party AI | L | **H** | Two-layer stripping (regex + spaCy NER) before any API call; audited | §5.4 |
 | R8 | Scope creep into phase 5 early | M | M | Phase 5 explicitly out of MVP; MoSCoW "Could" items deferred | §2.5 |
@@ -1270,7 +1270,7 @@ team, and DRF keeps a clean seam if services must be extracted later.
 | Domain | `accounts`, `candidates`, `employers`, `matching`, `interviews`, `ai` | Business logic |
 | Async | Celery workers, Redis broker | Screening, embedding, PII stripping |
 | Data | PostgreSQL 17, pgvector, Redis | Persistence, semantic search, caching |
-| AI | OpenRouter provider + offline fallback | Screening, rationale, coaching, Q generation |
+| AI | DeepSeek provider + offline fallback | Screening, rationale, coaching, Q generation |
 | Infra | Docker, Nginx, GitHub Actions, Sentry | Delivery and observability |
 
 ### 3.2 Complete user workflow
@@ -1419,7 +1419,7 @@ flowchart LR
 ```
 
 **System boundary:** everything inside the dashed box is FAIRFOLD. External systems
-(S3, OpenRouter, Piston, email provider, Stripe) are *outside* the boundary and appear
+(S3, DeepSeek, Piston, email provider, Stripe) are *outside* the boundary and appear
 as integration points in Arch Doc §5.1 and §C.12 rather than as actors, because they
 have no goals of their own in this context.
 
@@ -1444,7 +1444,7 @@ flowchart TD
     NO_QUOTA --> END1([End])
 
     QUOTA -- Yes --> COST[Compute cost estimate<br/>for all unscreened applications]
-    COST --> SHOW_COST[Display cost estimate<br/>+$0.00 on free tier]
+    COST --> SHOW_COST[Display cost estimate<br/>+live (zero with offline fallback)]
     SHOW_COST --> CONFIRM{Employer confirms?}
 
     CONFIRM -- No --> CANCEL[Screening cancelled.<br/>Nothing written.]
@@ -1463,7 +1463,7 @@ flowchart TD
     EMBED --> VECTOR[Stage 3 — pgvector cosine search<br/>384-dim similarity ranking]
     VECTOR --> TOPN[Take top N candidates]
     TOPN --> PII[PII STRIP<br/>regex + spaCy NER<br/>no raw PII may leave system]
-    PII --> LLM[Stage 4 — LLM analysis<br/>OpenRouter, with offline fallback]
+    PII --> LLM[Stage 4 — LLM analysis<br/>DeepSeek, with offline fallback]
     LLM --> RATIONALE[Generate evidence-cited rationale:<br/>matched, missing, evidence spans]
     RATIONALE --> BIASCHK[Bias audit check on rationale]
     BIASCHK --> PASS2{Rationale passes<br/>bias audit?}
@@ -1479,7 +1479,7 @@ flowchart TD
 
 **Cost-control property:** the pipeline uses pgvector for the first-pass ranking
 (§6.5) so the LLM is called only for the top N candidates, not all applicants. This is
-what keeps screening at $0.00 on the free tier (FR-028).
+what keeps screening at $0.00 when the offline fallback is used (FR-028).
 
 ### 3.5 Sequence diagram
 

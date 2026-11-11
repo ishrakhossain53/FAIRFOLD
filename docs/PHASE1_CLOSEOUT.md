@@ -140,7 +140,7 @@ none of the candidate name, email or internal user id, and that a candidate is
 unauthenticated 401, under production-like settings: HSTS
 `max-age=31536000; includeSubDomains; preload`, `X-Frame-Options: DENY`,
 `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, and a
-self-hosted CSP with no CDN or OpenRouter host. On the running development
+self-hosted CSP with no CDN or DeepSeek host. On the running development
 container (plain HTTP, `config.settings.local`) the live response carries CSP,
 X-Frame-Options, nosniff and Referrer-Policy; HSTS is correctly absent over
 HTTP and is covered by the secure-request test.

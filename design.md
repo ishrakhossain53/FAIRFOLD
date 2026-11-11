@@ -407,7 +407,7 @@ TAB
 │  Missing skills (2)                                         │
 │   ✖ Kubernetes — no evidence found in the resume            │
 │  Why this score  ▸ (expandable plain-language reasoning)    │
-│  Model: openrouter/free · Screened 12 Oct 2026, 14:03       │
+│  Model: deepseek-v4.1-flash · Screened 12 Oct 2026, 14:03   │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -424,7 +424,7 @@ Rules:
 │ Job: Senior Backend Engineer                           │
 │ Applications to screen:  100                           │
 │ Method: similarity ranking + AI analysis of top 10     │
-│ Model: Free tier (openrouter/free)                     │
+│ Model: DeepSeek V4.1 Flash (deepseek-v4.1-flash)       │
 │ ───────────────────────────────────────────            │
 │ Estimated cost:                         $0.00          │
 │ Quota after this run:        412 of 500 AI screens     │
@@ -434,7 +434,7 @@ Rules:
 └────────────────────────────────────────────────────────┘
 ```
 
-States: free tier ($0.00, calm) · paid model selected (cost shown in `--warning`) · quota exhausted (primary button replaced with "Upgrade plan") · degraded provider (info alert: results will use similarity only).
+States: offline fallback ($0.00, calm) · hosted estimate (cost shown in `--warning`) · quota exhausted (primary button replaced with "Upgrade plan") · degraded provider (info alert: results will use similarity only).
 Default focus on Cancel. Button label states the count ("Screen 100"), never just "OK".
 
 ### 7.4 Pipeline Stepper (application status)
@@ -1247,7 +1247,7 @@ The modal itself is drawn in Section 7.3. Its states and the progress page:
 ```
 MODAL STATES
 A) Free plan:   Estimated cost $0.00      [ Cancel ] [ Screen 100 ]
-B) Paid model:  Estimated cost $0.15 (shown in warning colour)  [ Cancel ] [ Screen 100 ]
+B) Hosted model: Estimated cost $0.15 (shown in warning colour)  [ Cancel ] [ Screen 100 ]
 C) No quota:    ⚑ You've used all AI screens this month.        [ Cancel ] [ Upgrade plan ]
 D) AI delayed:  ⏳ Results will use semantic similarity only.   [ Cancel ] [ Screen 100 ]
 
@@ -2070,7 +2070,7 @@ a performance problem at 500 notifications.
 │ Screenings today   ▓▓▓▓▓▓▓▓░░░░░░░░░░░  89                  │
 │ Flags from bias audit   ⚑ 6 flagged, 4 unreviewed          │
 │ Compliance queue        ⚑ 3 deletion requests waiting      │
-│ Quota                    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░  42 / 50 (OpenRouter) │
+│ Quota                    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░  42 / 50 (DeepSeek)   │
 ├────────────────────────────────────────────────────────────┤
 │ Recent errors   [Sentry]        Actions   [Review queue →]   │
 └────────────────────────────────────────────────────────────┘
@@ -2147,7 +2147,7 @@ has been promised something this system cannot deliver.
 ┌────────────────────────────────────────────────────────────┐
 │ <h1> AI quota and usage                                    │
 ├────────────────────────────────────────────────────────────┤
-│ OpenRouter free tier · resets daily                         │
+│ DeepSeek usage · resets daily                               │
 │  Requests today  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░  42 / 50     │
 │  Minute window  ▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░  11 / 20      │
 │                                                             │
@@ -2165,7 +2165,7 @@ the important line**, so it is stated as a word, not a colour: an admin who thin
 model is running while it has silently fallen back to embeddings has been misled about the
 product's core feature. The level list is a `<dl>` showing what each level does, so the
 state is interpretable without documentation. "Verify tier limits" exists because the
-OpenRouter figures are quoted from a date and drift (recorded in `HISTORY.md` §4.8).
+Provider figures are quoted from a date and drift (recorded in `HISTORY.md` §4.8).
 
 ---
 

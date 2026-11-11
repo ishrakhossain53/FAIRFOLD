@@ -119,11 +119,11 @@ From the Arch Doc §1.1 and Feasibility Doc §1.5:
 **Decision:** Django Templates + HTMX for MVP. React 18 + Vite reserved for Phase 5 (mobile PWA, real-time WebSocket features). DRF API is built from day one so the React SPA can be added without backend changes.  
 **Consequences:** Faster MVP delivery, single deployment artifact, no CORS/auth-token complexity. React becomes an optional frontend layer, not a replacement.
 
-#### AD-003: OpenRouter as Primary AI Provider
+#### AD-003: DeepSeek API as Primary AI Provider
 **Status:** Accepted  
-**Context:** Need free-tier AI for cost-sensitive MVP in emerging markets.  
-**Decision:** OpenRouter `openrouter/free` router as default. Abstraction layer (`AIProvider` ABC) allows seamless switching to self-hosted models (vLLM/Llama) or other providers. Offline fallbacks (spaCy NER, sentence-transformers embeddings, template-based interview Qs) ensure zero-cost operation in degradation mode.  
-**Consequences:** $0 AI cost for first ~50 req/day per IP. Risk of free tier removal mitigated by abstraction layer.
+**Context:** Need low-cost hosted AI for a cost-sensitive MVP in emerging markets.  
+**Decision:** DeepSeek API (`deepseek-v4.1-flash`) as default. Abstraction layer (`AIProvider` ABC) allows seamless switching to self-hosted models (vLLM/Llama) or other providers. Offline fallbacks (spaCy NER, sentence-transformers embeddings, template-based interview Qs) ensure zero-cost operation in degradation mode.  
+**Consequences:** AI cost is usage-based and low; the tariff is read from the provider, never hard-coded. Risk of a provider outage or price change is mitigated by the abstraction layer and the offline fallback.
 
 #### AD-004: pgvector for Semantic Matching
 **Status:** Accepted  
@@ -134,7 +134,7 @@ From the Arch Doc §1.1 and Feasibility Doc §1.5:
 #### AD-005: PII Stripping Before Any External Processing
 **Status:** Accepted  
 **Context:** GDPR Article 25, EU AI Act compliance. Competitors (Eightfold, SeekOut) send full PII to third-party AI.  
-**Decision:** Multi-phase PII stripping pipeline: Phase 1 = regex + spaCy NER (offline, 100% free); Phase 2 = LLM-based detection (future). PII never reaches OpenRouter API. Audit log records every stripping event.  
+**Decision:** Multi-phase PII stripping pipeline: Phase 1 = regex + spaCy NER (offline, 100% free); Phase 2 = LLM-based detection (future). PII never reaches DeepSeek API. Audit log records every stripping event.  
 **Consequences:** Extra latency (~2s per resume) but full compliance. Trust advantage over competitors.
 
 #### AD-006: Monolith-First Architecture
@@ -179,7 +179,7 @@ From the Arch Doc §1.1 and Feasibility Doc §1.5:
 │   (Gunicorn)      │  │   (AI Tasks)      │  │   (Scheduler)     │
 │   4-8 workers     │  │   2-4 workers     │  │   Periodic tasks  │
 │                   │  │                   │  │                   │
-│  • Django Templates │ │  • OpenRouter API  │ │  • Quota reset     │
+│  • Django Templates │ │  • DeepSeek API    │ │  • Quota reset     │
 │  • HTMX + Tailwind │ │  • sentence-       │ │    job (daily)     │
 │  • Chart.js          │ │    transformers    │ │  • Backup notify   │
 │  • DRF API           │ │  • spaCy NER        │ │    (hourly)        │
@@ -213,11 +213,11 @@ From the Arch Doc §1.1 and Feasibility Doc §1.5:
 **Flow 2: Employer Triggers AI Screening (With AI)**
 
 ```
-1. Employer clicks  2. Django creates  3. Redis Queue    4. Celery Worker   5. OpenRouter API
-   "Screen All"       screening task    ───→ dequeues task ───→ PII strips   ───→ free models
+1. Employer clicks  2. Django creates  3. Redis Queue    4. Celery Worker   5. DeepSeek API
+   "Screen All"       screening task    ───→ dequeues task ───→ PII strips   ───→ DeepSeek models
                                              ↑                    ↑ (anonymized)
    shows cost estimate  ←  6. Redis cache    │  7. pgvector       │
-   ($0.00 free tier)        stores results   └── cosine sim ──────┘
+   (cost estimate)        stores results   └── cosine sim ──────┘
                                                   ↓ ranking
                                                 8. Django returns
                                                    ranked list + rationale
@@ -268,7 +268,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 | | pgcrypto | built-in | Additional field encryption |
 | **AI/ML** | sentence-transformers | 3.0+ | Offline embeddings ($0 cost) |
 | | spaCy | 3.8+ | PII detection NER (offline) |
-| | OpenRouter SDK (openai) | 1.40+ | Free tier AI access |
+| | DeepSeek API (OpenAI-compatible `openai` SDK) | 1.40+ | Hosted AI access |
 | | torch | 2.3+, **CPU wheel** | Required by sentence-transformers. Installed from `download.pytorch.org/whl/cpu`; the default PyPI wheel bundles CUDA and pulls several GB onto a CPU-only VPS |
 | | transformers | 4.44+ | Required by sentence-transformers |
 | **Background** | Celery | 5.4+ | Async task processing |
@@ -359,7 +359,7 @@ Resume PDF ──→ Text Extraction (pdfplumber) ──→ PII + Proxy Detectio
 | REQ-FR-025 | Job Creation | High | **Given** authenticated employer; **When** employer fills job form; **Then** Job record created with all fields; **And** screening questions auto-suggested by AI. **Amended 2026-10-30:** location is captured as `address_line`, `city`/district and `country_code` (ISO 3166-1 alpha-2, chosen from `core.reference.COUNTRIES`; the city options are the bundled GeoNames set for that country), and the legacy `location` column remains a display fallback. |
 | REQ-FR-026 | Job Editing | High | **Given** existing job (draft status); **When** employer edits; **Then** all fields updated, including the structured location fields (`address_line`, `city`, `country_code`); **And** audit log entry created |
 | REQ-FR-027 | Job Activation | High | **Given** draft job; **When** employer publishes; **Then** status changes to "active"; **And** job visible to candidates |
-| REQ-FR-028 | AI Screening Trigger | High | **Given** active job with applications; **When** employer clicks "Screen All"; **Then** cost estimate shown ($0.00 for free tier); **And** user confirms; **And** Celery batch task queued |
+| REQ-FR-028 | AI Screening Trigger | High | **Given** active job with applications; **When** employer clicks "Screen All"; **Then** a live cost estimate is shown ($0.00 when the offline fallback is used); **And** user confirms; **And** Celery batch task queued |
 | REQ-FR-029 | Screening Result Display | High | **Given** completed screening; **When** employer views applications; **Then** ranked list shows match scores; **And** clicking candidate shows full rationale; **And** candidates are listed by anonymised ID with no name, photo or contact detail — **the name is revealed only when the employer shortlists** (REQ-FR-030); **And** candidates the hard filter marked `not_matched` **remain listed and visible to the employer with the reason shown** — a rule-based rejection is never hidden and never final on its own; **And** the employer can pull any `not_matched` candidate into review, which sets `status` back to `screened` and writes an audit entry; **And** the version of the hard-filter rule set that produced each result is recorded on the application (`filter_rules_version`) and shown in the UI. *Amended 2026-10-03 from Gap G3 — see `FAIRFOLD_Feasibility_and_Design.md` §2.4.1. Motivated by EEOC v. iTutorGroup, where a hard-coded age filter was the entire discriminating mechanism (§1.2.1).* |
 | REQ-FR-030 | Evidence-Cited Rationale | High | **Given** AI-generated rationale; **When** employer views candidate; **Then** rationale shows specific resume text for each claim; **And** missing skills listed; **And** bias audit status shown; **And** the candidate's name, photo and contact details stay hidden until the employer shortlists them, at which point they are revealed to that employer only and the reveal writes an audit entry; **And** unrevealed PII is never sent to any external AI provider |
 | REQ-FR-031 | Interview Pack Generation | Medium | **Given** job with requirements; **When** employer generates interview pack; **Then** AI produces structured Qs + scoring rubric; **And** pack stored and linked to job |
@@ -471,7 +471,7 @@ a person can reject a candidate.
 |---|---|---|---|
 | REQ-NFR-001 | Resume processing (text extraction + PII strip) | < 30 sec | End-to-end time logged in task metadata |
 | REQ-NFR-002 | Embedding generation (sentence-transformers) | < 10 sec | Per resume; batch of 10 = < 60 sec |
-| REQ-NFR-003 | AI screening for 100 applications | < 5 min | Batch start to completion; within free tier limits |
+| REQ-NFR-003 | AI screening for 100 applications | < 5 min | Batch start to completion; within the provider's rate limits |
 | REQ-NFR-004 | pgvector similarity query (100 candidates) | < 2 sec | Database query time logged |
 | REQ-NFR-005 | Page load time (server-side rendered) | < 2 sec | Lighthouse performance score ≥ 90 |
 | REQ-NFR-006 | API response time (95th percentile) | < 500 ms | Prometheus histogram |
@@ -503,7 +503,7 @@ a person can reject a candidate.
 | ID | Requirement | Target | Verification |
 |---|---|---|---|
 | REQ-SEC-001 | Password hashing | Argon2id, 512-bit salt | Django default; verified via `password_hashers` setting |
-| REQ-SEC-002 | PII never sent to AI | 100% | Audit log verification; OpenRouter request body inspection |
+| REQ-SEC-002 | PII never sent to AI | 100% | Audit log verification; DeepSeek request body inspection |
 | REQ-SEC-003 | Field-level encryption | AES-256-GCM | Encrypted fields unreadable in DB backup |
 | REQ-SEC-004 | TLS everywhere | TLS 1.3 minimum | SSL Labs A+ rating |
 | REQ-SEC-005 | CSRF protection | All state-changing requests | Django middleware + JWT csrf token |
@@ -1181,7 +1181,7 @@ assessment_attempts ──(N)──> attempt_resource_recommendations ──(N)�
 ### 5.3 Sequence Diagram: AI Screening Flow
 
 ```
-Employer   Django     Redis     Celery     OpenRouter    pgvector     spaCy NER
+Employer   Django     Redis     Celery     DeepSeek      pgvector     spaCy NER
    │         │          │          │            │            │           │
    │ POST /jobs/{id}/screen/     │          │            │            │           │
    │─────────▶│          │          │            │            │           │
@@ -1247,7 +1247,7 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 | `job_embeddings:{job_id}` | 24 hours | Pre-computed pgvector embedding for job description | LRU |
 | `similarity_matrix:{job_id}` | 2 hours | Cached candidate-job similarity scores | LRU |
 | `rate_limit:{user_id}:{endpoint}` | 15 minutes | Rate limit counters | TTL expiry |
-| `openrouter_quota:{day}` | 24 hours (resets at midnight UTC) | Daily free tier usage tracker | TTL expiry |
+| `deepseek_quota:{day}` | 24 hours (resets at midnight UTC) | Daily AI usage/budget tracker | TTL expiry |
 | `skill_taxonomy:v1` | 7 days (versioned) | Canonical skill name mappings | Versioned override |
 | `ai_response:{hash}` | 6 hours | Cached LLM responses (deduplication by prompt hash) | LRU |
 
@@ -1255,7 +1255,7 @@ Redis is used for three distinct purposes with different TTLs and eviction polic
 - Job update → invalidate `job_embeddings:{job_id}` + `similarity_matrix:{job_id}`
 - Resume re-upload → invalidate `user_profile:{user_id}`
 - Skill update → invalidate `user_profile:{user_id}` (candidate side only)
-- Daily midnight → reset `openrouter_quota:{day}`
+- Daily midnight → reset `deepseek_quota:{day}`
 
 ---
 
@@ -2073,7 +2073,7 @@ tests/
 | Test | Type | Description |
 |---|---|---|
 | PII stripping accuracy | Unit | 95%+ of PII types (name, email, phone, location) correctly stripped from test resumes |
-| Offline fallback | Contract | When OpenRouter returns 5xx, system uses pgvector + spaCy without user-facing error |
+| Offline fallback | Contract | When DeepSeek returns 5xx, system uses pgvector + spaCy without user-facing error |
 | Evidence-cited rationale | Integration | LLM rationale always contains specific resume text citations; no hallucinated claims |
 | Bias audit pass rate | Integration | 100% of LLM rationales pass bias keyword check; flagged rationales are re-processed. **Measured against the versioned set in §7.4, not against examples the keyword list was written from** |
 | Cost estimate accuracy | Unit | Estimated cost matches actual API cost within ±10% |
@@ -2431,7 +2431,7 @@ the human in charge.
 ### 8.2 Key Dashboards
 
 1. **Application Performance** — request latency, error rates, throughput (per endpoint)
-2. **AI Operations** — OpenRouter API call count, cost, success rate; pgvector query latency; offline fallback usage
+2. **AI Operations** — DeepSeek API call count, cost, success rate; pgvector query latency; offline fallback usage
 3. **Celery** — task queue depth, failure rate, worker utilization, retry count
 4. **Security** — failed login attempts, rate-limited IPs, PII leak detections, security header violations
 5. **Business** — jobs posted, applications received, hires completed, conversion funnel, AI accuracy review
@@ -2457,7 +2457,7 @@ All application logs use structured JSON format:
     "candidates_passed_hard_filter": 34,
     "llm_analyzed": 10,
     "cost_estimate_cents": 0,
-    "model_used": "openrouter/free"
+    "model_used": "deepseek-v4.1-flash"
   }
 }
 ```
@@ -2548,7 +2548,7 @@ A `.env.example` file at the repo root mirrors that table and is copied to `.env
 - **Actions:**
   1. Engineer acknowledges alert in PagerDuty
   2. Switch to fallback systems (offline spaCy + pgvector for AI failures)
-  3. Check OpenRouter status page; if downtime, enable offline mode globally
+  3. Check the DeepSeek status page; if downtime, enable offline mode globally
   4. Scale Celery workers if queue backlog detected
   5. Post-resolution: document in incident log
 - **Communication:** #oncall Slack channel
@@ -2622,7 +2622,7 @@ A **Release Retrospective** is held after every production release:
 
 **Success Metrics Tracking (quarterly review):**
 - [ ] Time-to-screen for 100 applications (target: < 5 min) — tracked in Business dashboard
-- [ ] Cost per AI screening (target: $0.00 free tier) — tracked in Prometheus `ai_cost_total`
+- [ ] Cost per AI screening (target: $0.00 with the offline fallback; usage-based when hosted) — tracked in Prometheus `ai_cost_total`
 - [ ] Candidate satisfaction score (target: > 80%) — tracked via NPS survey (Phase 3)
 - [ ] Bias audit pass rate (target: 100%) — tracked in `audit_log_entries` table
 - [ ] Data breach incidents (target: 0) — tracked in Sentry security events
@@ -2701,13 +2701,13 @@ local (dev laptop) → CI (test) → staging → production
 
 | ID | Risk | Category | Probability | Impact | Mitigation | Owner |
 |---|---|---|---|---|---|---|
-| RSK-001 | OpenRouter free tier removed/changed | Technical | Medium | High | AIProvider abstraction; offline spaCy + pgvector fallback; start offline-first | Backend Engineer |
+| RSK-001 | DeepSeek API outage, pricing or model change | Technical | Medium | High | AIProvider abstraction; offline spaCy + pgvector fallback; start offline-first | Backend Engineer |
 | RSK-002 | LLM hallucinations in match rationale | Technical | Medium | Medium | Evidence-cited format (must cite resume text); human recruiter review before hiring decisions; bias audit pre-filter | AI Engineer |
 | RSK-003 | Resume parsing accuracy < 80% | Technical | Medium | Medium | Manual edit fallback for candidates; IBM Granite Docling as future upgrade (85-95% accuracy) | AI Engineer |
 | RSK-004 | Data breach (PII exposure) | Security | Low | Critical | Defense-in-depth: PII stripping before AI, AES-256-GCM encryption at rest, TLS 1.3 in transit, quarterly pentests | Security Lead |
 | RSK-005 | Competitor copies Journey Mapping | Business | Low | Medium | Deep system integration (parsing + timeline + storytelling + narrative) creates switching costs; network effects from candidate data | Product Lead |
 | RSK-006 | EU AI Act compliance failure | Legal | Low | High | Documentation of human-in-the-loop; candidates see AI rationale; regular bias disparity analysis | Legal/Compliance |
-| RSK-007 | Scalability beyond free tier limits | Business | High (eventual) | Medium | Tiered model: free → cheap OpenRouter models → self-hosted vLLM; usage-based billing | Backend Engineer |
+| RSK-007 | Scalability beyond the hosted-AI budget | Business | High (eventual) | Medium | Tiered model: hosted DeepSeek → smaller/cheaper model → self-hosted vLLM; usage-based billing | Backend Engineer |
 | RSK-008 | Bangladesh market doesn't convert | Business | Medium | High | MVP targets both BD market + global SMBs; self-hostable option for price-sensitive markets | Product Lead |
 | RSK-009 | Team lacks DevOps experience | Technical | Medium | Medium | Use Docker Compose for dev; managed services (Neon, Upstash) for early production; hire/freelance DevOps for Phase 4 | Project Manager |
 | RSK-010 | Talent acquisition (Python + Django) | Technical | Medium | Medium | Focus on Python-experienced hires; Django skills training for team; leverage open-source community | Project Manager |
@@ -2764,7 +2764,7 @@ closes the registration half of this risk. Two consequences worth writing down:
 - ✅ 100% of sampled AI request bodies are PII-free (REQ-SEC-002)
 - ⚠️ LLM bias pass is advisory only and may not block auto-shortlist
 - ✅ Employer sees ranked candidates with scores + evidence-cited rationales
-- ✅ Cost estimate shown before processing; $0.00 for free tier
+- ✅ Cost estimate shown before processing; $0.00 when the offline fallback is used
 - ✅ Audit entries logged for every AI scoring action (timestamp, model, rationale hash)
 - ⬜ Hard-filter `not_matched` results show the rule that fired and stay listed behind a filter toggle, and can be pulled into review (REQ-FR-029, Gap G3)
 - ⬜ `filter_rules_version` is stamped onto every screened application and survives later edits to the job's rules (Gap G3)
@@ -2821,7 +2821,7 @@ closes the registration half of this risk. Two consequences worth writing down:
 
 | Term | Definition |
 |---|---|
-| **AI Provider** | Abstract interface (`ai.base.AIProvider`) that wraps OpenRouter, OpenAI, or offline fallbacks. Allows swapping providers without changing business logic. |
+| **AI Provider** | Abstract interface (`ai.base.AIProvider`) that wraps DeepSeek, OpenAI, or offline fallbacks. Allows swapping providers without changing business logic. |
 | **Bias Audit** | Automated check that scans AI-generated match rationales for biased language (e.g., "cultural fit" without evidence, gendered pronouns, age-related terms). |
 | **Candidate** | End-user seeking employment via the platform. |
 | **Employer** | Organization or individual posting job openings and reviewing candidates. |
