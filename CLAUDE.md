@@ -25,7 +25,7 @@ The code in the repository beats any description of the code.
 - One batch per session. Never start the next batch. Never commit, push or open PRs. Leave the working tree for me to review.
 - Do not expand scope. Something out of scope goes under "Observations" in your report; do not fix it.
 - Do not invent requirements, columns, tables, endpoints or roles. Cite the requirement ID or doc section for every behaviour you implement.
-- **Spec first.** If the code needs something the docs do not contain (a column, a table, an endpoint, a role), stop and propose the doc amendment. Amend the canonical docs, run `python scripts/verify_docs.py`, and only then write code. Counts such as 32 tables, 63 FRs, 51 FKs are asserted in several files and checked in CI; grep the whole repo for any number you change.
+- **Spec first.** If the code needs something the docs do not contain (a column, a table, an endpoint, a role), stop and propose the doc amendment. Amend the canonical docs, run `python scripts/verify_docs.py`, and only then write code. Counts such as 33 tables, 63 FRs, 53 FKs are asserted in several files and checked in CI; grep the whole repo for any number you change.
 - If a prerequisite is missing, broken or contradicted by the docs, **stop and report**. Do not work around it.
 - If you are unsure which of two documented behaviours is right, ask. Do not pick silently.
 - Reuse existing code and dependencies. Do not add a library, an auth system, or a new pattern without asking first.

@@ -5291,3 +5291,54 @@ must not be published beyond a trusted host. The browser-upload gesture remains
 manual; it is not a Phase 1 acceptance item.
 
 Nothing committed or pushed.
+
+### FIX-1: Repo state and doc consistency (2026-11-11)
+
+Cleanup batch (no product code). Prerequisite: copied the Phase 2-5 group prompts
+(`docs/prompts/PHASE_2..5.md`, `00_FIX_CURRENT_STATE.md`, `README.md`) and
+`scripts/slim_prompts.py` + `scripts/build_phase_prompts.py` into the repo on branch
+`chore/setup-prompts`, merged to `main`.
+
+What changed:
+
+- `AGENTS.md` replaced with a one-line pointer to `CLAUDE.md` (the two files were
+  byte-identical, so the agent loaded the same 8 KB twice).
+- Count drift fixed to match the Arch Doc §5.1 DDL and `verify_docs.py`
+  (33 tables / 53 FKs / 27 indexes): `CLAUDE.md` ("32 tables … 51 FKs" -> "33 … 53"),
+  `README.md` ("32-table" -> "33-table"), `docs/ROADMAP.md` ("32-table DDL" ->
+  "33-table DDL"), and the 2.30 spec ("in the 32" -> "in the 33"). DDL verified as
+  33 `CREATE TABLE`, 53 `REFERENCES`, 27 `CREATE INDEX`; Django models (`db_table`)
+  and migrations agree with their DDL counterparts (Phase-1 subset; no contradiction).
+- `docs/PROGRESS.md`: 0.3 -> [x] (TRACEABILITY.md lists all 63 REQ-FR with a status
+  and evidence path), 0.4 -> [x] (DECISIONS.md holds D-1 to D-13), 2.26-2.29 -> [~]
+  (pre-filled code, verified later in P2.5/P2.6). 0.5 left [ ] (see "Needs my
+  decision" in the report).
+- `scripts/slim_prompts.py` and `scripts/build_phase_prompts.py` reformatted to pass
+  `black --check .` (cosmetic only).
+
+Git audit (after `git fetch --all --prune`): 5 remote branches. Unique-commit counts
+vs `origin/main`: `dependabot/npm_and_yarn/npm_and_yarn-a8587adb2e` = 1 (postcss-
+selector-parser 6.1.4 -> 6.1.5 in package-lock.json; `npm ci` -> 0 vulns and
+`npm run build` -> clean on a throwaway checkout; NOT merged); `ishrak53V2`,
+`ishrakhossain53-patch-1`, `v1` = 0 each (fully merged; safe to delete on GitHub).
+
+Hygiene: `git ls-files | grep -E '(^|/)\.env$|\.pem$|id_rsa'` prints nothing; `.env`
+is in `.gitignore`.
+
+Commands and results (DEBUG unset; Docker Compose up -d --wait -> all services healthy):
+
+- `pytest tests/ -q` -> **1642 passed, 4 skipped**.
+- `pytest tests/bias/ -v` -> **40 passed**.
+- `manage.py check` -> **no issues**; `makemigrations --check --dry-run` -> **no changes**.
+- flake8 -> clean; `black --check .` -> clean (221 files); `isort --check-only .` -> clean;
+  mypy -> success, 116 files.
+- `scripts/verify_docs.py` -> exit 0 (14 notes); `scripts/verify_bias_set.py` -> exit 0.
+- `bandit -r . -c bandit.yaml -s B104,B105,B106,B107,B108,B311,B403` -> **fails**:
+  "Unknown test found in profile: B105", and without `-s` it reports "exception while
+  scanning file" for many files. Pre-existing environment issue (installed bandit
+  1.7.10 on Python 3.14 no longer registers B104-B108/B311/B403); not caused by this
+  batch and not fixed here.
+
+Known limitations / "Needs my decision" (see report): decisions D-5, D-6(d)/(e), D-8,
+D-9, D-11, D-12 remain unanswered; the design.md wireframe coverage table says
+"64 wireframes" (actual 65) and needs a decision before it is touched.

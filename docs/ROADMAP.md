@@ -13,7 +13,7 @@ less-built repo.
 
 | Area | State (from reading the code) |
 |---|---|
-| Docs | Five long specs plus `validation/`. 63 FRs, 50 NFRs, 32-table DDL, 78 page specs. Very thorough. |
+| Docs | Five long specs plus `validation/`. 63 FRs, 50 NFRs, 33-table DDL, 78 page specs. Very thorough. |
 | Scaffold | Django project, 4 settings modules, 11 app packages, Docker Compose, Dockerfile, CI workflow, Tailwind/HTMX build. |
 | `accounts` | **`User` model and migration exist** (UUID pk, email login, lockout fields, roles as groups). No endpoints, no tests. |
 | `core` | `AuditLogEntry` and `Skill` models, migration, seed command, groups and skills fixtures, middleware, health endpoints, pagination, exception handler. |
