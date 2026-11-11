@@ -31,7 +31,18 @@ django-ratelimit==4.1.0
 django-otp==1.7.3
 
 celery==5.4.0
-redis==5.0.3
+# Pinned because it is a transitive dependency whose newer release changed a
+# hard requirement. kombu 5.7.0's Redis transport rejects redis-py < 6.1 at
+# runtime (`kombu/transport/redis.py`, VersionMismatch), while celery 5.4.0 only
+# constrains kombu to <6.0 -- so a fresh image resolved kombu 5.7 alongside the
+# old redis pin and every `.delay()` call crashed, including the Celery worker
+# on boot. celery's own `redis` extra still records the 2024 bound of
+# redis<6.0; that metadata predates kombu 5.7, whose extra allows redis<9.
+kombu==5.7.0
+# 5.0.3 predates kombu 5.7's minimum. 6.4.0 is the floor kombu declares
+# (`redis>=6.4.0`) and was verified here against Django's RedisCache,
+# django-redis 5.4.0, the kombu broker transport and a real send_task.
+redis==6.4.0
 # 2.7.0 requires Django<5.2 and so cannot install alongside the 5.2 LTS this
 # project targets. 2.9.0 allows Django<6.1. Verified from its wheel metadata.
 django-celery-beat==2.9.0  # periodic task scheduling (Celery Beat)
