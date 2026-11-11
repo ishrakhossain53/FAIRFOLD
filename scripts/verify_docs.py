@@ -1425,6 +1425,24 @@ def check_validation_kit(r: Result, docs: dict[str, str]) -> None:
         r.check(full_path.exists(), f"{label} exists", rel_path)
 
 
+def check_context_sizes(r: Result) -> None:
+    """The agent's context files must stay lean (FIX-2 token diet).
+
+    CLAUDE.md is the master prompt loaded every session; docs/CONTEXT.md is the
+    condensed index read first. If either grows past its cap the token budget of
+    every session grows with it, so this is asserted rather than left to review.
+    """
+    section("16. Agent context docs stay lean")
+    for rel, cap in (("CLAUDE.md", 10 * 1024), ("docs/CONTEXT.md", 30 * 1024)):
+        path = ROOT / rel
+        size = path.stat().st_size if path.exists() else 0
+        r.check(
+            size <= cap,
+            f"{rel} is under {cap // 1024} KB",
+            f"{size} bytes" + (" — OVER CAP, trim it" if size > cap else ""),
+        )
+
+
 def main() -> int:
     print("FairFold documentation consistency check")
     print("=" * 60)
@@ -1454,6 +1472,7 @@ def main() -> int:
     check_tool_config(r)
     check_step_env(r)
     check_validation_kit(r, docs)
+    check_context_sizes(r)
 
     print("\n" + "=" * 60)
     if r.failures:
