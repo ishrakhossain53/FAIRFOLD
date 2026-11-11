@@ -602,7 +602,7 @@ Read CLAUDE.md and docs/CONTEXT.md. Group P2.6 = batches 2.29 to 2.36. The batch
 
 **Phase:** Phase 2: AI screening pipeline
 **Type:** decision
-**Requirement and source refs:** REQ-FR-028; Arch Doc §5.1 (no screening-run table in the 33)
+**Requirement and source refs:** REQ-FR-028; Arch Doc §5.1 (no screening-run table in the 32)
 **Recommended prerequisite:** 2.29 (Rationale detail UI)
 
 #### In scope
