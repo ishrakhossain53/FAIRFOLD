@@ -5342,3 +5342,47 @@ Commands and results (DEBUG unset; Docker Compose up -d --wait -> all services h
 Known limitations / "Needs my decision" (see report): decisions D-5, D-6(d)/(e), D-8,
 D-9, D-11, D-12 remain unanswered; the design.md wireframe coverage table says
 "64 wireframes" (actual 65) and needs a decision before it is touched.
+
+### FIX-2: Token diet and one run rule (2026-11-11)
+
+Documentation and tooling batch (no product code). Slims the 99 Phase 2-5 batch specs
+and makes each group prompt self-contained so a session loads ~5% of the docs instead of
+the whole 1.4 MB.
+
+What changed:
+
+- Slimmed the 99 Phase 2-5 specs (`docs/prompts/paste-ready/2.*`–`5.*`): removed the
+  repeated "# RULES / What I will paste / Progress snippets" boilerplate that told the
+  agent it cannot see the repo (contradicting CLAUDE.md); kept Phase/Type/requirement,
+  In scope, Out of scope, Done when, and the decision batches' Process + "**Gate:** STOP".
+  Phase 0 and 1 specs are byte-identical (not touched).
+- Ran `scripts/build_phase_prompts.py`: re-embedded the slimmed specs into
+  `docs/prompts/PHASE_2..5.md` (idempotent on re-run; 7/5/4/4 group prompts). This picked
+  up the FIX-1 count fix in 2.30 ("in the 32" -> "in the 33").
+- Added `docs/CONTEXT.md` (18 KB): 5-line summary, all 63 REQ-FR as ID/text/status/batches,
+  a 33-table index with exact `grep` commands, the §C.12 API index (method/path/app/batch),
+  a repo map, and the asserted counts.
+- Edited `CLAUDE.md` (9.2 KB, still under 10 KB): batch prompts now the group prompts in
+  `docs/prompts/PHASE_<n>.md`; added `docs/CONTEXT.md` as "read it first" + a rule to open
+  canonical docs only by section (grep/sed); replaced "One batch per session" with a
+  "## Group run rules" section; HISTORY append now says `cat >>`. The three protected
+  sections (Privacy/fairness invariants, Repo conventions, Commands) are byte-identical.
+- `docs/ROADMAP.md` "How to run each batch" -> group-prompt loop, with Phase 2 = 7 groups,
+  Phase 3 = 5, Phase 4 = 4, Phase 5 = 4.
+- `scripts/verify_docs.py`: added a check that asserts CLAUDE.md < 10 KB and
+  docs/CONTEXT.md < 30 KB.
+
+Byte sizes before -> after: 99 specs 363410 -> 72659; PHASE_2.md 37711 -> 37711 (2.30
+"32"->"33"); PHASE_3/4/5.md unchanged (25829/14913/7215); docs/CONTEXT.md 0 -> 18763;
+CLAUDE.md 7962 -> 9168; docs/ROADMAP.md 16438 -> 16522; scripts/verify_docs.py
+59474 -> 60259.
+
+Commands and results: `python scripts/slim_prompts.py` -> 99 rewritten, 363410 -> 72659
+bytes (saved 290751); `python scripts/build_phase_prompts.py` -> idempotent (second run
+no change); `scripts/verify_docs.py` -> exit 0 (new "16. Agent context docs stay lean"
+PASS: CLAUDE.md 9168 < 10240, CONTEXT.md 18763 < 30720); `scripts/verify_bias_set.py` ->
+exit 0; `black --check .` -> 221 unchanged; `isort --check-only .` -> clean. Full pytest
+not re-run: no product code changed (FIX-1 ran 1642 passed / 4 skipped).
+
+Known limitations: bandit remains broken in this environment (pre-existing, see FIX-1).
+Six FRs (REQ-FR-020, 055, 059, 060, 062, 063) are not cited by any batch spec; left as-is.

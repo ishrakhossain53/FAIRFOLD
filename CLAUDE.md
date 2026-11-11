@@ -1,7 +1,10 @@
 # FairFold: agent operating rules
 
-Read this file at the start of every session. It is the master prompt. Each session also gets one short
-batch prompt from `prompts/`. Do that batch and nothing else.
+Read this file at the start of every session. It is the master prompt. Each session also gets one
+group prompt from `docs/prompts/PHASE_<n>.md` (the folder also holds `00_FIX_CURRENT_STATE.md` and
+`README.md`). Each group prompt already contains its batch specs, so the agent does not open
+`docs/prompts/paste-ready/` — those files stay as the source that `scripts/build_phase_prompts.py`
+copies from. Do that prompt and nothing else.
 
 ## What this project is
 
@@ -12,17 +15,21 @@ identity stays hidden from employers until shortlist.
 
 ## Where truth lives (in this order)
 
+0. `docs/CONTEXT.md`: read it first — a condensed index of the FRs, tables, API, repo map and counts.
 1. `FAIRFOLD_Project_Architecture_and_Requirements.md` (Arch Doc): requirements (§4.1), DDL (§5.1), ADRs, acceptance criteria (§10). **Canonical.**
 2. `FAIRFOLD_Complete_Project_Document.md`: API list (§C.12), migration/seed strategy (§C.8), roadmap. **Canonical.**
 3. `prd.md`: product requirements. It proposes; the Arch Doc decides.
 4. `design.md`: UI specs, 78 page specs, wireframes, design tokens.
 5. `HISTORY.md`: a log. It can be stale. **Verify its claims against the code before relying on them.**
 
+Open a canonical doc only for the section a batch cites, using `grep` or `sed -n 'A,Bp'`; never read
+`HISTORY.md`, `design.md`, `prd.md` or the Feasibility doc whole.
+
 The code in the repository beats any description of the code.
 
 ## Working method
 
-- One batch per session. Never start the next batch. Never commit, push or open PRs. Leave the working tree for me to review.
+- Never commit, push or open PRs. Leave the working tree for me to review.
 - Do not expand scope. Something out of scope goes under "Observations" in your report; do not fix it.
 - Do not invent requirements, columns, tables, endpoints or roles. Cite the requirement ID or doc section for every behaviour you implement.
 - **Spec first.** If the code needs something the docs do not contain (a column, a table, an endpoint, a role), stop and propose the doc amendment. Amend the canonical docs, run `python scripts/verify_docs.py`, and only then write code. Counts such as 33 tables, 63 FRs, 53 FKs are asserted in several files and checked in CI; grep the whole repo for any number you change.
@@ -30,6 +37,15 @@ The code in the repository beats any description of the code.
 - If you are unsure which of two documented behaviours is right, ask. Do not pick silently.
 - Reuse existing code and dependencies. Do not add a library, an auth system, or a new pattern without asking first.
 - Follow existing naming and style. Comments explain *why*, as in the existing code.
+
+## Group run rules
+
+- A prompt names a group of batches, e.g. P2.1 = 2.1 to 2.5. The specs are inside the prompt; do not open `docs/prompts/paste-ready/`.
+- Do the batches in order, starting at the first one not `[x]` in `docs/PROGRESS.md`. Re-running a prompt resumes it.
+- After each batch: targeted tests, `manage.py check` (plus `makemigrations --check` if models changed), then the three progress updates. Then continue.
+- Stop at the first blocker, failing check, missing prerequisite or decision gate. Never start another group.
+- Run the full suite and all linters once at the end of the group.
+- One final report per group, with one section per batch.
 
 ## Repo conventions that have already caused bugs
 
@@ -91,7 +107,7 @@ Update these three files, with verified facts only:
 
 1. `docs/PROGRESS.md`: change this batch's `- [ ]` line to `- [x]` and add the date and a one-line test result. If you are blocked, use `- [!]` and give the reason.
 2. `docs/TRACEABILITY.md`: for each REQ-FR the batch covers, set the status to `done` only if every acceptance criterion is demonstrated by a passing test. Otherwise set `partial` and say what is missing.
-3. `HISTORY.md`: append a dated entry at the very end of the file under `## 7. Batch log` (create that heading if it is missing). Include what changed, commands run with results, and known limitations.
+3. `HISTORY.md`: append a dated entry with `cat >> HISTORY.md` at the very end of the file under `## 7. Batch log` (create that heading if it is missing). Include what changed, commands run with results, and known limitations. Never read the whole file.
 
 Never edit older HISTORY entries except to correct a fact, and say that you did. Never mark anything done that you did not run.
 

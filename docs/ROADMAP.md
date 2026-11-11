@@ -54,14 +54,16 @@ Batch 0.4 asks the agent to write a proposal for each; you answer; batch 0.5 app
 
 Also check before Phase 4: `requirements.txt` includes `stripe` while REQ-FR-056 makes bKash/SSLCommerz the Phase 4 payment path and Stripe a Phase 5 option.
 
-## How to run each batch
+## How to run each batch (group prompts)
 
-1. `git checkout -b batch/<id>-<slug>`
-2. New agent session. Put `CLAUDE.md` (or `AGENTS.md`) in the repo root once; the agent reads it automatically.
-3. Paste the batch prompt from `prompts/`.
-4. Read the agent's scope plan. Correct it before it codes if it is off.
-5. Read the report and the `git diff`. Run the tests yourself. Click through any UI.
-6. Good: update the three progress files (`docs/PROGRESS.md`, `docs/TRACEABILITY.md`, `HISTORY.md`), commit, merge. Bad: discard the branch or reply with fixes for this batch only.
+1. `git checkout -b batch/<group>-<slug>` from an up-to-date `main`.
+2. New agent session. The agent reads `CLAUDE.md` and `docs/CONTEXT.md` automatically; it works inside the repo.
+3. Paste one group prompt from `docs/prompts/PHASE_<n>.md` (the whole fenced block; its batch specs are already inside it).
+4. Read the final report and the `git diff`. Run the checks yourself.
+5. Merge, then start the next prompt.
+
+Phase 2 has 7 group prompts (P2.1–P2.7), Phase 3 has 5 (P3.1–P3.5), Phase 4 has 4 (P4.1–P4.4),
+Phase 5 has 4 (P5.1–P5.4). See `docs/prompts/README.md` for the group→batch map.
 
 Rules of thumb: if a batch needs more than about one session of review, split it. If an agent reports a
 contradiction in the docs, answer it and record the answer in the docs before continuing.
