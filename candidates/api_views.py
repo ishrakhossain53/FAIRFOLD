@@ -27,7 +27,14 @@ from candidates.serializers import (
     ResumeUploadRequestSerializer,
     ResumeUploadResponseSerializer,
 )
-from candidates.services import delete_resume
+from candidates.services import (
+    PROCESSING_ALREADY_DONE,
+    PROCESSING_CONFLICT,
+    PROCESSING_IN_FLIGHT,
+    ProcessingUnavailable,
+    delete_resume,
+    start_resume_processing,
+)
 from candidates.tasks import scan_resume
 from candidates.uploads import (
     ResumeUploadUnavailable,
@@ -449,6 +456,76 @@ class CandidateResumeDetailView(APIView):
         delete_resume(resume, actor=request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CandidateResumeProcessView(APIView):
+    """`POST /api/v1/candidates/resumes/{id}/process/` -- start extraction.
+
+    REQ-FR-012 (batch 2.4). The endpoint exists so a candidate can trigger the
+    Phase 2 extraction of a `clean` resume, and so the API has an explicit verb
+    for it rather than extraction firing implicitly from the scan.
+
+    **Idempotent on repeat.** `extracted`/`embedded` answer `200` with the current
+    state; `processing` answers `202` without queueing a second task. A retried
+    request therefore cannot start two extractions or overwrite a verdict.
+
+    **Only a `clean` or previously `failed` resume may start.** The transition
+    table in `candidates.processing` is the single authority, and this view
+    refuses anything else with `409`. `failed` is allowed back into `processing`
+    so a candidate can retry a damaged upload after replacing the file.
+
+    **Ownership is in the lookup**, exactly like the list/detail views: another
+    candidate's id and an id that exists nowhere are the same 404.
+    """
+
+    permission_classes = [IsCandidate]
+
+    @extend_schema(
+        request=None,
+        responses={200: ResumeStatusSerializer, 202: ResumeStatusSerializer},
+        summary="Start resume text extraction",
+        description=(
+            "Candidate group only, owner-only. Moves a clean (or previously "
+            "failed) resume to 'processing' and queues extraction. Returns 202 "
+            "with the current state, or 200 when the resume is already "
+            "extracted/embedded. 409 for a resume that cannot be processed yet."
+        ),
+    )
+    def post(self, request, pk) -> Response:
+        resume = CandidateResume.objects.filter(
+            pk=pk, candidate__user=request.user
+        ).first()
+        if resume is None:
+            raise NotFound(NO_RESUME_DETAIL)
+
+        try:
+            outcome = start_resume_processing(resume)
+        except ProcessingUnavailable:
+            return Response(
+                {"detail": "Processing could not be queued. Try again."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        if outcome == PROCESSING_ALREADY_DONE:
+            return Response(ResumeStatusSerializer(resume).data)
+        if outcome == PROCESSING_IN_FLIGHT:
+            return Response(
+                ResumeStatusSerializer(resume).data,
+                status=status.HTTP_202_ACCEPTED,
+            )
+        if outcome == PROCESSING_CONFLICT:
+            return Response(
+                {
+                    "detail": "This resume can't be processed yet.",
+                    "status": resume.status,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(
+            ResumeStatusSerializer(resume).data,
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class CandidateApplicationListView(APIView):

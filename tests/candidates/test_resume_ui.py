@@ -368,3 +368,149 @@ class TestDeleteAction:
 
         assert response.status_code == 403
         assert CandidateResume.objects.filter(pk=resume.pk).exists()
+
+
+PROCESS_URL = "/candidate/resumes/process/"
+
+
+class TestExtractionStatus:
+    """Page #17's Phase 2 states (REQ-FR-012, batch 2.5)."""
+
+    def test_a_clean_resume_offers_to_check(self, signed_in, profile):
+        make_resume(profile, status=CandidateResume.Status.CLEAN)
+
+        html = signed_in.get(RESUMES_URL).content.decode()
+
+        assert "Ready" in html
+        assert "Check resume" in html
+
+    def test_a_failed_resume_shows_the_mapped_message_and_retry(
+        self, signed_in, profile
+    ):
+        make_resume(
+            profile,
+            status=CandidateResume.Status.FAILED,
+            status_reason="no_text_layer",
+        )
+
+        html = signed_in.get(RESUMES_URL).content.decode()
+
+        assert "Could not read" in html
+        assert "no text we can read" in html
+        assert "Try again" in html
+
+    def test_an_extracted_resume_is_ready_and_not_reprocessable(
+        self, signed_in, profile
+    ):
+        make_resume(profile, status=CandidateResume.Status.EXTRACTED)
+
+        html = signed_in.get(RESUMES_URL).content.decode()
+
+        assert "Ready to match" in html
+        assert "Check resume" not in html
+
+    def test_a_processing_resume_never_shows_a_failure_message(
+        self, signed_in, profile
+    ):
+        make_resume(profile, status=CandidateResume.Status.PROCESSING)
+
+        html = signed_in.get(RESUMES_URL).content.decode()
+
+        assert "Reading your resume" in html
+        assert "no text we can read" not in html
+
+    def test_an_unknown_failure_code_falls_back_to_the_stored_reason(
+        self, signed_in, profile
+    ):
+        make_resume(
+            profile,
+            status=CandidateResume.Status.FAILED,
+            status_reason="stored file could not be read",
+        )
+
+        html = signed_in.get(RESUMES_URL).content.decode()
+
+        assert "stored file could not be read" in html
+
+
+class TestProcessAction:
+    def test_a_clean_resume_queues_and_redirects_with_a_message(
+        self, signed_in, profile, monkeypatch
+    ):
+        resume = make_resume(profile, status=CandidateResume.Status.CLEAN)
+        queued = []
+        monkeypatch.setattr(
+            "candidates.services.process_resume.delay",
+            lambda resume_id: queued.append(resume_id),
+        )
+
+        response = signed_in.post(PROCESS_URL, {"resume": str(resume.id)})
+
+        assert response.status_code == 302
+        assert response["Location"] == RESUMES_URL
+        assert queued == [str(resume.id)]
+        resume.refresh_from_db()
+        assert resume.status == CandidateResume.Status.PROCESSING
+
+    def test_a_failed_resume_retries(self, signed_in, profile, monkeypatch):
+        resume = make_resume(
+            profile,
+            status=CandidateResume.Status.FAILED,
+            status_reason="no_text_layer",
+        )
+        queued = []
+        monkeypatch.setattr(
+            "candidates.services.process_resume.delay",
+            lambda resume_id: queued.append(resume_id),
+        )
+
+        response = signed_in.post(PROCESS_URL, {"resume": str(resume.id)}, follow=True)
+
+        assert response.status_code == 200
+        assert queued == [str(resume.id)]
+        assert b"reading your resume" in response.content
+
+    def test_an_unprocessable_state_is_refused(self, signed_in, profile):
+        resume = make_resume(profile, status=CandidateResume.Status.SCANNING)
+
+        response = signed_in.post(PROCESS_URL, {"resume": str(resume.id)}, follow=True)
+
+        # The message text is HTML-escaped, so assert on the apostrophe-free span.
+        assert b"be processed yet" in response.content
+        resume.refresh_from_db()
+        assert resume.status == CandidateResume.Status.SCANNING
+
+    def test_another_candidates_resume_is_404(self, signed_in, profile, make_user):
+        other_profile = CandidateProfile.objects.create(user=make_user("candidate"))
+        theirs = make_resume(other_profile, status=CandidateResume.Status.CLEAN)
+
+        response = signed_in.post(PROCESS_URL, {"resume": str(theirs.id)})
+
+        assert response.status_code == 404
+        assert CandidateResume.objects.filter(pk=theirs.pk).exists()
+
+    def test_anonymous_is_sent_to_login(self, profile):
+        resume = make_resume(profile, status=CandidateResume.Status.CLEAN)
+
+        response = Client().post(PROCESS_URL, {"resume": str(resume.id)})
+
+        assert response.status_code == 302
+        assert response["Location"].startswith("/login/")
+
+    def test_an_employer_is_forbidden(self, make_user, profile):
+        user = make_user("employer_hr")
+        client = Client()
+        client.force_login(user)
+        resume = make_resume(profile, status=CandidateResume.Status.CLEAN)
+
+        assert client.post(PROCESS_URL, {"resume": str(resume.id)}).status_code == 403
+
+    def test_a_post_without_a_csrf_token_is_rejected(self, candidate, profile):
+        resume = make_resume(profile, status=CandidateResume.Status.CLEAN)
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(candidate)
+
+        response = client.post(PROCESS_URL, {"resume": str(resume.id)})
+
+        assert response.status_code == 403
+        assert CandidateResume.objects.filter(pk=resume.pk).exists()

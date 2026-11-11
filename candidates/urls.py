@@ -29,6 +29,9 @@ urlpatterns = [
     # `/resumes/<uuid:pk>/delete/` would be a parameterised page route, and the
     # authorization matrix refuses to guess a sample value for one.
     path("resumes/delete/", views.resume_delete, name="resume-delete"),
+    # Page #17's "Check resume" action (REQ-FR-012, batch 2.5). A fixed path
+    # like Delete, with the id in the POST body.
+    path("resumes/process/", views.resume_process, name="resume-process"),
     # Pages #28 and #29 (REQ-FR-023, batch 1.39). The detail id is in the path
     # because the page is about one application; ownership is still decided by
     # `request.user` inside the view, so the id never grants access.

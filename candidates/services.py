@@ -21,9 +21,13 @@ from __future__ import annotations
 import secrets
 from typing import TYPE_CHECKING
 
+from celery.exceptions import CeleryError
 from django.db import IntegrityError, transaction
+from kombu.exceptions import OperationalError
 
 from candidates.models import CandidateAlias, CandidateResume
+from candidates.processing import transition
+from candidates.tasks import process_resume
 from candidates.uploads import discard_object
 from core.models import AuditLogEntry
 
@@ -70,6 +74,62 @@ def delete_resume(resume: CandidateResume, *, actor) -> None:
         )
 
     discard_object(file_key)
+
+
+# ---------------------------------------------------------------------------
+# Resume extraction kick-off (REQ-FR-012, batch 2.4)
+# ---------------------------------------------------------------------------
+
+#: The queueing of the extraction task succeeded; the resume is now `processing`.
+PROCESSING_QUEUED = "queued"
+#: The resume already finished the pipeline; nothing was queued.
+PROCESSING_ALREADY_DONE = "already_done"
+#: The resume is already mid-pipeline; nothing was queued.
+PROCESSING_IN_FLIGHT = "in_flight"
+#: The resume is not in a state extraction may start from; nothing was queued.
+PROCESSING_CONFLICT = "conflict"
+
+
+class ProcessingUnavailable(RuntimeError):
+    """The broker did not accept the extraction task, and the move was reverted."""
+
+
+def start_resume_processing(resume: CandidateResume) -> str:
+    """Queue extraction for a clean (or previously failed) resume.
+
+    REQ-FR-012 (batch 2.4). This is the single writer of the "start extraction"
+    decision, so the API view and the resume page (batch 2.5) cannot disagree
+    about which states may begin, which are idempotent, and what happens when the
+    broker is down. Returns one of the ``PROCESSING_*`` outcomes, or raises
+    :class:`ProcessingUnavailable`.
+
+    **Idempotent by outcome.** `extracted`/`embedded` answer ``already_done`` and
+    `processing` answers ``in_flight``; neither queues a second task, so a
+    double-clicked button or a retried request is harmless.
+
+    **The move is reverted on a broker failure.** `processing` with no queued task
+    would never settle; the direct write back to the previous state mirrors the
+    completion endpoint's revert-to-pending and is not a transition because the
+    pipeline never actually ran.
+    """
+    status = CandidateResume.Status
+    if resume.status in {status.EXTRACTED, status.EMBEDDED}:
+        return PROCESSING_ALREADY_DONE
+    if resume.status == status.PROCESSING:
+        return PROCESSING_IN_FLIGHT
+    if resume.status not in {status.CLEAN, status.FAILED}:
+        return PROCESSING_CONFLICT
+
+    previous = resume.status
+    transition(resume, status.PROCESSING)
+    try:
+        process_resume.delay(str(resume.id))
+    except (CeleryError, OperationalError) as exc:
+        resume.status = previous
+        resume.status_reason = ""
+        resume.save(update_fields=["status", "status_reason"])
+        raise ProcessingUnavailable("processing could not be queued") from exc
+    return PROCESSING_QUEUED
 
 
 # ---------------------------------------------------------------------------
