@@ -41,9 +41,17 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
+from candidates.extraction import FAILURE_MESSAGES, MAX_PAGES
 from candidates.forms import SECTION_FORMS, SECTION_LABELS, CandidateProfileForm
 from candidates.models import CandidateProfile, CandidateResume
-from candidates.services import delete_resume
+from candidates.services import (
+    PROCESSING_ALREADY_DONE,
+    PROCESSING_CONFLICT,
+    PROCESSING_IN_FLIGHT,
+    ProcessingUnavailable,
+    delete_resume,
+    start_resume_processing,
+)
 from employers.serializers import public_employer_name
 from employers.services import public_job_queryset
 from matching.models import Application, Job
@@ -225,10 +233,10 @@ RESUME_STATUS_LABELS = {
     CandidateResume.Status.SCANNING: "Checking for viruses",
     CandidateResume.Status.CLEAN: "Ready",
     CandidateResume.Status.REJECTED: "Rejected",
-    CandidateResume.Status.PROCESSING: "Processing",
-    CandidateResume.Status.EXTRACTED: "Processed",
-    CandidateResume.Status.EMBEDDED: "Processed",
-    CandidateResume.Status.FAILED: "Failed",
+    CandidateResume.Status.PROCESSING: "Reading your resume",
+    CandidateResume.Status.EXTRACTED: "Ready to match",
+    CandidateResume.Status.EMBEDDED: "Ready to match",
+    CandidateResume.Status.FAILED: "Could not read",
 }
 
 # Statuses that mean "this file is usable, or was and can be replaced". A
@@ -242,6 +250,14 @@ RESUME_REPLACEABLE = {
     CandidateResume.Status.PROCESSING,
     CandidateResume.Status.EXTRACTED,
     CandidateResume.Status.EMBEDDED,
+    CandidateResume.Status.FAILED,
+}
+
+# Statuses that page #17 may offer a "Check resume"/"Try again" action for. Only
+# a clean resume may start extraction, and only a failed one may retry it; the
+# same rule lives in `candidates.services.start_resume_processing`.
+RESUME_PROCESSABLE = {
+    CandidateResume.Status.CLEAN,
     CandidateResume.Status.FAILED,
 }
 
@@ -286,6 +302,22 @@ def _resume_api_urls() -> dict:
     }
 
 
+def _resume_failure_message(status: str, status_reason: str) -> str:
+    """The user-safe explanation for a failed or rejected row.
+
+    A `failed` resume stores an extraction *code* in `status_reason` (batch 2.4),
+    which this maps back to the message with the real limits filled in. A
+    `rejected` resume stores a scan sentence such as "clamav unavailable" that is
+    already safe to show verbatim. Anything else has nothing to explain.
+    """
+    if status == CandidateResume.Status.FAILED and status_reason in FAILURE_MESSAGES:
+        return FAILURE_MESSAGES[status_reason].format(
+            max_mb=settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024),
+            max_pages=MAX_PAGES,
+        )
+    return status_reason
+
+
 def _resume_rows(candidate_profile: CandidateProfile) -> list[dict]:
     """The metadata list for page #17, newest first.
 
@@ -303,7 +335,12 @@ def _resume_rows(candidate_profile: CandidateProfile) -> list[dict]:
                 "status": resume.status,
                 "status_label": RESUME_STATUS_LABELS.get(resume.status, resume.status),
                 "status_reason": resume.status_reason,
+                "failure_message": _resume_failure_message(
+                    resume.status, resume.status_reason
+                ),
                 "rejected": resume.status == CandidateResume.Status.REJECTED,
+                "failed": resume.status == CandidateResume.Status.FAILED,
+                "can_process": resume.status in RESUME_PROCESSABLE,
                 "can_replace": resume.status in RESUME_REPLACEABLE,
             }
         )
@@ -399,6 +436,42 @@ def resume_delete(request: HttpRequest) -> HttpResponse:
         "candidates/resume_confirm_delete.html",
         {"resume": resume},
     )
+
+
+@never_cache
+@candidate_required
+@require_POST
+def resume_process(request: HttpRequest) -> HttpResponse:
+    """Page #17's "Check resume" action: queue extraction, then back to the list.
+
+    REQ-FR-012 (batch 2.5). A fixed path with the id in the body, like Delete, so
+    the authorization matrix has a concrete route. The mutation is a POST and the
+    queueing decision lives in `candidates.services.start_resume_processing`, so
+    this page and the API cannot disagree about which states may begin or what a
+    repeated click does.
+
+    There is no confirmation page: processing is not destructive, and a repeated
+    click is a no-op by the service's own idempotency.
+    """
+    resume = _owned_resume(request, request.POST.get("resume"))
+
+    try:
+        outcome = start_resume_processing(resume)
+    except ProcessingUnavailable:
+        messages.error(request, "We couldn't start processing this resume. Try again.")
+        return redirect("candidate_portal:resumes")
+
+    if outcome == PROCESSING_ALREADY_DONE:
+        messages.info(request, "This resume has already been processed.")
+    elif outcome == PROCESSING_IN_FLIGHT:
+        messages.info(request, "This resume is already being processed.")
+    elif outcome == PROCESSING_CONFLICT:
+        messages.error(request, "This resume can't be processed yet.")
+    else:
+        messages.success(
+            request, "We're reading your resume. This page updates in a moment."
+        )
+    return redirect("candidate_portal:resumes")
 
 
 # ---------------------------------------------------------------------------
