@@ -5386,3 +5386,60 @@ not re-run: no product code changed (FIX-1 ran 1642 passed / 4 skipped).
 
 Known limitations: bandit remains broken in this environment (pre-existing, see FIX-1).
 Six FRs (REQ-FR-020, 055, 059, 060, 062, 063) are not cited by any batch spec; left as-is.
+
+### Batch 2.1-2.5: Resume text extraction (2026-11-11)
+
+Group P2.1, branch `v1-shehab`. Builds the Phase 2 resume extraction pipeline end to
+end: the processing state machine, a pure PDF extractor, its edge cases, the owner-only
+process endpoint + Celery task, and the resume-page status UI.
+
+What changed:
+
+- **2.1** `candidates/processing.py`: the single state-machine authority. A
+  `PROCESSING_TRANSITIONS` table (`pending -> uploaded|scanning|rejected`,
+  `uploaded -> scanning|rejected`, `scanning -> clean|rejected`, `clean -> processing`,
+  `processing -> extracted|failed`, `extracted -> embedded|failed`, `failed -> processing`
+  retry; `embedded`/`rejected` terminal) plus `transition()` which refuses illegal moves,
+  requires a reason for `failed`/`rejected`, stamps `processed_at` on `extracted`/`embedded`
+  and is a no-op on a same-status move. `resume_status()` mirrors `matching.services`
+  `application_status` for the mypy-untyped choices metaclass.
+- **2.2/2.3** `candidates/extraction.py`: `extract_text(file_obj) -> ExtractionResult`,
+  pure (no Django/network/db). Seven failure codes, each with a user-safe message:
+  `unsupported_type`, `empty_file`, `malformed`, `password_protected`, `no_text_layer`,
+  `too_large`, `too_many_pages`. Detection order is deliberate (size/empty/magic ->
+  password -> page limit -> no text). `tests/fixtures/resumes/` holds seven small
+  hand-written synthetic PDFs (no real resumes) documented in a README.
+- **2.4** `candidates/tasks.py` `process_resume` (idempotent, only while `processing`;
+  raw text held in memory, only the SHA-256 `raw_text_hash` stored) and
+  `candidates/services.py` `start_resume_processing` (single writer of the queue
+  decision shared by the API and the page, with a broker-failure revert).
+  `candidates/api_views.py` `CandidateResumeProcessView` (`POST
+  /api/v1/candidates/resumes/{id}/process/`, owner-only, idempotent 200/202/409/503).
+- **2.5** page #17: status labels for the Phase 2 states, per-code failure messages from
+  the stored code, and a "Check resume"/"Try again" trigger
+  (`/candidate/resumes/process/`) wired through the shared service.
+
+Commands and results (all with a clean env — the shell leaks `DEBUG=True`/`EMAIL_BACKEND_URL`/
+`SENTRY_DSN` which break `test_production_settings.py` unless unset; `env -i` used):
+
+- `manage.py check` -> no issues; `makemigrations --check --dry-run` -> "No changes detected"
+  (no model change).
+- `pytest tests/candidates/ tests/core/ -q` -> 646 passed, 4 skipped (the 4 are the
+  pre-existing no-S3 skips).
+- `pytest tests/ -q` (full suite) -> **1785 passed, 4 skipped** (was 1642 at 1.47).
+- `flake8`, `black --check`, `isort --check-only` -> clean; `mypy` -> "no issues in 118
+  source files".
+- `scripts/verify_docs.py` -> all checks passed (exit 0); `scripts/verify_bias_set.py` ->
+  both versions consistent (exit 0).
+- bandit: **could not run** — pre-existing environment breakage (bandit 1.7.10 on Python
+  3.14 crashes on its own `-s` flags and on every file it scans; reproduced on untouched
+  `matching/models.py`). Not a code change.
+
+Known limitations:
+
+- `extracted_text` stays empty by design: the DDL stores only PII-stripped text, and that
+  write is batch 2.9. `extracted` currently means "text was extracted and verified", and
+  only the SHA-256 digest is persisted.
+- The "Check resume" trigger is manual; automatic `clean -> processing` on scan completion
+  is not wired (the batch specifies an explicit endpoint, not an implicit kick-off).
+- bandit cannot be run in this environment (see above).

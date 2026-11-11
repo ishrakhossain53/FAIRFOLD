@@ -210,6 +210,16 @@ AUTHZ_MATRIX: dict[str, dict] = {
             },
         },
     },
+    # Page #17's "Check resume" action (batch 2.5). POST-only, fixed path, id in
+    # the body. With no `resume` field the candidate gets the ownership lookup's
+    # 404; the other roles never reach the view.
+    "/candidate/resumes/process/": {
+        "method": "post",
+        "anonymous": 302,
+        "candidate": 404,
+        "employer": 403,
+        "admin": 403,
+    },
     # Pages #28/#29 (REQ-FR-023, batch 1.39). Candidate-only. The fixture
     # candidate has no profile, so the tracker forwards to onboarding; the detail
     # of the nil UUID is the owner-scoped lookup's 404.
@@ -571,6 +581,16 @@ AUTHZ_MATRIX: dict[str, dict] = {
         "employer": 403,
         "admin": 403,
     },
+    # Candidate-only and owner-only. Same 404 answer for "not yours" and "no such
+    # row" (batch 2.4); the empty body cannot start a process on a row that does
+    # not exist, so the candidate gets the ownership lookup's 404.
+    "/api/v1/candidates/resumes/00000000-0000-0000-0000-000000000000/process/": {
+        "method": "post",
+        "anonymous": 401,
+        "candidate": 404,
+        "employer": 403,
+        "admin": 403,
+    },
     # Candidate-only and owner-only, same 404 answer for "not yours" and "no such
     # row" (batch 1.21).
     "/api/v1/candidates/resumes/00000000-0000-0000-0000-000000000000/": {
@@ -855,6 +875,9 @@ SAMPLE_UUID = "00000000-0000-0000-0000-000000000000"
 PARAMETERISED_SAMPLES = {
     "/api/v1/candidates/resumes/<uuid:pk>/complete/": (
         f"/api/v1/candidates/resumes/{SAMPLE_UUID}/complete/"
+    ),
+    "/api/v1/candidates/resumes/<uuid:pk>/process/": (
+        f"/api/v1/candidates/resumes/{SAMPLE_UUID}/process/"
     ),
     "/api/v1/candidates/resumes/<uuid:pk>/": (
         f"/api/v1/candidates/resumes/{SAMPLE_UUID}/"

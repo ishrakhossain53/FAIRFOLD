@@ -70,11 +70,11 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 
 ## Phase 2: AI screening pipeline
 
-- [ ] 2.1 Resume processing states (spec first)
-- [ ] 2.2 PDF text extraction service
-- [ ] 2.3 Extraction edge cases
-- [ ] 2.4 Process endpoint and Celery task
-- [ ] 2.5 Extraction status UI
+- [x] 2.1 Resume processing states (spec first) (2026-11-11, `candidates/processing.py` transition table exhaustively tested in tests/candidates/test_resume_processing.py; 108 passed with 2.2/2.3)
+- [x] 2.2 PDF text extraction service (2026-11-11, `candidates/extraction.py` `extract_text`; tests/candidates/test_resume_extraction.py runs without a database)
+- [x] 2.3 Extraction edge cases (2026-11-11, seven failure codes each with a user-safe message and one test; fixtures in tests/fixtures/resumes/)
+- [x] 2.4 Process endpoint and Celery task (2026-11-11, `POST /api/v1/candidates/resumes/{id}/process/` + `process_resume`; 21 passed in tests/candidates/test_resume_process_api.py; raw text never persisted)
+- [x] 2.5 Extraction status UI (2026-11-11, page #17 status labels, per-code failure messages, "Check resume"/"Try again" trigger; tests/candidates/test_resume_ui.py)
 - [ ] 2.6 PII test dataset and accuracy harness
 - [ ] 2.7 Deterministic PII redaction
 - [ ] 2.8 NER and proxy stripping

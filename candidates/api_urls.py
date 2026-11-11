@@ -23,6 +23,7 @@ from candidates.api_views import (
     CandidateResumeCompleteView,
     CandidateResumeDetailView,
     CandidateResumeListView,
+    CandidateResumeProcessView,
 )
 
 app_name = "candidates"
@@ -41,6 +42,11 @@ urlpatterns = [
         "resumes/<uuid:pk>/complete/",
         CandidateResumeCompleteView.as_view(),
         name="resume-complete",
+    ),
+    path(
+        "resumes/<uuid:pk>/process/",
+        CandidateResumeProcessView.as_view(),
+        name="resume-process",
     ),
     # Declared after `complete/` so the literal suffix is matched before the bare
     # detail pattern; `<uuid:pk>` would not match `.../complete/` anyway, but the

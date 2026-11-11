@@ -138,18 +138,28 @@ Deviations from the wireframe, all deliberate and reported with the batch:
             <td class="py-3 pr-3 font-medium text-ink break-words">{{ resume.filename }}</td>
             <td class="py-3 pr-3 whitespace-nowrap text-ink-3">{{ resume.uploaded_at|date:"j M Y" }}</td>
             <td class="py-3 pr-3">
-              {% if resume.status == "clean" %}
+              {% if resume.status == "clean" or resume.status == "extracted" or resume.status == "embedded" %}
               <span class="inline-flex items-center gap-1 text-success-ink"><span aria-hidden="true">✔</span>{{ resume.status_label }}</span>
-              {% elif resume.rejected %}
+              {% elif resume.rejected or resume.failed %}
               <span class="inline-flex items-center gap-1 text-danger-ink"><span aria-hidden="true">✖</span>{{ resume.status_label }}</span>
               {% else %}
               <span class="inline-flex items-center gap-1 text-ink-2"><span aria-hidden="true">●</span>{{ resume.status_label }}</span>
               {% endif %}
-              {% if resume.rejected and resume.status_reason %}
-              <p class="mt-1 text-caption text-ink-3">{{ resume.status_reason }}</p>
+              {% if resume.failure_message %}
+              <p class="mt-1 text-caption text-ink-3">{{ resume.failure_message }}</p>
               {% endif %}
             </td>
             <td class="py-3 text-right whitespace-nowrap">
+              {% if resume.can_process %}
+              <form method="post" action="{% url 'candidate_portal:resume-process' %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="resume" value="{{ resume.id }}">
+                <button type="submit"
+                        class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
+                  {% if resume.failed %}Try again{% else %}Check resume{% endif %}
+                </button>
+              </form>
+              {% endif %}
               {% if resume.can_replace %}
               <a href="?replace={{ resume.id }}#upload"
                  class="inline-flex h-touch items-center px-2 text-body-sm font-medium text-primary-strong underline">
