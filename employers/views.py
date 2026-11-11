@@ -61,6 +61,7 @@ from matching.services import (
     application_status,
     decide_application,
 )
+from matching.tasks import has_job_embedding_field_changed, queue_embed_job
 
 
 def employer_required(view: Callable) -> Callable:
@@ -775,6 +776,8 @@ def job_edit(request: HttpRequest, job_id) -> HttpResponse:
                     job=job,
                     details={"changed": changed},
                 )
+                if has_job_embedding_field_changed(changed):
+                    transaction.on_commit(lambda jid=str(job.pk): queue_embed_job(jid))
         messages.success(request, "Draft saved.")
         return redirect("employer_portal:job-edit", job_id=job.pk)
 

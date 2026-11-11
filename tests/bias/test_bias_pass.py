@@ -23,7 +23,7 @@ import pytest
 from ai.bias_pass import ScanContext, load_rules, load_terms, normalise, scan
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SET_DIR = REPO_ROOT / "tests" / "bias" / "v1.0.1"
+SET_DIR = REPO_ROOT / "tests" / "bias" / "v1.0.2"
 
 MANIFEST = json.loads((SET_DIR / "manifest.json").read_text(encoding="utf-8"))
 TERMS_DOC = json.loads((SET_DIR / "keyword_terms.json").read_text(encoding="utf-8"))
@@ -42,6 +42,20 @@ FLAG_RATE_CATEGORIES = {
     "uncited_vague_rationale",
     "numeric_age",
     "graduation_year_proximity",
+    # v1.0.2 D4 proxy categories (REQ-FR-057).
+    "institution_name",
+    "employer_name",
+    "age_revealing_date",
+    "photo_reference",
+    "url_or_link",
+}
+
+D4_CATEGORIES = {
+    "institution_name",
+    "employer_name",
+    "age_revealing_date",
+    "photo_reference",
+    "url_or_link",
 }
 
 
@@ -252,6 +266,21 @@ def test_manifest_results_are_current(results):
     assert measured["false_positives"] == sum(
         1 for case in MUST_NOT_FLAG if results[case["id"]].flagged
     )
+
+
+def test_every_d4_category_has_flag_and_guard_cases():
+    """v1.0.2: each D4 proxy category ships must-flag cases, plus near-miss guards."""
+    counts = {cat: 0 for cat in D4_CATEGORIES}
+    for case in MUST_FLAG:
+        if case["category"] in counts:
+            counts[case["category"]] += 1
+    assert all(n >= 1 for n in counts.values()), counts
+    assert MANIFEST["category_counts"] == {
+        cat: sum(1 for c in ALL_CASES if c["category"] == cat)
+        for cat in MANIFEST["category_counts"]
+    }
+    guards = [c for c in MUST_NOT_FLAG if c["category"] == "proxy_near_miss"]
+    assert len(guards) >= 5
 
 
 def test_manifest_cases_match_the_files():

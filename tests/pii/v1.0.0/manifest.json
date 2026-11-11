@@ -1,0 +1,74 @@
+{
+  "version": "1.0.0",
+  "directory": "tests/pii/v1.0.0",
+  "created": "2026-11-11",
+  "owner": "Ishrak Hossain",
+  "status": "AUTHORED AND MEASURED. Synthetic 20-resume evaluation set covering the 10 PII and proxy categories required by REQ-FR-011 and REQ-FR-057.",
+  "dataset_sha": "260b78c10b25dfda83906352291caee85f4173dcfa6bf80a6c90031f78bbc432",
+  "dataset_sha_note": "SHA-256 of resumes.jsonl as committed. Versions are immutable; if resumes.jsonl changes without a version bump, scripts/verify_pii_set.py fails.",
+  "case_count": 20,
+  "pii_span_count": 229,
+  "keep_span_count": 134,
+  "category_counts": {
+    "name": 22,
+    "email": 20,
+    "phone": 20,
+    "address": 40,
+    "national_id": 18,
+    "age_date": 33,
+    "url": 21,
+    "photo": 11,
+    "employer": 21,
+    "institution": 23
+  },
+  "synthetic": true,
+  "synthetic_note": "Every candidate, contact detail, NID, passport number and URL is fictional. Institution and employer names represent real Bangladeshi organisations so NER and proxy rules are evaluated against realistic tokens; no real person's resume is represented.",
+  "pass_criteria": {
+    "overall_recall_min": 0.95,
+    "keep_survival_min": 1.0,
+    "spec_ref": "Arch Doc §10 Phase 2 (95%+ PII stripping accuracy) and REQ-FR-057 (skills, role titles, degree level/field and durations must survive)"
+  },
+  "baseline": {
+    "date": "2026-11-11",
+    "implementation": "tests/pii/harness.py:trivial_baseline",
+    "cases": 20,
+    "total_pii_spans": 229,
+    "redacted_pii_spans": 0,
+    "recall": 0.0,
+    "precision": 0.0,
+    "keep_survival": 1.0
+  },
+  "deterministic_only": {
+    "date": "2026-11-11",
+    "implementation": "ai/pii.py:redact_deterministic",
+    "cases": 20,
+    "total_pii_spans": 229,
+    "redacted_pii_spans": 153,
+    "deterministic_recall": 1.0,
+    "recall": 0.6681,
+    "precision": 1.0,
+    "keep_survival": 1.0
+  },
+  "measured": {
+    "date": "2026-11-11",
+    "implementation": "ai/pii.py:strip_pii",
+    "cases": 20,
+    "total_pii_spans": 229,
+    "redacted_pii_spans": 229,
+    "recall": 1.0,
+    "precision": 1.0,
+    "keep_survival": 1.0,
+    "per_category_recall": {
+      "name": 1.0,
+      "email": 1.0,
+      "phone": 1.0,
+      "address": 1.0,
+      "national_id": 1.0,
+      "age_date": 1.0,
+      "url": 1.0,
+      "photo": 1.0,
+      "employer": 1.0,
+      "institution": 1.0
+    }
+  }
+}

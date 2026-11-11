@@ -11,11 +11,8 @@ database, and `makemigrations --check` in CI would then pass on migrations that
 encode a guess. The DDL remains the specification; models are added app by app
 against it, one migration at a time.
 
-`CandidateProfile` is batch 1.14, `CandidateResume` is batch 1.18 and
-`CandidateAlias` is batch 1.35. `resume_embedding VECTOR(384)` is deliberately
-absent: `docs/ROADMAP.md` batch 2.12 owns the pgvector columns and the extension
-migration, and adding the column before that migration would make every test run
-depend on the extension being present in a database that has not created it yet.
+`CandidateProfile` is batch 1.14, `CandidateResume` is batch 1.18,
+`CandidateAlias` is batch 1.35 and `resume_embedding VECTOR(384)` is batch 2.12.
 """
 
 from __future__ import annotations
@@ -24,6 +21,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from pgvector.django import VectorField
 
 
 class CandidateProfile(models.Model):
@@ -83,6 +81,11 @@ class CandidateProfile(models.Model):
     # dashboard, recomputed from screened applications; it is not the ranking
     # input and must not be treated as one.
     match_scores = models.JSONField(default=dict, blank=True)
+
+    # 384-dim sentence-transformers (all-MiniLM-L6-v2) embedding of the
+    # PII-stripped resume text (REQ-FR-013, AD-004, batch 2.12). Index creation
+    # (HNSW/IVFFlat) is deferred until >10K rows per AD-004.
+    resume_embedding = VectorField(dimensions=384, null=True, blank=True)
 
     # Paid discovery only (REQ-FR-053, D3). See the class docstring.
     visibility_tier = models.CharField(

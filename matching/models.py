@@ -6,12 +6,10 @@ because Complete Doc §C.4 assigns all three to `matching/models.py`, and becaus
 the ranking service that reads them is in this app. `ai/` still holds no models
 of its own and `AuditLogEntry` lives in `core/` (Complete Doc §4.2).
 
-Two deliberate departures from the DDL, both narrow:
+Two notes on the DDL mapping:
 
-* **`jobs.description_embedding VECTOR(384)` is absent.** Batch 2.12 owns the
-  pgvector columns *and* the extension migration. Adding the column first would
-  make every test run depend on an extension the test database has not created,
-  which is the same deferral `candidates.models.CandidateResume` documents.
+* **`jobs.description_embedding VECTOR(384)` is added in batch 2.12** alongside
+  the `vector` extension migration.
 * **Nullable text columns are `blank=True` without `null=True`** (`location`,
   `screening_error`, `not_matched_reason`, ...). The DDL permits either; the
   repository precedent (`CandidateProfile.title`) is that an empty string is the
@@ -33,6 +31,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from pgvector.django import VectorField
 
 from core.geo import COUNTRIES, country_name
 
@@ -122,6 +121,11 @@ class Job(models.Model):
     # Which model produced the scores on this job's applications. Nullable in the
     # DDL and blank here, because a job is created before anything is screened.
     ai_model_used = models.CharField(max_length=100, blank=True)
+
+    # 384-dim sentence-transformers (all-MiniLM-L6-v2) embedding of the
+    # job posting text (REQ-FR-013, AD-004, batch 2.12). Index creation
+    # (HNSW/IVFFlat) is deferred until >10K rows per AD-004.
+    description_embedding = VectorField(dimensions=384, null=True, blank=True)
 
     # Nullable: no estimate has been made yet (batch 2.31 owns the estimator).
     cost_estimate = models.DecimalField(

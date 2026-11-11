@@ -1,0 +1,80 @@
+{
+  "version": "1.0.2",
+  "directory": "tests/bias/v1.0.2",
+  "created": "2026-11-11",
+  "owner": "Ishrak Hossain",
+  "status": "D4 PROXY CATEGORIES ADDED AND MEASURED 2026-11-11. v1.0.2 adds categories 14-18 (institution_name, employer_name, age_revealing_date, photo_reference, url_or_link) per REQ-FR-057 / Arch Doc 7.4.3, 20 must-flag cases and 5 proxy_near_miss guards. v1.0.1 terms and numeric rules are unchanged; 20 phrase terms are added in 5 new groups.",
+  "keyword_list_sha": "3269ea1449ad8180c681758734408b9a2cf0896dc62abe82378ddf718f85c39d",
+  "keyword_list_sha_note": "SHA-256 of keyword_terms.json as committed. If the term list changes and this does not, the set is stale and the checker fails. Regenerate with scripts/verify_bias_set.py.",
+  "case_count": 128,
+  "must_flag_count": 95,
+  "must_not_flag_count": 33,
+  "files": {
+    "keyword_terms.json": "62 v1.0.1 terms unchanged plus 20 D4 proxy terms in 5 groups; 5 numeric rules unchanged",
+    "proxy_cases.jsonl": "85 must_flag cases, categories 1-7, 11-12 and 14-18",
+    "negative_cases.jsonl": "33 must_not_flag cases, categories 9-10, 13 and proxy_near_miss",
+    "rationale_cases.jsonl": "10 must_flag cases, category 8 (unchanged)"
+  },
+  "category_counts": {
+    "age_reference": 8,
+    "age_revealing_date": 4,
+    "disability_health": 4,
+    "employer_name": 4,
+    "family_status": 6,
+    "gendered_club_role": 12,
+    "graduation_year_proximity": 8,
+    "institution_gender_signal": 8,
+    "institution_name": 4,
+    "legitimate_skill_match": 12,
+    "nationality_origin_proxy": 6,
+    "necessary_context": 6,
+    "numeric_age": 9,
+    "numeric_near_miss": 10,
+    "photo_appearance": 4,
+    "photo_reference": 4,
+    "proxy_near_miss": 5,
+    "uncited_vague_rationale": 10,
+    "url_or_link": 4
+  },
+  "synthetic": true,
+  "synthetic_note": "Every case is invented. Institution and role names are real organisations; no individual, employer or real resume is represented. Amazon-style cases reproduce the SHAPE of the 2018 proxy pattern with invented wording, recording the derivation in each case's source_pattern. No third-party text is reproduced here.",
+  "pass_criteria": {
+    "recall_must_flag": 1.0,
+    "false_positives_must_not_flag": 0,
+    "flag_rate_band_categories_1_to_8": [
+      0.6,
+      0.95
+    ],
+    "llm_pass_gated": false,
+    "llm_pass_note": "The LLM bias pass is advisory and is not asserted in CI. An advisory signal is allowed to be wrong; gating CI on it makes the suite flaky and invites disabling it.",
+    "flag_rate_band_scope": "all 128 cases"
+  },
+  "measured": {
+    "date": "2026-11-11",
+    "implementation": "ai/bias_pass.py",
+    "suite": "tests/bias/test_bias_pass.py",
+    "rules_layer": true,
+    "cases": 128,
+    "flagged": 95,
+    "must_flag": 95,
+    "must_not_flag": 33,
+    "recall_must_flag": 1.0,
+    "false_positives": 0,
+    "flag_rate_overall": 0.7422,
+    "caveat": "Recall of 1.0 on terms authored alongside the cases is close to tautological. The informative figures are zero false positives across the must-not-flag cases (including 5 new proxy near-misses) and the overall flag rate inside [0.60, 0.95]. A fixture result only: not evidence about real candidates or the ranking model.",
+    "how_to_verify": "python3 -m pytest tests/bias/test_bias_pass.py -v"
+  },
+  "does_not_support": [
+    "any disparity statistic",
+    "any claim that the product is bias-free or unbiased",
+    "any conclusion about the embedding model or the ranking function",
+    "any conclusion about Bengali-language resumes -- see LIM-003, there are no Bengali terms at all",
+    "any statement that the bias pass generalises beyond these 76 cases"
+  ],
+  "rules_layer": true,
+  "parameterisation": {
+    "reference_year": 2026,
+    "graduation_window_years": 3,
+    "note": "graduation_year only fires when the year is within the window of the reference year AND an education keyword sits within 24 characters. Without the keyword, a bare four-digit year is a phone number or a budget. Without the window, every resume would flag, since every resume has a graduation year. Both are asserted by NUMF-009 and the must-not-flag cases."
+  }
+}

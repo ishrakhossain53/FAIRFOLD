@@ -67,6 +67,7 @@ from matching.services import (
     JobNotOpen,
     apply_to_job,
 )
+from matching.tasks import has_job_embedding_field_changed, queue_embed_job
 
 # One sentence for both "you have not onboarded yet" and "the row is gone".
 # A 404 here does not enumerate anything: the only row it could describe is the
@@ -399,6 +400,8 @@ class JobDetailView(APIView):
                     job=job,
                     details={"changed": changed},
                 )
+                if has_job_embedding_field_changed(changed):
+                    transaction.on_commit(lambda jid=str(job.pk): queue_embed_job(jid))
 
         return Response(JobSerializer(job).data)
 
