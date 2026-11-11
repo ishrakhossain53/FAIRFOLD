@@ -35,7 +35,7 @@
 | Document | Role | Covers |
 |---|---|---|
 | [FAIRFOLD_Complete_Project_Document.md](FAIRFOLD_Complete_Project_Document.md) | **Canonical** | Product vision, market & competitor analysis, AI strategy, security architecture, implementation roadmap |
-| [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 63 functional & 50 non-functional requirements, 32-table database schema, CI/CD, operations, risk register |
+| [FAIRFOLD_Project_Architecture_and_Requirements.md](FAIRFOLD_Project_Architecture_and_Requirements.md) | **Canonical** | System architecture, 63 functional & 50 non-functional requirements, 33-table database schema, CI/CD, operations, risk register |
 | [prd.md](prd.md) | **Canonical** | Product requirements — objectives, success metrics, FRs with phases, AI requirements, data model, API surface, pricing, release criteria, open questions |
 | [FAIRFOLD_Feasibility_and_Design.md](FAIRFOLD_Feasibility_and_Design.md) | Supplement | Feasibility study (technical, economic, operational, schedule, legal), user stories, UML diagrams, Gantt, data dictionary, accessibility |
 | [design.md](design.md) | Supplement | UI design specification — colour tokens & 16 verified contrast ratios, typography, 7.13–7.21 product components, 78 page specs, **64 wireframes covering all 78 pages**, frontend build tooling, implementation notes |

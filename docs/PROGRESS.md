@@ -10,8 +10,8 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 
 - [x] 0.1 Reconcile repo state against HISTORY.md . 2026-10-19: verified against the real repo on branch `0.0-ready-to-began`; 3 models + 2 migrations confirmed (`manage.py check` clean, no migration drift), **115/115 tests pass** with `DEBUG` unset, endpoints probed (see docs/AUDIT.md)
 - [x] 0.2 Baseline run (Docker, tests, lint, docs checks) . 2026-10-19: `docker compose up -d --wait`, `manage.py check`, `pytest tests/ -v`, docs checks, and endpoint probes all succeeded; 115/115 tests passed, with only the documented pre-existing formatter/Bandit compatibility warnings
-- [ ] 0.3 Requirements traceability table (pending my test output)
-- [ ] 0.4 Propose decisions D-1 to D-8 (no code)
+- [x] 0.3 Requirements traceability table . 2026-11-11: docs/TRACEABILITY.md lists all 63 REQ-FR, each with a status and an evidence path (verified 63 rows, 63 distinct ids)
+- [x] 0.4 Propose decisions D-1 to D-13 (no code) . 2026-11-11: docs/DECISIONS.md holds proposals D-1 to D-13
 - [ ] 0.5 Apply the accepted decisions to specs and settings (pending my test output)
 
 ## Phase 1: Core recruitment platform (no AI)
@@ -95,10 +95,10 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [ ] 2.23 Outbound PII gate
 - [ ] 2.24 Rationale schema and validation
 - [ ] 2.25 Rationale generation for one application
-- [ ] 2.26 Integrate the bias audit (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
-- [ ] 2.27 Store rationale with audit entry (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
-- [ ] 2.28 Evidence traceability tests (code + tests landed 2026-10-22; citation validator at 100% line coverage; awaiting your test output)
-- [ ] 2.29 Rationale detail UI (page #41 rationale column built 2026-10-22; evidence, missing skills, bias status, AI mark, error/empty states; awaiting your test output)
+- [~] 2.26 Integrate the bias audit (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
+- [~] 2.27 Store rationale with audit entry (code + tests landed 2026-10-22; my run: 950 passed, 4 skipped; awaiting your test output)
+- [~] 2.28 Evidence traceability tests (code + tests landed 2026-10-22; citation validator at 100% line coverage; awaiting your test output)
+- [~] 2.29 Rationale detail UI (page #41 rationale column built 2026-10-22; evidence, missing skills, bias status, AI mark, error/empty states; awaiting your test output)
 - [ ] 2.30 Decide where screening-run state lives (spec first)
 - [ ] 2.31 Server-side cost estimator
 - [ ] 2.32 Preflight and explicit confirmation
