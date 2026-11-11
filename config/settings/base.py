@@ -710,6 +710,9 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
         "django.db.backends": {"level": "WARNING", "propagate": True},
+        # pdfminer logs every parsed PDF token at DEBUG, which would dump raw
+        # un-redacted resume text into logs whenever root logging is DEBUG.
+        "pdfminer": {"level": "WARNING", "propagate": False},
         # Anonymised payloads must never reach the log: the whole screening
         # design depends on the employer not seeing them.
         "ai": {"level": LOG_LEVEL, "propagate": True},

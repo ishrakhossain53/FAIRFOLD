@@ -56,17 +56,34 @@ NUMERIC_TARGETS = {
 #: Versions that predate the numeric layer and therefore lack 11-13.
 VERSIONS_WITHOUT_NUMERIC = {"v1.0.0"}
 
+# Categories 14-18 plus their guard category, added in v1.0.2 for the D4
+# expanded proxy stripping (REQ-FR-057, Arch Doc 7.4.3).
+D4_PROXY_TARGETS = {
+    "institution_name": 4,
+    "employer_name": 4,
+    "age_revealing_date": 4,
+    "photo_reference": 4,
+    "url_or_link": 4,
+    "proxy_near_miss": 5,
+}
+
+#: Versions that predate the D4 proxy categories.
+VERSIONS_WITHOUT_D4_PROXIES = {"v1.0.0", "v1.0.1"}
+
 MUST_NOT_FLAG_CATEGORIES = {
     "legitimate_skill_match",
     "necessary_context",
     "numeric_near_miss",
+    "proxy_near_miss",
 }
 
 
 def targets_for(version: str) -> dict[str, int]:
     if version in VERSIONS_WITHOUT_NUMERIC:
         return dict(BASE_TARGETS)
-    return {**BASE_TARGETS, **NUMERIC_TARGETS}
+    if version in VERSIONS_WITHOUT_D4_PROXIES:
+        return {**BASE_TARGETS, **NUMERIC_TARGETS}
+    return {**BASE_TARGETS, **NUMERIC_TARGETS, **D4_PROXY_TARGETS}
 
 
 def normalise(text: str) -> str:

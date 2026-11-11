@@ -5463,3 +5463,77 @@ provider tables, the Phase 2 batch specs, the README and the env templates now n
 
 The `AIProvider` abstraction, the offline fallback and every AI call site are unchanged: no
 provider client exists yet (batch 2.21), so this is configuration and documentation only.
+
+### Batch 2.6: PII test dataset and accuracy harness (2026-11-11)
+
+- Added versioned synthetic PII evaluation dataset under `tests/pii/v1.0.0/` (`resumes.jsonl`, `manifest.json`) and `tests/pii/CHANGELOG.md`: 20 fictional resumes with 229 labelled PII spans across all 10 categories (`name`: 22, `email`: 20, `phone`: 20, `address`: 40, `national_id`: 18, `age_date`: 33, `url`: 21, `photo`: 11, `employer`: 21, `institution`: 23) and 134 `keep_spans` (role titles, degree levels/fields, skills, experience durations).
+- Added `tests/pii/harness.py` (`evaluate_stripper`, `trivial_baseline`, per-category recall, overall recall, precision, keep-set survival) and `tests/pii/test_pii_harness.py` (6 tests).
+- Added `scripts/verify_pii_set.py` and wired it into `.github/workflows/ci-cd.yml`.
+- Commands run: `pytest tests/pii/test_pii_harness.py -v` -> 6 passed; `manage.py check` -> 0 issues; `scripts/verify_pii_set.py` -> exit 0; `scripts/verify_docs.py` -> exit 0. Trivial baseline measured at recall 0.0000 (0/229), precision 0.0000, keep-set survival 1.0000 (134/134).
+- Known limitations: stripping pipeline not yet implemented (batches 2.7–2.8).
+
+### Batch 2.7: Deterministic PII redaction (2026-11-11)
+
+- Added `ai/pii.py` `redact_deterministic(text, *, known_name="", known_location="", profile=None) -> RedactionResult` with regex patterns for emails (`[CANDIDATE_EMAIL]`), Bangladeshi (`+880`/`01[3-9]`) and international (`+1`/`+44`) phone numbers (`[CANDIDATE_PHONE]`), URLs and profile links (`[URL]`), 10/13/17-digit NIDs and passport numbers (`[NATIONAL_ID]`), dates of birth (`[DATE]`), structured postal addresses (`[CANDIDATE_LOCATION]`), and known candidate profile name/location.
+- Added `tests/pii/test_deterministic_redaction.py` (29 unit and harness tests).
+- Commands run: `pytest tests/pii/ -v` -> 35 passed (29 in `test_deterministic_redaction.py` + 6 in `test_pii_harness.py`); `manage.py check` -> 0 issues. Harness measurements on `tests/pii/v1.0.0` (20 resumes, 229 PII spans, 134 keep spans): deterministic categories (`email`, `phone`, `address`, `national_id`, `url`) recall 1.0000 (119/119); overall recall 0.6681 (153/229); precision 1.0000 (153/153, 0 keep-set false positives); keep-set survival 1.0000 (134/134).
+- Known limitations: unseeded person names (referees), institutions, employer names, explicit ages/graduation years, and photo references are handled by the NER and proxy stripping layer in batch 2.8.
+
+### Dependency fix: kombu 5.7 needs redis-py >= 6.1 (2026-11-11)
+
+Every endpoint that queued a Celery task crashed with `kombu.exceptions.VersionMismatch:
+Redis transport requires redis-py versions 6.1.0 or later. You have 5.0.3` (first seen on
+`POST /jobs/<uuid>/apply/`, raised from `transaction.on_commit` in
+`notifications.services.notify`). The Celery worker was in the same crash loop and never
+started.
+
+Root cause was dependency drift, not application code: `celery==5.4.0` allows
+`kombu<6.0`, so a fresh image resolved `kombu 5.7.0`, whose Redis transport enforces
+redis-py >= 6.1 at runtime. `requirements.txt` still pinned `redis==5.0.3` (the version
+celery 5.4's own `redis` extra, written before kombu 5.7, still advertises).
+
+- `requirements.txt`: `redis==5.0.3` -> `redis==6.4.0` (the floor kombu 5.7 declares) and
+  pinned `kombu==5.7.0` so the tested pair cannot drift again.
+- No application code changed. Tests mock `.delay`, which is why the suite never opened a
+  broker connection and missed this.
+- Rebuilt `django`, `celery` and `celery-beat`; host `.venv` updated to the same two
+  versions.
+
+Commands and results:
+
+- `pip list` in the image -> `celery 5.4.0`, `kombu 5.7.0`, `redis 6.4.0`.
+- Django `cache.set`/`get` against Redis -> round-trip `ok`; kombu `Connection` ->
+  connected, channel opened; real `send_task` -> task id returned, worker logged
+  `Task notifications.tasks.send_notification_email[...] succeeded`.
+- `docker compose ps` -> `celery` and `celery-beat` `Up`, no restarts; worker log shows
+  `celery@... ready.`
+- `pytest tests/matching/test_apply_api.py tests/notifications/ tests/core/test_phase1_end_to_end.py -q`
+  -> 88 passed (rerun after updating the host venv).
+- `manage.py check` -> no issues; `makemigrations --check --dry-run` -> "No changes detected";
+  `GET /health/` -> 200; job detail page -> 200.
+
+Known limitation: no test opens a real broker connection (the suite deliberately patches
+`.delay`), so a future incompatible dependency bump would only be caught by the image
+smoke test above, not by pytest.
+
+### Batch 2.8: NER and proxy stripping (2026-11-11)
+
+- Added `ai/pii.py` `strip_pii(...) -> RedactionResult` and `get_nlp()` (lazy-loading `en_core_web_sm` once per process with `disable=["parser", "lemmatizer"]` and no network calls).
+- Layered proxy and NER stripping on top of `redact_deterministic`: photo references (`[PHOTO]`), explicit ages (`[DATE]`), graduation/cohort years and calendar date ranges converted to relative durations (`[DATE] (N years ago)` / `[DATE] (N years)`), educational institutions (`[INSTITUTION]`), corporate and contextual employer names (`[EMPLOYER]`), referee person names (`[CANDIDATE_NAME]`), and residual spaCy NER `PERSON`/`ORG`/`GPE`/`LOC` entities guarded by the keep-set vocabulary (`core/fixtures/skills.json` + degree fields and role titles).
+- Recorded measured `strip_pii` accuracy in `tests/pii/v1.0.0/manifest.json` and `tests/pii/CHANGELOG.md`, and added `tests/pii/test_ner_proxy_stripping.py` (31 tests).
+- Commands run: `pytest tests/pii/ -v` -> 66 passed (31 in `test_ner_proxy_stripping.py`, 29 in `test_deterministic_redaction.py`, 6 in `test_pii_harness.py`); `scripts/verify_pii_set.py` -> exit 0; `manage.py check` -> 0 issues. Measured on `tests/pii/v1.0.0`: overall recall 1.0000 (229/229, exceeding the 0.95 gate), precision 1.0000, keep-set survival 1.0000 (134/134).
+- Known limitations: `process_resume` in `candidates/tasks.py` does not yet persist `extracted_text` or write the stripping `AuditLogEntry` (batch 2.9).
+
+### Batch 2.9: Persist sanitised text and audit the strip (2026-11-11)
+
+- Updated `process_resume` in `candidates/tasks.py` to run `ai.pii.strip_pii` on the extracted raw text in memory (seeded with the candidate's `first_name`/`last_name` and `CandidateProfile.location`), persist only the sanitised text in `CandidateResume.extracted_text` alongside `raw_text_hash`, transition the resume to `extracted`, and write one append-only `AuditLogEntry` (`action="resume.pii_stripped"`, `resource_type="candidate_resume"`, `details={"counts": ..., "total_redactions": ..., "raw_text_hash": ...}`) inside `transaction.atomic()`.
+- Silenced `pdfminer` token-level `DEBUG` logging (`logging.getLogger("pdfminer").setLevel(logging.WARNING)` in `candidates/extraction.py` and `"pdfminer": {"level": "WARNING", "propagate": False}` in `config/settings/base.py`) after the planted-PII test caught `pdfminer.psparser`/`pdfminer.pdfinterp` emitting raw PDF tokens at `DEBUG`.
+- Updated `tests/candidates/test_resume_process_api.py` with `test_success_persists_sanitised_text_and_writes_audit_entry` and `test_planted_pii_markers_never_appear_in_db_logs_audit_or_task_result`.
+- Commands run: `pytest --ds=config.settings.ci tests/candidates/test_resume_process_api.py -v` -> 22 passed; `manage.py check` -> 0 issues; `manage.py makemigrations --check --dry-run` -> "No changes detected".
+- Known limitations: outbound PII gate before external AI calls is batch 2.23.
+
+### Batch 2.10: Bias test set v1.0.2 — D4 proxy cases (2026-11-11)
+
+- Added `tests/bias/v1.0.2/`: v1.0.1 content unchanged plus 20 phrase terms in 5 new groups, 20 must-flag cases (`institution_name`, `employer_name`, `age_revealing_date`, `photo_reference`, `url_or_link`, 4 each) and 5 `proxy_near_miss` guard cases. The manifest SHA and measured block come from a live run.
+- `scripts/verify_bias_set.py`: added `D4_PROXY_TARGETS`, `VERSIONS_WITHOUT_D4_PROXIES`, and `proxy_near_miss` in `MUST_NOT_FLAG_CATEGORIES`. `tests/bias/test_bias_pass.py`: now points at v1.0.2 and has a new D4 category assertion. `tests/bias/CHANGELOG.md`: added the v1.0.2 entry.
+- Commands run: `scripts/verify_bias_set.py` -> all 3 versions consistent; `pytest tests/bias/` -> passed. Measured 95/128 flagged, recall 1.0, 0 false positives, flag rate 0.7422.

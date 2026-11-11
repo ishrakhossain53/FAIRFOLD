@@ -7,6 +7,32 @@ Format follows the spec in `FAIRFOLD_Project_Architecture_and_Requirements.md` �
 
 ---
 
+## v1.0.2 — 2026-11-11 — D4 proxy categories (REQ-FR-057)
+
+Adds categories 14–18 planned in Arch Doc §7.4.3. v1.0.0 and v1.0.1 are untouched.
+
+| | v1.0.1 | v1.0.2 |
+|---|---|---|
+| Cases | 103 | **128** (+25) |
+| Categories | 13 | **19** (5 D4 proxy + `proxy_near_miss`) |
+| Phrase terms | 62 | **82** (62 unchanged + 20 in 5 new groups) |
+| Numeric rules | 5 | 5 — unchanged |
+| Must-flag / must-not-flag | 75 / 28 | 95 / 33 |
+| Measured | recall 1.0 · 0 FP · rate 0.7282 | recall **1.0** · **0 FP** · rate **0.7422** |
+
+New must-flag categories, 4 cases each: `institution_name`, `employer_name`,
+`age_revealing_date`, `photo_reference`, `url_or_link`. The new must-not-flag category
+`proxy_near_miss` has 5 cases (URL shortener, company website, photo-upload
+engineering, an unnamed telecom client, generic "university interns"). These show that
+the new terms do not fire on ordinary professional text. `scripts/verify_bias_set.py`
+checks the counts through `D4_PROXY_TARGETS` / `VERSIONS_WITHOUT_D4_PROXIES`.
+
+Same caveat as before: recall on terms written alongside their cases proves very little.
+The figures that carry information are the zero false positives and the flag rate
+staying inside [0.60, 0.95].
+
+---
+
 ## v1.0.1 — 2026-10-03 — the numeric rule layer
 
 **Closes `LIM-001` (no numeric age) and `LIM-002` (no graduation-year proximity) by fix.**

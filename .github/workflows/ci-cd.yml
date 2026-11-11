@@ -236,6 +236,12 @@ jobs:
         # not here.
         run: python3 scripts/verify_bias_set.py
 
+      - name: PII test set consistency check
+        # Validates every versioned PII evaluation set under tests/pii/:
+        # unique case IDs, verbatim PII and keep-set spans, no overlap between
+        # PII and keep spans, and manifest SHA + category counts.
+        run: python3 scripts/verify_pii_set.py
+
       # ------------------------------------------------------------------------
       # Django
       # ------------------------------------------------------------------------

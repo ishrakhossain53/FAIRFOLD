@@ -75,11 +75,11 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [x] 2.3 Extraction edge cases (2026-11-11, seven failure codes each with a user-safe message and one test; fixtures in tests/fixtures/resumes/)
 - [x] 2.4 Process endpoint and Celery task (2026-11-11, `POST /api/v1/candidates/resumes/{id}/process/` + `process_resume`; 21 passed in tests/candidates/test_resume_process_api.py; raw text never persisted)
 - [x] 2.5 Extraction status UI (2026-11-11, page #17 status labels, per-code failure messages, "Check resume"/"Try again" trigger; tests/candidates/test_resume_ui.py)
-- [ ] 2.6 PII test dataset and accuracy harness
-- [ ] 2.7 Deterministic PII redaction
-- [ ] 2.8 NER and proxy stripping
-- [ ] 2.9 Persist sanitised text and audit the strip
-- [ ] 2.10 Bias test set v1.0.2 (proxy cases)
+- [x] 2.6 PII test dataset and accuracy harness (2026-11-11, `tests/pii/v1.0.0/` 20 synthetic resumes / 229 PII spans / 134 keep spans, `tests/pii/harness.py`, `scripts/verify_pii_set.py` + CI step; 6 passed in tests/pii/test_pii_harness.py, trivial baseline 0.0 recall / 1.0 keep survival)
+- [x] 2.7 Deterministic PII redaction (2026-11-11, `ai/pii.py` `redact_deterministic`; 29 passed in tests/pii/test_deterministic_redaction.py, 1.0000 recall on deterministic categories [119/119], 0.6681 overall [153/229], 1.0000 precision & keep survival [134/134])
+- [x] 2.8 NER and proxy stripping (2026-11-11, `ai/pii.py` `strip_pii` + `get_nlp`; 66 passed in tests/pii/, 1.0000 recall [229/229 >= 0.95 gate], 1.0000 precision & keep survival [134/134] on `tests/pii/v1.0.0`)
+- [x] 2.9 Persist sanitised text and audit the strip (2026-11-11, `candidates/tasks.py` `process_resume` persists PII-stripped `extracted_text` + `raw_text_hash` and writes `resume.pii_stripped` `AuditLogEntry` with category counts; `pdfminer` DEBUG token logger silenced; 22 passed in tests/candidates/test_resume_process_api.py including planted-PII leak test)
+- [x] 2.10 Bias test set v1.0.2 (proxy cases) (2026-11-11, `tests/bias/v1.0.2/` 128 cases, 5 D4 categories + 5 `proxy_near_miss` guards; recall 1.0, 0 FP, flag rate 0.7422; `verify_bias_set.py` all 3 versions consistent; tests/bias/ passed)
 - [ ] 2.11 Embedding service
 - [ ] 2.12 pgvector columns and migration
 - [ ] 2.13 Resume embedding task
