@@ -77,7 +77,7 @@ def test_content_security_policy_is_self_hosted(path, production_like):
     assert "script-src 'self' 'unsafe-inline'" in policy
     # The templates serve Tailwind and htmx from /static/. A CDN source here
     # would let an injected script load from a host nobody reviewed.
-    for third_party in ("cdn.tailwindcss.com", "cdn.jsdelivr.net", "openrouter.ai"):
+    for third_party in ("cdn.tailwindcss.com", "cdn.jsdelivr.net", "api.deepseek.com"):
         assert third_party not in policy
 
 

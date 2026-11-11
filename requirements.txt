@@ -43,7 +43,7 @@ django-redis==5.4.0    # Redis cache backend — REQUIRED: Arch Doc §5.4 / Comp
 psycopg2-binary>=2.9.9
 pgvector>=0.2.0  # pgvector.django VectorField
 
-openai>=1.40.2  # OpenRouter SDK (OpenAI-compatible)
+openai>=1.40.2  # DeepSeek SDK (OpenAI-compatible)
 
 sentence-transformers>=3.0.1  # offline embeddings
 # CPU-ONLY build. The default PyPI wheel for linux/x86_64 bundles CUDA and pulls

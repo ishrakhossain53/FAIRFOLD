@@ -125,7 +125,7 @@ def screen_application(
         score: `match_score`, an integer 0-100 from the ranking/scoring step.
         payload: the generated rationale, as a mapping or JSON text.
         source_text: the **sanitised** resume text the rationale cites.
-        model_used: provider model identifier, e.g. `"deepseek/deepseek-chat"`.
+        model_used: provider model identifier, e.g. `"deepseek-v4.1-flash"`.
         actor: the user who triggered the run, or `None` for an automatic task.
             A null actor records "this was automatic", which is not the same as
             "nobody did this".

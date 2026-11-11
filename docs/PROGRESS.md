@@ -90,7 +90,7 @@ Other places to update after each batch: `docs/TRACEABILITY.md` (requirement sta
 - [ ] 2.18 Reviewable not_matched candidates
 - [ ] 2.19 Ranked applications API
 - [ ] 2.20 Ranked results UI
-- [ ] 2.21 AIProvider abstraction and OpenRouter client
+- [ ] 2.21 AIProvider abstraction and DeepSeek client
 - [ ] 2.22 Offline fallback and provider-error handling
 - [ ] 2.23 Outbound PII gate
 - [ ] 2.24 Rationale schema and validation

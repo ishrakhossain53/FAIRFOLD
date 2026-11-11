@@ -21,7 +21,7 @@ from matching.models import Application, Job
 
 pytestmark = pytest.mark.django_db
 
-MODEL = "deepseek/deepseek-chat"
+MODEL = "deepseek-v4.1-flash"
 CANDIDATE_EMAIL = "secret-candidate@example.com"
 CANDIDATE_TITLE = "Staff Platform Engineer at a named startup"
 

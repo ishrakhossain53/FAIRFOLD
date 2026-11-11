@@ -53,7 +53,7 @@ auditable** — by employers *and* candidates:
   numbers never reach a model provider
 - **Gives candidates control** over their professional narrative via AI-Powered Journey Mapping
 - **Enables explainable AI** - candidates and recruiters see why matches were scored
-- **Runs on free-tier AI** (OpenRouter's free models)
+- **Runs on low-cost hosted AI** (DeepSeek V4.1 Flash, with an offline fallback)
 
 ## Quick Start — local setup from a fresh clone
 
@@ -98,9 +98,10 @@ the application refuses to start with either one missing, so this step is not op
   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/w" -w /w python:3.12-slim \
     python scripts/generate_secret_key.py --write-env
   ```
-- **Optional — AI features.** Set `OPENROUTER_API_KEY` in `.env` to use real models. Left
-  empty, the app falls back to `OfflineFallbackProvider`, which returns deterministic
-  non-AI responses, so every page still renders.
+- **Optional — AI features.** Set `DEEPSEEK_API_KEY` in `.env` to use real models
+  (DeepSeek V4.1 Flash, `deepseek-v4.1-flash`). Left empty, the app falls back to
+  `OfflineFallbackProvider`, which returns deterministic non-AI responses, so every page
+  still renders.
 - **Optional — error tracking.** `SENTRY_DSN` may stay empty locally. Only
   `config.settings.production` requires it.
 
@@ -311,7 +312,7 @@ scripts/
 
 6. **AI Matching Engine** *(Complete Project Doc: §9 Phase 2, §6 AI Strategy, §6.5 pgvector | Architecture Doc: §3.4 Technology Stack, §5.1 schema + HNSW indexes)*
    - pgvector-based similarity matching
-   - OpenRouter integration
+   - DeepSeek API integration
 
 7. **Security Hardening** *(Complete Project Doc: §9 Phase 4, §5 Security Architecture | Architecture Doc: §4.2 Non-Functional Requirements → Security, §8 Operations)*
    - Field-level encryption
@@ -342,7 +343,7 @@ scripts/
 | Backend | Django 5.2+ LTS + DRF | Production-proven, batteries-included, current LTS |
 | Frontend | Django Templates + HTMX | Faster MVP, single framework |
 | Database | PostgreSQL 17 + pgvector | Semantic matching, JSON support |
-| AI | OpenRouter free tier | $0 cost for developers |
+| AI | DeepSeek API (`deepseek-v4.1-flash`) | Low usage-based cost; offline fallback |
 | Background | Celery + Redis | Async processing |
 | Deployment | Docker Compose | Simple, reproducible |
 
@@ -438,7 +439,7 @@ docker compose exec django python manage.py shell
 
 ## Key Architecture Decisions
 
-1. **Free-tier AI:** Uses OpenRouter's free models to minimize costs
+1. **Hosted AI with an offline fallback:** Uses DeepSeek V4.1 Flash to keep costs low and falls back to deterministic offline responses
 2. **PII Privacy:** Text is anonymized before any AI processing
 3. **pgvector Matching:** Semantic similarity computed offline, no API costs
 4. **Monolith First:** Single Django app; can split into services later

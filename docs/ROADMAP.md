@@ -169,7 +169,7 @@ Privacy-first resume processing, reproducible ranking, evidence-cited rationales
 | 2.18 | Reviewable not_matched candidates | backend+tests |
 | 2.19 | Ranked applications API | backend+tests |
 | 2.20 | Ranked results UI | ui |
-| 2.21 | AIProvider abstraction and OpenRouter client | backend+tests |
+| 2.21 | AIProvider abstraction and DeepSeek client | backend+tests |
 | 2.22 | Offline fallback and provider-error handling | backend+tests |
 | 2.23 | Outbound PII gate | backend+tests |
 | 2.24 | Rationale schema and validation | backend+tests |

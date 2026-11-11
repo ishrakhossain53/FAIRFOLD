@@ -76,7 +76,7 @@ The platform has two distinct portals:
 
 1. **AI-Powered Professional Journey Mapping** — dynamic career timelines showing skill evolution over time, impact visualization, learning trajectory, dynamic storytelling per application. Zero competitor has this.
 2. **Bias-free + explainable AI** — CandiSift has a bias-audit endpoint; we combine this with full audit trails AND make it candidate-visible (candidates see why they were ranked the way they were)
-3. **Free-tier AI for screening** — every open-source project above uses paid Claude/Gemini/OpenAI. We use OpenRouter free tier + fallback patterns.
+3. **Low-cost AI for screening** — every open-source project above uses paid Claude/Gemini/OpenAI. We use the DeepSeek API plus offline fallback patterns.
 4. **Freemium candidate access** — enterprise tools are all recruiter-side. We put powerful tools (skill assessments, interview coaching, journey mapping) in the candidate's hands for free/cheap.
 
 ---
@@ -127,7 +127,7 @@ incumbents are least able to follow. In these markets:
 - Companies still use manual hiring (spreadsheets, email)
 - LinkedIn penetration is lower
 - Eightfold/HireVue are effectively inaccessible (price + implementation)
-- A lightweight, self-hostable, free-tier-AI platform is a plausible wedge
+- A lightweight, self-hostable, low-cost-AI platform is a plausible wedge
 
 ⚠️ **This is an assumption, not a finding** — `RSK-008` records that the Bangladesh market
 may not convert, and nothing in the requirement-collection work (§1.3) has validated it
@@ -173,7 +173,7 @@ The original proposal included Rust/Actix for "high-performance components." Aft
 │  AI Service  │ │  Matching  │ │  Assessment     │
 │  (Celery     │ │  Engine    │ │  Service        │
 │   workers)   │ │  (pgvector │ │  (skill tests,  │
-│  OpenRouter  │ │   cosine   │ │  coding chal-   │
+│  DeepSeek    │ │   cosine   │ │  coding chal-   │
 │  + free      │ │   similarity)│ │  lenges via    │
 │  models)     │ │            │ │  sandbox)       │
 └──────────────┘ └────────────┘ └─────────────────┘
@@ -219,7 +219,7 @@ fairfold/                   # repository root
 ├── notifications/          # Email, in-app notifications
 ├── api/                    # DRF API root, versioning
 ├── journey/                # AI-Powered Professional Journey Mapping (MVP feature)
-├── ai/                     # AI provider abstraction (OpenRouter + fallback)
+├── ai/                     # AI provider abstraction (DeepSeek + fallback)
 ├── templates/              # Django templates (base.html, components/, public/, candidate/, employer/, admin/)
 ├── static/                 # css/tokens.css, css/tailwind.src.css, css/tailwind.css (built), js/
 ├── tests/                  # pytest root — NOT per-app tests.py (see pyproject.toml)
@@ -321,7 +321,7 @@ This section is the most critical addition to the original document. Recruitment
 |---|---|
 | **All HTTP** | HTTPS only (TLS 1.3 minimum). HSTS with 1-year max-age, includeSubDomains, preload. |
 | **Internal service communication** | All inter-service calls (Celery → Redis, Django → PostgreSQL) over local socket or TLS-encrypted connections. Redis with TLS. PostgreSQL with `sslmode=require`. |
-| **AI API calls (OpenRouter)** | HTTPS to OpenRouter API. Request payloads contain NO raw PII — PII stripped before reaching AI layer. |
+| **AI API calls (DeepSeek)** | HTTPS to the DeepSeek API. Request payloads contain NO raw PII — PII stripped before reaching AI layer. |
 | **File uploads** | Direct upload to S3 via presigned URLs (browser → S3, not browser → Django → S3). Django receives only the S3 key. This avoids buffering large files through Django. |
 
 ### 5.4 AI Privacy Layer (Critical — Unique to FairFold)
@@ -348,8 +348,8 @@ Candidate submits resume PDF
          │
          ▼
 ┌─────────────────────┐
-│  AI Processing      │   ← OpenRouter free models score/anonymized content
-│  (OpenRouter API)   │      No PII reaches the AI provider
+│  AI Processing      │   ← DeepSeek models score/anonymized content
+│  (DeepSeek API)     │      No PII reaches the AI provider
 └────────┬────────────┘
          │
          ▼
@@ -362,7 +362,7 @@ Candidate submits resume PDF
 
 **PII stripping implementation:**
 - Phase 1 (MVP): Deterministic regex + spaCy NER (free, offline) to identify and redact name, email, phone, location, institution/employer names, age-revealing dates, URLs (per REQ-FR-011, amended 2026-10-12, see REQ-FR-057)
-- Phase 2: LLM-based PII detection as a pre-processing step (still using free OpenRouter models, but a different, cheaper model for this specific task)
+- Phase 2: LLM-based PII detection as a pre-processing step (still using DeepSeek models, but a different, cheaper model for this specific task)
 
 **Why this matters legally and competitively:**
 - GDPR Article 25 (data protection by design and default) — we implement it from day one
@@ -375,7 +375,7 @@ Candidate submits resume PDF
 |---|---|
 | **OWASP Top 10** | Django protects against: SQL injection (ORM parameterized queries), XSS (auto-escaping in templates), CSRF (middleware), clickjacking (X-Frame-Options=DENY). Remaining: we manually protect against insecure deserialization, security misconfiguration, and vulnerable components. |
 | **Input validation** | Django form/serializer validation on all inputs. DRF serializers with strict type checking. File upload: validate MIME type (python-magic, not extension), max 10MB for resumes, scan with ClamAV or similar before storage |
-| **Rate limiting** | Django Ratelimit or DRF Throttle: 100 req/hour for unauthenticated, 1000 req/hour for authenticated candidates, 5000 req/hour for employer HR. Stricter on AI endpoints (20 req/min per user — aligns with OpenRouter free tier limits). Registration and email verification use the unauthenticated rate (DRF scopes `register` and `verify_email`, batch 1.5) |
+| **Rate limiting** | Django Ratelimit or DRF Throttle: 100 req/hour for unauthenticated, 1000 req/hour for authenticated candidates, 5000 req/hour for employer HR. Stricter on AI endpoints (20 req/min per user — aligns with the provider's rate limits). Registration and email verification use the unauthenticated rate (DRF scopes `register` and `verify_email`, batch 1.5) |
 | **CSP** | Content-Security-Policy set by `config/settings/base.py` (`CONTENT_SECURITY_POLICY`) and applied by `core.middleware.ContentSecurityPolicyMiddleware`: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' <storage origin>; font-src 'self'` — self-hosted only; no CDN script host (batch 1.13). `<storage origin>` is derived by `storage_origin()` — preferring `S3_PUBLIC_ENDPOINT_URL`, then `AWS_S3_ENDPOINT_URL`, then the bucket's regional address — and is omitted when no bucket is configured: REQ-FR-010 has the browser `PUT` a resume straight to the bucket, which `connect-src 'self'` would block (batch 1.22). `'unsafe-inline'` remains until the inline scripts move to nonces |
 | **Security headers** | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=()` — camera/mic blocked by default; enabled only on specific interview pages with user consent |
 | **Dependency scanning** | `pip-audit` or `safety` in CI pipeline. Dependabot or Renovate for automated PRs on vulnerabilities. |
@@ -387,7 +387,7 @@ Candidate submits resume PDF
 |---|---|
 | **Network** | Django/Gunicorn behind Nginx. Nginx handles TLS termination. Internal services (PostgreSQL, Redis) not exposed to internet — only accessible from Django container on private Docker network. |
 | **Database** | PostgreSQL with `pg_hba.conf` restricting to Django host only. Strong DB user password (32-char random). No superuser DB access from application — dedicated Django DB user with minimal required permissions. |
-| **Celery workers** | Run on separate container(s). No direct internet access except to OpenRouter API (whitelisted egress). Result backend: Redis with authentication. |
+| **Celery workers** | Run on separate container(s). No direct internet access except to the DeepSeek API (whitelisted egress). Result backend: Redis with authentication. |
 | **Secrets management** | Production: environment variables injected via Docker secrets or cloud secret manager. No `.env` files on production servers. Development: `.env` in `.gitignore`, `.env.example` committed with placeholder values. |
 | **CI/CD** | GitHub Actions (or GitLab CI). Pipeline: lint → test → security scan (pip-audit, bandit for Python static analysis) → build Docker image → push to registry → deploy. No deployment without passing security scans. |
 | **Monitoring** | Sentry for error tracking (no PII in Sentry payloads — configure `send_default_pii=False`). Prometheus metrics: request rate, error rate, latency, Celery task duration, AI API call count/cost. Grafana dashboards. |
@@ -401,40 +401,37 @@ Candidate submits resume PDF
 
 ---
 
-## 6. AI Strategy — Free & Best-in-Class
+## 6. AI Strategy — Low-Cost & Best-in-Class
 
-### 6.1 OpenRouter as Primary AI Provider
+### 6.1 DeepSeek API as Primary AI Provider
 
-**Why OpenRouter:**
-- Single API for 300+ models across 60+ providers — swap models without code changes
-- Free tier: 20 req/min, 50 req/day free without any credit card or phone verification
-- OpenAI-compatible API — works with the `openai` Python SDK out of the box
-- `openrouter/free` router automatically selects a free model — zero cost for development and early production
-- Paid models available when you need more power: Llama 3.3 70B at $0.10/1M input, GPT-4.1 Nano at $0.10/1M, Gemma 4 26B at $0.06/1M — dramatically cheaper than Claude or GPT-4 directly
+**Why DeepSeek:**
+- Direct, OpenAI-compatible API — works with the `openai` Python SDK out of the box
+- One low-cost model, `deepseek-v4.1-flash`, for every AI task — no router or free-tier lottery
+- Server-side calls only; the browser never talks to the provider (REQ-SEC-002)
+- The offline fallback keeps the product working, at zero AI cost, when the API is unavailable
 
-**Free models available on OpenRouter (as of September 2026):**
+**Default model (as of November 2026):**
 
-| Model | Input $/1M | Output $/1M | Context | Best For |
-|---|---|---|---|---|
-| `openrouter/free` | Free | Free | 200K | General routing — use as default, falls back automatically |
-| `cohere/north-mini-code:free` | Free | Free | 131K | Code + structured tasks |
-| `google/gemma-4-26b-a4b-it:free` | Free | Free | 256K | General purpose, multilingual |
-| `nvidia/nemotron-3-nano-30b-a3b:free` | Free | Free | 262K | Large context, general |
-| `openai/gpt-oss-20b:free` | Free | Free | — | OpenAI's open model |
-| `google/gemma-3n-4b-it:free` | $0.06 | $0.12 | 8K | Lightweight, edge cases |
-| Llama 3.3 70B Instruct | $0.10 | $0.32 | 66K | High-quality general (paid, but cheap) |
+| Model | Pricing | Context | Best For |
+|---|---|---|---|
+| `deepseek-v4.1-flash` | Usage-based; read the live tariff from the provider | Provider-defined | Default; use for every AI task |
+| Offline fallback (`OfflineFallbackProvider`) | $0 | n/a | spaCy NER, sentence-transformers embeddings, template responses |
+
+Model identity, endpoint, prices and limits are configuration, not code: set `DEEPSEEK_MODEL`,
+`DEEPSEEK_BASE_URL` and the account budget in `.env`.
 
 ### 6.2 AI Task → Model Mapping
 
-| AI Task | Recommended Model (Free Tier) | Fallback | Notes |
+| AI Task | Recommended Model | Fallback | Notes |
 |---|---|---|---|
-| **Resume/JD parsing** (extract skills, experience, education from text) | `openai/gpt-oss-20b:free` or `cohere/north-mini-code:free` | spaCy NER (offline, no API cost) | Structured extraction — needs good instruction-following |
-| **Candidate-job matching** (semantic similarity score 0-100) | `google/gemma-4-26b-a4b-it:free` | pgvector cosine similarity (no AI cost — pure vector math) | First try pgvector; use LLM for nuanced qualitative match explanation |
-| **Interview question generation** (structured Q pack per role) | `openrouter/free` router | Predefined question templates by role category | Template fallback ensures zero-cost when free tier is exhausted |
-| **Interview coaching feedback** (analyze candidate's practice answers) | `cohere/north-mini-code:free` | Rule-based STAR rubric feedback | Coaching is a candidate-facing feature — keep it free |
-| **Journey Mapping — skill extraction** (find hidden skills in project descriptions) | `google/gemma-4-26b-a4b-it:free` | Pattern-based skill dictionary lookup | LLM catches non-obvious skills; dictionary catches obvious ones for free |
-| **Journey Mapping — career story generation** (dynamic narrative per job application) | `openrouter/free` router | Template-based narrative using extracted skills | Template fallback for high-volume scenarios |
-| **Bias audit** (check ranking rationale for biased language) | `cohere/north-mini-code:free` | Deterministic keyword check (flag terms like "culture fit" without evidence) | Bias audit is a compliance feature — runs offline/deterministic where possible |
+| **Resume/JD parsing** (extract skills, experience, education from text) | `deepseek-v4.1-flash` | spaCy NER (offline, no API cost) | Structured extraction — needs good instruction-following |
+| **Candidate-job matching** (semantic similarity score 0-100) | `deepseek-v4.1-flash` (explanation only) | pgvector cosine similarity (no AI cost — pure vector math) | First try pgvector; use LLM for nuanced qualitative match explanation |
+| **Interview question generation** (structured Q pack per role) | `deepseek-v4.1-flash` | Predefined question templates by role category | Template fallback ensures zero AI cost when the budget is exhausted |
+| **Interview coaching feedback** (analyze candidate's practice answers) | `deepseek-v4.1-flash` | Rule-based STAR rubric feedback | Coaching is candidate-facing — the offline fallback keeps it available at zero AI cost |
+| **Journey Mapping — skill extraction** (find hidden skills in project descriptions) | `deepseek-v4.1-flash` | Pattern-based skill dictionary lookup | LLM catches non-obvious skills; the dictionary catches obvious ones without an API call |
+| **Journey Mapping — career story generation** (dynamic narrative per job application) | `deepseek-v4.1-flash` | Template-based narrative using extracted skills | Template fallback for high-volume scenarios |
+| **Bias audit** (check ranking rationale for biased language) | `deepseek-v4.1-flash` | Deterministic keyword check (flag terms like "culture fit" without evidence) | Bias audit is a compliance feature — runs offline/deterministic where possible |
 
 ### 6.3 Cost Management Strategy
 
@@ -443,26 +440,27 @@ Candidate submits resume PDF
 
 class TieredAIProvider:
     """
-    Uses cheapest available option first, escalates only when needed.
-    Never uses a paid model without explicit override.
+    Uses the hosted model when a key is configured, and the offline fallback
+    otherwise. Never makes a hosted call without an explicit task budget.
     """
-    
+
     def __init__(self):
-        self.free_client = OpenRouterClient(model="openrouter/free")
-        self.paid_client = OpenRouterClient()  # configured but not used by default
-    
-    def parse_resume(self, text: str, use_paid: bool = False):
-        if use_paid:
-            return self.paid_client.chat(model="google/gemma-4-26b-a4b-it", ...)
-        return self.free_client.chat(model="openai/gpt-oss-20b:free", ...)
+        self.client = DeepSeekClient(model="deepseek-v4.1-flash")
+        self.fallback_client = OfflineFallbackProvider()  # used when the API is unavailable
+
+    def parse_resume(self, text: str):
+        return self.client.chat_completion(
+            messages=[{"role": "user", "content": text}],
+            model="deepseek-v4.1-flash",
+        )
     
     def estimate_cost(self, task: str, token_estimate: int) -> float:
         """Return estimated cost in cents — show this to employer BEFORE processing."""
-        # Free tier: $0. Paid models: look up from OpenRouter pricing API.
+        # Usage-based: look up the current tariff from the DeepSeek pricing API.
         ...
 ```
 
-**Key principle: show employers the cost before they confirm processing.** CandiSift does this — we adopt it. An employer uploads 100 resumes, sees "this batch will cost $0.00 (free tier) or $0.15 (if we need Gemma 4 for nuanced scoring)" and confirms.
+**Key principle: show employers the cost before they confirm processing.** CandiSift does this — we adopt it. An employer uploads 100 resumes, sees "this batch will cost $0.00 with the offline fallback, or the live hosted estimate for 5-10 DeepSeek calls" and confirms.
 
 ### 6.4 AI Architecture — Abstraction Layer
 
@@ -471,7 +469,7 @@ class TieredAIProvider:
 from abc import ABC, abstractmethod
 
 class AIProvider(ABC):
-    """Swap OpenRouter for any other provider without touching business logic."""
+    """Swap DeepSeek for any other provider without touching business logic."""
     
     @abstractmethod
     def chat_completion(self, messages: list[dict], model: str, 
@@ -480,11 +478,11 @@ class AIProvider(ABC):
     @abstractmethod
     def embed(self, text: str) -> list[float]: ...
 
-class OpenRouterProvider(AIProvider):
+class DeepSeekProvider(AIProvider):
     def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
+        self.client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com/v1")
     
-    def chat_completion(self, messages, model="openrouter/free", max_tokens=1024):
+    def chat_completion(self, messages, model="deepseek-v4.1-flash", max_tokens=1024):
         return self.client.chat.completions.create(model=model, messages=messages, 
                                                    max_tokens=max_tokens)
     
@@ -493,7 +491,7 @@ class OpenRouterProvider(AIProvider):
         ...
 
 class OfflineSpaCyProvider(AIProvider):
-    """Zero-cost fallback when API is unavailable or free tier exhausted."""
+    """Zero-cost fallback when the API is unavailable or the account budget is exhausted."""
     def __init__(self):
         import spacy
         self.nlp = spacy.load("en_core_web_sm")
@@ -509,7 +507,7 @@ class OfflineSpaCyProvider(AIProvider):
         return model.encode(text).tolist()
 ```
 
-**Why this abstraction matters:** If OpenRouter changes pricing or a better free provider emerges (e.g., a new aggregator), we swap one class. Business logic, views, Celery tasks — none of them change.
+**Why this abstraction matters:** If DeepSeek changes pricing or a better provider emerges, we swap one class. Business logic, views, Celery tasks — none of them change.
 
 ### 6.5 pgvector for Semantic Matching (Zero-AI-Cost Matching)
 
@@ -539,10 +537,10 @@ def embed_job_description(text: str) -> list[float]:
 **Matching pipeline (cost-optimized):**
 1. **Deterministic hard filters** (free) — location, visa status, minimum years, required certifications — reject immediately
 2. **pgvector cosine similarity** (free — offline model) — rank remaining candidates by semantic similarity
-3. **LLM qualitative analysis** (free OpenRouter tier) — for top N candidates only (e.g., top 20), generate the evidence-cited breakdown: which skills matched, which were missing, why this candidate is a strong fit
+3. **LLM qualitative analysis** (hosted DeepSeek API) — for top N candidates only (e.g., top 20), generate the evidence-cited breakdown: which skills matched, which were missing, why this candidate is a strong fit
 4. **Bias audit** (free) — check the LLM's rationale for problematic language before showing to recruiter
 
-This funnel means: 100 resumes → maybe 20 pass hard filters → pgvector ranks all 20 → LLM analyzes top 5-10. That's 5-10 AI calls per job post, not 100. Well within free tier limits.
+This funnel means: 100 resumes → maybe 20 pass hard filters → pgvector ranks all 20 → LLM analyzes top 5-10. That's 5-10 AI calls per job post, not 100. Well within the provider's rate limits.
 
 ---
 
@@ -590,7 +588,7 @@ Create Job Posting:
   ├─ Nice-to-have skills
   ├─ Experience level
   ├─ Screening questions (AI-suggested, editor-customizable)
-  └─ AI model preference: "Auto (free tier)" / "Best available (paid)"
+  └─ AI model preference: "Auto (hosted, with offline fallback)" / "Offline only"
     │
     ▼
 Post Job → Share link / embed on career page
@@ -599,7 +597,7 @@ Post Job → Share link / embed on career page
 Candidates Apply → PII stripped → Celery task queues:
   ├─ Hard filter (location, visa, certs) — free, instant
   ├─ pgvector embedding + similarity ranking — free, ~seconds
-  └─ LLM deep analysis on top N — free OpenRouter tier
+  └─ LLM deep analysis on top N — hosted DeepSeek API
     │
     ▼
 Screening Dashboard:
@@ -879,9 +877,9 @@ class AuditLogEntry(models.Model):
 
 ### Phase 2: AI Integration (Weeks 4-6) — The Core Value
 
-**Goal:** AI-powered screening with free-tier OpenRouter. PII stripping. Explainable rankings.
+**Goal:** AI-powered screening with the DeepSeek API. PII stripping. Explainable rankings.
 
-- [ ] Implement `ai/providers.py` — OpenRouterProvider + OfflineFallbackProvider
+- [ ] Implement `ai/providers.py` — DeepSeekProvider + OfflineFallbackProvider
 - [ ] Implement PII stripping pipeline (regex + spaCy NER) on resume upload
 - [ ] Implement `matching/vectorize.py` — sentence-transformers embedding, store in pgvector
 - [ ] Implement Celery task: `screen_applications(job_id)` — hard filter → pgvector rank → LLM analyze top N
@@ -971,7 +969,7 @@ celery >= 5.3
 redis >= 5.0
 
 # AI / ML
-openai >= 1.0  # OpenRouter SDK (OpenAI-compatible)
+openai >= 1.0  # DeepSeek SDK (OpenAI-compatible)
 sentence-transformers >= 2.0  # pgvector embeddings (offline, free)
 spacy >= 3.7  # PII detection NER (offline, free)
 cryptography >= 42.0  # AES-256-GCM field encryption
@@ -1024,7 +1022,7 @@ sphinx >= 8.2  # documentation generation
 
 | Key | Purpose | Cost |
 |---|---|---|
-| **OpenRouter API key** | All AI calls (free tier covers development + early production) | Free |
+| **DeepSeek API key** | All AI calls (usage-based; a small balance covers development) | Paid |
 | **Stripe API keys** (Phase 5) | Billing for premium plans (current path: bKash/SSLCommerz) | Free (test mode) |
 | **SendGrid / Resend / AWS SES API key** | Transactional emails (application confirmations, interview invites) | Free tier available (Resend: 3,000 emails/month free) |
 | **Sentry DSN** | Error tracking | Free (10K errors/month free) |
@@ -1035,7 +1033,7 @@ sphinx >= 8.2  # documentation generation
 |---|---|---|
 | Sardar Shihab | Full-Stack Engineer | Django templates/HTMX UI, TailwindCSS, interactive journey mapping charts, responsive design; backend endpoints as needed |
 | Arnob Biswas Antu | Frontend Engineer | Employer dashboard UI, application review interface, interview scheduling UI, real-time status updates |
-| Ishrak Hossain | Backend & AI Engineer | Django backend, DRF API, Celery tasks, OpenRouter AI integration, PII stripping, pgvector matching, security implementation |
+| Ishrak Hossain | Backend & AI Engineer | Django backend, DRF API, Celery tasks, DeepSeek AI integration, PII stripping, pgvector matching, security implementation |
 | Mohammad Abdul Ahad | UI/UX Designer | Design system ownership — colour, type and spacing tokens, component library, accessibility (WCAG 2.1 AA), candidate journey wireframes, employer dashboard UX, Journey Mapping interactive timeline design |
 
 **Missing role:** DevOps/Infrastructure — initially handled by Ishrak Hossain (backend engineer). When scaling, add or outsource.
@@ -1043,12 +1041,12 @@ sphinx >= 8.2  # documentation generation
 ### 10.5 Estimated Timeline to MVP
 
 - **Week 1-3:** Phase 1 — working Django app with job posting + application (no AI)
-- **Week 4-6:** Phase 2 — AI screening with OpenRouter free tier
+- **Week 4-6:** Phase 2 — AI screening with the DeepSeek API
 - **Week 7-9:** Phase 3 — candidate AI features (assessments, text-only coaching with STAR rubric, resource links, journey mapping MVP)
 - **Week 10-12:** Phase 4 — security hardening, production deployment
 - **Week 13+:** Phase 5 — advanced features, billing, mobile
 
-**MVP definition:** Employer can post a job, candidates can apply with a resume, AI screens and ranks applicants with explainable scores using free-tier AI, candidates see their match scores and get interview coaching. That's Phase 1-3, ~9 weeks. (The team is **5 people**, not 4 — corrected 2026-10-03; §10.4 and `FAIRFOLD_Feasibility_and_Design.md` §2.7.3 both list five. Phase durations assume a focused team and are unaffected.)
+**MVP definition:** Employer can post a job, candidates can apply with a resume, AI screens and ranks applicants with explainable scores using low-cost hosted AI with an offline fallback, candidates see their match scores and get interview coaching. That's Phase 1-3, ~9 weeks. (The team is **5 people**, not 4 — corrected 2026-10-03; §10.4 and `FAIRFOLD_Feasibility_and_Design.md` §2.7.3 both list five. Phase durations assume a focused team and are unaffected.)
 
 ---
 
@@ -1079,7 +1077,7 @@ The following projects informed this architecture. We studied their strengths an
 | Metric | Target | How We Beat Competitors |
 |---|---|---|
 | **Time-to-screen** | < 5 minutes for 100 applications | Eightfold/HireVue require 6-12 month implementation; we're instant |
-| **Cost per hire** | < $50 for AI screening (vs. $35K+/year for HireVue) | Our free tier means $0 for first 50 req/day; paid only when volume exceeds free tier |
+| **Cost per hire** | < $50 for AI screening (vs. $35K+/year for HireVue) | Our free plan includes 50 AI screens; hosted calls are usage-based and the offline fallback keeps marginal AI cost near zero |
 | **Candidate satisfaction** | > 80% would recommend | No competitor gives candidates AI coaching + journey mapping — we do |
 | **Bias audit pass rate** | 100% of AI rationales pass bias audit | Every competitor has some bias risk; we audit every rationale before showing it |
 | **Data breach incidents** | Zero | PII never reaches AI providers; field-level encryption; audit logging — most competitors send full profiles to third-party AI |
@@ -1092,10 +1090,10 @@ The following projects informed this architecture. We studied their strengths an
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| **OpenRouter free tier changes or is removed** | Medium | High | Abstraction layer (AIProvider interface) makes switching providers a one-class change. Offline spaCy + pgvector matching works without ANY AI API. Start with offline-first for matching. |
+| **DeepSeek API outage, pricing or model change** | Medium | High | Abstraction layer (AIProvider interface) makes switching providers a one-class change. Offline spaCy + pgvector matching works without ANY AI API. Start with offline-first for matching. |
 | **LLM hallucinations in match rationale** | Medium | Medium | Evidence-cited format: LLM must cite specific resume text for each claim. If no evidence, rationale says "no evidence found" rather than fabricating. Human recruiter reviews before acting on AI score. |
 | **Resume parsing accuracy** | Medium | Medium | Fallback: candidates can manually edit their parsed profile. Manual + AI hybrid. IBM Granite Docling (used by candidacy) achieves 85-95% — we can integrate it later if needed. |
-| **Scaling beyond free tier** | High (eventual) | Medium | Tiered model: free tier → cheap OpenRouter models ($0.06-0.10/1M tokens) → self-hosted open model (OLMo, Llama 3.1 8B via vLLM) when volume justifies hardware cost |
+| **Scaling beyond the hosted-AI budget** | High (eventual) | Medium | Tiered model: hosted DeepSeek → a cheaper/smaller model → self-hosted open model (OLMo, Llama 3.1 8B via vLLM) when volume justifies hardware cost |
 | **Data breach** | Low | Critical | Defense-in-depth from Section 5. Encryption at rest + in transit. PII stripped before any external service. Regular security audits. Bug bounty program once production live. |
 | **Competitors copy Journey Mapping feature** | Low (short term) | Medium | Journey Mapping requires deep integration of parsing + timeline + storytelling + per-application narrative — it's a system, not a feature. By the time a competitor builds it, we have data and network effects from candidates who've built their journeys on our platform. |
 
@@ -1111,8 +1109,8 @@ The following projects informed this architecture. We studied their strengths an
 
 | Scenario | Behavior | User-Facing Outcome |
 |---|---|---|
-| OpenRouter API returns 429 (rate limit) | Celery task retries with exponential backoff (3 retries: 5s, 15s, 45s); if still failing, falls back to pgvector-only scoring without LLM rationale | Employer sees "AI analysis delayed, using semantic similarity only" badge |
-| OpenRouter API returns 503/500 | `ManagedException` raised in `ai/providers.py`; Celery retries with circuit breaker; after 3 failures, switches to offline fallback (spaCy NER + keyword matching) | Same as rate limit: semantic-only matching, no LLM rationale |
+| DeepSeek API returns 429 (rate limit) | Celery task retries with exponential backoff (3 retries: 5s, 15s, 45s); if still failing, falls back to pgvector-only scoring without LLM rationale | Employer sees "AI analysis delayed, using semantic similarity only" badge |
+| DeepSeek API returns 503/500 | `ManagedException` raised in `ai/providers.py`; Celery retries with circuit breaker; after 3 failures, switches to offline fallback (spaCy NER + keyword matching) | Same as rate limit: semantic-only matching, no LLM rationale |
 | Resume file fails MIME validation | Rejected immediately with user-facing error: "Invalid file type. Please upload PDF, DOC, or DOCX." | File not stored; user can retry |
 | Virus scan detects malware | File quarantined, Celery task fails, Security team alerted via Sentry, AuditLogEntry records the block | User notified via email: "Your file was flagged for security review" |
 | AI rationale contains potential PII (leaked through PII stripping) | Post-processing filter catches it; rationale is re-stripped; AuditLogEntry records the leak attempt | Rationale shown is fully anonymized |
@@ -1127,7 +1125,7 @@ class AIServiceError(Exception):
     pass
 
 class AIRateLimitError(AIServiceError):
-    """OpenRouter free tier rate limit exceeded."""
+    """DeepSeek API rate limit exceeded."""
     pass
 
 class AIUnavailableError(AIServiceError):
@@ -1156,7 +1154,7 @@ Redis serves three distinct purposes per tier with different TTLs:
 | `job_embeddings:{job_id}` | 24 hours | pgvector embedding for job description | LRU |
 | `similarity_matrix:{job_id}` | 2 hours | Pre-computed candidate-job similarity scores | LRU |
 | `rate_limit:{user_id}:{endpoint}` | 15 minutes | Rate limit counters | TTL expiry |
-| `openrouter_quota:{day}` | 24 hours (midnight reset) | Free tier remaining quota tracker | TTL expiry |
+| `deepseek_quota:{day}` | 24 hours (midnight reset) | Remaining AI budget/usage tracker | TTL expiry |
 | `skill_taxonomy:v1` | 7 days (versioned) | Canonical skill name mappings (JS→JavaScript, etc.) | Versioned override |
 | `ai_response:{hash}` | 6 hours | Cached LLM responses keyed by prompt hash (deduplication) | LRU |
 
@@ -1164,7 +1162,7 @@ Redis serves three distinct purposes per tier with different TTLs:
 - Job update → invalidate `job_embeddings:{job_id}` and all `similarity_matrix:{job_id}`
 - Resume re-upload → invalidate `user_profile:{user_id}`
 - Skill update → invalidate `user_profile:{user_id}` (candidate side only)
-- Daily midnight → invalidate `openrouter_quota:{day}` (quota reset)
+- Daily midnight → invalidate `deepseek_quota:{day}` (quota reset)
 
 ### C.3 Monitoring & Alerting Thresholds (supplements §5.6)
 
@@ -1172,11 +1170,11 @@ Redis serves three distinct purposes per tier with different TTLs:
 |---|---|---|---|
 | Django 5xx error rate | > 5% over 5 min | Critical | PagerDuty to on-call engineer |
 | Celery task failure rate | > 15% over 10 min | Critical | PagerDuty; queue paused |
-| OpenRouter API error rate | > 20% over 5 min | High | Auto-switch to offline fallback |
+| DeepSeek API error rate | > 20% over 5 min | High | Auto-switch to offline fallback |
 | pgvector query latency | > 500ms avg over 10 requests | Warning | Investigate index performance |
 | Database connection pool | > 90% utilization for 2 min | Warning | Scale worker pool |
 | Redis memory usage | > 80% | Warning | Increase memory or purge old keys |
-| AI API cost (daily) | > $5 (paid tier breach) | Warning | Alert; auto-switch to free models |
+| AI API cost (daily) | > the configured budget | Warning | Alert; auto-switch to the offline fallback |
 | Suspicious login attempts | > 10 failed logins / IP / 15 min | Warning | Auto-block IP for 1 hour; notify user |
 | Audit log write failures | > 5 failures / 5 min | Critical | Halt processing; alert security team |
 | SSL/TLS certificate expiry | < 30 days | Warning | Auto-renew; alert if renewal fails |
@@ -1403,7 +1401,7 @@ jobs:
 | `REDIS_URL` | Yes | — | Redis connection string (`redis://:password@host:port/db`) |
 | `CELERY_BROKER_URL` | Yes | `redis://redis:6379/0` | Celery broker (message queue) |
 | `CELERY_RESULT_BACKEND` | Yes | `redis://redis:6379/1` | Celery result storage |
-| `OPENROUTER_API_KEY` | Yes (AI features) | — | OpenRouter API key for free tier models |
+| `DEEPSEEK_API_KEY` | Yes (AI features) | — | DeepSeek API key (model `deepseek-v4.1-flash`) |
 | `STRIPE_SECRET_KEY` | No (Phase 5) | — | Stripe secret key for billing |
 | `STRIPE_WEBHOOK_SECRET` | No (Phase 5) | — | Webhook signing secret |
 | `EMAIL_BACKEND_URL` | Yes | — | SMTP or API endpoint for transactional emails |
@@ -1448,7 +1446,7 @@ offers both, and choosing per-migration by judgement is how a schema diverges be
 2. **CI runs `makemigrations --check --dry-run`.** If a model change was made without its
    migration, the job fails. This is the only mechanism that actually enforces rule 1 in
    practice; without it, "generate before commit" is a habit rather than a rule.
-3. **No `RunPython` that calls an external service.** Backfills must not call OpenRouter,
+3. **No `RunPython` that calls an external service.** Backfills must not call DeepSeek,
    Redis, or the vector store. Re-embedding is a Celery task (§C.8.2), not a migration.
 
 #### C.8.2 Migrations that need a Celery task instead
@@ -1520,13 +1518,13 @@ role deliberately.
 - Containers: Rolling updates with health check wait; 3 replica minimum for Django + Celery
 - Embeddings: New and old models run side-by-side during transition; traffic switched via feature flag
 
-### C.9 OpenRouter Rate Limit Handling (supplements §6)
+### C.9 DeepSeek Rate Limit Handling (supplements §6)
 
-The OpenRouter free tier allows 20 req/min and 50 req/day. The system handles this through:
+DeepSeek returns `429` when an account's rate limit or balance is exhausted. The system handles this through:
 
-1. **Quota tracking** — Redis key `openrouter_quota:{YYYY-MM-DD}` tracks daily usage. Checked before every AI task. If exceeded, task falls back to offline strategy immediately without calling the API.
+1. **Quota tracking** — Redis key `deepseek_quota:{YYYY-MM-DD}` tracks daily usage. Checked before every AI task. If exceeded, task falls back to offline strategy immediately without calling the API.
 
-2. **Request queuing** — Celery tasks that need OpenRouter are queued with `queue="ai_high_priority"` (for top-N rationale) and `queue="ai_low_priority"` (for batch parsing). High-priority queue gets 80% of worker capacity when quota is low.
+2. **Request queuing** — Celery tasks that need DeepSeek are queued with `queue="ai_high_priority"` (for top-N rationale) and `queue="ai_low_priority"` (for batch parsing). High-priority queue gets 80% of worker capacity when quota is low.
 
 3. **Batch optimization** — Instead of 20 individual LLM calls for 20 resumes, batch them into fewer calls by combining multiple candidates' anonymized data into a single LLM prompt (reduces from 20 calls to 4 calls, each analyzing 5 candidates).
 
@@ -1536,7 +1534,7 @@ The OpenRouter free tier allows 20 req/min and 50 req/day. The system handles th
    - Level 2 (quota < 20% remaining): pgvector-only scoring, no LLM
    - Level 3 (quota exhausted): Offline spaCy NER + keyword matching only
 
-5. **Auto-refill prediction** — System monitors quota consumption rate and predicts when free tier will replenish; schedules heavy batch jobs during low-traffic hours.
+5. **Auto-refill prediction** — System monitors quota consumption rate and predicts when the account balance will run low; schedules heavy batch jobs during low-traffic hours.
 
 ### C.10 Internationalization (i18n) Strategy (supplements §7, §9 Phase 5)
 
@@ -2127,7 +2125,7 @@ POST  /api/v1/coaching/rate/                       # Submit candidate helpfulnes
 GET    /api/v1/admin/dashboard/                  # Admin dashboard stats
 GET    /api/v1/admin/users/                      # List all users
 GET    /api/v1/admin/audit-log/                  # Query audit logs
-GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
+GET    /api/v1/admin/ai-quota/                   # Check DeepSeek quota usage
 ```
 
 ### C.13 Testing Strategy (supplements §5.6, §10.2)
@@ -2138,7 +2136,7 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 | **Integration tests** | pytest, factory-boy | N/A (all integration paths) | API endpoints, Celery task execution, pgvector queries, email sending |
 | **Security tests** | bandit, pip-audit, OWASP ZAP | Zero critical/high vulnerabilities | SQL injection, XSS, CSRF, auth bypass, dependency vulnerabilities |
 | **Load tests** | Locust | 1000 concurrent users, < 2s response | API endpoints, job posting, application flow, AI screening |
-| **Contract tests** | pytest | All AI provider implementations | OpenRouterProvider and OfflineFallbackProvider return consistent response format |
+| **Contract tests** | pytest | All AI provider implementations | DeepSeekProvider and OfflineFallbackProvider return consistent response format |
 | **Accessibility tests** | axe-core, pa11y | WCAG 2.1 AA compliance | All HTML pages, form fields, keyboard navigation |
 | **i18n tests** | pytest-django i18n | All strings wrapped in gettext | String extraction, translation coverage |
 
@@ -2197,7 +2195,7 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 | **Enterprise** | $5,000/mo | Unlimited everything, custom embedding domain, white-label career site, SSO (SAML/OIDC), on-premises option, 24/7 support | Unlimited |
 | **Self-Hosted** | $0 (open source) / Custom support | Everything in Enterprise, deployed on your infrastructure | Requires ops team |
 
-**Overage pricing:** $0.0001 per additional AI call beyond quota (negligible — OpenRouter free tier covers most usage).
+**Overage pricing:** usage-based; the per-call cost is read from the provider's current tariff, never hard-coded.
 
 > **Conflict resolved 2026-10-03.** This table previously had **no Free employer tier**,
 > while `prd.md` §15.2 listed one ($0 · 3 jobs · 50 screens/mo) and the
@@ -2241,7 +2239,7 @@ GET    /api/v1/admin/ai-quota/                   # Check OpenRouter quota usage
 - [ ] LLM rationale generated for top 10 candidates per job
 - [ ] Deterministic keyword bias pass flags every seeded phrase in the versioned bias test set (set is a Phase 2 deliverable — do not claim a pass rate until it exists)
 - [ ] Employer sees ranked candidates with scores + evidence-cited rationales
-- [ ] Cost estimate shown before processing; $0.00 for free tier
+- [ ] Cost estimate shown before processing; $0.00 when the offline fallback is used
 - [ ] Audit entries logged for every AI scoring action
 
 **Phase 3 Acceptance Criteria:**
@@ -2371,7 +2369,7 @@ This addendum consolidates the five operational-procedure sections that were add
 - **Actions:**
   1. Engineer acknowledges alert in PagerDuty
   2. Switch to fallback systems (offline spaCy + pgvector for AI failures)
-  3. Check OpenRouter status page; if downtime, enable offline mode globally
+  3. Check the DeepSeek status page; if downtime, enable offline mode globally
   4. Scale Celery workers if queue backlog detected
   5. Post-resolution: document in incident log
 - **Communication:** `#oncall` Slack channel
@@ -2447,7 +2445,7 @@ A **Release Retrospective** is held after every production release:
 
 **Success Metrics Tracking (quarterly review):**
 - [ ] Time-to-screen for 100 applications (target: < 5 min) — tracked in Business dashboard
-- [ ] Cost per AI screening (target: $0.00 free tier) — tracked in Prometheus `ai_cost_total`
+- [ ] Cost per AI screening (target: $0.00 with the offline fallback; usage-based when hosted) — tracked in Prometheus `ai_cost_total`
 - [ ] Candidate satisfaction score (target: > 80%) — tracked via NPS survey (Phase 3)
 - [ ] Bias audit pass rate (target: 100%) — tracked in `audit_log_entries` table
 - [ ] Data breach incidents (target: 0) — tracked in Sentry security events

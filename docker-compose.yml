@@ -201,7 +201,10 @@ services:
       # in Compose means `cp .env.example .env && docker compose up` dies on an
       # interpolation error before the stack ever starts.
       SENTRY_DSN: ${SENTRY_DSN:-}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4.1-flash}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_TIMEOUT: ${DEEPSEEK_TIMEOUT:-120}
     ports:
       - "${DJANGO_PORT:-8000}:8000"
     volumes:
@@ -262,7 +265,10 @@ services:
       AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-us-east-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4.1-flash}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_TIMEOUT: ${DEEPSEEK_TIMEOUT:-120}
       # Optional locally — see the `django` service above.
       SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:

@@ -167,11 +167,20 @@ SENTRY_SEND_DEFAULT_PII = False  # the product handles candidate PII; do not shi
 
 
 # ---------------------------------------------------------------------------
-# AI provider — a missing key silently degrades every AI feature
+# AI provider — DeepSeek API (AD-003); a missing key silently degrades every
+# AI feature
 # ---------------------------------------------------------------------------
 
-OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", "")
-if not OPENROUTER_API_KEY:
+DEEPSEEK_API_KEY = env("DEEPSEEK_API_KEY", "")
+# DeepSeek serves an OpenAI-compatible API; the SDK appends
+# `/chat/completions` to this base URL.
+DEEPSEEK_BASE_URL = env("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+DEEPSEEK_MODEL = env("DEEPSEEK_MODEL", "deepseek-v4.1-flash")
+# Screening on the matching path is the slowest call in the system.
+DEEPSEEK_TIMEOUT = int(env("DEEPSEEK_TIMEOUT", "120"))
+AI_PROVIDER = "deepseek" if DEEPSEEK_API_KEY else "offline"
+
+if not DEEPSEEK_API_KEY:
     # Not raised. The documented fallback (OfflineFallbackProvider, Complete Doc
     # §6.4) returns deterministic non-AI responses, so the product still runs.
     # Raising here would make the whole site unavailable over a missing
@@ -179,16 +188,10 @@ if not OPENROUTER_API_KEY:
     import logging
 
     logging.getLogger("fairfold").warning(
-        "OPENROUTER_API_KEY is not set. Every AI feature will use "
+        "DEEPSEEK_API_KEY is not set. Every AI feature will use "
         "OfflineFallbackProvider and return deterministic non-AI responses. "
         "Screening will run but will not rank."
     )
-else:
-    AI_PROVIDER = "openrouter"
-    OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-    OPENROUTER_MODEL = env("OPENROUTER_MODEL", "anthropic/claude-sonnet-4")
-    # Screening on the matching path is the slowest call in the system.
-    OPENROUTER_TIMEOUT = int(env("OPENROUTER_TIMEOUT", "120"))
 
 
 # ---------------------------------------------------------------------------
