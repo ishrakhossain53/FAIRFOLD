@@ -31,7 +31,7 @@ def slim(text: str, phase: str) -> str:
     m = re.search(r"^# Batch ", text, re.M)
     if not m:
         raise ValueError("no '# Batch' heading")
-    body = text[m.start() :]
+    body = text[m.start():]
     # split into sections at '## ' headings; first chunk is the title block
     parts = re.split(r"(?m)^(?=## )", body)
     kept = [parts[0]]
@@ -65,9 +65,7 @@ def main() -> int:
         changed += 1
         if not dry:
             p.write_text(new, encoding="utf-8")
-    print(
-        f"{len(files)} phase 2-5 specs, {changed} {'would change' if dry else 'rewritten'}"
-    )
+    print(f"{len(files)} phase 2-5 specs, {changed} {'would change' if dry else 'rewritten'}")
     print(f"bytes before {before}, after {after}, saved {before - after}")
     return 0
 
